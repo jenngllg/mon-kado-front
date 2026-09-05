@@ -22,4 +22,16 @@ export default [
       sourceType: "module",
     },
   },
+  {
+    files: [
+      "tests/actionLink.test.js",
+      "tests/button.test.js",
+      "tests/feedbackComponents.test.js",
+      "tests/formField.test.js",
+      "tests/notification.test.js",
+    ],
+    languageOptions: {
+      globals: globals.browser,
+    },
+  },
 ];

@@ -88,6 +88,44 @@ et privilégient les dimensions fluides. Les primitives disponibles sont :
 Les animations sont automatiquement neutralisées lorsque l’utilisateur active
 la préférence système de réduction des mouvements.
 
+## Composants communs
+
+Les factories exportées par `src/components/index.js` retournent directement
+des éléments DOM et n’interprètent jamais de chaîne comme du HTML. La
+bibliothèque fournit :
+
+- `createButton()` et `setButtonLoading()` ;
+- `createActionLink()` ;
+- `createFormField()`, `createValidationMessage()` et
+  `setFormFieldValidation()` ;
+- `createAlert()`, `createEmptyState()` et `createLoadingState()` ;
+- `createNotificationRegion()`, `showNotification()` et
+  `dismissNotification()`.
+
+Les notifications d’information et de succès disparaissent après cinq
+secondes. Les avertissements restent huit secondes et les erreurs restent
+affichées jusqu’à leur fermeture. Le compte à rebours est suspendu tant que la
+notification est survolée ou contient le focus.
+
+Tout composant enregistrant un événement ou un timer inscrit son nettoyage dans
+un registre commun. Appeler `disposeComponent(element)` avant d’abandonner un
+sous-arbre DOM libère récursivement ces ressources sans retirer l’élément :
+
+```js
+import {
+  createButton,
+  disposeComponent,
+} from "./components/index.js";
+
+const button = createButton({
+  label: "Créer une liste",
+  onClick: () => openCreateWishlist(),
+});
+
+disposeComponent(button);
+button.remove();
+```
+
 ## Client API
 
 Le client commun est exporté depuis `src/api/index.js`. Il reçoit ses
@@ -161,6 +199,6 @@ accessible localement sur <http://localhost:5173>.
 
 ## Périmètre actuel
 
-Ce dépôt contient le socle frontend, ses fondations graphiques et sa couche HTTP
-commune. Les composants d’interface, la navigation, les fonctionnalités métier,
+Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
+communs et sa couche HTTP. La navigation, les fonctionnalités métier,
 l’intégration continue et le déploiement sont traités dans leurs US dédiées.

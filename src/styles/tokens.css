@@ -68,6 +68,9 @@
   --content-wide: 90rem;
   --content-gutter: clamp(1rem, 4vw, 3.75rem);
   --text-measure: 65ch;
+  --control-min-size: 2.75rem;
+  --notification-width: 24rem;
+  --z-index-notification: 1000;
 
   --motion-duration-fast: 160ms;
   --motion-duration-normal: 240ms;

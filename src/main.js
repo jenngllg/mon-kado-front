@@ -4,6 +4,7 @@ import {
   createPublicConfiguration,
   PublicConfigurationError,
 } from "./config/environment.js";
+import { createAlert } from "./components/index.js";
 import { installGlobalErrorHandlers } from "./errors/index.js";
 
 const applicationRoot = document.querySelector("#app");
@@ -84,21 +85,14 @@ function renderGlobalError(root, error) {
 function renderErrorCard(root, title, message, correlationId) {
   const section = document.createElement("section");
   section.className = "startup-card startup-card--error flow";
-  section.setAttribute("role", "alert");
-
-  const heading = document.createElement("h1");
-  heading.textContent = title;
-
-  const description = document.createElement("p");
-  description.textContent = message;
-  section.append(heading, description);
-
-  if (correlationId !== null) {
-    const reference = document.createElement("p");
-    reference.className = "startup-card__status";
-    reference.textContent = `Référence : ${correlationId}`;
-    section.append(reference);
-  }
+  const alert = createAlert({
+    title,
+    message,
+    detail: correlationId === null ? null : `Référence : ${correlationId}`,
+    variant: "error",
+    headingLevel: 1,
+  });
+  section.append(alert);
 
   root.replaceChildren(section);
 }

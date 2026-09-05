@@ -5,6 +5,7 @@ const entryStyles = readStyleFile("../src/styles.css");
 const tokens = readStyleFile("../src/styles/tokens.css");
 const baseStyles = readStyleFile("../src/styles/base.css");
 const layoutStyles = readStyleFile("../src/styles/layout.css");
+const componentStyles = readStyleFile("../src/styles/components.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
@@ -15,6 +16,7 @@ describe("graphic foundations", () => {
       "tokens.css",
       "base.css",
       "layout.css",
+      "components.css",
       "startup.css",
       "utilities.css",
     ];
@@ -76,6 +78,25 @@ describe("graphic foundations", () => {
     // Assert
     expect(supportsReducedMotion).toBe(true);
     expect(supportsVisuallyHiddenContent).toBe(true);
+  });
+
+  it.each([
+    ".ui-button",
+    ".action-link",
+    ".form-field",
+    ".ui-alert",
+    ".empty-state",
+    ".loading-state",
+    ".notification-region",
+  ])("provides the %s component styles", (className) => {
+    // Arrange
+    const expectedClass = className;
+
+    // Act
+    const classIsDefined = componentStyles.includes(expectedClass);
+
+    // Assert
+    expect(classIsDefined).toBe(true);
   });
 });
 

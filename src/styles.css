@@ -4,5 +4,6 @@
 @import "./styles/tokens.css" layer(tokens);
 @import "./styles/base.css" layer(base);
 @import "./styles/layout.css" layer(layout);
+@import "./styles/components.css" layer(components);
 @import "./styles/startup.css" layer(components);
 @import "./styles/utilities.css" layer(utilities);
