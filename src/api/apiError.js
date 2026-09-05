@@ -3,10 +3,7 @@
  */
 
 /**
- * @typedef {Readonly<{
- *   propertyName: string | null,
- *   errorMessage: string | null
- * }>} ApiValidationError
+ * @typedef {import("./generated/openapi.js").components["schemas"]["ValidationError"]} ApiValidationError
  */
 
 /**
@@ -18,7 +15,7 @@ export class ApiError extends Error {
    *   kind: ApiErrorKind,
    *   statusCode?: number | null,
    *   errorCode?: string | null,
-   *   validationErrors?: ApiValidationError[],
+   *   validationErrors?: ReadonlyArray<ApiValidationError>,
    *   correlationId?: string | null,
    *   retryAfterSeconds?: number | null
    * }} details Normalized failure details.

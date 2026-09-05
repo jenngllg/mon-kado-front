@@ -9,6 +9,14 @@ const DefaultTimeoutMilliseconds = 15_000;
 const JsonContentType = "application/json";
 
 /**
+ * @typedef {import("./generated/openapi.js").components["schemas"]["ErrorResponse"]} ErrorResponse
+ */
+
+/**
+ * @typedef {import("./generated/openapi.js").components["schemas"]["ValidationError"]} ValidationError
+ */
+
+/**
  * @typedef {"none" | "optional" | "required"} AuthenticationMode
  */
 
@@ -659,14 +667,7 @@ function parseRetryAfter(value) {
  * @returns {{ errorCode: string | null, validationErrors: import("./apiError.js").ApiValidationError[] } | null} Parsed error response.
  */
 function parseErrorResponse(value, responseStatus) {
-  if (
-    !isRecord(value) ||
-    value.statusCode !== responseStatus ||
-    !isNullableString(value.title) ||
-    !isNullableString(value.message) ||
-    !isNullableString(value.errorCode) ||
-    !isValidationErrorCollection(value.validationErrors)
-  ) {
+  if (!isErrorResponse(value, responseStatus)) {
     return null;
   }
 
@@ -679,6 +680,20 @@ function parseErrorResponse(value, responseStatus) {
         errorMessage: validationError.errorMessage,
       })),
   };
+}
+
+/**
+ * @param {unknown} value Potential structured API error.
+ * @param {number} responseStatus Actual HTTP status.
+ * @returns {value is ErrorResponse} Whether the error matches the generated contract.
+ */
+function isErrorResponse(value, responseStatus) {
+  return isRecord(value) &&
+    value.statusCode === responseStatus &&
+    isNullableString(value.title) &&
+    isNullableString(value.message) &&
+    isNullableString(value.errorCode) &&
+    isValidationErrorCollection(value.validationErrors);
 }
 
 /**
@@ -699,7 +714,7 @@ function isNullableString(value) {
 
 /**
  * @param {unknown} value Potential validation errors.
- * @returns {value is Array<{ propertyName: string | null, errorMessage: string | null }> | null} Whether the value has the expected shape.
+ * @returns {value is ValidationError[] | null} Whether the value has the expected shape.
  */
 function isValidationErrorCollection(value) {
   return value === null || (

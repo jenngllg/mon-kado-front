@@ -250,6 +250,41 @@ Le client ne rejoue pas automatiquement les erreurs réseau, `429` ou `5xx`.
 Seule une erreur antiforgery `400` non structurée peut être rejouée une fois,
 après renouvellement du jeton CSRF.
 
+## Types du contrat OpenAPI
+
+Le backend doit exposer son contrat OpenAPI v1. L’URL utilisée par défaut est
+`http://localhost:7000/openapi/v1.json`. Pour utiliser un autre environnement,
+définir `MONKADO_OPENAPI_URL` avant la commande :
+
+```powershell
+$env:MONKADO_OPENAPI_URL = "http://localhost:8080/openapi/v1.json"
+pnpm api:types
+```
+
+Cette variable configure uniquement l’outil Node. Elle n’est pas préfixée par
+`VITE_` et n’est donc jamais intégrée au bundle navigateur. L’URL doit être
+absolue, utiliser HTTP ou HTTPS et ne pas contenir d’identifiants. Le
+téléchargement expire après 30 secondes et n’est jamais rejoué automatiquement.
+
+La génération produit `src/api/generated/openapi.d.ts`, qui est versionné et
+ne doit pas être modifié manuellement :
+
+```shell
+pnpm api:types
+pnpm api:types:check
+```
+
+La seconde commande ne modifie aucun fichier. Elle échoue si le fichier est
+absent ou si le contrat et les types versionnés diffèrent. Les types sont
+utilisables depuis JavaScript avec JSDoc, sans import runtime :
+
+```js
+/** @typedef {import("./api/generated/openapi.js").components["schemas"]["ErrorResponse"]} ErrorResponse */
+```
+
+La génération fournit exclusivement des déclarations TypeScript. Le client
+HTTP commun reste écrit et contrôlé manuellement.
+
 ## Contrôles qualité
 
 ```shell

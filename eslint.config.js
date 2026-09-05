@@ -15,7 +15,7 @@ export default [
     },
   },
   {
-    files: ["tests/**/*.js", "vite.config.js"],
+    files: ["tools/**/*.js", "tests/**/*.js", "vite.config.js"],
     languageOptions: {
       ecmaVersion: "latest",
       globals: globals.node,

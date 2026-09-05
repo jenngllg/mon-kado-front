@@ -9,15 +9,18 @@
     "pnpm": ">=11 <12"
   },
   "scripts": {
+    "api:types": "node tools/openapi-types/generate-api-types.js",
+    "api:types:check": "node tools/openapi-types/generate-api-types.js --check",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit -p jsconfig.json"
+    "typecheck": "tsc --noEmit -p jsconfig.json && tsc --noEmit -p jsconfig.node.json"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/node": "24.13.3",
     "eslint": "10.9.1",
     "globals": "17.12.0",
     "happy-dom": "20.14.0",
