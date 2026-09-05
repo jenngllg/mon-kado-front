@@ -4,8 +4,12 @@ import {
   createPublicConfiguration,
   PublicConfigurationError,
 } from "./config/environment.js";
-import { createAlert } from "./components/index.js";
+import {
+  createActionLink,
+  createAlert,
+} from "./components/index.js";
 import { installGlobalErrorHandlers } from "./errors/index.js";
+import { createRouter } from "./router/index.js";
 
 const applicationRoot = document.querySelector("#app");
 
@@ -13,14 +17,9 @@ if (!(applicationRoot instanceof HTMLElement)) {
   throw new Error("The application root element is missing.");
 }
 
-installGlobalErrorHandlers({
-  target: window,
-  presentError: (error) => renderGlobalError(applicationRoot, error),
-});
-
 try {
   const configuration = createPublicConfiguration(import.meta.env);
-  renderApplication(applicationRoot, configuration);
+  startApplication(applicationRoot, configuration);
 } catch (error) {
   renderStartupError(applicationRoot, error);
 }
@@ -29,7 +28,40 @@ try {
  * @param {HTMLElement} root Application root element.
  * @param {Readonly<{ apiBaseUrl: string }>} configuration Public configuration.
  */
-function renderApplication(root, configuration) {
+function startApplication(root, configuration) {
+  const router = createRouter({
+    outlet: root,
+    routes: [
+      {
+        name: "home",
+        path: "/",
+        title: "MonKado",
+        render: () => createStartupView(configuration),
+      },
+    ],
+    renderNotFound: createNotFoundView,
+    renderError: createApplicationErrorView,
+  });
+  const removeGlobalErrorHandlers = installGlobalErrorHandlers({
+    target: window,
+    presentError: router.presentError,
+  });
+
+  if (import.meta.hot !== undefined) {
+    import.meta.hot.dispose(() => {
+      removeGlobalErrorHandlers();
+      router.dispose();
+    });
+  }
+
+  void router.start();
+}
+
+/**
+ * @param {Readonly<{ apiBaseUrl: string }>} configuration Public configuration.
+ * @returns {HTMLElement} Startup view.
+ */
+function createStartupView(configuration) {
   const section = document.createElement("section");
   section.className = "startup-card flow";
 
@@ -49,7 +81,8 @@ function renderApplication(root, configuration) {
   apiStatus.textContent = `API configurée : ${configuration.apiBaseUrl}`;
 
   section.append(eyebrow, heading, description, apiStatus);
-  root.replaceChildren(section);
+
+  return section;
 }
 
 /**
@@ -59,17 +92,20 @@ function renderApplication(root, configuration) {
 function renderStartupError(root, error) {
   const message = error instanceof PublicConfigurationError
     ? error.message
-    : "An unexpected startup error occurred.";
-  renderErrorCard(root, "MonKado ne peut pas démarrer", message, null);
+    : "Une erreur inattendue empêche le démarrage.";
+  root.replaceChildren(createErrorView(
+    "MonKado ne peut pas démarrer",
+    message,
+    null,
+  ));
 }
 
 /**
- * @param {HTMLElement} root Application root element.
  * @param {import("./errors/errorMessages.js").UserFacingError} error Safe UI error.
+ * @returns {HTMLElement} Safe application error view.
  */
-function renderGlobalError(root, error) {
-  renderErrorCard(
-    root,
+function createApplicationErrorView(error) {
+  return createErrorView(
     error.title,
     error.message,
     error.correlationId,
@@ -77,12 +113,12 @@ function renderGlobalError(root, error) {
 }
 
 /**
- * @param {HTMLElement} root Application root element.
  * @param {string} title Error title.
  * @param {string} message Error message.
  * @param {string | null} correlationId Optional support reference.
+ * @returns {HTMLElement} Error view.
  */
-function renderErrorCard(root, title, message, correlationId) {
+function createErrorView(title, message, correlationId) {
   const section = document.createElement("section");
   section.className = "startup-card startup-card--error flow";
   const alert = createAlert({
@@ -94,5 +130,32 @@ function renderErrorCard(root, title, message, correlationId) {
   });
   section.append(alert);
 
-  root.replaceChildren(section);
+  return section;
+}
+
+/**
+ * @returns {HTMLElement} Accessible not-found view.
+ */
+function createNotFoundView() {
+  const section = document.createElement("section");
+  section.className = "startup-card flow";
+
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "startup-card__eyebrow";
+  eyebrow.textContent = "Erreur 404";
+
+  const heading = document.createElement("h1");
+  heading.textContent = "Page introuvable";
+
+  const description = document.createElement("p");
+  description.textContent =
+    "Cette page n’existe pas ou a peut-être été déplacée.";
+
+  const homeLink = createActionLink({
+    label: "Revenir à l’accueil",
+    href: "/",
+  });
+  section.append(eyebrow, heading, description, homeLink);
+
+  return section;
 }

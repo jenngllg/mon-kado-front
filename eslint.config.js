@@ -29,6 +29,7 @@ export default [
       "tests/feedbackComponents.test.js",
       "tests/formField.test.js",
       "tests/notification.test.js",
+      "tests/router.test.js",
     ],
     languageOptions: {
       globals: globals.browser,

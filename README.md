@@ -126,6 +126,53 @@ disposeComponent(button);
 button.remove();
 ```
 
+## Navigation frontend
+
+Le routeur SPA commun est exporté depuis `src/router/index.js`. Il utilise la
+History API et conserve des URLs propres sans dépendance externe. Une route
+nommée fournit un chemin, un titre et une factory retournant un élément DOM,
+directement ou dans une promesse :
+
+```js
+import { createRouter } from "./router/index.js";
+
+const router = createRouter({
+  outlet: document.querySelector("#app"),
+  routes: [
+    {
+      name: "home",
+      path: "/",
+      title: "MonKado",
+      render: () => createHomeView(),
+    },
+  ],
+  renderNotFound: () => createNotFoundView(),
+  renderError: (error) => createErrorView(error),
+});
+
+await router.start();
+```
+
+Les chemins acceptent les paramètres obligatoires comme
+`/lists/:listId`. La factory reçoit l’URL, les paramètres décodés, la query
+string, un `AbortSignal` et la fonction `navigate()`. Une garde
+`beforeEnter()` peut être synchrone ou asynchrone et rediriger en retournant
+`{ redirectTo: "/login" }`. Une redirection remplace l’entrée courante par
+défaut ; définir `replace: false` ajoute une nouvelle entrée à l’historique.
+
+Le routeur intercepte uniquement les liens de même origine compatibles avec
+une navigation SPA. Les liens externes, téléchargements, fragments locaux,
+clics modifiés et liens avec une autre cible restent gérés par le navigateur.
+
+`subscribe()` retourne une fonction de désabonnement idempotente. `dispose()`
+annule la navigation active, retire les écouteurs et libère récursivement les
+ressources de la vue avec `disposeComponent()`, sans retirer son DOM.
+
+En production, l’hébergement doit renvoyer `index.html` pour tout chemin qui ne
+correspond pas à un fichier statique afin que les accès directs et le
+rafraîchissement d’une route soient pris en charge. Cette règle sera appliquée
+par la configuration de déploiement de l’US dédiée.
+
 ## Client API
 
 Le client commun est exporté depuis `src/api/index.js`. Il reçoit ses
@@ -200,5 +247,5 @@ accessible localement sur <http://localhost:5173>.
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
-communs et sa couche HTTP. La navigation, les fonctionnalités métier,
+communs, son routeur et sa couche HTTP. Les fonctionnalités métier,
 l’intégration continue et le déploiement sont traités dans leurs US dédiées.
