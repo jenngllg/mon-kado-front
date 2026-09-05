@@ -56,6 +56,59 @@ pnpm dev
 
 L’application est ensuite accessible sur <http://localhost:5173>.
 
+## Client API
+
+Le client commun est exporté depuis `src/api/index.js`. Il reçoit ses
+dépendances afin de rester testable et ne conserve aucun jeton :
+
+```js
+import { createApiClient } from "./api/index.js";
+
+const apiClient = createApiClient({
+  baseUrl: configuration.apiBaseUrl,
+  accessTokenProvider: () => accessToken,
+  onUnauthorized: () => clearSession(),
+});
+
+const response = await apiClient.request("/api/v1/wishlists", {
+  authentication: "required",
+});
+```
+
+Les modes d’authentification sont :
+
+- `none` : ne lit et n’envoie jamais de JWT ;
+- `optional` : ajoute le JWT en mémoire lorsqu’il existe ;
+- `required` : interrompt localement l’appel lorsque le JWT est absent.
+
+Les endpoints utilisant un cookie et exigeant l’antiforgery doivent déclarer
+`csrf: true`. Le client charge alors `/security/csrf-token`, conserve le jeton
+en mémoire et sérialise les chargements concurrents. Après un changement d’état
+d’authentification, appeler `refreshCsrfToken()` ; `invalidateCsrfToken()` permet
+de supprimer immédiatement le jeton courant.
+
+```js
+await apiClient.request("/api/v1/auth/sessions", {
+  method: "POST",
+  body: credentials,
+  csrf: true,
+});
+```
+
+Les options `ifMatch` et `shareToken` alimentent exclusivement les en-têtes
+`If-Match` et `X-MonKado-Share-Token`. Les chemins absolus, externes ou avec un
+fragment sont refusés pour éviter toute fuite de secret.
+
+Les réponses réussies exposent `data`, `status` et `metadata`. Une erreur HTTP,
+réseau, de timeout ou de format produit une `ApiError` sans corps de requête ni
+en-tête sensible. `toUserFacingError()` fournit un message français sûr et
+accepte un catalogue propre à chaque fonctionnalité. Le texte anglais du
+backend n’est jamais présenté directement.
+
+Le client ne rejoue pas automatiquement les erreurs réseau, `429` ou `5xx`.
+Seule une erreur antiforgery `400` non structurée peut être rejouée une fois,
+après renouvellement du jeton CSRF.
+
 ## Contrôles qualité
 
 ```shell
@@ -76,6 +129,6 @@ accessible localement sur <http://localhost:5173>.
 
 ## Périmètre actuel
 
-Ce dépôt contient uniquement le socle du frontend. Le design system, la
-navigation, le client API, l’intégration continue et le déploiement seront
-ajoutés dans les US suivantes.
+Ce dépôt contient le socle frontend et sa couche HTTP commune. Le design
+system, la navigation, les fonctionnalités métier, l’intégration continue et
+le déploiement sont traités dans leurs US dédiées.

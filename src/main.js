@@ -3,12 +3,18 @@ import {
   createPublicConfiguration,
   PublicConfigurationError,
 } from "./config/environment.js";
+import { installGlobalErrorHandlers } from "./errors/index.js";
 
 const applicationRoot = document.querySelector("#app");
 
 if (!(applicationRoot instanceof HTMLElement)) {
   throw new Error("The application root element is missing.");
 }
+
+installGlobalErrorHandlers({
+  target: window,
+  presentError: (error) => renderGlobalError(applicationRoot, error),
+});
 
 try {
   const configuration = createPublicConfiguration(import.meta.env);
@@ -49,19 +55,49 @@ function renderApplication(root, configuration) {
  * @param {unknown} error Startup failure.
  */
 function renderStartupError(root, error) {
+  const message = error instanceof PublicConfigurationError
+    ? error.message
+    : "An unexpected startup error occurred.";
+  renderErrorCard(root, "MonKado ne peut pas démarrer", message, null);
+}
+
+/**
+ * @param {HTMLElement} root Application root element.
+ * @param {import("./errors/errorMessages.js").UserFacingError} error Safe UI error.
+ */
+function renderGlobalError(root, error) {
+  renderErrorCard(
+    root,
+    error.title,
+    error.message,
+    error.correlationId,
+  );
+}
+
+/**
+ * @param {HTMLElement} root Application root element.
+ * @param {string} title Error title.
+ * @param {string} message Error message.
+ * @param {string | null} correlationId Optional support reference.
+ */
+function renderErrorCard(root, title, message, correlationId) {
   const section = document.createElement("section");
   section.className = "startup-card startup-card--error";
   section.setAttribute("role", "alert");
 
   const heading = document.createElement("h1");
-  heading.textContent = "MonKado ne peut pas démarrer";
+  heading.textContent = title;
 
   const description = document.createElement("p");
-  description.textContent =
-    error instanceof PublicConfigurationError
-      ? error.message
-      : "An unexpected startup error occurred.";
-
+  description.textContent = message;
   section.append(heading, description);
+
+  if (correlationId !== null) {
+    const reference = document.createElement("p");
+    reference.className = "startup-card__status";
+    reference.textContent = `Référence : ${correlationId}`;
+    section.append(reference);
+  }
+
   root.replaceChildren(section);
 }
