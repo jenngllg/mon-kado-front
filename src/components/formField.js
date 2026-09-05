@@ -35,7 +35,7 @@ export function createFormField({
   control,
   description = null,
   validationMessage = null,
-  required = false,
+  required = control.required,
   disabled,
 }) {
   assertNonEmptyText(label, "label");

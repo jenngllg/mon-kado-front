@@ -1,6 +1,7 @@
 .container {
   --container-max-width: var(--content-wide);
 
+  min-width: 0;
   width: min(
     calc(100% - (2 * var(--content-gutter))),
     var(--container-max-width)

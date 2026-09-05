@@ -37,6 +37,12 @@ export function createActionLink({
 }) {
   assertNonEmptyText(label, "label");
   assertNonEmptyText(href, "href");
+  const url = new URL(href, document.baseURI);
+
+  if (!["http:", "https:", "mailto:", "tel:"].includes(url.protocol)) {
+    throw new TypeError("Action links require a safe navigation URL.");
+  }
+
   assertVariant(variant, ActionLinkVariants, "action link");
 
   const link = document.createElement("a");

@@ -261,7 +261,10 @@ function pauseDismissal(state, reason) {
  * @param {string} reason Pause reason.
  */
 function resumeDismissal(notification, state, reason) {
-  state.pauseReasons.delete(reason);
+  if (!state.pauseReasons.delete(reason)) {
+    return;
+  }
+
   scheduleDismissal(notification, state);
 }
 

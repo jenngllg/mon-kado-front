@@ -44,7 +44,8 @@ La variable publique suivante est obligatoire :
 VITE_API_BASE_URL=http://localhost:7000
 ```
 
-L’URL doit être absolue et utiliser HTTP ou HTTPS. Vite intègre dans le bundle
+L’URL doit être absolue et utiliser HTTP ou HTTPS, sans identifiants intégrés.
+Vite intègre dans le bundle
 toutes les variables préfixées par `VITE_` : elles sont donc publiques et ne
 doivent jamais contenir de mot de passe, de jeton ou un autre secret.
 
@@ -61,6 +62,11 @@ L’application est ensuite accessible sur <http://localhost:5173>.
 L’interface utilise Nunito Sans, chargée localement depuis les dépendances du
 projet. Le thème clair reprend la direction des maquettes MonKado : fond ivoire,
 surfaces sauge, texte vert forêt et accent corail.
+
+Les actions corail utilisent `--color-text-on-accent` (vert sombre) et les
+petits textes corail `--color-accent-text` pour respecter un contraste de
+4,5:1. Les contours de contrôle et de focus visent au moins 3:1. Les animations
+et transitions sont supprimées avec `prefers-reduced-motion: reduce`.
 
 Les styles sont organisés en couches CSS afin de conserver un ordre de priorité
 prévisible : `reset`, `tokens`, `base`, `layout`, `components` et `utilities`.
@@ -247,8 +253,15 @@ accepte un catalogue propre à chaque fonctionnalité. Le texte anglais du
 backend n’est jamais présenté directement.
 
 Le client ne rejoue pas automatiquement les erreurs réseau, `429` ou `5xx`.
+Le délai couvre aussi la lecture du corps de réponse. Les redirections HTTP
+sont refusées pour empêcher tout transfert des en-têtes de partage ou CSRF.
 Seule une erreur antiforgery `400` non structurée peut être rejouée une fois,
 après renouvellement du jeton CSRF.
+
+`router.presentError()` ne réutilise comme traduction que les objets produits
+par `toUserFacingError()` ; un objet brut est toujours normalisé. Les liens
+d’action acceptent uniquement HTTP, HTTPS, `mailto:`, `tel:` et les liens
+relatifs. L’état natif `button.disabled` avant chargement est restauré à la fin.
 
 ## Types du contrat OpenAPI
 

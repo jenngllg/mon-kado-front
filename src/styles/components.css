@@ -1,6 +1,8 @@
 .ui-button,
 .action-link {
   display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
   min-height: var(--control-min-size);
   align-items: center;
   justify-content: center;
@@ -54,7 +56,7 @@
 
 .ui-button--danger {
   background: var(--color-danger);
-  color: var(--color-text-on-accent);
+  color: var(--color-text-on-danger);
 }
 
 .ui-button:disabled,

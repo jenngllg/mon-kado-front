@@ -13,12 +13,14 @@ import { toUserFacingError } from "./errorMessages.js";
 export function installGlobalErrorHandlers({ target, presentError }) {
   /** @param {Event} event */
   const handleError = (event) => {
+    event.preventDefault();
     const error = getEventValue(event, "error") ??
       new Error("An unexpected browser error occurred.");
     presentUnlessAborted(error, presentError);
   };
   /** @param {Event} event */
   const handleUnhandledRejection = (event) => {
+    event.preventDefault();
     const error = getEventValue(event, "reason") ??
       new Error("An unexpected promise rejection occurred.");
     presentUnlessAborted(error, presentError);

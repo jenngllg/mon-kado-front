@@ -1,5 +1,15 @@
 import { ApiError } from "../api/apiError.js";
 
+const SafeErrors = new WeakSet();
+
+/**
+ * @param {unknown} error Candidate translated error.
+ * @returns {error is UserFacingError} Whether this module produced the copy.
+ */
+export function isUserFacingError(error) {
+  return typeof error === "object" && error !== null && SafeErrors.has(error);
+}
+
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
   CLIENT_AUTHENTICATION_REQUIRED: {
@@ -117,11 +127,11 @@ export function toUserFacingError(error, featureMessages = {}) {
  * @returns {ErrorMessage} Selected message.
  */
 function getApiErrorMessage(error, featureMessages) {
-  if (error.errorCode !== null && featureMessages[error.errorCode] !== undefined) {
+  if (error.errorCode !== null && Object.hasOwn(featureMessages, error.errorCode)) {
     return featureMessages[error.errorCode];
   }
 
-  if (error.errorCode !== null && CommonMessages[error.errorCode] !== undefined) {
+  if (error.errorCode !== null && Object.hasOwn(CommonMessages, error.errorCode)) {
     return CommonMessages[error.errorCode];
   }
 
@@ -196,11 +206,14 @@ function createUserFacingError(
   correlationId,
   retryAfterSeconds,
 ) {
-  return Object.freeze({
+  const result = Object.freeze({
     title: message.title,
     message: message.message,
     validationErrors,
     correlationId,
     retryAfterSeconds,
   });
+  SafeErrors.add(result);
+
+  return result;
 }

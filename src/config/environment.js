@@ -26,7 +26,7 @@ export function createPublicConfiguration(environment) {
 
   if (typeof rawApiBaseUrl !== "string" || rawApiBaseUrl.trim().length === 0) {
     throw new PublicConfigurationError(
-      `Missing required public configuration: ${ApiBaseUrlVariable}.`,
+      `Configuration publique obligatoire manquante : ${ApiBaseUrlVariable}.`,
     );
   }
 
@@ -36,13 +36,16 @@ export function createPublicConfiguration(environment) {
     parsedApiBaseUrl = new URL(rawApiBaseUrl);
   } catch {
     throw new PublicConfigurationError(
-      `${ApiBaseUrlVariable} must be an absolute HTTP or HTTPS URL.`,
+      `${ApiBaseUrlVariable} doit être une URL absolue HTTP ou HTTPS.`,
     );
   }
 
-  if (!AllowedProtocols.has(parsedApiBaseUrl.protocol)) {
+  if (
+    !AllowedProtocols.has(parsedApiBaseUrl.protocol) ||
+    parsedApiBaseUrl.username || parsedApiBaseUrl.password
+  ) {
     throw new PublicConfigurationError(
-      `${ApiBaseUrlVariable} must use the HTTP or HTTPS protocol.`,
+      `${ApiBaseUrlVariable} doit utiliser HTTP ou HTTPS, sans identifiants intégrés.`,
     );
   }
 

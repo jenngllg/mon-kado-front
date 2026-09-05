@@ -172,10 +172,14 @@ export class ApiClient {
       shareToken: options.shareToken,
       hasBody: options.body !== undefined,
     });
-    const requestBody = options.body === undefined
-      ? undefined
-      : JSON.stringify(options.body);
-    const response = await this.#fetchWithTimeout(
+    let requestBody;
+
+    try {
+      requestBody = options.body === undefined ? undefined : JSON.stringify(options.body);
+    } catch {
+      throw new TypeError("The API request body cannot be serialized as JSON.");
+    }
+    const { response, metadata, decodedResponse } = await this.#fetchWithTimeout(
       url,
       {
         method: options.method,
@@ -186,14 +190,16 @@ export class ApiClient {
       options.signal,
       options.timeoutMs,
       correlationId,
-    );
-    const metadata = createResponseMetadata(
-      response,
-      correlationId,
-    );
-    const decodedResponse = await decodeResponseSafely(
-      response,
-      metadata.correlationId,
+      (response, metadata) => {
+        if (response.status === 401 && accessToken !== null) {
+          this.#notifyUnauthorized(new ApiError({
+            kind: "http",
+            statusCode: 401,
+            correlationId: metadata.correlationId,
+            retryAfterSeconds: metadata.retryAfterSeconds,
+          }));
+        }
+      },
     );
 
     if (response.ok) {
@@ -223,7 +229,7 @@ export class ApiClient {
       response.status === 400 &&
       errorResponse === null
     ) {
-      await this.#csrfTokenManager.refreshToken();
+      await waitForWithAbort(this.#csrfTokenManager.refreshToken(), options.signal);
 
       return this.#sendRequest(
         url,
@@ -242,10 +248,6 @@ export class ApiClient {
       retryAfterSeconds: metadata.retryAfterSeconds,
     });
 
-    if (response.status === 401 && accessToken !== null) {
-      this.#notifyUnauthorized(apiError);
-    }
-
     throw apiError;
   }
 
@@ -255,7 +257,7 @@ export class ApiClient {
   async #loadCsrfToken() {
     const url = createApiUrl(this.#baseUrl, "/security/csrf-token");
     const correlationId = this.#correlationIdProvider();
-    const response = await this.#fetchWithTimeout(
+    const { response, metadata, decodedResponse } = await this.#fetchWithTimeout(
       url,
       {
         method: "GET",
@@ -265,14 +267,6 @@ export class ApiClient {
       undefined,
       this.#timeoutMs,
       correlationId,
-    );
-    const metadata = createResponseMetadata(
-      response,
-      correlationId,
-    );
-    const decodedResponse = await decodeResponseSafely(
-      response,
-      metadata.correlationId,
     );
 
     if (!response.ok) {
@@ -313,7 +307,8 @@ export class ApiClient {
    * @param {AbortSignal | undefined} callerSignal Caller cancellation signal.
    * @param {number} timeoutMs Timeout in milliseconds.
    * @param {string} correlationId Request correlation identifier.
-   * @returns {Promise<Response>} Fetch response.
+   * @param {(response: Response, metadata: ApiResponseMetadata) => void} [onHeaders] Receives headers before body consumption.
+   * @returns {Promise<{response: Response, metadata: ApiResponseMetadata, decodedResponse: {data: unknown, isValid: boolean}}>} Response read within the deadline.
    */
   async #fetchWithTimeout(
     url,
@@ -321,6 +316,7 @@ export class ApiClient {
     callerSignal,
     timeoutMs,
     correlationId,
+    onHeaders = () => {},
   ) {
     const controller = new AbortController();
     let timedOut = false;
@@ -332,10 +328,22 @@ export class ApiClient {
     callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
 
     try {
-      return await this.#fetch(url, {
+      throwIfCallerAborted(callerSignal);
+      const response = await waitForWithAbort(this.#fetch(url, {
         ...request,
+        // Custom CSRF/share headers must never follow a redirect to another origin.
+        redirect: "error",
         signal: controller.signal,
-      });
+      }), controller.signal);
+      const metadata = createResponseMetadata(response, correlationId);
+      correlationId = metadata.correlationId;
+      onHeaders(response, metadata);
+      const decodedResponse = await waitForWithAbort(
+        decodeResponse(response),
+        controller.signal,
+      );
+
+      return { response, metadata, decodedResponse };
     } catch {
       if (callerSignal?.aborted) {
         throw createAbortError();
@@ -410,10 +418,19 @@ export function createApiClient(options) {
  * @returns {string} Normalized base URL.
  */
 function normalizeBaseUrl(baseUrl) {
-  const parsedBaseUrl = new URL(baseUrl);
+  let parsedBaseUrl;
 
-  if (!new Set(["http:", "https:"]).has(parsedBaseUrl.protocol)) {
-    throw new TypeError("The API base URL must use HTTP or HTTPS.");
+  try {
+    parsedBaseUrl = new URL(baseUrl);
+  } catch {
+    throw new TypeError("The API base URL must be an absolute HTTP or HTTPS URL.");
+  }
+
+  if (
+    !new Set(["http:", "https:"]).has(parsedBaseUrl.protocol) ||
+    parsedBaseUrl.username || parsedBaseUrl.password
+  ) {
+    throw new TypeError("The API base URL must use HTTP or HTTPS without credentials.");
   }
 
   return parsedBaseUrl.href.replace(/\/$/, "");
@@ -526,6 +543,14 @@ function createRequestHeaders({
   shareToken,
   hasBody = false,
 }) {
+  // Headers validation errors may echo their values, including credentials.
+  const values = [correlationId, accessToken, csrfToken, ifMatch, shareToken];
+
+  if (values.some(value => value != null && [...value].some(character =>
+    (character.charCodeAt(0) < 32 && character !== "\t") || character.charCodeAt(0) > 255))) {
+    throw new TypeError("An API request header is invalid.");
+  }
+
   const headers = new Headers({
     Accept: JsonContentType,
     "X-Correlation-ID": correlationId,
@@ -591,24 +616,6 @@ async function decodeResponse(response) {
     return { data: JSON.parse(responseText), isValid: true };
   } catch {
     return { data: null, isValid: false };
-  }
-}
-
-/**
- * Normalizes failures occurring while the response body is being read.
- *
- * @param {Response} response Fetch response.
- * @param {string} correlationId Response correlation identifier.
- * @returns {Promise<{ data: unknown, isValid: boolean }>} Decoded response body.
- */
-async function decodeResponseSafely(response, correlationId) {
-  try {
-    return await decodeResponse(response);
-  } catch {
-    throw new ApiError({
-      kind: "network",
-      correlationId,
-    });
   }
 }
 

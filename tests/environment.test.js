@@ -32,7 +32,7 @@ describe("createPublicConfiguration", () => {
       // Assert
       expect(action).toThrowError(
         new PublicConfigurationError(
-          "Missing required public configuration: VITE_API_BASE_URL.",
+          "Configuration publique obligatoire manquante : VITE_API_BASE_URL.",
         ),
       );
     },
@@ -48,7 +48,7 @@ describe("createPublicConfiguration", () => {
     // Assert
     expect(action).toThrowError(
       new PublicConfigurationError(
-        "VITE_API_BASE_URL must be an absolute HTTP or HTTPS URL.",
+        "VITE_API_BASE_URL doit être une URL absolue HTTP ou HTTPS.",
       ),
     );
   });
@@ -65,7 +65,7 @@ describe("createPublicConfiguration", () => {
       // Assert
       expect(action).toThrowError(
         new PublicConfigurationError(
-          "VITE_API_BASE_URL must use the HTTP or HTTPS protocol.",
+          "VITE_API_BASE_URL doit utiliser HTTP ou HTTPS, sans identifiants intégrés.",
         ),
       );
     },

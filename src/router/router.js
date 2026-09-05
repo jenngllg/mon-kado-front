@@ -1,6 +1,6 @@
 import { isAbortError } from "../api/apiError.js";
 import { disposeComponent } from "../components/index.js";
-import { toUserFacingError } from "../errors/index.js";
+import { isUserFacingError, toUserFacingError } from "../errors/errorMessages.js";
 import {
   compileRoutes,
   matchRoute,
@@ -165,8 +165,16 @@ export function createRouter({
 
     if (
       currentRoute !== null &&
-      url.href === currentRoute.url.href
+      url.href === currentRoute.url.href &&
+      url.href === browserWindow.location.href
     ) {
+      focusOutlet();
+      browserWindow.scrollTo({ top: 0, left: 0, behavior: "auto" });
+
+      for (const listener of subscribers) {
+        listener(currentRoute);
+      }
+
       return Promise.resolve(currentRoute);
     }
 
@@ -195,6 +203,7 @@ export function createRouter({
       controller.signal,
       router.navigate,
     );
+    let pendingView = /** @type {HTMLElement | null} */ (null);
 
     try {
       if (match?.route.definition.beforeEnter !== undefined) {
@@ -232,6 +241,7 @@ export function createRouter({
       if (!(view instanceof browserWindow.HTMLElement)) {
         throw new TypeError("A route render function must return an HTMLElement.");
       }
+      pendingView = view;
 
       if (
         !isCurrentNavigation(
@@ -241,6 +251,7 @@ export function createRouter({
         )
       ) {
         disposeComponent(view);
+        pendingView = null;
 
         return null;
       }
@@ -254,9 +265,14 @@ export function createRouter({
         params,
       );
       mountView(view, snapshot, title);
+      pendingView = null;
 
       return snapshot;
     } catch (error) {
+      if (pendingView !== null && pendingView !== currentView) {
+        disposeComponent(pendingView);
+      }
+
       if (
         isAbortError(error) ||
         !isCurrentNavigation(
@@ -647,21 +663,6 @@ function isSameDocumentFragment(target, location) {
   return target.hash.length > 0 &&
     target.pathname === location.pathname &&
     target.search === location.search;
-}
-
-/**
- * @param {unknown} error Candidate safe error.
- * @returns {error is import("../errors/errorMessages.js").UserFacingError} Whether the error already contains safe copy.
- */
-function isUserFacingError(error) {
-  return error !== null &&
-    typeof error === "object" &&
-    "title" in error &&
-    typeof error.title === "string" &&
-    "message" in error &&
-    typeof error.message === "string" &&
-    "validationErrors" in error &&
-    Array.isArray(error.validationErrors);
 }
 
 /**

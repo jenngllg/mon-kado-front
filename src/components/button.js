@@ -24,6 +24,7 @@ const ButtonStates = new WeakMap();
  *   labelElement: HTMLSpanElement,
  *   label: string,
  *   configuredDisabled: boolean,
+ *   loading: boolean,
  *   spinner: HTMLSpanElement | null
  * }} ButtonState
  */
@@ -57,6 +58,7 @@ export function createButton({
   const button = document.createElement("button");
   button.className = `ui-button ui-button--${variant}`;
   button.type = type;
+  button.disabled = disabled;
 
   appendDecorativeContent(button, decorativeElement, "ui-button__decoration");
 
@@ -68,6 +70,7 @@ export function createButton({
     labelElement,
     label,
     configuredDisabled: disabled,
+    loading: false,
     spinner: null,
   });
 
@@ -76,7 +79,11 @@ export function createButton({
       button,
       button,
       "click",
-      /** @type {EventListener} */ (onClick),
+      (event) => {
+        if (!button.disabled) {
+          onClick(/** @type {MouseEvent} */ (event));
+        }
+      },
     );
   }
 
@@ -99,7 +106,15 @@ export function setButtonLoading(button, loading) {
     throw new TypeError("The button was not created by createButton.");
   }
 
-  button.disabled = state.configuredDisabled || loading;
+  if (loading && !state.loading) {
+    state.configuredDisabled = button.disabled;
+  }
+
+  if (loading || state.loading) {
+    button.disabled = state.configuredDisabled || loading;
+  }
+
+  state.loading = loading;
   button.classList.toggle("ui-button--loading", loading);
   state.labelElement.textContent = loading ? "Chargement…" : state.label;
 

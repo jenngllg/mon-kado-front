@@ -12,6 +12,8 @@ import {
   createButton,
 } from "../src/components/index.js";
 import { createRouter } from "../src/router/index.js";
+import { toUserFacingError } from "../src/errors/index.js";
+import { ApiError } from "../src/api/index.js";
 
 /** @type {Array<import("../src/router/router.js").Router>} */
 let routers;
@@ -479,13 +481,10 @@ describe("route lifecycle", () => {
 
     // Act
     await router.navigate("/failure");
-    router.presentError({
-      title: "Erreur sûre",
-      message: "Message français.",
-      validationErrors: [],
-      correlationId: null,
-      retryAfterSeconds: null,
-    });
+    router.presentError(toUserFacingError(
+      new ApiError({ kind: "http", errorCode: "FEATURE_ERROR" }),
+      { FEATURE_ERROR: { title: "Erreur sûre", message: "Message français." } },
+    ));
 
     // Assert
     expect(renderError).toHaveBeenNthCalledWith(1, expect.objectContaining({

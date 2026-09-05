@@ -4,6 +4,8 @@
 export class CsrfTokenManager {
   /** @type {{ promise: Promise<string>, version: number } | null} */
   #inFlight = null;
+  /** @type {Promise<string> | null} */
+  #refreshInFlight = null;
   #loadToken;
   /** @type {string | null} */
   #token = null;
@@ -51,6 +53,7 @@ export class CsrfTokenManager {
     this.#version += 1;
     this.#token = null;
     this.#inFlight = null;
+    this.#refreshInFlight = null;
   }
 
   /**
@@ -59,9 +62,22 @@ export class CsrfTokenManager {
    * @returns {Promise<string>} Fresh CSRF request token.
    */
   async refreshToken() {
+    if (this.#refreshInFlight !== null) {
+      return this.#refreshInFlight;
+    }
+
     this.invalidateToken();
 
-    return this.getToken();
+    const promise = this.getToken();
+    this.#refreshInFlight = promise;
+
+    try {
+      return await promise;
+    } finally {
+      if (this.#refreshInFlight === promise) {
+        this.#refreshInFlight = null;
+      }
+    }
   }
 
   /**

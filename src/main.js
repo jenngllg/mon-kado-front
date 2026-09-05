@@ -68,6 +68,7 @@ function startApplication(root) {
  * @param {unknown} error Startup failure.
  */
 function renderStartupError(root, error) {
+  document.title = "Configuration invalide · MonKado";
   const message = error instanceof PublicConfigurationError
     ? error.message
     : "Une erreur inattendue empêche le démarrage.";
@@ -100,7 +101,7 @@ function createApplicationErrorView(error) {
  * @returns {HTMLElement} Error view.
  */
 function createErrorView(title, message, correlationId, startup) {
-  const section = document.createElement("section");
+  const section = document.createElement(startup ? "main" : "section");
   section.className = startup
     ? "error-view error-view--startup"
     : "error-view";

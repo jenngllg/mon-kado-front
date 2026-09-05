@@ -32,6 +32,7 @@ export default [
       "tests/router.test.js",
       "tests/applicationRoutes.test.js",
       "tests/applicationShell.test.js",
+      "tests/uiFoundationRegression.test.js",
     ],
     languageOptions: {
       globals: globals.browser,

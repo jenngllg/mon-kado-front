@@ -11,7 +11,7 @@ body {
   background: var(--color-background);
   font-size: var(--font-size-md);
   line-height: var(--line-height-body);
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
 }
 
 h1,
@@ -63,6 +63,7 @@ a {
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    transition: none !important;
+    animation: none !important;
   }
 }

@@ -3,6 +3,7 @@
   min-width: 0;
   min-height: 100vh;
   grid-template-rows: auto 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .skip-link {
@@ -41,6 +42,9 @@
 }
 
 .app-brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-min-size);
   color: var(--color-text);
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
@@ -98,6 +102,9 @@
 
 .app-navigation[data-open="true"] {
   display: block;
+  max-height: calc(100dvh - var(--control-min-size) - var(--space-8));
+  overflow-y: auto;
+  padding: var(--space-2);
 }
 
 .app-navigation__list {
@@ -152,7 +159,7 @@
 
 @media (min-width: 48rem) {
   .app-header__content {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
 
   .app-menu-button {
@@ -163,11 +170,15 @@
   .app-navigation[data-open="true"] {
     display: block;
     flex-basis: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
     margin-inline-start: auto;
   }
 
   .app-navigation__list {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--space-1);
     padding: 0;

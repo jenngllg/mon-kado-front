@@ -1,0 +1,2 @@
+# Keep deterministic generated declarations byte-identical on Windows checkouts.
+src/api/generated/openapi.d.ts text eol=lf
