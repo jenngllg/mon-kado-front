@@ -1,68 +1,8 @@
-:root {
-  color: #20352b;
-  background: #f7f3e9;
-  font-family:
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-}
+@layer reset, tokens, base, layout, components, utilities;
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  min-width: 320px;
-  min-height: 100vh;
-  margin: 0;
-}
-
-#app {
-  display: grid;
-  min-height: 100vh;
-  place-items: center;
-  padding: 1.5rem;
-}
-
-.startup-card {
-  width: min(100%, 42rem);
-  padding: clamp(2rem, 6vw, 4rem);
-  border: 1px solid #d8dfd3;
-  border-radius: 1.5rem;
-  background: #fffdf7;
-  box-shadow: 0 1.25rem 3rem rgb(32 53 43 / 10%);
-}
-
-.startup-card__eyebrow {
-  margin-block: 0 0.75rem;
-  color: #b24f3f;
-  font-size: 0.875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.startup-card h1 {
-  margin-block: 0 1rem;
-  font-size: clamp(2rem, 7vw, 3.5rem);
-  line-height: 1.05;
-}
-
-.startup-card p {
-  line-height: 1.6;
-}
-
-.startup-card__status {
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  background: #e7eee3;
-  overflow-wrap: anywhere;
-}
-
-.startup-card--error {
-  border-color: #db8172;
-}
+@import "./styles/reset.css" layer(reset);
+@import "./styles/tokens.css" layer(tokens);
+@import "./styles/base.css" layer(base);
+@import "./styles/layout.css" layer(layout);
+@import "./styles/startup.css" layer(components);
+@import "./styles/utilities.css" layer(utilities);

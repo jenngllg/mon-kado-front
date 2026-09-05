@@ -1,0 +1,37 @@
+.container {
+  --container-max-width: var(--content-wide);
+
+  width: min(
+    calc(100% - (2 * var(--content-gutter))),
+    var(--container-max-width)
+  );
+  margin-inline: auto;
+}
+
+.container--regular {
+  --container-max-width: var(--content-regular);
+}
+
+.container--narrow {
+  --container-max-width: var(--content-narrow);
+}
+
+.flow > * + * {
+  margin-block-start: var(--flow-space, var(--space-4));
+}
+
+.cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cluster-space, var(--space-4));
+}
+
+.responsive-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--grid-min-width, 16rem)), 1fr)
+  );
+  gap: var(--grid-space, var(--space-5));
+}

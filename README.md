@@ -56,6 +56,38 @@ pnpm dev
 
 L’application est ensuite accessible sur <http://localhost:5173>.
 
+## Fondations graphiques
+
+L’interface utilise Nunito Sans, chargée localement depuis les dépendances du
+projet. Le thème clair reprend la direction des maquettes MonKado : fond ivoire,
+surfaces sauge, texte vert forêt et accent corail.
+
+Les styles sont organisés en couches CSS afin de conserver un ordre de priorité
+prévisible : `reset`, `tokens`, `base`, `layout`, `components` et `utilities`.
+Les variables publiques suivent les familles suivantes :
+
+- `--color-*` pour les couleurs sémantiques ;
+- `--font-*` et `--line-height-*` pour la typographie ;
+- `--space-*` pour les espacements ;
+- `--radius-*` et `--shadow-*` pour les surfaces ;
+- `--content-*` pour les largeurs et gouttières de page.
+
+Les mises en page sont mobiles-first, supportent les écrans à partir de 320 px
+et privilégient les dimensions fluides. Les primitives disponibles sont :
+
+- `.container`, avec les variantes `.container--regular` et
+  `.container--narrow` ;
+- `.flow` pour le rythme vertical, personnalisable avec `--flow-space` ;
+- `.cluster` pour les groupes flexibles, personnalisable avec
+  `--cluster-space` ;
+- `.responsive-grid` pour une grille fluide, personnalisable avec
+  `--grid-min-width` et `--grid-space` ;
+- `.visually-hidden` et `.break-anywhere` pour les besoins d’accessibilité et
+  de contenu non sécable.
+
+Les animations sont automatiquement neutralisées lorsque l’utilisateur active
+la préférence système de réduction des mouvements.
+
 ## Client API
 
 Le client commun est exporté depuis `src/api/index.js`. Il reçoit ses
@@ -129,6 +161,6 @@ accessible localement sur <http://localhost:5173>.
 
 ## Périmètre actuel
 
-Ce dépôt contient le socle frontend et sa couche HTTP commune. Le design
-system, la navigation, les fonctionnalités métier, l’intégration continue et
-le déploiement sont traités dans leurs US dédiées.
+Ce dépôt contient le socle frontend, ses fondations graphiques et sa couche HTTP
+commune. Les composants d’interface, la navigation, les fonctionnalités métier,
+l’intégration continue et le déploiement sont traités dans leurs US dédiées.

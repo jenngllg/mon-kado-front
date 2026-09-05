@@ -11,5 +11,5 @@
     "target": "ES2022",
     "types": ["vite/client"]
   },
-  "include": ["src/**/*.js", "tests/**/*.js"]
+  "include": ["src/**/*.js", "tests/**/*"]
 }

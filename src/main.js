@@ -1,3 +1,4 @@
+import "@fontsource-variable/nunito-sans";
 import "./styles.css";
 import {
   createPublicConfiguration,
@@ -29,7 +30,7 @@ try {
  */
 function renderApplication(root, configuration) {
   const section = document.createElement("section");
-  section.className = "startup-card";
+  section.className = "startup-card flow";
 
   const eyebrow = document.createElement("p");
   eyebrow.className = "startup-card__eyebrow";
@@ -82,7 +83,7 @@ function renderGlobalError(root, error) {
  */
 function renderErrorCard(root, title, message, correlationId) {
   const section = document.createElement("section");
-  section.className = "startup-card startup-card--error";
+  section.className = "startup-card startup-card--error flow";
   section.setAttribute("role", "alert");
 
   const heading = document.createElement("h1");
