@@ -5,11 +5,16 @@ import {
   PublicConfigurationError,
 } from "./config/environment.js";
 import {
-  createActionLink,
   createAlert,
+  disposeComponent,
 } from "./components/index.js";
+import {
+  createApplicationRoutes,
+  createApplicationShell,
+} from "./app/index.js";
 import { installGlobalErrorHandlers } from "./errors/index.js";
 import { createRouter } from "./router/index.js";
+import { createPlaceholderView } from "./views/index.js";
 
 const applicationRoot = document.querySelector("#app");
 
@@ -18,30 +23,29 @@ if (!(applicationRoot instanceof HTMLElement)) {
 }
 
 try {
-  const configuration = createPublicConfiguration(import.meta.env);
-  startApplication(applicationRoot, configuration);
+  createPublicConfiguration(import.meta.env);
+  startApplication(applicationRoot);
 } catch (error) {
   renderStartupError(applicationRoot, error);
 }
 
 /**
  * @param {HTMLElement} root Application root element.
- * @param {Readonly<{ apiBaseUrl: string }>} configuration Public configuration.
  */
-function startApplication(root, configuration) {
+function startApplication(root) {
+  const shell = createApplicationShell();
+  root.replaceChildren(shell.element);
   const router = createRouter({
-    outlet: root,
-    routes: [
-      {
-        name: "home",
-        path: "/",
-        title: "MonKado",
-        render: () => createStartupView(configuration),
-      },
-    ],
+    outlet: shell.outlet,
+    routes: createApplicationRoutes(),
     renderNotFound: createNotFoundView,
-    renderError: createApplicationErrorView,
+    renderError: (error) => {
+      shell.setCurrentRoute(null);
+
+      return createApplicationErrorView(error);
+    },
   });
+  const unsubscribeFromRouter = router.subscribe(shell.setCurrentRoute);
   const removeGlobalErrorHandlers = installGlobalErrorHandlers({
     target: window,
     presentError: router.presentError,
@@ -50,39 +54,13 @@ function startApplication(root, configuration) {
   if (import.meta.hot !== undefined) {
     import.meta.hot.dispose(() => {
       removeGlobalErrorHandlers();
+      unsubscribeFromRouter();
       router.dispose();
+      disposeComponent(shell.element);
     });
   }
 
   void router.start();
-}
-
-/**
- * @param {Readonly<{ apiBaseUrl: string }>} configuration Public configuration.
- * @returns {HTMLElement} Startup view.
- */
-function createStartupView(configuration) {
-  const section = document.createElement("section");
-  section.className = "startup-card flow";
-
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "startup-card__eyebrow";
-  eyebrow.textContent = "MonKado Front";
-
-  const heading = document.createElement("h1");
-  heading.textContent = "Le socle frontend est prêt.";
-
-  const description = document.createElement("p");
-  description.textContent =
-    "L’environnement Vite est configuré pour accueillir les prochaines fonctionnalités.";
-
-  const apiStatus = document.createElement("p");
-  apiStatus.className = "startup-card__status";
-  apiStatus.textContent = `API configurée : ${configuration.apiBaseUrl}`;
-
-  section.append(eyebrow, heading, description, apiStatus);
-
-  return section;
 }
 
 /**
@@ -97,6 +75,7 @@ function renderStartupError(root, error) {
     "MonKado ne peut pas démarrer",
     message,
     null,
+    true,
   ));
 }
 
@@ -109,6 +88,7 @@ function createApplicationErrorView(error) {
     error.title,
     error.message,
     error.correlationId,
+    false,
   );
 }
 
@@ -116,11 +96,14 @@ function createApplicationErrorView(error) {
  * @param {string} title Error title.
  * @param {string} message Error message.
  * @param {string | null} correlationId Optional support reference.
+ * @param {boolean} startup Whether the application failed before startup.
  * @returns {HTMLElement} Error view.
  */
-function createErrorView(title, message, correlationId) {
+function createErrorView(title, message, correlationId, startup) {
   const section = document.createElement("section");
-  section.className = "startup-card startup-card--error flow";
+  section.className = startup
+    ? "error-view error-view--startup"
+    : "error-view";
   const alert = createAlert({
     title,
     message,
@@ -137,25 +120,9 @@ function createErrorView(title, message, correlationId) {
  * @returns {HTMLElement} Accessible not-found view.
  */
 function createNotFoundView() {
-  const section = document.createElement("section");
-  section.className = "startup-card flow";
-
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "startup-card__eyebrow";
-  eyebrow.textContent = "Erreur 404";
-
-  const heading = document.createElement("h1");
-  heading.textContent = "Page introuvable";
-
-  const description = document.createElement("p");
-  description.textContent =
-    "Cette page n’existe pas ou a peut-être été déplacée.";
-
-  const homeLink = createActionLink({
-    label: "Revenir à l’accueil",
-    href: "/",
+  return createPlaceholderView({
+    eyebrow: "Erreur 404",
+    title: "Page introuvable",
+    message: "Cette page n’existe pas ou a peut-être été déplacée.",
   });
-  section.append(eyebrow, heading, description, homeLink);
-
-  return section;
 }

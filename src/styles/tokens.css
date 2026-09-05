@@ -70,7 +70,9 @@
   --text-measure: 65ch;
   --control-min-size: 2.75rem;
   --notification-width: 24rem;
+  --z-index-header: 100;
   --z-index-notification: 1000;
+  --z-index-skip-link: 1100;
 
   --motion-duration-fast: 160ms;
   --motion-duration-normal: 240ms;

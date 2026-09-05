@@ -6,6 +6,8 @@ const tokens = readStyleFile("../src/styles/tokens.css");
 const baseStyles = readStyleFile("../src/styles/base.css");
 const layoutStyles = readStyleFile("../src/styles/layout.css");
 const componentStyles = readStyleFile("../src/styles/components.css");
+const shellStyles = readStyleFile("../src/styles/shell.css");
+const viewStyles = readStyleFile("../src/styles/views.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
@@ -17,7 +19,8 @@ describe("graphic foundations", () => {
       "base.css",
       "layout.css",
       "components.css",
-      "startup.css",
+      "shell.css",
+      "views.css",
       "utilities.css",
     ];
 
@@ -97,6 +100,42 @@ describe("graphic foundations", () => {
 
     // Assert
     expect(classIsDefined).toBe(true);
+  });
+
+  it("provides the responsive application shell contract", () => {
+    // Arrange
+    const expectedSelectors = [
+      ".skip-link",
+      ".app-header",
+      ".app-menu-button",
+      ".app-navigation",
+      ".app-main",
+    ];
+
+    // Act
+    const selectorsAreDefined = expectedSelectors.every((selector) =>
+      shellStyles.includes(selector));
+
+    // Assert
+    expect(selectorsAreDefined).toBe(true);
+    expect(shellStyles).toContain("@media (min-width: 48rem)");
+    expect(shellStyles).toContain('data-open="true"');
+  });
+
+  it("provides home and placeholder view styles", () => {
+    // Arrange
+    const expectedSelectors = [
+      ".home-hero",
+      ".placeholder-view",
+      ".error-view",
+    ];
+
+    // Act
+    const selectorsAreDefined = expectedSelectors.every((selector) =>
+      viewStyles.includes(selector));
+
+    // Assert
+    expect(selectorsAreDefined).toBe(true);
   });
 });
 

@@ -88,6 +88,30 @@ et privilégient les dimensions fluides. Les primitives disponibles sont :
 Les animations sont automatiquement neutralisées lorsque l’utilisateur active
 la préférence système de réduction des mouvements.
 
+## Shell applicatif
+
+Le shell persistant est créé avec `createApplicationShell()` depuis
+`src/app/index.js`. Il fournit l’élément racine, le `main` utilisé comme
+outlet du routeur, la région de notifications et `setCurrentRoute()` pour
+synchroniser l’état de la navigation.
+
+L’en-tête contient la marque MonKado et les accès vers l’accueil, les listes,
+les réservations, la connexion et l’inscription. À partir de `48rem`, ces
+liens sont affichés horizontalement. Sur les écrans plus étroits, ils sont
+regroupés dans un menu déroulant utilisable au clavier et refermé après chaque
+navigation. Un lien d’évitement permet d’atteindre directement le contenu.
+
+`createApplicationRoutes()` centralise les routes réservées aux prochaines
+fonctionnalités : compte, confirmation d’e-mail, profil, listes, réservations
+et partage invité. Tant que leur US n’est pas développée, chaque route affiche
+une page temporaire explicite sans formulaire, donnée fictive ni appel API.
+
+Les futurs liens invités utiliseront la forme
+`/shared-wishlists/{shareLinkId}#{secret}`. Le fragment contient le secret :
+il ne doit être ni rendu dans la page, ni journalisé, ni déplacé dans la query
+string. L’alignement des anciennes redirections backend utilisant `/#/` sera
+effectué dans les US d’authentification et de partage.
+
 ## Composants communs
 
 Les factories exportées par `src/components/index.js` retournent directement
@@ -247,5 +271,6 @@ accessible localement sur <http://localhost:5173>.
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
-communs, son routeur et sa couche HTTP. Les fonctionnalités métier,
-l’intégration continue et le déploiement sont traités dans leurs US dédiées.
+communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
+métier, l’intégration continue et le déploiement sont traités dans leurs US
+dédiées.

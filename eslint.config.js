@@ -30,6 +30,8 @@ export default [
       "tests/formField.test.js",
       "tests/notification.test.js",
       "tests/router.test.js",
+      "tests/applicationRoutes.test.js",
+      "tests/applicationShell.test.js",
     ],
     languageOptions: {
       globals: globals.browser,
