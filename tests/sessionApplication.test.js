@@ -12,12 +12,13 @@ afterEach(() => { for (const app of applications.splice(0)) app.dispose(); docum
 
 /** @param {string} [path] Initial route.
  * @param {ReturnType<typeof createSessionTransport>} [transport] HTTP fake.
+ * @param {ReturnType<typeof createCoordinatorHub>} [hub] Shared tab coordination.
  */
-function mount(path = "/", transport = createSessionTransport()) {
+function mount(path = "/", transport = createSessionTransport(), hub = createCoordinatorHub()) {
   window.history.replaceState({}, "", path);
   const root = document.createElement("div");
   document.body.append(root);
-  const session = createSessionManager({ apiBaseUrl: "http://localhost:7000", fetchImplementation: transport.fetch, coordinator: createCoordinatorHub().create(), browserWindow: window });
+  const session = createSessionManager({ apiBaseUrl: "http://localhost:7000", fetchImplementation: transport.fetch, coordinator: hub.create(), browserWindow: window });
   const app = createSessionApplication(root, { apiBaseUrl: "http://localhost:7000", session });
   applications.push(app);
   return { ...app, transport };
@@ -123,7 +124,45 @@ describe("session routes and shell", () => {
     expect(ensure).not.toHaveBeenCalled();
   });
 
-  it("keeps all business screens as placeholders and cleans logout handlers", async () => {
+  it("clears a pending registration when another tab establishes a session", async () => {
+    // Arrange
+    const hub = createCoordinatorHub();
+    const transport = createSessionTransport(); transport.state.refreshStatus = 401;
+    const underlyingFetch = transport.fetch.getMockImplementation();
+    const entered = barrier(); const release = barrier();
+    transport.fetch.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname.endsWith("/registrations")) {
+        entered.resolve(); await release.promise;
+        return new Response(null, { status: 202 });
+      }
+      if (!underlyingFetch) throw new Error("Missing test transport.");
+      return underlyingFetch(input, init);
+    });
+    const app = mount("/register", transport, hub); await app.start();
+    const other = createSessionManager({ apiBaseUrl: "http://localhost:7000", coordinator: hub.create(), fetchImplementation: transport.fetch });
+    await other.start();
+    const fields = [...app.shell.outlet.querySelectorAll("input")];
+    fields[0].value = "Fixture"; fields[1].value = "fixture@example.test"; fields[2].value = "private-password-fixture";
+    app.shell.outlet.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
+    await entered.promise;
+    const rendered = barrier();
+    const unsubscribe = app.router.subscribe(route => { if (route.name === "lists") rendered.resolve(); });
+    transport.state.refreshStatus = 200;
+    // Act
+    try {
+      await other.establishSession(async () => ({ data: transport.state.token, status: 200,
+        metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } }));
+      await rendered.promise;
+      release.resolve(); await Promise.resolve();
+      // Assert
+      expect(window.location.pathname).toBe("/lists");
+      expect(app.shell.outlet.querySelector("form")).toBeNull();
+      expect(app.shell.outlet.textContent).not.toMatch(/private-password|Demande prise en compte/);
+      for (const field of fields) expect(field.value).toBe("");
+    } finally { release.resolve(); unsubscribe(); other.dispose(); }
+  });
+
+  it("keeps the home free of business state and cleans logout handlers", async () => {
     // Arrange
     const app = mount(); await app.start(); await app.session.start();
     const routes = createApplicationRoutes({ session: app.session });

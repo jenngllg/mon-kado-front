@@ -11,7 +11,10 @@ import {
   RoutePaths,
 } from "../src/app/index.js";
 import { createPlaceholderView } from "../src/views/index.js";
-const unusedSession = { ensureSession: async () => { throw new Error("Rendering must not call the session service."); } };
+const unusedSession = {
+  ensureSession: async () => { throw new Error("Rendering must not call the session service."); },
+  request: async () => { throw new Error("Rendering must not call the API."); },
+};
 
 /** @type {Array<[string, string]>} */
 const ExpectedRoutes = [
@@ -67,7 +70,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => name !== RouteNames.Register))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange
@@ -89,6 +92,15 @@ describe("application routes", () => {
       expect(view.querySelector("form")).toBeNull();
     },
   );
+
+  it("renders the registration form without making an API call", async () => {
+    // Arrange / Act
+    const view = await getRoute(RouteNames.Register).render(createRouteContext("/register"));
+    // Assert
+    expect(view.querySelector("h1")?.textContent).toBe("Créer un compte");
+    expect(view.querySelector("form")).not.toBeNull();
+    expect(view.querySelectorAll("input")).toHaveLength(3);
+  });
 
   it("does not reflect a shared-list secret from the URL fragment", async () => {
     // Arrange

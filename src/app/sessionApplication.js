@@ -6,6 +6,7 @@ import { createApplicationRoutes } from "./routes.js";
 import { createRouter } from "../router/router.js";
 import { createPlaceholderView } from "../views/index.js";
 import { installGlobalErrorHandlers } from "../errors/index.js";
+import { RouteNames, RoutePaths } from "./routeContracts.js";
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
@@ -43,8 +44,15 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
     shell.setSession(state);
     const current = router.getCurrentRoute();
     const lostAccess = previous.status === "authenticated" && state.status !== "authenticated";
+    const gainedAccess = previous.status !== "authenticated" && state.status === "authenticated";
     previous = state;
     renderFeedback();
+    if (gainedAccess && current?.name === RouteNames.Register && window.location.pathname === current.url.pathname) {
+      // Clear credentials entered in this tab before the protected guard yields.
+      disposeComponent(shell.outlet);
+      shell.outlet.replaceChildren(createLoadingState({ label: "Vérification de la session…" }));
+      void router.replace(RoutePaths.Lists);
+    }
     if (lostAccess && isProtectedRoute(current?.name)) {
       // Remove private content before an asynchronous guard can yield.
       disposeComponent(shell.outlet);

@@ -47,7 +47,8 @@ const JsonContentType = "application/json";
  *   ifMatch?: string,
  *   shareToken?: string,
  *   signal?: AbortSignal,
- *   timeoutMs?: number
+ *   timeoutMs?: number,
+ *   expectEmptyResponse?: boolean
  * }} ApiRequestOptions
  */
 
@@ -211,7 +212,7 @@ export class ApiClient {
     );
 
     if (response.ok) {
-      if (!decodedResponse.isValid) {
+      if (!decodedResponse.isValid || (options.expectEmptyResponse && !decodedResponse.isEmpty)) {
         throw new ApiError({
           kind: "invalidResponse",
           statusCode: response.status,
@@ -317,7 +318,7 @@ export class ApiClient {
    * @param {number} timeoutMs Timeout in milliseconds.
    * @param {string} correlationId Request correlation identifier.
    * @param {(response: Response, metadata: ApiResponseMetadata) => void} [onHeaders] Receives headers before body consumption.
-   * @returns {Promise<{response: Response, metadata: ApiResponseMetadata, decodedResponse: {data: unknown, isValid: boolean}}>} Response read within the deadline.
+   * @returns {Promise<{response: Response, metadata: ApiResponseMetadata, decodedResponse: {data: unknown, isValid: boolean, isEmpty: boolean}}>} Response read within the deadline.
    */
   async #fetchWithTimeout(
     url,
@@ -602,29 +603,29 @@ function setOptionalHeader(headers, name, value) {
 
 /**
  * @param {Response} response Fetch response.
- * @returns {Promise<{ data: unknown, isValid: boolean }>} Decoded response body.
+ * @returns {Promise<{ data: unknown, isValid: boolean, isEmpty: boolean }>} Decoded response body.
  */
 async function decodeResponse(response) {
   if (response.status === 204 || response.status === 205) {
-    return { data: null, isValid: true };
+    return { data: null, isValid: true, isEmpty: true };
   }
 
   const responseText = await response.text();
 
   if (responseText.length === 0) {
-    return { data: null, isValid: true };
+    return { data: null, isValid: true, isEmpty: true };
   }
 
   const contentType = response.headers.get("Content-Type") ?? "";
 
   if (!isJsonContentType(contentType)) {
-    return { data: null, isValid: false };
+    return { data: null, isValid: false, isEmpty: false };
   }
 
   try {
-    return { data: JSON.parse(responseText), isValid: true };
+    return { data: JSON.parse(responseText), isValid: true, isEmpty: false };
   } catch {
-    return { data: null, isValid: false };
+    return { data: null, isValid: false, isEmpty: false };
   }
 }
 

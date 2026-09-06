@@ -92,6 +92,40 @@
   font-size: var(--font-size-2xl);
 }
 
+.registration-view {
+  --flow-space: var(--space-5);
+
+  width: min(100%, var(--content-narrow));
+  margin-inline: auto;
+  padding: clamp(var(--space-4), 4vw, var(--space-7));
+  border: 1px solid var(--color-border);
+  border-block-start: var(--space-1) solid var(--color-accent);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+}
+
+.registration-view h1 {
+  font-size: var(--font-size-2xl);
+}
+
+.registration-view__intro {
+  color: var(--color-text-muted);
+}
+
+.registration-form {
+  --flow-space: var(--space-5);
+}
+
+.registration-form__visibility {
+  justify-self: start;
+  text-align: start;
+}
+
+.registration-form > .ui-button {
+  width: 100%;
+}
+
 .error-view {
   width: min(100%, var(--content-narrow));
   margin-inline: auto;

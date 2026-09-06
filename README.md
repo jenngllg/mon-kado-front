@@ -374,6 +374,37 @@ simulée ; les intégrations DOM utilisent Happy DOM. Les vérifications réelle
 multi-onglets Playwright sont temporaires et ne constituent pas une suite E2E
 installée dans ce dépôt.
 
+## Inscription (#865)
+
+`/register` propose un nom d’affichage, une adresse e-mail et un mot de passe.
+La vue `createRegistrationView({ register, signal })` utilise les composants
+communs ; son service injectable `createRegistrationService(session)` envoie
+uniquement `{ displayName, email, password }` à `POST /api/v1/auth/registrations`,
+avec CSRF et `authentication: "none"`. Le payload est typé avec le schéma
+OpenAPI `RegisterAccountRequest`. Aucun JWT, refresh ou établissement de session
+n’est déclenché par cette opération. La restauration globale du shell reste indépendante.
+
+Le nom et l’e-mail sont nettoyés aux extrémités ; le mot de passe reste strictement
+inchangé. Les limites (80, 254 et 12–128) comptent les caractères Unicode, pas les
+unités UTF-16. Le navigateur vérifie les erreurs de saisie évidentes ; le backend
+reste l’arbitre du format d’e-mail. Les validations et erreurs affichées sont
+françaises, jamais issues des messages anglais du serveur.
+
+Seul un `202 Accepted` sans corps confirme la prise en compte. L’option HTTP
+`expectEmptyResponse: true` distingue un corps vide d’un JSON `null`, sans
+changer la forme des réponses normalisées ni les autres appels. Le formulaire
+est alors effacé et remplacé sur la même route par un message neutre, identique
+pour une adresse nouvelle ou déjà inscrite : ni existence du compte, ni envoi
+effectif d’e-mail ne sont affirmés. Il faut confirmer l’adresse avant de se
+connecter. Confirmation effective, renvoi d’e-mail, connexion et Google restent
+dans leurs US respectives.
+
+En cas d’échec, les saisies restent uniquement dans le formulaire monté.
+Le délai éventuel d’un `429` est indiqué, sans rejeu automatique. La sortie de
+la vue annule l’appel, efface les champs et nettoie les événements ; une réponse
+tardive est ignorée. Une connexion dans un autre onglet ferme ce formulaire
+et remplace l’URL par `/lists`. Aucun champ n’est stocké ou journalisé.
+
 ## Types du contrat OpenAPI
 
 Le backend doit exposer son contrat OpenAPI v1. L’URL utilisée par défaut est

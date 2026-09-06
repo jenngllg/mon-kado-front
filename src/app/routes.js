@@ -7,6 +7,8 @@ import {
   RoutePaths,
 } from "./routeContracts.js";
 import { createSessionGuard } from "../auth/sessionGuards.js";
+import { createRegistrationService } from "../features/registration/registrationService.js";
+import { createRegistrationView } from "../features/registration/registrationView.js";
 
 export {
   NavigationItems,
@@ -17,91 +19,95 @@ export {
 const PlaceholderMessage =
   "Cette fonctionnalité sera disponible dans un prochain lot.";
 
-const PlaceholderRoutes = Object.freeze([
-  createPlaceholderRoute(
-    RouteNames.Login,
-    RoutePaths.Login,
-    "Connexion",
-    "Compte MonKado",
-  ),
-  createPlaceholderRoute(
-    RouteNames.LinkGoogle,
-    RoutePaths.LinkGoogle,
-    "Connexion avec Google",
-    "Compte MonKado",
-  ),
-  createPlaceholderRoute(
-    RouteNames.Register,
-    RoutePaths.Register,
-    "Créer un compte",
-    "Compte MonKado",
-  ),
-  createPlaceholderRoute(
-    RouteNames.ConfirmEmail,
-    RoutePaths.ConfirmEmail,
-    "Confirmer l’adresse e-mail",
-    "Sécurité du compte",
-  ),
-  createPlaceholderRoute(
-    RouteNames.ConfirmEmailChange,
-    RoutePaths.ConfirmEmailChange,
-    "Confirmer la nouvelle adresse e-mail",
-    "Sécurité du compte",
-  ),
-  createPlaceholderRoute(
-    RouteNames.ForgotPassword,
-    RoutePaths.ForgotPassword,
-    "Mot de passe oublié",
-    "Sécurité du compte",
-  ),
-  createPlaceholderRoute(
-    RouteNames.ResetPassword,
-    RoutePaths.ResetPassword,
-    "Réinitialiser le mot de passe",
-    "Sécurité du compte",
-  ),
-  createPlaceholderRoute(
-    RouteNames.Profile,
-    RoutePaths.Profile,
-    "Mon profil",
-    "Compte MonKado",
-  ),
-  createPlaceholderRoute(
-    RouteNames.Lists,
-    RoutePaths.Lists,
-    "Mes listes",
-    "Listes de cadeaux",
-  ),
-  createPlaceholderRoute(
-    RouteNames.NewList,
-    RoutePaths.NewList,
-    "Créer une liste",
-    "Listes de cadeaux",
-  ),
-  createPlaceholderRoute(
-    RouteNames.ListDetails,
-    RoutePaths.ListDetails,
-    "Détail de la liste",
-    "Listes de cadeaux",
-  ),
-  createPlaceholderRoute(
-    RouteNames.Reservations,
-    RoutePaths.Reservations,
-    "Mes réservations",
-    "Cadeaux réservés",
-  ),
-  createPlaceholderRoute(
-    RouteNames.SharedWishlist,
-    RoutePaths.SharedWishlist,
-    "Liste de cadeaux partagée",
-    "Accès invité",
-  ),
-]);
+/** @param {Pick<import("../auth/sessionManager.js").SessionManager, "request">} session HTTP facade. */
+function createPageRoutes(session) {
+  return Object.freeze([
+    createPlaceholderRoute(
+      RouteNames.Login,
+      RoutePaths.Login,
+      "Connexion",
+      "Compte MonKado",
+    ),
+    createPlaceholderRoute(
+      RouteNames.LinkGoogle,
+      RoutePaths.LinkGoogle,
+      "Connexion avec Google",
+      "Compte MonKado",
+    ),
+    {
+      name: RouteNames.Register,
+      path: RoutePaths.Register,
+      title: "Créer un compte · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createRegistrationView({ register: createRegistrationService(session), signal: context.signal }),
+    },
+    createPlaceholderRoute(
+      RouteNames.ConfirmEmail,
+      RoutePaths.ConfirmEmail,
+      "Confirmer l’adresse e-mail",
+      "Sécurité du compte",
+    ),
+    createPlaceholderRoute(
+      RouteNames.ConfirmEmailChange,
+      RoutePaths.ConfirmEmailChange,
+      "Confirmer la nouvelle adresse e-mail",
+      "Sécurité du compte",
+    ),
+    createPlaceholderRoute(
+      RouteNames.ForgotPassword,
+      RoutePaths.ForgotPassword,
+      "Mot de passe oublié",
+      "Sécurité du compte",
+    ),
+    createPlaceholderRoute(
+      RouteNames.ResetPassword,
+      RoutePaths.ResetPassword,
+      "Réinitialiser le mot de passe",
+      "Sécurité du compte",
+    ),
+    createPlaceholderRoute(
+      RouteNames.Profile,
+      RoutePaths.Profile,
+      "Mon profil",
+      "Compte MonKado",
+    ),
+    createPlaceholderRoute(
+      RouteNames.Lists,
+      RoutePaths.Lists,
+      "Mes listes",
+      "Listes de cadeaux",
+    ),
+    createPlaceholderRoute(
+      RouteNames.NewList,
+      RoutePaths.NewList,
+      "Créer une liste",
+      "Listes de cadeaux",
+    ),
+    createPlaceholderRoute(
+      RouteNames.ListDetails,
+      RoutePaths.ListDetails,
+      "Détail de la liste",
+      "Listes de cadeaux",
+    ),
+    createPlaceholderRoute(
+      RouteNames.Reservations,
+      RoutePaths.Reservations,
+      "Mes réservations",
+      "Cadeaux réservés",
+    ),
+    createPlaceholderRoute(
+      RouteNames.SharedWishlist,
+      RoutePaths.SharedWishlist,
+      "Liste de cadeaux partagée",
+      "Accès invité",
+    ),
+  ]);
+}
 
 /**
  * Creates the complete frontend route catalogue.
  *
- * @param {{session: Pick<import("../auth/sessionManager.js").SessionManager, "ensureSession">}} options Session dependency.
+ * @param {{session: Pick<import("../auth/sessionManager.js").SessionManager, "ensureSession" | "request">}} options Session dependency.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
 export function createApplicationRoutes({ session }) {
@@ -112,7 +118,7 @@ export function createApplicationRoutes({ session }) {
       title: "MonKado · Les cadeaux qui font vraiment plaisir",
       render: createHomeView,
     }),
-    ...PlaceholderRoutes.map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
+    ...createPageRoutes(session).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
   ];
 }
 
