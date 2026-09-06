@@ -38,6 +38,7 @@ const RenewalMargin = 60_000;
  *   establishSession: (authenticate: Authenticate, options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   resetPassword: (reset: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   changePassword: (change: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
+ *   confirmEmailChange: (confirm: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   getSnapshot: () => SessionSnapshot,
  *   subscribe: (listener: (state: SessionSnapshot) => void) => () => void,
  *   logout: () => Promise<SessionSnapshot>,
@@ -84,8 +85,11 @@ export function createSessionManager({
   let resetting = null;
   /** @type {Promise<PasswordResetResult> | null} */
   let changingPassword = null;
+  /** Distinct confirmations must never borrow another operation's successful result.
+   * @type {Set<Promise<PasswordResetResult>>} */
+  const confirmingEmailChanges = new Set();
   /** Non-secret bookkeeping: retrying synchronization must never repeat the reset POST.
-   * @type {{generation: string, logoutPending: boolean} | null} */
+   * @type {{generation: string, logoutPending: boolean, operation: "resetPassword" | "changePassword" | "confirmEmailChange"} | null} */
   let pendingResetClosure = null;
   /** @type {Set<(state: SessionSnapshot) => void>} */
   const subscribers = new Set();
@@ -118,6 +122,7 @@ export function createSessionManager({
     establishSession,
     resetPassword,
     changePassword,
+    confirmEmailChange,
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
       assertActive();
@@ -150,6 +155,7 @@ export function createSessionManager({
   /** @returns {Promise<SessionSnapshot>} Explicit restoration or shared in-flight work. */
   function restore() {
     assertActive();
+    if (confirmingEmailChanges.size > 0) return Promise.allSettled([...confirmingEmailChanges]).then(() => snapshot);
     if (changingPassword !== null) return changingPassword.then(() => snapshot, () => snapshot);
     if (resetting !== null) return resetting.then(() => snapshot, error => {
       if (!disposed && snapshot.status === "initializing") setUnavailable(safeFailure(error));
@@ -390,33 +396,65 @@ export function createSessionManager({
     assertActive();
     if (signal?.aborted) return Promise.reject(createAbortError());
     if (resetting !== null) return waitForSession(resetting, signal);
+    resetting = runAnonymousClosure(reset, signal, true).finally(() => { resetting = null; });
+    return waitForSession(resetting, signal);
+  }
+
+  /** Confirms an email change, including when a different account owns this browser's cookie.
+   * @param {ResetPassword} confirm Anonymous HTTP operation with a 204 contract.
+   * @param {{signal?: AbortSignal}} [options] Cancels waiting, never a submitted cookie mutation.
+   * @returns {Promise<PasswordResetResult>} Business success distinct from synchronization.
+   */
+  function confirmEmailChange(confirm, { signal } = {}) {
+    assertActive();
+    if (signal?.aborted) return Promise.reject(createAbortError());
+    const work = runAnonymousClosure(confirm, signal).finally(() => { confirmingEmailChanges.delete(work); });
+    confirmingEmailChanges.add(work);
+    return waitForSession(work, signal);
+  }
+
+  /** Shares cookie-closing mechanics, not the identity or result of individual operations.
+   * @param {ResetPassword} operation Anonymous cookie mutation.
+   * @param {AbortSignal} [signal] Caller-owned waiting signal.
+   * @param {boolean} [resumeReset] Retains the existing explicit reset recovery contract.
+   * @returns {Promise<PasswordResetResult>} Completed operation and optional synchronization issue.
+   */
+  function runAnonymousClosure(operation, signal, resumeReset = false) {
     const expected = revision;
     const waitingSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
-    resetting = coordinator.exclusive(async () => {
+    return coordinator.exclusive(async () => {
       // A previous confirmed reset only needs metadata reconciliation, never another POST.
-      if (pendingResetClosure !== null) return finishPasswordReset();
+      if (pendingResetClosure !== null) {
+        const resumesThisReset = resumeReset && pendingResetClosure.operation === "resetPassword";
+        const result = await finishPasswordReset();
+        if (resumesThisReset) return result;
+        if (pendingResetClosure !== null) throw unavailable();
+      }
       await verify(expected);
       if (waitingSignal.aborted) throw createAbortError();
       api.invalidateCsrfToken();
       await api.refreshCsrfToken();
       await verify(expected);
       if (waitingSignal.aborted) throw createAbortError();
-      const response = await reset({ request: (path, options = {}) => api.request(path,
+      const response = await operation({ request: (path, options = {}) => api.request(path,
         { ...options, authentication: "none", csrf: true, expectEmptyResponse: true, signal: lifetime.signal }) });
       if (response.status !== 204 || response.data !== null) throw invalidResponse(response);
       // HTTP success is already final: never turn a later metadata read failure into a retryable POST.
       if (disposed) throw createAbortError();
-      if (expected !== revision) return Object.freeze({ sessionIssue: null });
+      if (expected !== revision) {
+        if (resumeReset) return Object.freeze({ sessionIssue: null });
+        throw createAbortError();
+      }
       const previous = metadata;
       if (previous === null) throw unavailable();
       clearCredentials();
-      pendingResetClosure = { generation: previous.generation, logoutPending: blocked };
+      pendingResetClosure = { generation: previous.generation, logoutPending: blocked, operation: resumeReset ? "resetPassword" : "confirmEmailChange" };
       publish("anonymous", null, null, blocked ? logoutIssue() : null);
       return finishPasswordReset();
     }, { signal: waitingSignal }).catch(error => {
+      if (disposed || (!resumeReset && expected !== revision)) throw createAbortError();
       throw isAbortError(error) ? createAbortError() : safeFailure(error);
-    }).finally(() => { resetting = null; });
-    return waitForSession(resetting, waitingSignal);
+    });
   }
 
   /** Changes an authenticated password while retaining ownership of a started cookie mutation.
@@ -430,11 +468,11 @@ export function createSessionManager({
     if (changingPassword !== null) return waitForSession(changingPassword, signal);
     const expected = revision;
     const userId = snapshot.user?.id;
-    if (pendingResetClosure === null && (snapshot.status !== "authenticated" || userId === undefined)) return Promise.reject(authenticationRequired());
+    if (pendingResetClosure?.operation !== "changePassword" && (snapshot.status !== "authenticated" || userId === undefined)) return Promise.reject(authenticationRequired());
     const waitingSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
     let submitted = false;
     changingPassword = coordinator.exclusive(async () => {
-      if (pendingResetClosure !== null) return finishPasswordReset();
+      if (pendingResetClosure?.operation === "changePassword") return finishPasswordReset();
       await verify(expected);
       if (waitingSignal.aborted) throw createAbortError();
       await renewUnderLock(expected, userId);
@@ -450,7 +488,7 @@ export function createSessionManager({
       const previous = metadata;
       if (previous === null) throw unavailable();
       clearCredentials();
-      pendingResetClosure = { generation: previous.generation, logoutPending: blocked };
+      pendingResetClosure = { generation: previous.generation, logoutPending: blocked, operation: "changePassword" };
       // The integration observes success before its lost-access handler destroys the view.
       publish("anonymous", null, null, blocked ? logoutIssue() : null, "passwordChanged");
       return finishPasswordReset();

@@ -19,6 +19,9 @@ import { createPasswordRecoveryService } from "../features/passwordRecovery/pass
 import { createForgotPasswordView, createResetPasswordView } from "../features/passwordRecovery/passwordRecoveryViews.js";
 import { createPasswordChangeService } from "../features/passwordChange/passwordChangeService.js";
 import { createPasswordChangeView } from "../features/passwordChange/passwordChangeView.js";
+import { createEmailChangeService } from "../features/emailChange/emailChangeService.js";
+import { createEmailChangeView } from "../features/emailChange/emailChangeView.js";
+import { createEmailChangeConfirmationView } from "../features/emailChange/emailChangeConfirmationView.js";
 
 export {
   NavigationItems,
@@ -63,12 +66,11 @@ function createPageRoutes(session, consumePasswordChangeNotice) {
         createEmailConfirmationView({ ...createEmailConfirmationService(session),
           consumeFragment: context.consumeFragment, signal: context.signal }),
     },
-    createPlaceholderRoute(
-      RouteNames.ConfirmEmailChange,
-      RoutePaths.ConfirmEmailChange,
-      "Confirmer la nouvelle adresse e-mail",
-      "Sécurité du compte",
-    ),
+    {
+      name: RouteNames.ConfirmEmailChange, path: RoutePaths.ConfirmEmailChange, title: "Confirmer la nouvelle adresse e-mail · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createEmailChangeConfirmationView({ ...createEmailChangeService(session), consumeFragment: context.consumeFragment, signal: context.signal }),
+    },
     {
       name: RouteNames.ForgotPassword, path: RoutePaths.ForgotPassword, title: "Mot de passe oublié · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
@@ -90,6 +92,11 @@ function createPageRoutes(session, consumePasswordChangeNotice) {
       name: RouteNames.PasswordChange, path: RoutePaths.PasswordChange, title: "Changer mon mot de passe · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createPasswordChangeView({ ...createPasswordChangeService(session), signal: context.signal }),
+    },
+    {
+      name: RouteNames.EmailChange, path: RoutePaths.EmailChange, title: "Changer mon adresse e-mail · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createEmailChangeView({ load: createProfileService(session).load, ...createEmailChangeService(session), signal: context.signal }),
     },
     createPlaceholderRoute(
       RouteNames.Lists,

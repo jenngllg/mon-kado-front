@@ -122,7 +122,8 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
       const target = window.location.href;
       const operation = logout ? session.logout() : session.restore();
       void operation.then(() => {
-        if (!disposed && !logout && target === window.location.href) return router.replace(target);
+        // A consumed confirmation link cannot be reconstructed: retain its completed public view.
+        if (!disposed && !logout && target === window.location.href && router.getCurrentRoute()?.name !== RouteNames.ConfirmEmailChange) return router.replace(target);
       }).catch(error => { if (!disposed) router.presentError(error); })
         .finally(() => { if (!disposed) setButtonLoading(button, false); });
     } });

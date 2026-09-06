@@ -655,6 +655,66 @@ ne garantit pas l’invalidation immédiate de tous les JWT déjà émis. Aucun
 mot de passe ni jeton n’est partagé entre onglets et aucun appel supplémentaire
 de connexion ou de déconnexion n’est ajouté après la réinitialisation.
 
+## Changement d’adresse e-mail
+
+Depuis le profil, `/profile/email` permet de demander un changement avec la
+nouvelle adresse et le mot de passe actuel. Cette route est protégée et conserve
+« Mon profil » actif dans la navigation. Chaque ouverture charge l’identité et
+un ETag fort avec `session.refreshIdentity()`.
+
+`createEmailChangeService(session).requestChange()` envoie uniquement
+`{ email, currentPassword }` à `PUT /api/v1/members/current/email`, avec JWT et
+`If-Match`, sans CSRF supplémentaire. L’e-mail est nettoyé aux extrémités ; le
+mot de passe n’est jamais modifié. Le succès attendu est **202 sans corps**.
+L’identité et l’adresse actuelle restent inchangées jusqu’à la confirmation.
+
+La prise en compte est affichée uniquement dans la vue courante, sans statut
+d’attente persistant : l’API ne permet pas de relire une demande en cours.
+Une demande identique déjà active ne renvoie pas d’e-mail. Une demande acceptée
+vers une autre adresse remplace la précédente ; aucun renvoi ni annulation
+n’est proposé. Le frontend ne garantit pas la livraison du message.
+
+Un conflit `412`, une précondition manquante ou un ETag inexploitable impose une
+nouvelle lecture. Les saisies restent dans le formulaire monté, l’adresse
+actuelle est actualisée et toute nouvelle écriture nécessite une soumission
+explicite avec le nouvel ETag. Aucun `If-Match: *` ni rejeu automatique du PUT.
+
+Le lien reçu est `/confirm-email-change#requestId={requestId}&token={token}`.
+La page publique appelle immédiatement `consumeFragment()` : URL, contexte et
+instantanés du routeur sont nettoyés, sans stocker les données dans l’historique.
+Le GUID de demande et le jeton base64url restent opaques et en mémoire uniquement.
+Un rechargement impose de rouvrir le lien reçu. Contrairement à la confirmation
+initiale d’inscription, **un clic explicite** est requis pour confirmer ce changement.
+Un lien expiré, remplacé ou déjà utilisé est présenté comme invalide.
+
+`confirmChange()` passe par `session.confirmEmailChange(confirm, { signal })`
+pour envoyer `{ requestId, token }` à `POST /api/v1/auth/email-change-confirmations`,
+sans JWT, avec CSRF, et attendre **204 sans corps**. Le verrou commun sérialise
+cette opération avec les autres mutations du cookie. Annuler avant le POST
+empêche son envoi ; quitter la vue après démarrage abandonne uniquement son
+attente, tandis que le gestionnaire termine sous le verrou.
+
+Le succès ferme la session de ce navigateur, **même si un autre compte y est
+ouvert** : JWT, candidat, identité et cache CSRF sont effacés, les opérations
+protégées sont annulées et les autres onglets sont informés sans recevoir de
+données personnelles. Les générations plus récentes et les marqueurs de
+déconnexion non confirmée restent prioritaires. Aucun appel supplémentaire de
+suppression de session, aucune restauration ni connexion automatique n’est ajouté.
+
+Le résultat `{ sessionIssue }` distingue le succès métier d’un problème de
+synchronisation. Dans ce dernier cas, « Réessayer » reprend uniquement les
+métadonnées via `restore()`, sans second POST et sans perdre la page de succès.
+Une erreur réseau avant confirmation du résultat laisse celui-ci incertain :
+la page ne promet pas que l’adresse est restée inchangée et propose une tentative
+explicite, la connexion ou une nouvelle demande. Aucun secret n’est journalisé
+ou persisté ; les saisies et liens sont effacés après succès, rejet définitif
+ou destruction de la vue.
+
+Le backend révoque les sessions de renouvellement du compte dont l’adresse
+change, sans garantir l’invalidation immédiate des JWT déjà émis sur les autres
+appareils. Les comptes sans mot de passe ne disposent pas ici d’un parcours
+alternatif ; aucun indicateur absent du contrat n’est inventé.
+
 ## Types du contrat OpenAPI
 
 Le backend doit exposer son contrat OpenAPI v1. L’URL utilisée par défaut est

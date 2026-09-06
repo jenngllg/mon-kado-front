@@ -160,6 +160,17 @@
   padding-inline: min(4vw, var(--space-5));
 }
 
+.email-change-view__controls {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.email-change-view__address {
+  overflow-wrap: anywhere;
+}
+
 .login-form__remember input {
   flex: none;
   width: var(--space-5);

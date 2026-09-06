@@ -48,7 +48,8 @@ export function createProfileView({ load, save, signal }) {
   form.append(field, comparison, actions);
   view.append(title, textElement("p", "Consulte tes informations et choisis le nom que tes proches verront."),
     feedback, loading, information, form,
-    createActionLink({ label: "Changer mon mot de passe", href: RoutePaths.PasswordChange }));
+    createActionLink({ label: "Changer mon mot de passe", href: RoutePaths.PasswordChange }),
+    createActionLink({ label: "Changer mon adresse e-mail", href: RoutePaths.EmailChange }));
 
   const lifetime = new AbortController();
   /** @type {import("./profileService.js").Profile | null} */

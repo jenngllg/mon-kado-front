@@ -41,6 +41,8 @@ export default [
       "tests/loginApplication.test.js",
       "tests/passwordRecoveryViews.test.js",
       "tests/passwordChangeView.test.js",
+      "tests/emailChangeView.test.js",
+      "tests/emailChangeApplication.test.js",
     ],
     languageOptions: {
       globals: globals.browser,

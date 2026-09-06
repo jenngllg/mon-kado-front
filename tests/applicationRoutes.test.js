@@ -17,6 +17,7 @@ const unusedSession = {
   establishSession: async () => { throw new Error("Unexpected authentication."); },
   resetPassword: async () => { throw new Error("Unexpected password reset."); },
   changePassword: async () => { throw new Error("Unexpected password change."); },
+  confirmEmailChange: async () => { throw new Error("Unexpected email change confirmation."); },
   logout: async () => { throw new Error("Unexpected logout."); },
   dispose: () => {},
   getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "anonymous", user: null, etag: null, logoutPending: false, authenticationPending: false, issue: null }),
@@ -38,6 +39,7 @@ const ExpectedRoutes = [
   [RouteNames.ResetPassword, RoutePaths.ResetPassword],
   [RouteNames.Profile, RoutePaths.Profile],
   [RouteNames.PasswordChange, RoutePaths.PasswordChange],
+  [RouteNames.EmailChange, RoutePaths.EmailChange],
   [RouteNames.Lists, RoutePaths.Lists],
   [RouteNames.NewList, RoutePaths.NewList],
   [RouteNames.ListDetails, RoutePaths.ListDetails],
@@ -81,7 +83,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange

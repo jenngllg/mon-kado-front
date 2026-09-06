@@ -76,7 +76,7 @@ describe("session routes and shell", () => {
     } finally { other.dispose(); saveGate.resolve(); }
   });
 
-  it.each(["/profile", "/profile/password", "/lists", "/lists/new", "/lists/list-1", "/reservations"])("guards direct anonymous access to %s", async path => {
+  it.each(["/profile", "/profile/password", "/profile/email", "/lists", "/lists/new", "/lists/list-1", "/reservations"])("guards direct anonymous access to %s", async path => {
     // Arrange
     const transport = createSessionTransport(); transport.state.refreshStatus = 401;
     const app = mount(path + "?private=discard#secret-discard", transport);
@@ -253,7 +253,7 @@ describe("session routes and shell", () => {
     // Arrange
     const app = mount(); await app.start(); await app.session.start();
     const routes = createApplicationRoutes({ session: app.session });
-    expect(routes).toHaveLength(15);
+    expect(routes).toHaveLength(16);
     const button = [...app.shell.element.querySelectorAll("button")].find(item => item.textContent === "Se déconnecter");
     app.dispose(); app.dispose();
     const requests = app.transport.fetch.mock.calls.length;
@@ -363,7 +363,7 @@ describe("safe return destinations", () => {
     // Arrange / Act / Assert
     expect(getSafeReturnTo(target)).toBe("/lists");
   });
-  it.each(["/profile", "/profile/password", "/reservations", "/lists", "/lists/new", "/lists/list-123"])("retains only the protected pathname of %s", path => {
+  it.each(["/profile", "/profile/password", "/profile/email", "/reservations", "/lists", "/lists/new", "/lists/list-123"])("retains only the protected pathname of %s", path => {
     // Arrange / Act / Assert
     expect(getSafeReturnTo(path + "/?token=private#secret")).toBe(path);
     expect(createLoginTarget(path + "?token=private#secret")).not.toMatch(/private|secret/);
