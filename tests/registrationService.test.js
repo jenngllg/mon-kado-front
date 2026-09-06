@@ -22,7 +22,7 @@ describe("registration service", () => {
     const { register, fetch } = setup(async () => new Response(null, { status: 202 }));
     const signal = new AbortController().signal;
     // Act
-    const extendedValues = { ...Values, extra: "never-sent" };
+    const extendedValues = { ...Values, confirmation: "local-only-confirmation-fixture", extra: "never-sent" };
     await register(extendedValues, { signal });
     // Assert
     expect(fetch).toHaveBeenCalledTimes(2);

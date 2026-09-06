@@ -15,7 +15,7 @@ function mount(register = vi.fn(async () => {})) {
   const fields = [...view.querySelectorAll("input")];
   const submit = /** @type {HTMLButtonElement} */ (view.querySelector('[type="submit"]'));
   return { view, register, form, fields, submit,
-    fill: () => { fields[0].value = "<b>Léa</b>"; fields[1].value = "lea@example.test"; fields[2].value = " password unchanged "; },
+    fill: () => { fields[0].value = "<b>Léa</b>"; fields[1].value = "lea@example.test"; fields[2].value = " password unchanged "; fields[3].value = fields[2].value; },
     send: async () => { form.dispatchEvent(new Event("submit", { cancelable: true })); await Promise.resolve(); await Promise.resolve(); },
   };
 }
@@ -28,8 +28,8 @@ describe("registration view", () => {
     expect(view.tagName).toBe("SECTION");
     expect(view.querySelector("h1")?.textContent).toBe("Créer un compte");
     expect(form.noValidate).toBe(true);
-    expect(fields.map(field => field.name)).toEqual(["displayName", "email", "password"]);
-    expect(fields.map(field => field.getAttribute("autocomplete"))).toEqual(["nickname", "email", "new-password"]);
+    expect(fields.map(field => field.name)).toEqual(["displayName", "email", "password", "confirmation"]);
+    expect(fields.map(field => field.getAttribute("autocomplete"))).toEqual(["nickname", "email", "new-password", "new-password"]);
     for (const field of fields) {
       expect(field.required).toBe(true);
       expect(view.querySelector(`label[for="${field.id}"]`)).not.toBeNull();
@@ -73,6 +73,121 @@ describe("registration view", () => {
     expect(app.view.querySelector('[role="alert"]')).toBeNull();
     for (const field of app.fields) expect(field.hasAttribute("aria-invalid")).toBe(false);
     expect(app.view.querySelector("b")).toBeNull();
+  });
+
+  it("toggles each password independently with distinct accessible names", () => {
+    // Arrange
+    const app = mount(); app.fill(); const buttons = [...app.view.querySelectorAll("button")].filter(button => button.type === "button");
+    // Act
+    buttons[1].click();
+    // Assert
+    expect(buttons.map(button => button.getAttribute("aria-controls"))).toEqual(app.fields.slice(2).map(field => field.id));
+    expect(buttons.map(button => button.getAttribute("aria-label"))).toEqual(["Afficher le mot de passe", "Masquer le mot de passe de confirmation"]);
+    expect(app.fields[2].type).toBe("password"); expect(app.fields[3].type).toBe("text");
+    buttons[0].click(); expect(app.fields[2].type).toBe("text"); expect(app.fields[3].type).toBe("text");
+    buttons[1].click(); expect(app.fields[3].type).toBe("password");
+    expect(app.fields[3].value).toBe(app.fields[2].value); expect(app.register).not.toHaveBeenCalled();
+  });
+
+  it.each(["", "different password", "password unchanged", " password unchanged  "])("blocks an empty or different confirmation without sending credentials", async confirmation => {
+    // Arrange
+    const app = mount(); app.fill(); app.fields[3].value = confirmation;
+    // Act
+    await app.send();
+    // Assert
+    expect(app.register).not.toHaveBeenCalled(); expect(document.activeElement).toBe(app.fields[3]);
+    expect(app.fields[3].getAttribute("aria-invalid")).toBe("true");
+    expect(app.view.textContent).toContain(confirmation === "" ? "Confirme ton mot de passe." : "Les deux mots de passe doivent être identiques.");
+  });
+
+  it("rechecks a previously validated confirmation when either input changes", async () => {
+    // Arrange
+    const app = mount(); app.fill(); app.fields[3].value = "";
+    app.fields[2].dispatchEvent(new Event("input"));
+    expect(app.fields[3].hasAttribute("aria-invalid")).toBe(false);
+    await app.send();
+    // Act
+    app.fields[3].value = app.fields[2].value; app.fields[3].dispatchEvent(new Event("input"));
+    // Assert
+    expect(app.view.querySelector('[role="alert"]')).toBeNull();
+    app.fields[2].value += "x"; app.fields[2].dispatchEvent(new Event("input"));
+    expect(app.fields[3].getAttribute("aria-invalid")).toBe("true");
+    app.fields[2].value = app.fields[3].value; app.fields[2].dispatchEvent(new Event("input"));
+    expect(app.fields[3].hasAttribute("aria-invalid")).toBe(false);
+  });
+
+  it("passes only the existing three properties to the registration service", async () => {
+    // Arrange
+    const register = vi.fn(async () => {}); const app = mount(register); app.fill();
+    // Act
+    await app.send();
+    // Assert
+    expect(register).toHaveBeenCalledOnce();
+    expect(register.mock.calls[0]).toEqual([
+      { displayName: "<b>Léa</b>", email: "lea@example.test", password: " password unchanged " },
+      { signal: expect.any(AbortSignal) },
+    ]);
+  });
+
+  it("defers blur layout changes until a password visibility click has been handled", () => {
+    // Arrange
+    const app = mount(); const field = app.fields[3]; const toggle = /** @type {HTMLButtonElement} */ (app.view.querySelector(`[aria-controls="${field.id}"]`));
+    field.value = "different"; field.dispatchEvent(new Event("input")); field.focus();
+    // Act
+    toggle.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    field.dispatchEvent(new FocusEvent("blur", { relatedTarget: toggle }));
+    // Assert
+    expect(field.hasAttribute("aria-invalid")).toBe(false);
+    toggle.click(); expect(field.type).toBe("text"); expect(field.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it.each(["pointercancel", "pointerup"])("flushes deferred validation when the pointer action is abandoned (%s)", eventName => {
+    // Arrange
+    const app = mount(); const field = app.fields[3]; field.value = "different"; field.dispatchEvent(new Event("input"));
+    app.submit.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    field.dispatchEvent(new FocusEvent("blur", { relatedTarget: app.submit }));
+    // Act
+    document.dispatchEvent(new PointerEvent(eventName, { bubbles: true }));
+    // Assert
+    expect(field.getAttribute("aria-invalid")).toBe("true"); expect(app.register).not.toHaveBeenCalled();
+  });
+
+  it("validates on keyboard blur without postponing the error", () => {
+    // Arrange
+    const app = mount(); const field = app.fields[3]; field.value = "different"; field.dispatchEvent(new Event("input"));
+    // Act
+    field.dispatchEvent(new FocusEvent("blur", { relatedTarget: app.submit }));
+    // Assert
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("keeps an unexpected server validation of confirmation in the global alert", async () => {
+    // Arrange
+    const app = mount(async () => { throw new ApiError({ kind: "http", statusCode: 400,
+      validationErrors: [{ propertyName: "confirmation", errorMessage: "private confirmation fixture" }] }); });
+    app.fill();
+    // Act
+    await app.send(); app.fields[3].dispatchEvent(new Event("input"));
+    // Assert
+    expect(app.fields[3].hasAttribute("aria-invalid")).toBe(false);
+    expect(app.view.textContent).toContain("Certaines informations n’ont pas été acceptées");
+    expect(app.view.textContent).not.toContain("private confirmation fixture");
+    expect(app.fields[3].value).toBe(" password unchanged ");
+  });
+
+  it.each([false, true])("clears and masks both passwords and restores toggle labels (success: %s)", async success => {
+    // Arrange
+    const app = mount(); app.fill(); const buttons = [...app.view.querySelectorAll("button")].filter(button => button.type === "button");
+    buttons.forEach(button => button.click());
+    // Act
+    if (success) await app.send(); else { disposeComponent(app.view); disposeComponent(app.view); }
+    // Assert
+    for (const control of app.fields.slice(2)) { expect(control.value).toBe(""); expect(control.type).toBe("password"); }
+    for (const button of buttons) {
+      expect(button.textContent).toBe("Afficher le mot de passe"); expect(button.getAttribute("aria-label")).toContain(button.textContent);
+      button.click();
+    }
+    expect(app.fields.slice(2).every(field => field.type === "password")).toBe(true);
   });
 
   it("validates only modified fields on blur, including a field cleared again", () => {
@@ -141,6 +256,7 @@ describe("registration view", () => {
     expect(app.view.textContent).not.toMatch(/Unsafe|English|<img/);
     expect(app.view.querySelector("img")).toBeNull();
     expect(app.fields[2].value).toBe(" password unchanged ");
+    expect(app.fields[3].value).toBe(" password unchanged ");
     expect(app.submit.disabled).toBe(false);
     expect(app.submit.textContent).toBe("Créer mon compte");
   });

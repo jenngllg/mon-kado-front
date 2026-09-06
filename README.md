@@ -377,9 +377,10 @@ simulée ; les intégrations DOM utilisent Happy DOM. Les vérifications réelle
 multi-onglets Playwright sont temporaires et ne constituent pas une suite E2E
 installée dans ce dépôt.
 
-## Inscription (#865)
+## Inscription (#865, #878)
 
-`/register` propose un nom d’affichage, une adresse e-mail et un mot de passe.
+`/register` propose quatre champs obligatoires : nom d’affichage, adresse e-mail,
+mot de passe et confirmation du mot de passe.
 La vue `createRegistrationView({ register, signal })` utilise les composants
 communs ; son service injectable `createRegistrationService(session)` envoie
 uniquement `{ displayName, email, password }` à `POST /api/v1/auth/registrations`,
@@ -392,6 +393,21 @@ inchangé. Les limites (80, 254 et 12–128) comptent les caractères Unicode, p
 unités UTF-16. Le navigateur vérifie les erreurs de saisie évidentes ; le backend
 reste l’arbitre du format d’e-mail. Les validations et erreurs affichées sont
 françaises, jamais issues des messages anglais du serveur.
+
+La confirmation doit être strictement identique au mot de passe, espaces et
+séquences Unicode compris. Elle n’est ni nettoyée ni normalisée, et reste
+exclusivement locale : le service et son contrat OpenAPI conservent uniquement
+les trois propriétés d’origine. Une validation serveur portant sur
+`confirmation`, inconnue de ce contrat, apparaît dans l’alerte globale française.
+
+Les deux champs de mot de passe utilisent `autocomplete="new-password"` et
+disposent chacun d’une commande Afficher/Masquer indépendante avec un nom
+accessible distinct. Le collage et les gestionnaires de mots de passe restent
+autorisés. Une confirmation déjà contrôlée est revalidée quand le mot de passe
+change, sans erreur anticipée sur un champ vierge. La validation au départ d’un
+champ ne déplace pas un bouton pendant son activation. Durant l’envoi, les quatre
+champs et les deux commandes sont désactivés. Les deux mots de passe sont effacés
+et remasqués après succès ou destruction de la vue.
 
 Seul un `202 Accepted` sans corps confirme la prise en compte. L’option HTTP
 `expectEmptyResponse: true` distingue un corps vide d’un JSON `null`, sans
@@ -539,7 +555,8 @@ propose une nouvelle demande. Après rechargement, il faut rouvrir le lien reçu
 Le nouveau mot de passe comporte de 12 à 128 caractères Unicode et doit être
 confirmé à l’identique. Aucun caractère ni espace n’est modifié ; la confirmation
 reste locale. La validation du nouveau mot de passe est partagée avec
-l’inscription, dont le formulaire reste inchangé. La connexion conserve sa
+l’inscription. Depuis #878, son formulaire comporte également une confirmation
+locale du mot de passe. La connexion conserve sa
 validation distincte pour les anciens mots de passe courts.
 
 `createPasswordRecoveryService(session)` expose `requestLink()` et

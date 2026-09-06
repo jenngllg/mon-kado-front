@@ -1,7 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { validateRegistrationField } from "../src/features/registration/registrationValidation.js";
+import { validateRegistrationConfirmation, validateRegistrationField } from "../src/features/registration/registrationValidation.js";
 
 describe("registration validation", () => {
+  it.each([" 1234567890 ", "🔑".repeat(12), "🔑".repeat(128), "e\u0301".repeat(12)])("accepts an identical confirmation without changing Unicode or spaces", password => {
+    // Arrange / Act / Assert
+    expect(validateRegistrationConfirmation(password, password)).toBeNull();
+  });
+  it("requires the confirmation explicitly", () => {
+    // Arrange / Act / Assert
+    expect(validateRegistrationConfirmation("", "password fixture")).toBe("Confirme ton mot de passe.");
+  });
+  it.each([
+    ["password fixture", " password fixture "],
+    ["é".repeat(12), "e\u0301".repeat(12)],
+    ["🔑".repeat(12), "🔑".repeat(13)],
+    ["Password fixture", "password fixture"],
+    [" ", "password fixture"],
+  ])("rejects unequal raw values, including canonically equivalent Unicode", (confirmation, password) => {
+    // Arrange / Act / Assert
+    expect(validateRegistrationConfirmation(confirmation, password)).toBe("Les deux mots de passe doivent être identiques.");
+  });
   it.each(["Léa", "  Léa  ", "🎁".repeat(80), "e\u0301", "<b>Léa</b>"])("accepts the display name %s", value => {
     // Arrange / Act / Assert
     expect(validateRegistrationField("displayName", value)).toBeNull();

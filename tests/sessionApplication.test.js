@@ -228,6 +228,7 @@ describe("session routes and shell", () => {
     await other.start();
     const fields = [...app.shell.outlet.querySelectorAll("input")];
     fields[0].value = "Fixture"; fields[1].value = "fixture@example.test"; fields[2].value = "private-password-fixture";
+    fields[3].value = fields[2].value;
     app.shell.outlet.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
     await entered.promise;
     const rendered = barrier();

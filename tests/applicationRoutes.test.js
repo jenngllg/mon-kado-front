@@ -108,7 +108,7 @@ describe("application routes", () => {
     // Assert
     expect(view.querySelector("h1")?.textContent).toBe("Créer un compte");
     expect(view.querySelector("form")).not.toBeNull();
-    expect(view.querySelectorAll("input")).toHaveLength(3);
+    expect(view.querySelectorAll("input")).toHaveLength(4);
   });
 
   it("renders sign-in without making an API call", async () => {
