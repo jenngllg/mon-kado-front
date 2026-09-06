@@ -1,4 +1,5 @@
 import { EmailServerValidationMessage, validateEmailAddress } from "../../auth/emailValidation.js";
+import { DisplayNameServerMessage, validateDisplayName } from "../../auth/displayNameValidation.js";
 
 /** @typedef {"displayName" | "email" | "password"} RegistrationField */
 /** @typedef {Record<RegistrationField, string>} RegistrationValues */
@@ -10,15 +11,7 @@ import { EmailServerValidationMessage, validateEmailAddress } from "../../auth/e
  */
 export function validateRegistrationField(field, value) {
   const trimmed = value.trim();
-  if (field === "displayName") {
-    if (!trimmed) return "Indique ton nom d’affichage.";
-    if ([...value].some(character => {
-      const code = character.codePointAt(0) ?? 0;
-      return code >= 0xd800 && code <= 0xdfff;
-    }) || /\p{Cc}/u.test(value)) return "Le nom ne doit pas contenir de caractères de contrôle ou invalides.";
-    if ([...trimmed].length > 80) return "Le nom doit contenir au maximum 80 caractères.";
-    return null;
-  }
+  if (field === "displayName") return validateDisplayName(value);
   if (field === "email") return validateEmailAddress(value);
   if (!trimmed) return "Indique un mot de passe.";
   const length = [...value].length;
@@ -28,7 +21,7 @@ export function validateRegistrationField(field, value) {
 
 /** @type {Readonly<Record<RegistrationField, string>>} */
 export const RegistrationServerMessages = Object.freeze({
-  displayName: "Vérifie ton nom : 80 caractères maximum, sans caractères de contrôle ou invalides.",
+  displayName: DisplayNameServerMessage,
   email: EmailServerValidationMessage,
   password: "Vérifie ton mot de passe : de 12 à 128 caractères.",
 });

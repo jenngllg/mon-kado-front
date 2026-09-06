@@ -3,6 +3,8 @@ import { ApiError, createAbortError, isAbortError } from "../api/apiError.js";
 import { toUserFacingError } from "../errors/errorMessages.js";
 import { createSessionCoordinator } from "./sessionCoordinator.js";
 import { waitForSession } from "./sessionAsync.js";
+import { isStrongEntityTag } from "../api/entityTag.js";
+import { validateDisplayName } from "./displayNameValidation.js";
 
 const SessionPath = "/api/v1/auth/sessions";
 const RenewalMargin = 60_000;
@@ -27,6 +29,7 @@ const RenewalMargin = 60_000;
  *   start: () => Promise<SessionSnapshot>,
  *   restore: () => Promise<SessionSnapshot>,
  *   ensureSession: (options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
+ *   refreshIdentity: (options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   request: Request,
  *   establishSession: (authenticate: Authenticate) => Promise<SessionSnapshot>,
  *   getSnapshot: () => SessionSnapshot,
@@ -77,6 +80,7 @@ export function createSessionManager({
   const protectedRequests = new Set();
   let revision = 0;
   let tokenVersion = 0;
+  let identityReadVersion = 0;
   let blocked = false;
   let disposed = false;
   const lifetime = new AbortController();
@@ -95,6 +99,7 @@ export function createSessionManager({
     start,
     restore,
     ensureSession,
+    refreshIdentity,
     request,
     establishSession,
     getSnapshot: () => snapshot,
@@ -156,6 +161,29 @@ export function createSessionManager({
       return snapshot;
     };
     return waitForSession(work(), AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]));
+  }
+
+  /** Reloads this session's identity without unnecessarily rotating credentials.
+   * @param {{signal?: AbortSignal}} [options] View-owned cancellation.
+   * @returns {Promise<SessionSnapshot>} Validated identity and strong concurrency metadata.
+   */
+  async function refreshIdentity({ signal } = {}) {
+    assertActive();
+    if (signal?.aborted) throw createAbortError();
+    const reading = ++identityReadVersion;
+    const current = await ensureSession({ signal });
+    if (current.status !== "authenticated" || current.user === null) throw authenticationRequired();
+    const expected = revision;
+    const selected = credentials;
+    if (reading !== identityReadVersion) throw createAbortError();
+    const response = await request(`${SessionPath}/current`, { authentication: "required", signal });
+    await verify(expected);
+    if (signal?.aborted || reading !== identityReadVersion || selected !== credentials) throw createAbortError();
+    const user = readUser(response);
+    if (response.status !== 200 || user.id !== current.user.id || validateDisplayName(user.displayName) !== null ||
+      !isStrongEntityTag(response.metadata.etag)) throw invalidResponse(response);
+    publish("authenticated", user, response.metadata.etag);
+    return snapshot;
   }
 
   /** @template TData
@@ -377,6 +405,7 @@ export function createSessionManager({
   /** Clears all private state and invalidates callers from the old generation. */
   function clearCredentials() {
     revision += 1;
+    identityReadVersion += 1;
     tokenVersion += 1;
     credentials = null;
     candidate = null;

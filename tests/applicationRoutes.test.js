@@ -12,6 +12,7 @@ import {
 } from "../src/app/index.js";
 import { createPlaceholderView } from "../src/views/index.js";
 const unusedSession = {
+  refreshIdentity: async () => { throw new Error("This route must not load a profile."); },
   ensureSession: async () => { throw new Error("Rendering must not call the session service."); },
   request: async () => { throw new Error("Rendering must not call the API."); },
 };
@@ -70,7 +71,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => name !== RouteNames.Register && name !== RouteNames.ConfirmEmail))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.Profile].some(candidate => candidate === name)))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange

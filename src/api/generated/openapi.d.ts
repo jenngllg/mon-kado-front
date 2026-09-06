@@ -1523,6 +1523,315 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/members/current/deletion-requests": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Requests an email confirmation before permanently deleting the current account. */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description Accepted */
+                readonly 202: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Too Many Requests */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/members/current/deletion-requests/confirm": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Permanently deletes the current account after explicit email confirmation. */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            /** @description The cancellation token. */
+            readonly requestBody: {
+                readonly content: {
+                    readonly "application/*+json": components["schemas"]["ConfirmMemberAccountDeletionRequest"];
+                    readonly "application/json": components["schemas"]["ConfirmMemberAccountDeletionRequest"];
+                };
+            };
+            readonly responses: {
+                /** @description No Content */
+                readonly 204: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Payload Too Large */
+                readonly 413: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                readonly 415: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Too Many Requests */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/members/current/email": {
         readonly parameters: {
             readonly query?: never;
@@ -6009,6 +6318,11 @@ export interface components {
             readonly token: null | string;
             /** @description Gets user id. */
             readonly userId: null | string;
+        };
+        /** @description Contains the token explicitly submitted to confirm account deletion. */
+        readonly ConfirmMemberAccountDeletionRequest: {
+            /** @description Gets the protected confirmation token. */
+            readonly token: null | string;
         };
         /** @description Represents a request to confirm a member email change. */
         readonly ConfirmMemberEmailChangeRequest: {

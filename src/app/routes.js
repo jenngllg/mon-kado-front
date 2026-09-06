@@ -11,6 +11,8 @@ import { createRegistrationService } from "../features/registration/registration
 import { createRegistrationView } from "../features/registration/registrationView.js";
 import { createEmailConfirmationService } from "../features/emailConfirmation/emailConfirmationService.js";
 import { createEmailConfirmationView } from "../features/emailConfirmation/emailConfirmationView.js";
+import { createProfileService } from "../features/profile/profileService.js";
+import { createProfileView } from "../features/profile/profileView.js";
 
 export {
   NavigationItems,
@@ -21,7 +23,7 @@ export {
 const PlaceholderMessage =
   "Cette fonctionnalité sera disponible dans un prochain lot.";
 
-/** @param {Pick<import("../auth/sessionManager.js").SessionManager, "request">} session HTTP facade. */
+/** @param {Pick<import("../auth/sessionManager.js").SessionManager, "request" | "refreshIdentity">} session HTTP facade. */
 function createPageRoutes(session) {
   return Object.freeze([
     createPlaceholderRoute(
@@ -69,12 +71,13 @@ function createPageRoutes(session) {
       "Réinitialiser le mot de passe",
       "Sécurité du compte",
     ),
-    createPlaceholderRoute(
-      RouteNames.Profile,
-      RoutePaths.Profile,
-      "Mon profil",
-      "Compte MonKado",
-    ),
+    {
+      name: RouteNames.Profile,
+      path: RoutePaths.Profile,
+      title: "Mon profil · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createProfileView({ ...createProfileService(session), signal: context.signal }),
+    },
     createPlaceholderRoute(
       RouteNames.Lists,
       RoutePaths.Lists,
@@ -111,7 +114,7 @@ function createPageRoutes(session) {
 /**
  * Creates the complete frontend route catalogue.
  *
- * @param {{session: Pick<import("../auth/sessionManager.js").SessionManager, "ensureSession" | "request">}} options Session dependency.
+ * @param {{session: Pick<import("../auth/sessionManager.js").SessionManager, "ensureSession" | "request" | "refreshIdentity">}} options Session dependency.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
 export function createApplicationRoutes({ session }) {

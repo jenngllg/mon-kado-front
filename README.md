@@ -442,6 +442,37 @@ après acceptation et à la sortie du formulaire. « Utiliser une autre adresse 
 réaffiche un formulaire vide. Un `429` affiche son délai éventuel, sans minuterie
 ni soumission automatique. Les messages anglais du backend ne sont jamais affichés.
 
+## Profil utilisateur
+
+La route protégée `/profile` affiche l’adresse e-mail en lecture seule et permet
+de modifier uniquement le nom d’affichage (80 caractères Unicode maximum).
+Sa validation est partagée avec l’inscription. Les changements d’e-mail et de
+mot de passe restent dans leurs US dédiées.
+
+`session.refreshIdentity({ signal })` relit `GET /api/v1/auth/sessions/current`,
+valide l’identité et son ETag fort puis publie un instantané immuable. Elle utilise
+le renouvellement à l’usage existant, sans rotation supplémentaire si le JWT est
+encore utilisable. Une panne de lecture ne déconnecte pas l’utilisateur ; un 401
+conserve le traitement d’expiration existant. Les lectures obsolètes ou appartenant
+à une ancienne session ne peuvent pas publier de données.
+
+L’enregistrement appelle `PUT /api/v1/members/current/profile` avec le seul
+champ `displayName`, le JWT et l’ETag de la version éditée dans `If-Match`.
+Le succès attendu est un 200 avec le nom enregistré et un ETag fort. Une relecture
+actualise ensuite l’identité centralisée. Si elle échoue, l’interface distingue
+l’enregistrement réussi de l’actualisation échouée et ne propose de rejouer que
+la lecture ; une nouvelle écriture reste bloquée jusque-là.
+
+Un conflit 412 conserve la saisie et recharge la dernière version pour comparaison.
+L’utilisateur choisit explicitement d’enregistrer sa saisie avec le nouvel ETag
+ou d’utiliser la valeur serveur. Aucun écrasement ni rejeu automatique de PUT,
+et jamais de précondition générique `If-Match: *`.
+
+Les brouillons ne vivent que dans la vue montée et sont abandonnés à sa fermeture.
+Aucune donnée de profil n’est stockée durablement ni diffusée entre onglets.
+Un autre onglet relit le profil à l’ouverture de la page ou lors d’un conflit.
+La déconnexion retire immédiatement le contenu protégé et annule ses opérations.
+
 ## Types du contrat OpenAPI
 
 Le backend doit exposer son contrat OpenAPI v1. L’URL utilisée par défaut est

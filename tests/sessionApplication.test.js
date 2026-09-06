@@ -25,6 +25,56 @@ function mount(path = "/", transport = createSessionTransport(), hub = createCoo
 }
 
 describe("session routes and shell", () => {
+  it("updates a routed profile and identity, then clears a pending edit when another tab logs out", async () => {
+    // Arrange
+    const hub = createCoordinatorHub();
+    const transport = createSessionTransport();
+    const original = transport.fetch.getMockImplementation();
+    const saveEntered = barrier(); const saveGate = barrier();
+    let delaySave = false;
+    transport.fetch.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname.endsWith("/current/profile")) {
+        expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer jwt-fixture-1");
+        expect(new Headers(init?.headers).get("If-Match")).toBe('"identity-1"');
+        expect(new Headers(init?.headers).has("X-CSRF-TOKEN")).toBe(false);
+        if (delaySave) { saveEntered.resolve(); await saveGate.promise; }
+        transport.state.user.displayName = JSON.parse(String(init?.body)).displayName;
+        return Response.json({ displayName: transport.state.user.displayName }, { headers: { ETag: '"identity-1"' } });
+      }
+      if (!original) throw new Error("Missing test transport.");
+      return original(input, init);
+    });
+    const app = mount("/profile", transport, hub);
+    const other = createSessionManager({ apiBaseUrl: "http://localhost:7000", coordinator: hub.create(),
+      fetchImplementation: createSessionTransport().fetch });
+    /** @param {() => boolean} predicate DOM transition. */
+    const observe = predicate => {
+      if (predicate()) return Promise.resolve();
+      return new Promise(resolve => {
+        const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } });
+        observer.observe(app.shell.outlet, { childList: true, subtree: true, attributes: true, characterData: true });
+      });
+    };
+    try {
+      // Act
+      await app.start();
+      await observe(() => app.shell.outlet.querySelector("form")?.hidden === false);
+      const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector("input"));
+      const form = /** @type {HTMLFormElement} */ (app.shell.outlet.querySelector("form"));
+      input.value = "Updated member"; input.dispatchEvent(new Event("input"));
+      form.dispatchEvent(new Event("submit", { cancelable: true }));
+      await observe(() => app.shell.outlet.textContent?.includes("Ton profil est à jour.") === true);
+      // Assert
+      expect(app.session.getSnapshot().user?.displayName).toBe("Updated member");
+      expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon profil");
+      await other.start(); delaySave = true; input.value = "Private draft";
+      form.dispatchEvent(new Event("submit", { cancelable: true })); await saveEntered.promise;
+      await other.logout(); saveGate.resolve();
+      expect(input.value).toBe(""); expect(app.shell.outlet.textContent).not.toMatch(/Private draft|Updated member|fixture@example/);
+      expect(app.session.getSnapshot().user).toBeNull();
+    } finally { other.dispose(); saveGate.resolve(); }
+  });
+
   it.each(["/profile", "/lists", "/lists/new", "/lists/list-1", "/reservations"])("guards direct anonymous access to %s", async path => {
     // Arrange
     const transport = createSessionTransport(); transport.state.refreshStatus = 401;

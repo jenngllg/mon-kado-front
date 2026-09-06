@@ -36,6 +36,7 @@ export default [
       "tests/sessionApplication.test.js",
       "tests/registrationView.test.js",
       "tests/emailConfirmationView.test.js",
+      "tests/profileView.test.js",
     ],
     languageOptions: {
       globals: globals.browser,
