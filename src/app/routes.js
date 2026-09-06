@@ -6,6 +6,7 @@ import {
   RouteNames,
   RoutePaths,
 } from "./routeContracts.js";
+import { createSessionGuard } from "../auth/sessionGuards.js";
 
 export {
   NavigationItems,
@@ -100,9 +101,10 @@ const PlaceholderRoutes = Object.freeze([
 /**
  * Creates the complete frontend route catalogue.
  *
+ * @param {{session: Pick<import("../auth/sessionManager.js").SessionManager, "ensureSession">}} options Session dependency.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
-export function createApplicationRoutes() {
+export function createApplicationRoutes({ session }) {
   return [
     Object.freeze({
       name: RouteNames.Home,
@@ -110,7 +112,7 @@ export function createApplicationRoutes() {
       title: "MonKado · Les cadeaux qui font vraiment plaisir",
       render: createHomeView,
     }),
-    ...PlaceholderRoutes,
+    ...PlaceholderRoutes.map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
   ];
 }
 

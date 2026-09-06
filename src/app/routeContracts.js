@@ -49,6 +49,11 @@ export const NavigationItems = Object.freeze([
     routeName: RouteNames.Reservations,
   }),
   Object.freeze({
+    label: "Mon profil",
+    href: RoutePaths.Profile,
+    routeName: RouteNames.Profile,
+  }),
+  Object.freeze({
     label: "Connexion",
     href: RoutePaths.Login,
     routeName: RouteNames.Login,

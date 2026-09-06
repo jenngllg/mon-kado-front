@@ -11,6 +11,7 @@ import {
   RoutePaths,
 } from "../src/app/index.js";
 import { createPlaceholderView } from "../src/views/index.js";
+const unusedSession = { ensureSession: async () => { throw new Error("Rendering must not call the session service."); } };
 
 /** @type {Array<[string, string]>} */
 const ExpectedRoutes = [
@@ -33,7 +34,7 @@ const ExpectedRoutes = [
 describe("application routes", () => {
   it("exposes the complete route catalogue with static list routes first", () => {
     // Arrange
-    const routes = createApplicationRoutes();
+    const routes = createApplicationRoutes({ session: unusedSession });
 
     // Act
     const routeContracts = routes.map((route) => [route.name, route.path]);
@@ -127,7 +128,7 @@ describe("application routes", () => {
  * @returns {import("../src/router/router.js").RouteDefinition} Matching route.
  */
 function getRoute(name) {
-  const route = createApplicationRoutes().find(
+  const route = createApplicationRoutes({ session: unusedSession }).find(
     (candidate) => candidate.name === name,
   );
 

@@ -56,6 +56,7 @@ const JsonContentType = "application/json";
  */
 export class ApiClient {
   #accessTokenProvider;
+  #accessTokenVersionProvider;
   #baseUrl;
   #correlationIdProvider;
   #csrfTokenManager;
@@ -68,6 +69,7 @@ export class ApiClient {
    *   baseUrl: string,
    *   fetchImplementation?: typeof fetch,
    *   accessTokenProvider?: () => string | null,
+   *   accessTokenVersionProvider?: () => number,
    *   onUnauthorized?: (error: ApiError) => void,
    *   correlationIdProvider?: () => string,
    *   timeoutMs?: number
@@ -77,6 +79,7 @@ export class ApiClient {
     baseUrl,
     fetchImplementation = globalThis.fetch.bind(globalThis),
     accessTokenProvider = () => null,
+    accessTokenVersionProvider = () => 0,
     onUnauthorized = () => {},
     correlationIdProvider = createCorrelationId,
     timeoutMs = DefaultTimeoutMilliseconds,
@@ -84,6 +87,7 @@ export class ApiClient {
     this.#baseUrl = normalizeBaseUrl(baseUrl);
     this.#fetch = fetchImplementation;
     this.#accessTokenProvider = accessTokenProvider;
+    this.#accessTokenVersionProvider = accessTokenVersionProvider;
     this.#onUnauthorized = onUnauthorized;
     this.#correlationIdProvider = correlationIdProvider;
     this.#timeoutMs = validateTimeout(timeoutMs);
@@ -121,6 +125,7 @@ export class ApiClient {
       normalizedOptions,
       accessToken,
       true,
+      this.#accessTokenVersionProvider(),
     );
   }
 
@@ -146,6 +151,7 @@ export class ApiClient {
    * @param {ApiRequestOptions & { method: string, timeoutMs: number }} options Request options.
    * @param {string | null} accessToken Access token selected for this request.
    * @param {boolean} allowCsrfRetry Whether one CSRF recovery attempt remains.
+   * @param {number} tokenVersion Opaque credential revision at dispatch.
    * @returns {Promise<ApiResponse<TData>>} Normalized response.
    */
   async #sendRequest(
@@ -153,6 +159,7 @@ export class ApiClient {
     options,
     accessToken,
     allowCsrfRetry,
+    tokenVersion,
   ) {
     throwIfCallerAborted(options.signal);
     const csrfToken = options.csrf
@@ -191,7 +198,8 @@ export class ApiClient {
       options.timeoutMs,
       correlationId,
       (response, metadata) => {
-        if (response.status === 401 && accessToken !== null) {
+        if (response.status === 401 && accessToken !== null &&
+          !options.signal?.aborted && tokenVersion === this.#accessTokenVersionProvider()) {
           this.#notifyUnauthorized(new ApiError({
             kind: "http",
             statusCode: 401,
@@ -236,6 +244,7 @@ export class ApiClient {
         options,
         accessToken,
         false,
+        tokenVersion,
       );
     }
 

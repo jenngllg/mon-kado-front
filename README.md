@@ -98,19 +98,22 @@ la préférence système de réduction des mouvements.
 
 Le shell persistant est créé avec `createApplicationShell()` depuis
 `src/app/index.js`. Il fournit l’élément racine, le `main` utilisé comme
-outlet du routeur, la région de notifications et `setCurrentRoute()` pour
-synchroniser l’état de la navigation.
+outlet du routeur, la région de notifications, une zone d’alerte de session,
+`setCurrentRoute()` et `setSession()` pour synchroniser la navigation.
 
-L’en-tête contient la marque MonKado et les accès vers l’accueil, les listes,
-les réservations, la connexion et l’inscription. À partir de `48rem`, ces
+L’en-tête contient la marque MonKado. Un visiteur voit Accueil, Connexion et
+S’inscrire ; un membre voit Accueil, Mes listes, Mes réservations, Mon profil
+et Se déconnecter. Pendant la restauration, les actions de compte sont
+remplacées par une indication de chargement. À partir de `48rem`, ces
 liens sont affichés horizontalement. Sur les écrans plus étroits, ils sont
 regroupés dans un menu déroulant utilisable au clavier et refermé après chaque
 navigation. Un lien d’évitement permet d’atteindre directement le contenu.
 
-`createApplicationRoutes()` centralise les routes réservées aux prochaines
+`createApplicationRoutes({ session })` centralise les routes réservées aux prochaines
 fonctionnalités : compte, confirmation d’e-mail, profil, listes, réservations
 et partage invité. Tant que leur US n’est pas développée, chaque route affiche
-une page temporaire explicite sans formulaire, donnée fictive ni appel API.
+une page temporaire explicite sans formulaire, donnée fictive ni appel API
+métier. Les appels de restauration de session sont centralisés au démarrage.
 
 Les futurs liens invités utiliseront la forme
 `/shared-wishlists/{shareLinkId}#{secret}`. Le fragment contient le secret :
@@ -205,24 +208,18 @@ par la configuration de déploiement de l’US dédiée.
 
 ## Client API
 
-Le client commun est exporté depuis `src/api/index.js`. Il reçoit ses
-dépendances afin de rester testable et ne conserve aucun jeton :
+Le transport commun est exporté depuis `src/api/index.js`. Il reçoit ses
+dépendances afin de rester testable et ne conserve aucun jeton. Dans les
+fonctionnalités, utiliser la façade du gestionnaire de session injecté, et ne
+pas créer un client indépendant pour les opérations authentifiées :
 
 ```js
-import { createApiClient } from "./api/index.js";
-
-const apiClient = createApiClient({
-  baseUrl: configuration.apiBaseUrl,
-  accessTokenProvider: () => accessToken,
-  onUnauthorized: () => clearSession(),
-});
-
-const response = await apiClient.request("/api/v1/wishlists", {
+const response = await session.request("/api/v1/wishlists", {
   authentication: "required",
 });
 ```
 
-Les modes d’authentification sont :
+Les modes d’authentification du transport bas niveau sont :
 
 - `none` : ne lit et n’envoie jamais de JWT ;
 - `optional` : ajoute le JWT en mémoire lorsqu’il existe ;
@@ -235,11 +232,9 @@ d’authentification, appeler `refreshCsrfToken()` ; `invalidateCsrfToken()` per
 de supprimer immédiatement le jeton courant.
 
 ```js
-await apiClient.request("/api/v1/auth/sessions", {
-  method: "POST",
-  body: credentials,
-  csrf: true,
-});
+await session.establishSession(({ request }) =>
+  request("/api/v1/auth/sessions", { method: "POST", body: credentials }),
+);
 ```
 
 Les options `ifMatch` et `shareToken` alimentent exclusivement les en-têtes
@@ -253,6 +248,9 @@ accepte un catalogue propre à chaque fonctionnalité. Le texte anglais du
 backend n’est jamais présenté directement.
 
 Le client ne rejoue pas automatiquement les erreurs réseau, `429` ou `5xx`.
+Son option interne `accessTokenVersionProvider` fournit une révision numérique
+opaque : le hook `onUnauthorized` ignore les réponses d’un ancien JWT, sans
+exposer ce JWT au hook ni utiliser son expiration comme identité de requête.
 Le délai couvre aussi la lecture du corps de réponse. Les redirections HTTP
 sont refusées pour empêcher tout transfert des en-têtes de partage ou CSRF.
 Seule une erreur antiforgery `400` non structurée peut être rejouée une fois,
@@ -262,6 +260,119 @@ après renouvellement du jeton CSRF.
 par `toUserFacingError()` ; un objet brut est toujours normalisé. Les liens
 d’action acceptent uniquement HTTP, HTTPS, `mailto:`, `tel:` et les liens
 relatifs. L’état natif `button.disabled` avant chargement est restauré à la fin.
+
+## Session utilisateur et accès protégés
+
+`createSessionManager()` est exporté depuis `src/auth/index.js`. La composition
+`createSessionApplication()` crée une seule instance et la partage entre le
+routeur, le shell et les futures fonctionnalités. Le transport `fetch`,
+l’horloge `now` et le coordinateur sont injectables pour les tests.
+
+```js
+import { createSessionManager } from "./auth/index.js";
+
+// Dans la composition de l’application uniquement, pas dans chaque vue.
+const session = createSessionManager({ apiBaseUrl: configuration.apiBaseUrl });
+const unsubscribe = session.subscribe(state => updateAccountNavigation(state));
+await session.start();
+const response = await session.request("/api/v1/wishlists", {
+  authentication: "required",
+  signal: viewAbortController.signal,
+});
+
+// À la destruction de la composition :
+unsubscribe();
+session.dispose();
+```
+
+L’API publique expose :
+
+- `start()` : restauration initiale idempotente ; `restore()` : tentative
+  explicite ou attente du travail déjà en cours. Ces méthodes retournent
+  l’instantané, y compris en cas de session anonyme ou indisponible.
+- `ensureSession({ signal })` : attend une session utilisable, renouvelle si
+  nécessaire et retourne son état. Une indisponibilité lève une `ApiError` ;
+  un visiteur connu anonyme reste anonyme.
+- `request(path, options)` : conserve les options et réponses du transport.
+  `none` n’effectue aucun renouvellement ; `required` exige une session ;
+  `optional` autorise un visiteur connu anonyme mais ne masque jamais une
+  indisponibilité par un appel anonyme.
+- `establishSession(authenticate)` : exécute un futur appel JSON de connexion
+  sous le verrou commun. La fonction reçoit `{ request }`, avec authentification
+  `none` et CSRF imposés, et retourne une réponse `AccessTokenResponse` normalisée.
+  Elle ne doit ni rappeler le gestionnaire de session ni effectuer un second
+  renouvellement. Le gestionnaire charge ensuite l’identité et publie la session.
+  Les échecs sont levés sous forme sûre ; les formulaires restent hors de #864.
+- `getSnapshot()` et `subscribe(listener)` : instantanés immuables, notification
+  immédiate et désabonnement idempotent.
+- `logout()` : ferme immédiatement l’accès local puis tente la déconnexion
+  serveur ; son résultat indique `logoutPending` si une confirmation manque.
+- `dispose()` : efface les données privées, annule les consommateurs et nettoie
+  les abonnements, événements, verrous en attente et ressources de coordination.
+
+Les états sont `initializing`, `anonymous`, `authenticated`, `unavailable` et
+`signingOut`. Seuls l’utilisateur validé, l’ETag de son identité, le marqueur
+`logoutPending` et un message français sûr sont exposés. Le JWT reste privé,
+en mémoire dans chaque onglet ; l’identité vient de
+`GET /api/v1/auth/sessions/current`, jamais des claims décodés du JWT.
+
+La restauration utilise `POST /api/v1/auth/sessions/refresh` avec CSRF et le
+cookie HttpOnly géré par le backend. Le JWT est renouvelé à l’usage, à moins
+de 60 secondes de son expiration annoncée par `expiresIn`. Il n’existe aucun
+renouvellement périodique pendant l’inactivité. Les appels concurrents d’un
+onglet partagent la même tentative ; annuler une attente n’annule pas la
+rotation commune. Un `401` du JWT courant ferme la session, sans refresh ni
+rejeu de l’opération. Un `401` initial sans cookie est un état anonyme normal.
+
+Les routes `/profile`, `/lists`, `/lists/new`, `/lists/:listId` et
+`/reservations` sont protégées. Les gardes attendent la restauration, puis
+redirigent les visiteurs anonymes avec `replace` vers `/login?returnTo=...`.
+`getSafeReturnTo()` conserve uniquement un chemin protégé interne, sans query
+string ni fragment ; la destination par défaut est `/lists`. Les utilisateurs
+connectés sont redirigés de `/login` et `/register` vers `/lists`. Les autres
+routes restent publiques, notamment confirmations, récupération, liaison Google,
+partage invité et 404. Une panne affiche Réessayer, pas une fausse déconnexion.
+
+### Plusieurs onglets et déconnexion
+
+Web Locks sérialise les mutations du cookie entre onglets de la même origine,
+avec 30 secondes maximum d’attente du verrou, sans prise forcée. BroadcastChannel
+n’annonce que les changements de session et les intentions de déconnexion.
+IndexedDB conserve exclusivement `{ generation, logoutPending }` dans un espace
+de noms lié à l’origine de l’API. Aucun jeton, profil, secret ou URL n’y est écrit ;
+aucun JWT n’est échangé entre onglets. Une nouvelle identité provoque une
+restauration indépendante dans les autres onglets. Les générations sont aussi
+vérifiées avant les opérations protégées, après leurs réponses et au retour
+d’un onglet suspendu. Les résultats obsolètes sont abandonnés.
+
+La déconnexion efface immédiatement les credentials et retire les vues privées.
+Son intention est persistée indépendamment du verrou réseau ; le `DELETE`
+attend ensuite la fin d’une rotation engagée. Si le serveur ne confirme pas,
+l’alerte « Déconnexion serveur non confirmée » propose Réessayer. Le blocage
+survit au rechargement et à l’ouverture d’un nouvel onglet, jusqu’à confirmation
+serveur ou nouvelle connexion explicitement demandée et réussie. Le navigateur
+ne peut pas supprimer lui-même le cookie HttpOnly. Effacer les données du site
+supprime aussi le marqueur local : ce mécanisme ne remplace pas la révocation
+côté serveur, ne révoque pas instantanément les JWT déjà émis et ne déconnecte
+pas les autres appareils.
+
+Les navigateurs doivent fournir Web Locks, BroadcastChannel, IndexedDB et
+AbortSignal.any, dans un contexte sécurisé (HTTPS ou localhost). Si la
+coordination ou le stockage est indisponible, la session échoue de manière
+explicite ; les pages publiques restent utilisables. Il n’existe aucun fallback
+vers des refresh concurrents non protégés.
+
+En local, ouvrir **http://localhost:5173** avec une API
+**http://localhost:7000**, sans mélanger `127.0.0.1` et `localhost` : les cookies
+`SameSite=Strict` exigent une topologie compatible. Les ports Vite restent
+inchangés. En déploiement, prévoir HTTPS, des origines compatibles avec la
+politique SameSite du backend et le CORS avec credentials. Les gardes frontend
+ne remplacent jamais les contrôles d’autorisation du backend.
+
+Les tests de session utilisent des frontières injectables et une horloge
+simulée ; les intégrations DOM utilisent Happy DOM. Les vérifications réelles
+multi-onglets Playwright sont temporaires et ne constituent pas une suite E2E
+installée dans ce dépôt.
 
 ## Types du contrat OpenAPI
 

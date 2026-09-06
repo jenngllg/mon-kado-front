@@ -4,17 +4,8 @@ import {
   createPublicConfiguration,
   PublicConfigurationError,
 } from "./config/environment.js";
-import {
-  createAlert,
-  disposeComponent,
-} from "./components/index.js";
-import {
-  createApplicationRoutes,
-  createApplicationShell,
-} from "./app/index.js";
-import { installGlobalErrorHandlers } from "./errors/index.js";
-import { createRouter } from "./router/index.js";
-import { createPlaceholderView } from "./views/index.js";
+import { createAlert } from "./components/index.js";
+import { createSessionApplication } from "./app/sessionApplication.js";
 
 const applicationRoot = document.querySelector("#app");
 
@@ -23,44 +14,12 @@ if (!(applicationRoot instanceof HTMLElement)) {
 }
 
 try {
-  createPublicConfiguration(import.meta.env);
-  startApplication(applicationRoot);
+  const configuration = createPublicConfiguration(import.meta.env);
+  const application = createSessionApplication(applicationRoot, configuration);
+  import.meta.hot?.dispose(application.dispose);
+  void application.start();
 } catch (error) {
   renderStartupError(applicationRoot, error);
-}
-
-/**
- * @param {HTMLElement} root Application root element.
- */
-function startApplication(root) {
-  const shell = createApplicationShell();
-  root.replaceChildren(shell.element);
-  const router = createRouter({
-    outlet: shell.outlet,
-    routes: createApplicationRoutes(),
-    renderNotFound: createNotFoundView,
-    renderError: (error) => {
-      shell.setCurrentRoute(null);
-
-      return createApplicationErrorView(error);
-    },
-  });
-  const unsubscribeFromRouter = router.subscribe(shell.setCurrentRoute);
-  const removeGlobalErrorHandlers = installGlobalErrorHandlers({
-    target: window,
-    presentError: router.presentError,
-  });
-
-  if (import.meta.hot !== undefined) {
-    import.meta.hot.dispose(() => {
-      removeGlobalErrorHandlers();
-      unsubscribeFromRouter();
-      router.dispose();
-      disposeComponent(shell.element);
-    });
-  }
-
-  void router.start();
 }
 
 /**
@@ -78,19 +37,6 @@ function renderStartupError(root, error) {
     null,
     true,
   ));
-}
-
-/**
- * @param {import("./errors/errorMessages.js").UserFacingError} error Safe UI error.
- * @returns {HTMLElement} Safe application error view.
- */
-function createApplicationErrorView(error) {
-  return createErrorView(
-    error.title,
-    error.message,
-    error.correlationId,
-    false,
-  );
 }
 
 /**
@@ -115,15 +61,4 @@ function createErrorView(title, message, correlationId, startup) {
   section.append(alert);
 
   return section;
-}
-
-/**
- * @returns {HTMLElement} Accessible not-found view.
- */
-function createNotFoundView() {
-  return createPlaceholderView({
-    eyebrow: "Erreur 404",
-    title: "Page introuvable",
-    message: "Cette page n’existe pas ou a peut-être été déplacée.",
-  });
 }

@@ -55,15 +55,11 @@ describe("application shell", () => {
     const links = [...shell.element.querySelectorAll("nav a")];
     expect(links.map((link) => link.textContent)).toEqual([
       "Accueil",
-      "Mes listes",
-      "Mes réservations",
       "Connexion",
       "S’inscrire",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/",
-      "/lists",
-      "/reservations",
       "/login",
       "/register",
     ]);
@@ -145,6 +141,9 @@ describe("application shell", () => {
     const shell = createTestShell();
     document.body.append(shell.element);
     getMenuButton(shell.element).click();
+    if ([RouteNames.Lists, RouteNames.NewList, RouteNames.ListDetails, RouteNames.Reservations].some(name => name === routeName)) {
+      shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
+    }
 
     // Act
     shell.setCurrentRoute(createRouteSnapshot(routeName));
@@ -195,6 +194,7 @@ describe("application shell", () => {
  */
 function createTestShell() {
   const shell = createApplicationShell();
+  shell.setSession({ status: "anonymous", user: null, etag: null, logoutPending: false, issue: null });
   shellElements.push(shell.element);
 
   return shell;

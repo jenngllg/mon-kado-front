@@ -165,6 +165,7 @@ export function createRouter({
 
     if (
       currentRoute !== null &&
+      !routes.some(route => route.name === currentRoute?.name && route.beforeEnter !== undefined) &&
       url.href === currentRoute.url.href &&
       url.href === browserWindow.location.href
     ) {

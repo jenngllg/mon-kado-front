@@ -2,7 +2,7 @@
   display: grid;
   min-width: 0;
   min-height: 100vh;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -151,6 +151,15 @@
 .app-main {
   align-self: start;
   padding-block: clamp(var(--space-6), 8vw, var(--space-9));
+}
+
+.app-session-feedback {
+  padding-block-start: var(--space-4);
+}
+
+.app-session-feedback .ui-button,
+.error-view > .ui-button {
+  margin-block-start: var(--space-3);
 }
 
 .app-main:focus {

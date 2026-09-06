@@ -1,4 +1,4 @@
-import { createNotificationRegion } from "../components/index.js";
+import { createNotificationRegion, createButton, createLoadingState, disposeComponent } from "../components/index.js";
 import { addComponentEventListener } from "../components/componentLifecycle.js";
 import {
   NavigationItems,
@@ -13,6 +13,8 @@ let shellIdentifier = 0;
  *   element: HTMLElement,
  *   outlet: HTMLElement,
  *   notificationRegion: HTMLElement,
+ *   sessionFeedback: HTMLElement,
+ *   setSession: (state: import("../auth/sessionManager.js").SessionSnapshot) => void,
  *   setCurrentRoute: (route: import("../router/router.js").RouteSnapshot | null) => void,
  *   closeNavigation: () => void
  * }>} ApplicationShell
@@ -21,9 +23,10 @@ let shellIdentifier = 0;
 /**
  * Creates the persistent application shell.
  *
+ * @param {{onLogout?: () => void}} [options] Session actions.
  * @returns {ApplicationShell} Application shell API.
  */
-export function createApplicationShell() {
+export function createApplicationShell({ onLogout = () => {} } = {}) {
   shellIdentifier += 1;
   const navigationIdentifier = `primary-navigation-${shellIdentifier}`;
   const element = document.createElement("div");
@@ -53,21 +56,9 @@ export function createApplicationShell() {
   /** @type {Map<string, HTMLAnchorElement>} */
   const navigationLinks = new Map();
 
-  for (const item of NavigationItems) {
-    const listItem = document.createElement("li");
-    const link = document.createElement("a");
-    link.className = "app-navigation__link";
-    link.href = item.href;
-    link.textContent = item.label;
-
-    if (item.routeName === RouteNames.Register) {
-      link.classList.add("app-navigation__link--primary");
-    }
-
-    listItem.append(link);
-    navigationList.append(listItem);
-    navigationLinks.set(item.routeName, link);
-  }
+  let navigationMode = "";
+  /** @type {import("../router/router.js").RouteSnapshot | null} */
+  let currentRoute = null;
 
   navigation.append(navigationList);
   headerContent.append(brand, menuButton, navigation);
@@ -79,7 +70,11 @@ export function createApplicationShell() {
   outlet.tabIndex = -1;
 
   const notificationRegion = createNotificationRegion();
-  element.append(skipLink, header, outlet, notificationRegion);
+  const sessionFeedback = document.createElement("div");
+  sessionFeedback.className = "app-session-feedback container container--regular";
+  sessionFeedback.hidden = true;
+  element.append(skipLink, header, sessionFeedback, outlet, notificationRegion);
+  setSession({ status: "initializing", user: null, etag: null, logoutPending: false, issue: null });
 
   addComponentEventListener(
     element,
@@ -128,6 +123,8 @@ export function createApplicationShell() {
     element,
     outlet,
     notificationRegion,
+    sessionFeedback,
+    setSession,
     setCurrentRoute,
     closeNavigation: () => setNavigationOpen(false),
   });
@@ -138,6 +135,7 @@ export function createApplicationShell() {
    * @param {import("../router/router.js").RouteSnapshot | null} route Current route.
    */
   function setCurrentRoute(route) {
+    currentRoute = route;
     const activeNavigationRoute = getActiveNavigationRoute(route?.name ?? null);
 
     for (const [routeName, link] of navigationLinks) {
@@ -149,6 +147,41 @@ export function createApplicationShell() {
     }
 
     setNavigationOpen(false);
+  }
+
+  /** @param {import("../auth/sessionManager.js").SessionSnapshot} state Safe session snapshot. */
+  function setSession(state) {
+    const mode = state.status === "authenticated" ? "member" :
+      ["initializing", "signingOut"].includes(state.status) ? "pending" : "anonymous";
+    if (navigationMode === mode) return;
+    navigationMode = mode;
+    const restoreFocus = navigationList.contains(document.activeElement);
+    disposeComponent(navigationList);
+    navigationList.replaceChildren();
+    navigationLinks.clear();
+    for (const item of NavigationItems) {
+      const isAccountAction = item.routeName === RouteNames.Login || item.routeName === RouteNames.Register;
+      if (item.routeName !== RouteNames.Home &&
+        (mode === "pending" || (mode === "member" ? isAccountAction : !isAccountAction))) continue;
+      const listItem = document.createElement("li");
+      const link = document.createElement("a");
+      link.className = "app-navigation__link";
+      link.href = item.href;
+      link.textContent = item.label;
+      if (item.routeName === RouteNames.Register) link.classList.add("app-navigation__link--primary");
+      listItem.append(link);
+      navigationList.append(listItem);
+      navigationLinks.set(item.routeName, link);
+    }
+    if (mode !== "anonymous") {
+      const item = document.createElement("li");
+      item.append(mode === "member"
+        ? createButton({ label: "Se déconnecter", variant: "ghost", onClick: onLogout })
+        : createLoadingState({ label: state.status === "signingOut" ? "Déconnexion…" : "Vérification de la session…" }));
+      navigationList.append(item);
+    }
+    setCurrentRoute(currentRoute);
+    if (restoreFocus) brand.focus();
   }
 
   /**

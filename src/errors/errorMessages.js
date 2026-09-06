@@ -12,6 +12,18 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  CLIENT_LOGOUT_UNCONFIRMED: {
+    title: "Déconnexion serveur non confirmée",
+    message: "L’accès local est fermé. Réessaie pour terminer la déconnexion auprès du serveur.",
+  },
+  CLIENT_SESSION_COORDINATION_UNAVAILABLE: {
+    title: "Session indisponible",
+    message: "La session ne peut pas être sécurisée dans ce navigateur. Vérifie ses autorisations de stockage puis réessaie.",
+  },
+  CLIENT_SESSION_BUSY: {
+    title: "Session occupée dans un autre onglet",
+    message: "Patiente un instant puis réessaie.",
+  },
   CLIENT_AUTHENTICATION_REQUIRED: {
     title: "Connexion nécessaire",
     message: "Connecte-toi pour continuer.",
