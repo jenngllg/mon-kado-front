@@ -522,6 +522,63 @@ Aucune donnée de profil n’est stockée durablement ni diffusée entre onglets
 Un autre onglet relit le profil à l’ouverture de la page ou lors d’un conflit.
 La déconnexion retire immédiatement le contenu protégé et annule ses opérations.
 
+## Récupération du mot de passe
+
+`/forgot-password` demande un lien avec une adresse e-mail nettoyée aux extrémités.
+Le POST `/api/v1/auth/password-reset-requests` attend un **202 sans corps**.
+La confirmation reste neutre : elle ne révèle ni l’existence du compte ni son
+éligibilité et n’affirme jamais qu’un e-mail a déjà été envoyé. La demande ne
+modifie pas une session ouverte.
+
+Le lien reçu a la forme `/reset-password#userId={GUID}&token={base64url}`.
+La vue appelle immédiatement `consumeFragment()` : les paramètres sont retirés
+de l’URL et ne sont conservés qu’en mémoire, jamais dans le DOM, les logs,
+les stockages ou `history.state`. Un lien absent, malformé, expiré ou déjà utilisé
+propose une nouvelle demande. Après rechargement, il faut rouvrir le lien reçu.
+
+Le nouveau mot de passe comporte de 12 à 128 caractères Unicode et doit être
+confirmé à l’identique. Aucun caractère ni espace n’est modifié ; la confirmation
+reste locale. La validation du nouveau mot de passe est partagée avec
+l’inscription, dont le formulaire reste inchangé. La connexion conserve sa
+validation distincte pour les anciens mots de passe courts.
+
+`createPasswordRecoveryService(session)` expose `requestLink()` et
+`resetPassword()`. Les deux opérations sont anonymes, protégées par CSRF et
+typées par JSDoc depuis OpenAPI. La seconde envoie uniquement
+`{ userId, token, newPassword }` à `/api/v1/auth/password-resets` et attend un
+**204 sans corps**, sans connexion automatique.
+
+`session.resetPassword(reset, { signal })` reçoit une opération utilisant son
+transport anonyme et la sérialise sous le verrou de session commun. Annuler avant
+le POST empêche l’envoi ; quitter la page après son démarrage abandonne uniquement
+l’attente de la vue. Le gestionnaire termine la mutation sous le verrou, même si
+le formulaire a été nettoyé. Les requêtes restent soumises au timeout commun et
+à l’unique rejeu antiforgery, sans autre retry automatique.
+
+Le parcours reste public lorsqu’un compte est connecté, avec un avertissement :
+le succès supprime le cookie de renouvellement du navigateur, même si le compte
+ouvert diffère de celui du lien. Le gestionnaire efface son JWT et son identité,
+invalide le cache CSRF et annonce la déconnexion aux autres onglets. Un marqueur
+de déconnexion non confirmée préexistant reste conservé. Les changements de
+session plus récents restent prioritaires.
+
+Le résultat `{ sessionIssue }` distingue le mot de passe effectivement enregistré
+d’un éventuel échec de synchronisation des onglets. Dans ce dernier cas, `restore()`
+réessaie uniquement la synchronisation des métadonnées, jamais le POST ni un
+renouvellement. L’absence des API de coordination bloque la réinitialisation,
+mais pas la demande de lien.
+
+Une erreur réseau peut laisser le résultat incertain : la page n’affirme pas que
+l’ancien mot de passe est conservé et propose une tentative explicite, la
+connexion ou une nouvelle demande. Un 429 affiche son délai Retry-After sans
+compte à rebours ni relance. Les saisies ne vivent que dans le formulaire monté,
+puis sont effacées lors du succès, du rejet définitif ou de sa destruction.
+
+Le backend révoque les sessions de renouvellement du compte réinitialisé. Cela
+ne garantit pas l’invalidation immédiate de tous les JWT déjà émis. Aucun
+mot de passe ni jeton n’est partagé entre onglets et aucun appel supplémentaire
+de connexion ou de déconnexion n’est ajouté après la réinitialisation.
+
 ## Types du contrat OpenAPI
 
 Le backend doit exposer son contrat OpenAPI v1. L’URL utilisée par défaut est

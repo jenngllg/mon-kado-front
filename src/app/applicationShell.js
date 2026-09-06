@@ -74,6 +74,13 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   sessionFeedback.className = "app-session-feedback container container--regular";
   sessionFeedback.hidden = true;
   element.append(skipLink, header, sessionFeedback, outlet, notificationRegion);
+  // Skipping content is a focus action: hash navigation would remount views whose link was consumed.
+  addComponentEventListener(element, skipLink, "click", event => {
+    const click = /** @type {MouseEvent} */ (event);
+    if (click.defaultPrevented || click.button !== 0 || click.altKey || click.ctrlKey || click.metaKey || click.shiftKey) return;
+    event.preventDefault();
+    outlet.focus();
+  });
   setSession({ status: "initializing", user: null, etag: null, logoutPending: false, issue: null });
 
   addComponentEventListener(

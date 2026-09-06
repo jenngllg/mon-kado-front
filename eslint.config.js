@@ -39,6 +39,7 @@ export default [
       "tests/profileView.test.js",
       "tests/loginView.test.js",
       "tests/loginApplication.test.js",
+      "tests/passwordRecoveryViews.test.js",
     ],
     languageOptions: {
       globals: globals.browser,

@@ -93,6 +93,7 @@
 }
 
 .registration-view,
+.recovery-view,
 .login-view,
 .email-confirmation-view,
 .profile-view {
@@ -109,6 +110,7 @@
 }
 
 .registration-view h1,
+.recovery-view h1,
 .login-view h1,
 .email-confirmation-view h1,
 .profile-view h1 {
@@ -120,6 +122,7 @@
 }
 
 .registration-form,
+.recovery-form,
 .login-form,
 .confirmation-form,
 .profile-form {
@@ -132,6 +135,7 @@
 }
 
 .registration-form > .ui-button,
+.recovery-form > .ui-button,
 .login-form > .ui-button,
 .confirmation-form > .ui-button {
   width: 100%;
@@ -146,11 +150,13 @@
 }
 
 /* Keep enlarged text readable without letting rem-based padding consume the card. */
-.login-view {
+.login-view,
+.recovery-view {
   padding-inline: min(4vw, var(--space-7));
 }
 
-.login-view .ui-button {
+.login-view .ui-button,
+.recovery-view .ui-button {
   padding-inline: min(4vw, var(--space-5));
 }
 

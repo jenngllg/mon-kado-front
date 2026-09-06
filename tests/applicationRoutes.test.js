@@ -15,6 +15,7 @@ const unusedSession = {
   start: async () => { throw new Error("Unexpected restoration."); },
   restore: async () => { throw new Error("Unexpected restoration."); },
   establishSession: async () => { throw new Error("Unexpected authentication."); },
+  resetPassword: async () => { throw new Error("Unexpected password reset."); },
   logout: async () => { throw new Error("Unexpected logout."); },
   dispose: () => {},
   getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "anonymous", user: null, etag: null, logoutPending: false, authenticationPending: false, issue: null }),
@@ -78,7 +79,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.Profile].some(candidate => candidate === name)))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.Profile, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange

@@ -15,6 +15,8 @@ import { createProfileService } from "../features/profile/profileService.js";
 import { createProfileView } from "../features/profile/profileView.js";
 import { createLoginService } from "../features/login/loginService.js";
 import { createLoginView } from "../features/login/loginView.js";
+import { createPasswordRecoveryService } from "../features/passwordRecovery/passwordRecoveryService.js";
+import { createForgotPasswordView, createResetPasswordView } from "../features/passwordRecovery/passwordRecoveryViews.js";
 
 export {
   NavigationItems,
@@ -62,18 +64,16 @@ function createPageRoutes(session) {
       "Confirmer la nouvelle adresse e-mail",
       "Sécurité du compte",
     ),
-    createPlaceholderRoute(
-      RouteNames.ForgotPassword,
-      RoutePaths.ForgotPassword,
-      "Mot de passe oublié",
-      "Sécurité du compte",
-    ),
-    createPlaceholderRoute(
-      RouteNames.ResetPassword,
-      RoutePaths.ResetPassword,
-      "Réinitialiser le mot de passe",
-      "Sécurité du compte",
-    ),
+    {
+      name: RouteNames.ForgotPassword, path: RoutePaths.ForgotPassword, title: "Mot de passe oublié · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createForgotPasswordView({ ...createPasswordRecoveryService(session), signal: context.signal }),
+    },
+    {
+      name: RouteNames.ResetPassword, path: RoutePaths.ResetPassword, title: "Réinitialiser le mot de passe · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createResetPasswordView({ ...createPasswordRecoveryService(session), consumeFragment: context.consumeFragment, signal: context.signal }),
+    },
     {
       name: RouteNames.Profile,
       path: RoutePaths.Profile,

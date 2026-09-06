@@ -26,6 +26,8 @@ const RenewalMargin = 60_000;
  * }>} SessionSnapshot
  */
 /** @typedef {(transport: Readonly<{request: Request}>) => Promise<import("../api/apiClient.js").ApiResponse<AccessTokenResponse>>} Authenticate */
+/** @typedef {(transport: Readonly<{request: Request}>) => Promise<import("../api/apiClient.js").ApiResponse<unknown>>} ResetPassword */
+/** @typedef {Readonly<{sessionIssue: import("../errors/errorMessages.js").UserFacingError | null}>} PasswordResetResult */
 /** @typedef {Readonly<{
  *   start: () => Promise<SessionSnapshot>,
  *   restore: () => Promise<SessionSnapshot>,
@@ -33,6 +35,7 @@ const RenewalMargin = 60_000;
  *   refreshIdentity: (options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   request: Request,
  *   establishSession: (authenticate: Authenticate, options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
+ *   resetPassword: (reset: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   getSnapshot: () => SessionSnapshot,
  *   subscribe: (listener: (state: SessionSnapshot) => void) => () => void,
  *   logout: () => Promise<SessionSnapshot>,
@@ -75,6 +78,11 @@ export function createSessionManager({
   let signingOut = null;
   /** @type {Promise<SessionSnapshot> | null} */
   let establishing = null;
+  /** @type {Promise<PasswordResetResult> | null} */
+  let resetting = null;
+  /** Non-secret bookkeeping: retrying synchronization must never repeat the reset POST.
+   * @type {{generation: string, logoutPending: boolean} | null} */
+  let pendingResetClosure = null;
   /** @type {Set<(state: SessionSnapshot) => void>} */
   const subscribers = new Set();
   /** @type {Set<AbortController>} */
@@ -104,6 +112,7 @@ export function createSessionManager({
     refreshIdentity,
     request,
     establishSession,
+    resetPassword,
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
       assertActive();
@@ -136,6 +145,12 @@ export function createSessionManager({
   /** @returns {Promise<SessionSnapshot>} Explicit restoration or shared in-flight work. */
   function restore() {
     assertActive();
+    if (resetting !== null) return resetting.then(() => snapshot, error => {
+      if (!disposed && snapshot.status === "initializing") setUnavailable(safeFailure(error));
+      return snapshot;
+    });
+    if (pendingResetClosure !== null) return coordinator.exclusive(finishPasswordReset).then(() => snapshot)
+      .catch(error => { if (!disposed && !isAbortError(error)) setUnavailable(safeFailure(error)); return snapshot; });
     if (establishing !== null) return establishing;
     restoring ??= restoreCore().finally(() => { restoring = null; });
     return restoring;
@@ -354,6 +369,71 @@ export function createSessionManager({
     }, () => {});
   }
 
+  /** Serializes an anonymous password reset with all session-cookie mutations.
+   * @param {ResetPassword} reset HTTP operation, never retained after completion.
+   * @param {{signal?: AbortSignal}} [options] Cancels waiting, not a submitted cookie mutation.
+   * @returns {Promise<PasswordResetResult>} Confirmed reset, with a separate synchronization issue if necessary.
+   */
+  function resetPassword(reset, { signal } = {}) {
+    assertActive();
+    if (signal?.aborted) return Promise.reject(createAbortError());
+    if (resetting !== null) return waitForSession(resetting, signal);
+    const expected = revision;
+    const waitingSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
+    resetting = coordinator.exclusive(async () => {
+      // A previous confirmed reset only needs metadata reconciliation, never another POST.
+      if (pendingResetClosure !== null) return finishPasswordReset();
+      await verify(expected);
+      if (waitingSignal.aborted) throw createAbortError();
+      api.invalidateCsrfToken();
+      await api.refreshCsrfToken();
+      await verify(expected);
+      if (waitingSignal.aborted) throw createAbortError();
+      const response = await reset({ request: (path, options = {}) => api.request(path,
+        { ...options, authentication: "none", csrf: true, expectEmptyResponse: true, signal: lifetime.signal }) });
+      if (response.status !== 204 || response.data !== null) throw invalidResponse(response);
+      // HTTP success is already final: never turn a later metadata read failure into a retryable POST.
+      if (disposed) throw createAbortError();
+      if (expected !== revision) return Object.freeze({ sessionIssue: null });
+      const previous = metadata;
+      if (previous === null) throw unavailable();
+      clearCredentials();
+      pendingResetClosure = { generation: previous.generation, logoutPending: blocked };
+      publish("anonymous", null, null, blocked ? logoutIssue() : null);
+      return finishPasswordReset();
+    }, { signal: waitingSignal }).catch(error => {
+      throw isAbortError(error) ? createAbortError() : safeFailure(error);
+    }).finally(() => { resetting = null; });
+    return waitForSession(resetting, waitingSignal);
+  }
+
+  /** Reconciles a confirmed reset without retaining or resending any credentials.
+   * @returns {Promise<PasswordResetResult>} A reset success remains distinct from metadata failure.
+   */
+  async function finishPasswordReset() {
+    const closure = pendingResetClosure;
+    if (closure === null) return Object.freeze({ sessionIssue: null });
+    try {
+      const next = await coordinator.change(closure.logoutPending, "logout", closure.generation);
+      if (disposed) throw createAbortError();
+      if (pendingResetClosure !== closure) return Object.freeze({ sessionIssue: null });
+      if (next === null) {
+        await synchronize("anonymous");
+      } else {
+        metadata = next;
+        blocked = next.logoutPending;
+        pendingResetClosure = null;
+        publish("anonymous", null, null, blocked ? logoutIssue() : null);
+      }
+      return Object.freeze({ sessionIssue: null });
+    } catch (error) {
+      if (disposed || isAbortError(error)) throw createAbortError();
+      const safe = safeFailure(error);
+      if (pendingResetClosure === closure) setUnavailable(safe);
+      return Object.freeze({ sessionIssue: toUserFacingError(safe) });
+    }
+  }
+
   /** @returns {Promise<SessionSnapshot>} Local closure and attempted server logout. */
   function logout() {
     assertActive();
@@ -453,6 +533,7 @@ export function createSessionManager({
     credentials = null;
     candidate = null;
     authenticationPending = false;
+    pendingResetClosure = null;
     api.invalidateCsrfToken();
     for (const controller of protectedRequests) controller.abort();
     protectedRequests.clear();
