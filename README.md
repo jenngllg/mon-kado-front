@@ -405,6 +405,43 @@ la vue annule l’appel, efface les champs et nettoie les événements ; une ré
 tardive est ignorée. Une connexion dans un autre onglet ferme ce formulaire
 et remplace l’URL par `/lists`. Aucun champ n’est stocké ou journalisé.
 
+## Confirmation d’adresse e-mail (#866)
+
+Le lien émis par le backend est `/confirm-email#userId={userId}&token={token}`.
+La page publique confirme automatiquement un lien valide, sans connexion
+automatique ni modification de la session ouverte. Sans fragment, elle propose
+le formulaire de renvoi ; un lien malformé ou rejeté affiche une alerte et ce
+même formulaire. `/confirm-email-change` reste un parcours distinct, non développé ici.
+
+`createEmailConfirmationService(session)` expose `confirm({ userId, token },
+{ signal })` et `resend({ email }, { signal })`. Les deux utilisent `session.request`,
+CSRF, `authentication: "none"` et `expectEmptyResponse: true`. Les contrats
+OpenAPI sont consommés en JSDoc : `ConfirmEmailRequest` (succès `204`) et
+`RequestEmailConfirmationRequest` (succès `202`). Aucun appel supplémentaire
+de restauration ou d’établissement de session n’est déclenché par ces opérations.
+
+`createEmailConfirmationView({ confirm, resend, consumeFragment, signal })`
+consomme immédiatement le fragment via le contexte du routeur. La méthode
+`consumeFragment()` retourne le fragment avec son `#`, puis le supprime par
+`history.replaceState`, sans nouvelle navigation ; un deuxième appel retourne
+une chaîne vide. Les URLs du contexte et de l’instantané du routeur sont aussi
+nettoyées. Une ancienne navigation ne peut plus consommer le fragment courant.
+Les autres routes conservent leurs fragments tant qu’elles ne les consomment pas.
+
+Le jeton reste uniquement en mémoire pendant l’appel ou une erreur récupérable.
+Il est abandonné après succès, rejet définitif, passage au renvoi ou destruction
+de la vue. Il n’est jamais injecté dans le DOM, les logs, les erreurs, les
+stockages ou `history.state`. Recharger l’URL nettoyée affiche le renvoi : pour
+retenter la confirmation, rouvrir le lien d’origine. Les échecs techniques
+proposent Réessayer ; seul le rejeu antiforgery du client HTTP reste automatique.
+
+Le renvoi réutilise la validation e-mail de l’inscription. Son résultat est
+volontairement neutre pour un compte inconnu, déjà confirmé ou soumis aux quotas :
+un `202` ne garantit pas qu’un e-mail a été envoyé. L’adresse saisie est effacée
+après acceptation et à la sortie du formulaire. « Utiliser une autre adresse »
+réaffiche un formulaire vide. Un `429` affiche son délai éventuel, sans minuterie
+ni soumission automatique. Les messages anglais du backend ne sont jamais affichés.
+
 ## Types du contrat OpenAPI
 
 Le backend doit exposer son contrat OpenAPI v1. L’URL utilisée par défaut est

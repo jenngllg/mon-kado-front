@@ -1,3 +1,5 @@
+import { EmailServerValidationMessage, validateEmailAddress } from "../../auth/emailValidation.js";
+
 /** @typedef {"displayName" | "email" | "password"} RegistrationField */
 /** @typedef {Record<RegistrationField, string>} RegistrationValues */
 
@@ -17,18 +19,7 @@ export function validateRegistrationField(field, value) {
     if ([...trimmed].length > 80) return "Le nom doit contenir au maximum 80 caractères.";
     return null;
   }
-  if (field === "email") {
-    if (!trimmed) return "Indique ton adresse e-mail.";
-    if ([...trimmed].length > 254) return "L’adresse e-mail doit contenir au maximum 254 caractères.";
-    const separator = trimmed.lastIndexOf("@");
-    const local = trimmed.slice(0, separator);
-    const domain = trimmed.slice(separator + 1);
-    // Leave uncommon mailbox formats to the server's authoritative parser.
-    const quoted = local.startsWith('"') && local.endsWith('"');
-    if (separator <= 0 || !domain || /[\s@<>]/u.test(domain) || /[<>\p{Cc}]/u.test(local) ||
-      (!quoted && /[\s@]/u.test(local))) return "Vérifie le format de ton adresse e-mail.";
-    return null;
-  }
+  if (field === "email") return validateEmailAddress(value);
   if (!trimmed) return "Indique un mot de passe.";
   const length = [...value].length;
   if (length < 12 || length > 128) return "Le mot de passe doit contenir de 12 à 128 caractères.";
@@ -38,6 +29,6 @@ export function validateRegistrationField(field, value) {
 /** @type {Readonly<Record<RegistrationField, string>>} */
 export const RegistrationServerMessages = Object.freeze({
   displayName: "Vérifie ton nom : 80 caractères maximum, sans caractères de contrôle ou invalides.",
-  email: "Vérifie le format de ton adresse e-mail (254 caractères maximum).",
+  email: EmailServerValidationMessage,
   password: "Vérifie ton mot de passe : de 12 à 128 caractères.",
 });

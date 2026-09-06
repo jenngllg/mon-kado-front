@@ -159,6 +159,7 @@ export function createRegistrationView({ register, signal }) {
       const actions = document.createElement("div");
       actions.className = "cluster";
       actions.append(createActionLink({ label: "Se connecter", href: RoutePaths.Login }),
+        createActionLink({ label: "Renvoyer le lien de confirmation", href: RoutePaths.ConfirmEmail }),
         createActionLink({ label: "Retour à l’accueil", href: RoutePaths.Home }));
       view.replaceChildren(title,
         textElement("p", "Si un nouveau compte peut être créé avec cette adresse, tu recevras un e-mail de confirmation. Consulte aussi tes indésirables."),

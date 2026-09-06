@@ -70,7 +70,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => name !== RouteNames.Register))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => name !== RouteNames.Register && name !== RouteNames.ConfirmEmail))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange
@@ -164,5 +164,6 @@ function createRouteContext(target) {
     searchParams: new URLSearchParams(url.search),
     signal: new AbortController().signal,
     navigate: async () => null,
+    consumeFragment: () => { const fragment = url.hash; url.hash = ""; return fragment; },
   });
 }

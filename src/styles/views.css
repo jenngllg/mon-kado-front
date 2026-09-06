@@ -92,7 +92,8 @@
   font-size: var(--font-size-2xl);
 }
 
-.registration-view {
+.registration-view,
+.email-confirmation-view {
   --flow-space: var(--space-5);
 
   width: min(100%, var(--content-narrow));
@@ -105,7 +106,8 @@
   box-shadow: var(--shadow-md);
 }
 
-.registration-view h1 {
+.registration-view h1,
+.email-confirmation-view h1 {
   font-size: var(--font-size-2xl);
 }
 
@@ -113,7 +115,8 @@
   color: var(--color-text-muted);
 }
 
-.registration-form {
+.registration-form,
+.confirmation-form {
   --flow-space: var(--space-5);
 }
 
@@ -122,7 +125,8 @@
   text-align: start;
 }
 
-.registration-form > .ui-button {
+.registration-form > .ui-button,
+.confirmation-form > .ui-button {
   width: 100%;
 }
 

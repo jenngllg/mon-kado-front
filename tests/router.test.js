@@ -34,6 +34,79 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+describe("fragment consumption", () => {
+  it("replaces the URL and sanitizes context and snapshots before publishing", async () => {
+    // Arrange
+    window.history.replaceState({ marker: "keep" }, "", "/confirm?from=email#token=secret-fixture");
+    const historyLength = window.history.length;
+    const listener = vi.fn();
+    const { router } = createTestRouter([createRoute("confirm", "/confirm", "Confirmation", context => {
+      expect(context.consumeFragment()).toBe("#token=secret-fixture");
+      expect(context.consumeFragment()).toBe("");
+      expect(context.url.hash).toBe("");
+      expect(context.searchParams.get("from")).toBe("email");
+      return createView("Safe view");
+    })]);
+    router.subscribe(listener);
+    // Act
+    const snapshot = await router.start();
+    // Assert
+    expect(snapshot?.url.hash).toBe(""); expect(router.getCurrentRoute()?.url.hash).toBe("");
+    expect(window.location.hash).toBe(""); expect(window.history.length).toBe(historyLength);
+    expect(window.history.state).toEqual({ marker: "keep" });
+    expect(listener).toHaveBeenCalledOnce(); expect(listener.mock.calls[0][0].url.hash).toBe("");
+  });
+
+  it("updates the already published snapshot when an active context consumes its fragment", async () => {
+    // Arrange
+    /** @type {{context?: import("../src/router/router.js").RouteContext}} */ const observed = {};
+    window.history.replaceState({}, "", "/#fixture");
+    const { router } = createTestRouter([createRoute("home", "/", "Home", context => { observed.context = context; return createView("Home"); })]);
+    const snapshot = await router.start();
+    // Act
+    expect(observed.context?.consumeFragment()).toBe("#fixture");
+    // Assert
+    expect(snapshot?.url.hash).toBe(""); expect(window.location.hash).toBe("");
+  });
+
+  it("refuses consumption from a superseded asynchronous navigation", async () => {
+    // Arrange
+    const gate = createDeferred();
+    /** @type {{context?: import("../src/router/router.js").RouteContext}} */ const observed = {};
+    const { router } = createTestRouter([
+      createRoute("home", "/", "Home", async context => { observed.context = context; await gate.promise; return createView("old"); }),
+      createRoute("other", "/other", "Other"),
+    ]);
+    const starting = router.start();
+    await router.navigate("/other#keep-fragment");
+    // Act / Assert
+    expect(() => observed.context?.consumeFragment()).toThrow(expect.objectContaining({ name: "AbortError" }));
+    expect(window.location.hash).toBe("#keep-fragment");
+    gate.resolve(); await starting;
+  });
+
+  it("refuses to overwrite an externally changed history location", async () => {
+    // Arrange
+    /** @type {{context?: import("../src/router/router.js").RouteContext}} */ const observed = {};
+    const { router } = createTestRouter([createRoute("home", "/", "Home", context => { observed.context = context; return createView("Home"); })]);
+    await router.start(); window.history.replaceState({}, "", "/other#keep");
+    // Act / Assert
+    expect(() => observed.context?.consumeFragment()).toThrow(expect.objectContaining({ name: "AbortError" }));
+    expect(window.location.pathname).toBe("/other"); expect(window.location.hash).toBe("#keep");
+  });
+
+  it("consumes a navigated link without adding a second history entry", async () => {
+    // Arrange
+    const { router } = createTestRouter([createRoute("home", "/", "Home"),
+      createRoute("confirm", "/confirm", "Confirm", context => { context.consumeFragment(); return createView("Confirm"); })]);
+    await router.start(); const before = window.history.length;
+    // Act
+    await router.navigate("/confirm#secret-fixture");
+    // Assert
+    expect(window.history.length).toBe(before + 1); expect(window.location.href).not.toContain("secret-fixture");
+  });
+});
+
 describe("route matching", () => {
   it("renders a named route with decoded parameters, query and fragment", async () => {
     // Arrange

@@ -55,6 +55,41 @@ describe("session routes and shell", () => {
     expect(document.activeElement).toBe(app.shell.outlet);
   });
 
+  it.each([401, 200])("confirms publicly without changing an initial session status %s", async refreshStatus => {
+    // Arrange
+    const transport = createSessionTransport(); transport.state.refreshStatus = refreshStatus;
+    const underlying = transport.fetch.getMockImplementation();
+    transport.fetch.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname.endsWith("/email-confirmations")) {
+        expect(new Headers(init?.headers).get("Authorization")).toBeNull();
+        expect(window.location.hash).toBe("");
+        return new Response(null, { status: 204 });
+      }
+      if (!underlying) throw new Error("Missing test transport.");
+      return underlying(input, init);
+    });
+    const app = mount("/confirm-email#userId=019c52dd-56c1-7cc6-8a95-243f3a032e04&token=private-link-fixture", transport);
+    const confirmed = barrier();
+    const observer = new MutationObserver(() => {
+      if (app.shell.outlet.querySelector("h1")?.textContent === "Adresse e-mail confirmée") confirmed.resolve();
+    });
+    observer.observe(app.shell.outlet, { subtree: true, childList: true });
+    /** @type {string[]} */ const snapshots = [];
+    const unsubscribe = app.router.subscribe(route => { snapshots.push(route.url.href); });
+    // Act
+    try {
+      await app.start(); await app.session.start(); await confirmed.promise;
+      // Assert
+      expect(window.location.pathname).toBe("/confirm-email");
+      expect(app.session.getSnapshot().status).toBe(refreshStatus === 200 ? "authenticated" : "anonymous");
+      expect(transport.state.refreshCount).toBe(1);
+      expect(app.shell.outlet.textContent).not.toContain("private-link-fixture");
+      expect(JSON.stringify(snapshots)).not.toContain("private-link-fixture");
+      expect(JSON.stringify(app.session.getSnapshot())).not.toContain("private-link-fixture");
+      expect(app.router.getCurrentRoute()?.url.hash).toBe("");
+    } finally { observer.disconnect(); unsubscribe(); }
+  });
+
   it.each(["/login", "/register"])("redirects a connected visitor of %s to lists", async path => {
     // Arrange
     const app = mount(path);

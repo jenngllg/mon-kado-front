@@ -24,7 +24,8 @@ const MaximumRedirects = 10;
  *   params: Readonly<Record<string, string>>,
  *   searchParams: URLSearchParams,
  *   signal: AbortSignal,
- *   navigate: (target: string | URL) => Promise<RouteSnapshot | null>
+ *   navigate: (target: string | URL) => Promise<RouteSnapshot | null>,
+ *   consumeFragment: () => string
  * }>} RouteContext
  */
 
@@ -198,11 +199,27 @@ export function createRouter({
     redirects.add(url.href);
     const match = matchRoute(compiledRoutes, url.pathname);
     const params = match?.params ?? Object.freeze({});
+    let publishedSnapshot = /** @type {RouteSnapshot | null} */ (null);
     const context = createRouteContext(
       url,
       params,
       controller.signal,
       router.navigate,
+      () => {
+        assertCurrentNavigation(identifier, navigationIdentifier, controller.signal);
+        if (browserWindow.location.href !== url.href) throw new DOMException("Navigation aborted.", "AbortError");
+        const fragment = url.hash;
+        if (!fragment) return "";
+        const previousHref = url.href;
+        url.hash = "";
+        context.url.hash = "";
+        if (publishedSnapshot !== null) publishedSnapshot.url.hash = "";
+        // Neither route state nor redirect tracking should retain a consumed secret.
+        redirects.delete(previousHref);
+        redirects.add(url.href);
+        browserWindow.history.replaceState(browserWindow.history.state, "", url.href);
+        return fragment;
+      },
     );
     let pendingView = /** @type {HTMLElement | null} */ (null);
 
@@ -265,6 +282,7 @@ export function createRouter({
         url,
         params,
       );
+      publishedSnapshot = snapshot;
       mountView(view, snapshot, title);
       pendingView = null;
 
@@ -503,15 +521,17 @@ export function createRouter({
  * @param {Readonly<Record<string, string>>} params Route parameters.
  * @param {AbortSignal} signal Navigation cancellation signal.
  * @param {(target: string | URL) => Promise<RouteSnapshot | null>} navigate Router navigation.
+ * @param {() => string} consumeFragment One-shot fragment extraction for the active navigation.
  * @returns {RouteContext} Route context.
  */
-function createRouteContext(url, params, signal, navigate) {
+function createRouteContext(url, params, signal, navigate, consumeFragment) {
   return Object.freeze({
     url: new URL(url.href),
     params,
     searchParams: new URLSearchParams(url.search),
     signal,
     navigate,
+    consumeFragment,
   });
 }
 

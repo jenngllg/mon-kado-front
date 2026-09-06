@@ -9,6 +9,8 @@ import {
 import { createSessionGuard } from "../auth/sessionGuards.js";
 import { createRegistrationService } from "../features/registration/registrationService.js";
 import { createRegistrationView } from "../features/registration/registrationView.js";
+import { createEmailConfirmationService } from "../features/emailConfirmation/emailConfirmationService.js";
+import { createEmailConfirmationView } from "../features/emailConfirmation/emailConfirmationView.js";
 
 export {
   NavigationItems,
@@ -41,12 +43,14 @@ function createPageRoutes(session) {
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createRegistrationView({ register: createRegistrationService(session), signal: context.signal }),
     },
-    createPlaceholderRoute(
-      RouteNames.ConfirmEmail,
-      RoutePaths.ConfirmEmail,
-      "Confirmer l’adresse e-mail",
-      "Sécurité du compte",
-    ),
+    {
+      name: RouteNames.ConfirmEmail,
+      path: RoutePaths.ConfirmEmail,
+      title: "Confirmer l’adresse e-mail · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createEmailConfirmationView({ ...createEmailConfirmationService(session),
+          consumeFragment: context.consumeFragment, signal: context.signal }),
+    },
     createPlaceholderRoute(
       RouteNames.ConfirmEmailChange,
       RoutePaths.ConfirmEmailChange,

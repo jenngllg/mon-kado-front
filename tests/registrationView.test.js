@@ -117,6 +117,7 @@ describe("registration view", () => {
     expect(app.view.textContent).toContain("Confirme ton adresse avant de te connecter.");
     expect(document.activeElement).toBe(app.view.querySelector("h1"));
     expect(app.view.querySelector('a[href="/"]')).not.toBeNull();
+    expect(app.view.querySelector('a[href="/confirm-email"]')?.textContent).toBe("Renvoyer le lien de confirmation");
     expect(app.view.textContent).not.toMatch(/@example|password unchanged|<b>/);
     for (const field of app.fields) expect(field.value).toBe("");
     app.form.dispatchEvent(new Event("submit"));
