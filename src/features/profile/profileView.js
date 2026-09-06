@@ -1,9 +1,10 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { DisplayNameServerMessage, validateDisplayName } from "../../auth/displayNameValidation.js";
-import { createAlert, createButton, createFormField, createLoadingState, disposeComponent,
+import { createActionLink, createAlert, createButton, createFormField, createLoadingState, disposeComponent,
   setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
+import { RoutePaths } from "../../app/routeContracts.js";
 
 /** Creates the protected profile editor with view-owned drafts and cancellation.
  * @param {{load: import("./profileService.js").LoadProfile, save: import("./profileService.js").SaveProfile, signal?: AbortSignal}} options Operations.
@@ -46,7 +47,8 @@ export function createProfileView({ load, save, signal }) {
   actions.append(submit, cancel);
   form.append(field, comparison, actions);
   view.append(title, textElement("p", "Consulte tes informations et choisis le nom que tes proches verront."),
-    feedback, loading, information, form);
+    feedback, loading, information, form,
+    createActionLink({ label: "Changer mon mot de passe", href: RoutePaths.PasswordChange }));
 
   const lifetime = new AbortController();
   /** @type {import("./profileService.js").Profile | null} */

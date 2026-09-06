@@ -1,4 +1,5 @@
 import { validateEmailAddress } from "../../auth/emailValidation.js";
+import { validateCurrentPassword } from "../../auth/passwordValidation.js";
 
 /** @typedef {"email" | "password"} LoginField */
 /** @typedef {{email: string, password: string, rememberMe: boolean}} LoginValues */
@@ -10,9 +11,7 @@ import { validateEmailAddress } from "../../auth/emailValidation.js";
  */
 export function validateLoginField(name, value) {
   if (name === "email") return validateEmailAddress(value);
-  if (value.trim() === "") return "Renseigne ton mot de passe.";
-  if ([...value].length > 128) return "Le mot de passe ne doit pas dépasser 128 caractères.";
-  return null;
+  return validateCurrentPassword(value);
 }
 
 export const LoginServerMessages = Object.freeze({

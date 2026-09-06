@@ -377,6 +377,65 @@ simulée ; les intégrations DOM utilisent Happy DOM. Les vérifications réelle
 multi-onglets Playwright sont temporaires et ne constituent pas une suite E2E
 installée dans ce dépôt.
 
+## Changement de mot de passe depuis le compte (#873)
+
+`/profile/password` est une route protégée, accessible depuis « Mon profil » par
+« Changer mon mot de passe ». Elle appartient au groupe de navigation du profil
+et aux destinations `returnTo` autorisées. Les saisies sont abandonnées en quittant
+la page, sans brouillon persistant ni garde supplémentaire.
+
+Le formulaire demande le mot de passe actuel, le nouveau et sa confirmation locale.
+Le mot de passe actuel utilise la validation des identifiants existants de la
+connexion : non blanc, jusqu’à 128 caractères Unicode, sans minimum de 12 caractères.
+Le nouveau réutilise la politique commune de 12 à 128 caractères Unicode et doit
+différer strictement de l’actuel. La confirmation doit être exactement identique au
+nouveau. Aucun mot de passe n’est nettoyé, normalisé ou tronqué. Les trois champs
+disposent de commandes Afficher/Masquer indépendantes, d’autocomplétion adaptée et
+de validations françaises accessibles. Ils sont désactivés pendant l’envoi,
+puis effacés et remasqués après succès ou destruction de la vue.
+
+`createPasswordChangeService(session)` expose `changePassword(values, { signal })`.
+Il construit exclusivement `{ currentPassword, newPassword }`, typé avec
+`UpdateMemberPasswordRequest`, pour `PUT /api/v1/members/current/password`.
+Le JWT est requis ; aucun ETag ni CSRF supplémentaire n’est envoyé sur ce PUT.
+Seul un `204` sans corps confirme la modification. Aucun retry automatique de
+l’écriture n’est ajouté, y compris pour un rejet antiforgery, réseau ou HTTP.
+
+`session.changePassword(change, { signal })` lie l’opération à l’utilisateur et à
+la génération d’origine, puis acquiert le verrou commun aux mutations du cookie.
+Il renouvelle le JWT à l’usage si nécessaire sous ce même verrou, sans verrou
+imbriqué, avant d’appeler l’opération HTTP injectée. Le signal peut annuler une
+opération en attente ; après le début du PUT, il interrompt uniquement l’attente
+de la vue. Le gestionnaire termine la mutation, même après une navigation.
+
+Sur succès, le gestionnaire efface les identifiants et le cache CSRF, annule les
+appels protégés et publie une génération de déconnexion aux autres onglets,
+sans appeler `logout()` ni effectuer de DELETE supplémentaire. Un échec de
+synchronisation après cette réussite retourne un `sessionIssue` sûr et conserve
+uniquement les métadonnées de finalisation en mémoire : `restore()` reprend la
+synchronisation sans répéter le PUT. Une déconnexion ou génération plus récente
+reste prioritaire, et un marqueur de déconnexion non confirmée n’est pas effacé.
+
+La transition locale `endReason: "passwordChanged"` de l’instantané est éphémère
+et n’est ni persistée ni diffusée entre onglets. L’intégration session/routeur
+l’utilise uniquement si la page de changement est encore courante : elle remplace
+alors l’URL par `/login` et transmet une confirmation unique en mémoire au formulaire
+de connexion. Aucun paramètre d’URL ni `history.state` ne sert à afficher cette
+réussite. Une page publique quittée reste affichée ; les autres onglets suivent
+la déconnexion habituelle sans confirmation de modification.
+
+`MEMBER_CURRENT_PASSWORD_INVALID` est présenté sur le champ actuel et ne déclenche
+pas de déconnexion. Les validations inconnues restent globales et françaises.
+Lorsqu’un timeout ou une erreur réseau rend le résultat incertain, l’interface
+ne garantit pas que l’ancien mot de passe fonctionne encore : elle permet une
+tentative explicite ou l’accès au parcours de récupération. Aucun secret n’est
+stocké, journalisé ou envoyé dans les messages inter-onglets.
+
+Le backend révoque les sessions de renouvellement du compte. Cela ne garantit pas
+l’invalidation immédiate de tous les JWT déjà émis sur les autres appareils.
+La création d’un premier mot de passe pour un compte Google reste hors périmètre ;
+aucune capacité absente du contrat de session n’est déduite côté frontend.
+
 ## Inscription (#865, #878)
 
 `/register` propose quatre champs obligatoires : nom d’affichage, adresse e-mail,

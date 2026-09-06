@@ -17,6 +17,8 @@ import { createLoginService } from "../features/login/loginService.js";
 import { createLoginView } from "../features/login/loginView.js";
 import { createPasswordRecoveryService } from "../features/passwordRecovery/passwordRecoveryService.js";
 import { createForgotPasswordView, createResetPasswordView } from "../features/passwordRecovery/passwordRecoveryViews.js";
+import { createPasswordChangeService } from "../features/passwordChange/passwordChangeService.js";
+import { createPasswordChangeView } from "../features/passwordChange/passwordChangeView.js";
 
 export {
   NavigationItems,
@@ -27,15 +29,18 @@ export {
 const PlaceholderMessage =
   "Cette fonctionnalité sera disponible dans un prochain lot.";
 
-/** @param {import("../auth/sessionManager.js").SessionManager} session Session facade. */
-function createPageRoutes(session) {
+/** @param {import("../auth/sessionManager.js").SessionManager} session Session facade.
+ * @param {() => boolean} consumePasswordChangeNotice Local, single-use login notice.
+ */
+function createPageRoutes(session, consumePasswordChangeNotice) {
   return Object.freeze([
     {
       name: RouteNames.Login,
       path: RoutePaths.Login,
       title: "Se connecter · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createLoginView({ login: createLoginService(session), session, signal: context.signal }),
+        createLoginView({ login: createLoginService(session), session, signal: context.signal,
+          passwordChanged: consumePasswordChangeNotice() }),
     },
     createPlaceholderRoute(
       RouteNames.LinkGoogle,
@@ -81,6 +86,11 @@ function createPageRoutes(session) {
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createProfileView({ ...createProfileService(session), signal: context.signal }),
     },
+    {
+      name: RouteNames.PasswordChange, path: RoutePaths.PasswordChange, title: "Changer mon mot de passe · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createPasswordChangeView({ ...createPasswordChangeService(session), signal: context.signal }),
+    },
     createPlaceholderRoute(
       RouteNames.Lists,
       RoutePaths.Lists,
@@ -117,10 +127,10 @@ function createPageRoutes(session) {
 /**
  * Creates the complete frontend route catalogue.
  *
- * @param {{session: import("../auth/sessionManager.js").SessionManager}} options Session dependency.
+ * @param {{session: import("../auth/sessionManager.js").SessionManager, consumePasswordChangeNotice?: () => boolean}} options Session and local notice dependencies.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
-export function createApplicationRoutes({ session }) {
+export function createApplicationRoutes({ session, consumePasswordChangeNotice = () => false }) {
   return [
     Object.freeze({
       name: RouteNames.Home,
@@ -128,7 +138,7 @@ export function createApplicationRoutes({ session }) {
       title: "MonKado · Les cadeaux qui font vraiment plaisir",
       render: createHomeView,
     }),
-    ...createPageRoutes(session).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
+    ...createPageRoutes(session, consumePasswordChangeNotice).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
   ];
 }
 

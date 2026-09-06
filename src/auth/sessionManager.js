@@ -22,6 +22,7 @@ const RenewalMargin = 60_000;
  *   etag: string | null,
  *   logoutPending: boolean,
  *   authenticationPending?: boolean,
+ *   endReason?: "passwordChanged",
  *   issue: import("../errors/errorMessages.js").UserFacingError | null
  * }>} SessionSnapshot
  */
@@ -36,6 +37,7 @@ const RenewalMargin = 60_000;
  *   request: Request,
  *   establishSession: (authenticate: Authenticate, options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   resetPassword: (reset: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
+ *   changePassword: (change: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   getSnapshot: () => SessionSnapshot,
  *   subscribe: (listener: (state: SessionSnapshot) => void) => () => void,
  *   logout: () => Promise<SessionSnapshot>,
@@ -80,6 +82,8 @@ export function createSessionManager({
   let establishing = null;
   /** @type {Promise<PasswordResetResult> | null} */
   let resetting = null;
+  /** @type {Promise<PasswordResetResult> | null} */
+  let changingPassword = null;
   /** Non-secret bookkeeping: retrying synchronization must never repeat the reset POST.
    * @type {{generation: string, logoutPending: boolean} | null} */
   let pendingResetClosure = null;
@@ -113,6 +117,7 @@ export function createSessionManager({
     request,
     establishSession,
     resetPassword,
+    changePassword,
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
       assertActive();
@@ -145,6 +150,7 @@ export function createSessionManager({
   /** @returns {Promise<SessionSnapshot>} Explicit restoration or shared in-flight work. */
   function restore() {
     assertActive();
+    if (changingPassword !== null) return changingPassword.then(() => snapshot, () => snapshot);
     if (resetting !== null) return resetting.then(() => snapshot, error => {
       if (!disposed && snapshot.status === "initializing") setUnavailable(safeFailure(error));
       return snapshot;
@@ -239,21 +245,7 @@ export function createSessionManager({
       await synchronize();
       expected = revision;
       if (blocked && !authenticationPending) return snapshot;
-      await coordinator.exclusive(async () => {
-        await verify(expected);
-        if (blocked && !authenticationPending) return;
-        if (authenticationPending) publish("initializing");
-        // Recheck after queuing, and reuse a rotated token if only identity loading failed.
-        if (isFresh(credentials) && snapshot.status === "authenticated") return;
-        if (!isFresh(candidate)) {
-          api.invalidateCsrfToken();
-          const response = await api.request(`${SessionPath}/refresh`, { method: "POST", csrf: true });
-          await verify(expected);
-          candidate = readCredentials(response, now());
-        }
-        if (candidate === null) throw invalidResponse();
-        await loadIdentity(candidate, expected);
-      });
+      await coordinator.exclusive(() => renewUnderLock(expected));
     } catch (error) {
       if (disposed || expected !== revision || isAbortError(error)) return snapshot;
       const safe = safeFailure(error);
@@ -269,15 +261,35 @@ export function createSessionManager({
     return snapshot;
   }
 
+  /** Reuses the caller's exclusive lock; never recursively acquires it.
+   * @param {number} expected Expected session generation.
+   * @param {string} [userId] Original identity for a sensitive authenticated operation.
+   */
+  async function renewUnderLock(expected, userId) {
+    await verify(expected);
+    if (blocked && !authenticationPending) return;
+    if (authenticationPending) publish("initializing");
+    if (isFresh(credentials) && snapshot.status === "authenticated") return;
+    if (!isFresh(candidate)) {
+      api.invalidateCsrfToken();
+      const response = await api.request(`${SessionPath}/refresh`, { method: "POST", csrf: true });
+      await verify(expected);
+      candidate = readCredentials(response, now());
+    }
+    if (candidate === null) throw invalidResponse();
+    await loadIdentity(candidate, expected, userId);
+  }
+
   /** @param {Credentials} token Candidate, private to this operation.
    * @param {number} expected Expected local generation.
+   * @param {string} [userId] Required original identity, if supplied.
    */
-  async function loadIdentity(token, expected) {
+  async function loadIdentity(token, expected, userId) {
     const identityClient = createApiClient({ baseUrl: apiBaseUrl, fetchImplementation, accessTokenProvider: () => token.token });
     const response = await identityClient.request(`${SessionPath}/current`, { authentication: "required", signal: lifetime.signal });
     await verify(expected);
     const user = readUser(response);
-    if (response.status !== 200 || !isStrongEntityTag(response.metadata.etag) ||
+    if ((userId !== undefined && user.id !== userId) || response.status !== 200 || !isStrongEntityTag(response.metadata.etag) ||
       validateDisplayName(user.displayName) !== null || token.expiresAt <= now()) throw invalidResponse(response);
     if (authenticationPending && blocked) {
       const next = await coordinator.change(false, "established", metadata?.generation);
@@ -407,7 +419,55 @@ export function createSessionManager({
     return waitForSession(resetting, waitingSignal);
   }
 
-  /** Reconciles a confirmed reset without retaining or resending any credentials.
+  /** Changes an authenticated password while retaining ownership of a started cookie mutation.
+   * @param {ResetPassword} change Injected HTTP operation.
+   * @param {{signal?: AbortSignal}} [options] Cancels waiting, never an already submitted PUT.
+   * @returns {Promise<PasswordResetResult>} Confirmed write, separate from metadata reconciliation.
+   */
+  function changePassword(change, { signal } = {}) {
+    assertActive();
+    if (signal?.aborted) return Promise.reject(createAbortError());
+    if (changingPassword !== null) return waitForSession(changingPassword, signal);
+    const expected = revision;
+    const userId = snapshot.user?.id;
+    if (pendingResetClosure === null && (snapshot.status !== "authenticated" || userId === undefined)) return Promise.reject(authenticationRequired());
+    const waitingSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
+    let submitted = false;
+    changingPassword = coordinator.exclusive(async () => {
+      if (pendingResetClosure !== null) return finishPasswordReset();
+      await verify(expected);
+      if (waitingSignal.aborted) throw createAbortError();
+      await renewUnderLock(expected, userId);
+      await verify(expected);
+      if (waitingSignal.aborted) throw createAbortError();
+      if (blocked || snapshot.status !== "authenticated" || snapshot.user?.id !== userId || credentials === null) throw authenticationRequired();
+      submitted = true;
+      const response = await change({ request: (path, options = {}) => api.request(path, {
+        ...options, authentication: "required", csrf: false, expectEmptyResponse: true, signal: lifetime.signal,
+      }) });
+      if (response.status !== 204 || response.data !== null) throw invalidResponse(response);
+      if (disposed || expected !== revision) throw createAbortError();
+      const previous = metadata;
+      if (previous === null) throw unavailable();
+      clearCredentials();
+      pendingResetClosure = { generation: previous.generation, logoutPending: blocked };
+      // The integration observes success before its lost-access handler destroys the view.
+      publish("anonymous", null, null, blocked ? logoutIssue() : null, "passwordChanged");
+      return finishPasswordReset();
+    }, { signal: waitingSignal }).catch(error => {
+      if (disposed || expected !== revision || isAbortError(error)) throw createAbortError();
+      const safe = safeFailure(error);
+      if (!submitted) {
+        candidate = null;
+        if (safe.statusCode === 401) expire(safe);
+        else setUnavailable(safe);
+      }
+      throw safe;
+    }).finally(() => { changingPassword = null; });
+    return waitForSession(changingPassword, waitingSignal);
+  }
+
+  /** Reconciles a confirmed reset or change without retaining or resending any credentials.
    * @returns {Promise<PasswordResetResult>} A reset success remains distinct from metadata failure.
    */
   async function finishPasswordReset() {
@@ -543,11 +603,12 @@ export function createSessionManager({
    * @param {CurrentSessionResponse | null} [user] Validated identity.
    * @param {string | null} [etag] Identity concurrency metadata.
    * @param {SessionSnapshot["issue"]} [issue] Safe UI copy.
+   * @param {SessionSnapshot["endReason"]} [endReason] One local, non-persistent transition reason.
    */
-  function publish(status, user = null, etag = null, issue = null) {
+  function publish(status, user = null, etag = null, issue = null, endReason) {
     if (disposed) return;
     if (status !== "unavailable") failure = null;
-    snapshot = Object.freeze({ status, user, etag, logoutPending: blocked, authenticationPending, issue });
+    snapshot = Object.freeze({ status, user, etag, logoutPending: blocked, authenticationPending, issue, ...(endReason ? { endReason } : {}) });
     for (const listener of subscribers) listener(snapshot);
   }
 

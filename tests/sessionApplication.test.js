@@ -4,6 +4,7 @@ import { createSessionApplication } from "../src/app/sessionApplication.js";
 import { createApplicationRoutes } from "../src/app/routes.js";
 import { createSessionManager } from "../src/auth/sessionManager.js";
 import { createLoginTarget, getSafeReturnTo } from "../src/auth/sessionGuards.js";
+import { ApiError } from "../src/api/apiError.js";
 import { barrier, createCoordinatorHub, createSessionTransport } from "./sessionTestHelpers.js";
 
 /** @type {ReturnType<typeof createSessionApplication>[]} */
@@ -75,7 +76,7 @@ describe("session routes and shell", () => {
     } finally { other.dispose(); saveGate.resolve(); }
   });
 
-  it.each(["/profile", "/lists", "/lists/new", "/lists/list-1", "/reservations"])("guards direct anonymous access to %s", async path => {
+  it.each(["/profile", "/profile/password", "/lists", "/lists/new", "/lists/list-1", "/reservations"])("guards direct anonymous access to %s", async path => {
     // Arrange
     const transport = createSessionTransport(); transport.state.refreshStatus = 401;
     const app = mount(path + "?private=discard#secret-discard", transport);
@@ -252,7 +253,7 @@ describe("session routes and shell", () => {
     // Arrange
     const app = mount(); await app.start(); await app.session.start();
     const routes = createApplicationRoutes({ session: app.session });
-    expect(routes).toHaveLength(14);
+    expect(routes).toHaveLength(15);
     const button = [...app.shell.element.querySelectorAll("button")].find(item => item.textContent === "Se déconnecter");
     app.dispose(); app.dispose();
     const requests = app.transport.fetch.mock.calls.length;
@@ -264,12 +265,105 @@ describe("session routes and shell", () => {
   });
 });
 
+/** @param {ReturnType<typeof mount>} app Application.
+ * @param {string} path Expected routed pathname.
+ */
+function waitRoute(app, path) {
+  if (app.router.getCurrentRoute()?.url.pathname === path) return Promise.resolve();
+  return new Promise(resolve => {
+    const unsubscribe = app.router.subscribe(route => { if (route?.url.pathname === path) { unsubscribe(); resolve(undefined); } });
+  });
+}
+
+describe("authenticated password navigation", () => {
+  function setupChange() {
+    const transport = createSessionTransport(); const original = transport.fetch.getMockImplementation();
+    const entered = barrier(); const gate = barrier(); let writes = 0;
+    transport.fetch.mockImplementation(async (input, init) => {
+      if (String(input).endsWith("/members/current/password")) {
+        writes++; entered.resolve(); await gate.promise; return new Response(null, { status: 204 });
+      }
+      if (!original) throw new Error("Missing fixture."); return original(input, init);
+    });
+    return { transport, entered, gate, writes: () => writes };
+  }
+  /** @param {ReturnType<typeof mount>} app Mounted application. */
+  function submitChange(app) {
+    const fields = [...app.shell.outlet.querySelectorAll("input")];
+    fields[0].value = " old "; fields[1].value = " new password 🎁 "; fields[2].value = fields[1].value;
+    app.shell.outlet.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
+    return fields;
+  }
+  it("links from profile, groups navigation, replaces history and shows one memory-only login confirmation", async () => {
+    // Arrange
+    const f = setupChange(); const app = mount("/profile", f.transport); await app.start();
+    expect(app.shell.outlet.querySelector('a[href="/profile/password"]')?.textContent).toBe("Changer mon mot de passe");
+    await app.router.navigate("/profile/password");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon profil");
+    const historyLength = window.history.length; const fields = submitChange(app); await f.entered.promise;
+    // Act
+    f.gate.resolve(); await waitRoute(app, "/login");
+    // Assert
+    expect(app.session.getSnapshot().user).toBeNull(); expect(window.history.length).toBe(historyLength);
+    expect(window.location.search).toBe(""); expect(window.location.hash).toBe("");
+    expect(app.shell.outlet.textContent).toContain("Mot de passe modifié");
+    expect(app.shell.outlet.textContent).toContain("Tu peux maintenant te connecter avec ton nouveau mot de passe.");
+    expect(JSON.stringify([window.history.state, localStorage, sessionStorage])).not.toMatch(/passwordChanged|new password|old/);
+    for (const field of fields) { expect(field.value).toBe(""); expect(field.type).toBe("password"); }
+    expect(document.activeElement).toBe(app.shell.outlet); expect(f.writes()).toBe(1);
+    await app.router.navigate("/"); await app.router.navigate("/login");
+    expect(app.shell.outlet.textContent).not.toContain("Mot de passe modifié");
+  });
+  it.each(["/", "/profile"])("finishes after leaving the form for %s without restoring its content", async destination => {
+    // Arrange
+    const f = setupChange(); const app = mount("/profile/password", f.transport); await app.start();
+    const fields = submitChange(app); await f.entered.promise;
+    // Act
+    await app.router.navigate(destination); for (const field of fields) expect(field.value).toBe("");
+    const closed = new Promise(resolve => { const unsubscribe = app.session.subscribe(state => { if (state.status === "anonymous") { unsubscribe(); resolve(undefined); } }); });
+    f.gate.resolve(); await closed;
+    if (destination === "/profile") await waitRoute(app, "/login");
+    // Assert
+    expect(window.location.pathname).toBe(destination === "/" ? "/" : "/login");
+    expect(app.shell.outlet.textContent).not.toContain("Mot de passe modifié"); expect(f.writes()).toBe(1);
+  });
+  it("keeps success separate from failed metadata synchronization and retries only synchronization", async () => {
+    // Arrange
+    const f = setupChange(); const hub = createCoordinatorHub(); const coordinator = hub.create(); const change = coordinator.change;
+    hub.create = () => coordinator;
+    const app = mount("/profile/password", f.transport, hub); await app.start();
+    coordinator.change = async () => { throw new ApiError({ kind: "network" }); };
+    submitChange(app); await f.entered.promise;
+    // Act
+    f.gate.resolve(); await waitRoute(app, "/login"); await app.session.restore();
+    // Assert
+    expect(app.shell.outlet.textContent).toContain("Mot de passe modifié");
+    expect(app.session.getSnapshot().status).toBe("unavailable");
+    expect([...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Réessayer")).toBe(true);
+    coordinator.change = change; await app.session.restore();
+    expect(f.writes()).toBe(1); expect(f.transport.state.refreshCount).toBe(1); expect(app.session.getSnapshot().status).toBe("anonymous");
+  });
+  it("removes all three passwords when another tab logs out during submission, without a success notice", async () => {
+    // Arrange
+    const f = setupChange(); const hub = createCoordinatorHub(); const app = mount("/profile/password", f.transport, hub); await app.start();
+    const other = createSessionManager({ apiBaseUrl: "http://localhost:7000", coordinator: hub.create(), fetchImplementation: createSessionTransport().fetch });
+    try {
+      await other.start(); const fields = submitChange(app); await f.entered.promise;
+      // Act
+      const logout = other.logout(); await waitRoute(app, "/"); f.gate.resolve(); await logout;
+      // Assert
+      for (const field of fields) expect(field.value).toBe("");
+      expect(app.shell.outlet.textContent).not.toContain("Mot de passe modifié"); expect(f.writes()).toBe(1);
+    } finally { f.gate.resolve(); other.dispose(); }
+  });
+});
+
 describe("safe return destinations", () => {
   it.each(["https://evil.test/profile", "//evil.test/profile", "/\\evil.test/profile", "/login", "/register", "/lists/%2f%2fevil.test", "/lists/%5cevil", "/lists/%0a", "/lists/%", "/lists/../login"])("rejects %s", target => {
     // Arrange / Act / Assert
     expect(getSafeReturnTo(target)).toBe("/lists");
   });
-  it.each(["/profile", "/reservations", "/lists", "/lists/new", "/lists/list-123"])("retains only the protected pathname of %s", path => {
+  it.each(["/profile", "/profile/password", "/reservations", "/lists", "/lists/new", "/lists/list-123"])("retains only the protected pathname of %s", path => {
     // Arrange / Act / Assert
     expect(getSafeReturnTo(path + "/?token=private#secret")).toBe(path);
     expect(createLoginTarget(path + "?token=private#secret")).not.toMatch(/private|secret/);

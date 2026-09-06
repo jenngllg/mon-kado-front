@@ -17,12 +17,17 @@ import { RouteNames, RoutePaths } from "./routeContracts.js";
 export function createSessionApplication(root, { apiBaseUrl, session = createSessionManager({ apiBaseUrl }) }) {
   let disposed = false;
   let routeErrorVisible = false;
+  let passwordChangeNotice = false;
   const shell = createApplicationShell({ onLogout: () => { void session.logout(); } });
   root.replaceChildren(shell.element);
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({
     outlet: shell.outlet,
-    routes: createApplicationRoutes({ session }),
+    routes: createApplicationRoutes({ session, consumePasswordChangeNotice: () => {
+      const notice = passwordChangeNotice;
+      passwordChangeNotice = false;
+      return notice;
+    } }),
     renderNotFound: () => createPlaceholderView({ eyebrow: "Erreur 404", title: "Page introuvable", message: "Cette page n’existe pas ou a peut-être été déplacée." }),
     renderError: error => {
       routeErrorVisible = true;
@@ -38,6 +43,7 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
   });
   let previous = session.getSnapshot();
   const unsubscribeRouter = router.subscribe(route => {
+    if (route?.name !== RouteNames.Login) passwordChangeNotice = false;
     routeErrorVisible = false;
     shell.setCurrentRoute(route);
     renderFeedback();
@@ -61,7 +67,10 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
       // Remove private content before an asynchronous guard can yield.
       disposeComponent(shell.outlet);
       shell.outlet.replaceChildren(createLoadingState({ label: "Vérification de la session…" }));
-      if (state.status === "unavailable" && state.issue !== null) router.presentError(state.issue);
+      if (state.endReason === "passwordChanged" && current?.name === RouteNames.PasswordChange && window.location.pathname === RoutePaths.PasswordChange) {
+        passwordChangeNotice = true;
+        void router.replace(RoutePaths.Login);
+      } else if (state.status === "unavailable" && state.issue !== null) router.presentError(state.issue);
       else {
         const target = state.logoutPending ? "/" : state.status === "anonymous"
           ? createLoginTarget(current?.url.pathname ?? "/lists") : window.location.href;
@@ -77,6 +86,7 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      passwordChangeNotice = false;
       removeGlobalErrors();
       unsubscribeRouter();
       unsubscribeSession();

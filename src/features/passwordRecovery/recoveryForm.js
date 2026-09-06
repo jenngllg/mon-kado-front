@@ -11,7 +11,8 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
  *   validate: (name: string, values: Record<string, string>) => string | null,
  *   serverMessages: Readonly<Record<string, string>>,
  *   submit: (values: Record<string, string>, options: {signal: AbortSignal}) => Promise<void>,
- *   onSuccess: () => void, onFailure?: (error: unknown) => boolean, uncertainResult?: boolean}} options Form behavior.
+ *   onSuccess: () => void, onFailure?: (error: unknown) => boolean, uncertainResult?: boolean,
+ *   serverErrorFields?: Readonly<Record<string, {name: string, message: string}>>}} options Form behavior.
  * @returns {HTMLFormElement} Disposable form; view replacement cleans every field and event.
  */
 export function createRecoveryForm(options) {
@@ -60,12 +61,12 @@ export function createRecoveryForm(options) {
         control.type = control.type === "password" ? "text" : "password";
         const label = toggle.querySelector(".ui-button__label");
         if (label) label.textContent = control.type === "password" ? "Afficher le mot de passe" : "Masquer le mot de passe";
-        toggle.setAttribute("aria-label", `${control.type === "password" ? "Afficher" : "Masquer"} : ${definition.label.toLowerCase()}`);
+        toggle.setAttribute("aria-label", `${label?.textContent} : ${definition.label.toLowerCase()}`);
         flushBlur();
       } });
       toggle.classList.add("registration-form__visibility");
       toggle.setAttribute("aria-controls", control.id);
-      toggle.setAttribute("aria-label", `Afficher : ${definition.label.toLowerCase()}`);
+      toggle.setAttribute("aria-label", `Afficher le mot de passe : ${definition.label.toLowerCase()}`);
       element.append(toggle);
     }
     form.append(element);
@@ -88,7 +89,14 @@ export function createRecoveryForm(options) {
     lifetime.abort();
     deferredBlur = null;
     pressed = null;
-    for (const field of fields) { field.control.value = ""; field.control.type = field.definition.type; }
+    for (const field of fields) {
+      field.control.value = "";
+      field.control.type = field.definition.type;
+      const toggle = field.element.querySelector("button");
+      const label = toggle?.querySelector(".ui-button__label");
+      if (label) label.textContent = "Afficher le mot de passe";
+      toggle?.setAttribute("aria-label", `Afficher le mot de passe : ${field.definition.label.toLowerCase()}`);
+    }
     feedback.replaceChildren();
   });
   return form;
@@ -137,13 +145,14 @@ export function createRecoveryForm(options) {
       if (!disposed) options.onSuccess();
     } catch (error) {
       if (disposed || isAbortError(error) || options.onFailure?.(error)) return;
-      const validations = error instanceof ApiError ? error.validationErrors : [];
+      const mapped = error instanceof ApiError && error.errorCode !== null ? options.serverErrorFields?.[error.errorCode] : undefined;
+      const validations = mapped ? [{ propertyName: mapped.name, errorMessage: null }] : error instanceof ApiError ? error.validationErrors : [];
       if (validations.length > 0) {
         for (const validation of validations) {
           const field = fields.find(item => item.definition.name === validation.propertyName && options.serverMessages[item.definition.name] !== undefined);
           if (field) {
             field.checked = true;
-            field.error = options.serverMessages[field.definition.name];
+            field.error = mapped?.message ?? options.serverMessages[field.definition.name];
             setFormFieldValidation(field.element, field.error);
           }
         }

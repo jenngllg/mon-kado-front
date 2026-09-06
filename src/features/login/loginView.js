@@ -9,10 +9,10 @@ import { LoginErrorMessages, LoginServerMessages, validateLoginField } from "./l
 /** Creates the public login view. Redirects belong exclusively to session/router integration.
  * @param {{login: import("./loginService.js").Login,
  *   session: Pick<import("../../auth/sessionManager.js").SessionManager, "restore" | "subscribe" | "getSnapshot">,
- *   signal?: AbortSignal}} options View-owned operations.
+ *   signal?: AbortSignal, passwordChanged?: boolean}} options View-owned operations and one local notice.
  * @returns {HTMLElement} Disposable routed form.
  */
-export function createLoginView({ login, session, signal }) {
+export function createLoginView({ login, session, signal, passwordChanged = false }) {
   const view = textElement("section", "");
   view.className = "login-view flow";
   const feedback = textElement("div", "");
@@ -84,6 +84,8 @@ export function createLoginView({ login, session, signal }) {
     createActionLink({ label: "Créer un compte", href: RoutePaths.Register }));
   view.append(textElement("h1", "Se connecter"), textElement("p", "Retrouve tes listes et les cadeaux que tu prépares pour tes proches."),
     feedback, status, form, links);
+  if (passwordChanged) view.insertBefore(createAlert({ variant: "success", title: "Mot de passe modifié",
+    message: "Tu peux maintenant te connecter avec ton nouveau mot de passe." }), feedback);
 
   // Defer blur layout changes until the pressed action receives its native click.
   addComponentEventListener(view, form, "pointerdown", event => {

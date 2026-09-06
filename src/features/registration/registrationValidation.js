@@ -21,11 +21,7 @@ export function validateRegistrationField(field, value) {
  * @param {string} password Original password value.
  * @returns {string | null} Safe French copy.
  */
-export function validateRegistrationConfirmation(confirmation, password) {
-  if (confirmation === "") return "Confirme ton mot de passe.";
-  if (confirmation !== password) return "Les deux mots de passe doivent être identiques.";
-  return null;
-}
+export { validatePasswordConfirmation as validateRegistrationConfirmation } from "../../auth/passwordValidation.js";
 
 /** @type {Readonly<Record<RegistrationField, string>>} */
 export const RegistrationServerMessages = Object.freeze({
