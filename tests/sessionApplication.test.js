@@ -85,7 +85,7 @@ describe("session routes and shell", () => {
     expect(window.location.pathname).toBe("/login");
     expect(new URLSearchParams(window.location.search).get("returnTo")).toBe(path);
     expect(window.location.href).not.toMatch(/secret-discard|private/);
-    expect(app.shell.outlet.textContent).toContain("Connexion");
+    expect(app.shell.outlet.textContent).toContain("Se connecter");
   });
 
   it("does not flash private content or signed-out actions during restoration", async () => {

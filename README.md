@@ -297,12 +297,15 @@ L’API publique expose :
   `none` n’effectue aucun renouvellement ; `required` exige une session ;
   `optional` autorise un visiteur connu anonyme mais ne masque jamais une
   indisponibilité par un appel anonyme.
-- `establishSession(authenticate)` : exécute un futur appel JSON de connexion
+- `establishSession(authenticate, { signal } = {})` : exécute un appel JSON de connexion
   sous le verrou commun. La fonction reçoit `{ request }`, avec authentification
   `none` et CSRF imposés, et retourne une réponse `AccessTokenResponse` normalisée.
   Elle ne doit ni rappeler le gestionnaire de session ni effectuer un second
   renouvellement. Le gestionnaire charge ensuite l’identité et publie la session.
-  Les échecs sont levés sous forme sûre ; les formulaires restent hors de #864.
+  Les échecs sont levés sous forme sûre. Avant l’envoi, le signal annule l’attente
+  du verrou et abandonne la connexion ; une préparation CSRF déjà engagée termine
+  sous le verrou sans envoyer le mot de passe. Après l’envoi, le signal annule uniquement l’attente
+  de l’appelant. Le gestionnaire termine la finalisation sous le même verrou.
 - `getSnapshot()` et `subscribe(listener)` : instantanés immuables, notification
   immédiate et désabonnement idempotent.
 - `logout()` : ferme immédiatement l’accès local puis tente la déconnexion
@@ -312,7 +315,7 @@ L’API publique expose :
 
 Les états sont `initializing`, `anonymous`, `authenticated`, `unavailable` et
 `signingOut`. Seuls l’utilisateur validé, l’ETag de son identité, le marqueur
-`logoutPending` et un message français sûr sont exposés. Le JWT reste privé,
+`logoutPending`, le booléen `authenticationPending` et un message français sûr sont exposés. Le JWT reste privé,
 en mémoire dans chaque onglet ; l’identité vient de
 `GET /api/v1/auth/sessions/current`, jamais des claims décodés du JWT.
 
@@ -441,6 +444,52 @@ un `202` ne garantit pas qu’un e-mail a été envoyé. L’adresse saisie est 
 après acceptation et à la sortie du formulaire. « Utiliser une autre adresse »
 réaffiche un formulaire vide. Un `429` affiche son délai éventuel, sans minuterie
 ni soumission automatique. Les messages anglais du backend ne sont jamais affichés.
+
+## Connexion e-mail et mot de passe
+
+`/login` utilise les composants communs avec e-mail, mot de passe, affichage
+facultatif du mot de passe et case native « Se souvenir de moi » décochée.
+Les gestionnaires de mots de passe et le collage restent utilisables :
+`autocomplete="username"` et `autocomplete="current-password"`.
+L’e-mail réutilise la validation commune (nettoyage des extrémités et maximum
+254 caractères Unicode). Un mot de passe existant doit être non blanc et ne
+pas dépasser 128 caractères Unicode, sans minimum de 12 caractères.
+Il n’est jamais tronqué, normalisé ni nettoyé avant l’envoi.
+
+`createLoginService(session)` appelle exclusivement `establishSession()` :
+`POST /api/v1/auth/sessions` avec le seul corps `{ email, password, rememberMe }`,
+sans JWT et avec CSRF. Le transport conserve cookies, timeout et unique rejeu
+antiforgery ; aucun retry réseau ou HTTP n’est ajouté. `rememberMe` ne change que
+le cookie backend : session navigateur par défaut, expiration fixe de 30 jours
+si coché. Aucun identifiant ni choix de persistance n’est enregistré côté front.
+
+Un 200 et un `AccessTokenResponse` valide marquent l’acceptation des identifiants :
+le mot de passe est effacé du formulaire et la génération précédente invalidée.
+Le gestionnaire conserve le jeton candidat uniquement en mémoire et ne publie
+la session connectée qu’après `GET /api/v1/auth/sessions/current`, statut 200,
+identité valide et ETag fort. L’instantané indique `authenticationPending`
+pendant cette finalisation, sans jamais exposer le jeton.
+
+Si cette lecture échoue techniquement, « Réessayer la vérification de session »
+appelle `restore()` : réutilisation du candidat utilisable, sinon renouvellement
+coordonné, puis relecture de l’identité. Le POST et le mot de passe ne sont pas
+renvoyés. Un 401 de finalisation abandonne le candidat et demande une nouvelle
+connexion explicite. Une déconnexion en attente n’est levée qu’après finalisation
+réussie ; son avertissement persistant reste distinct des erreurs du formulaire.
+
+La redirection après connexion appartient à l’intégration session/routeur :
+`replace` vers l’unique `returnTo` interne protégé validé, ou `/lists` s’il est absent,
+dupliqué ou invalide. Query string et fragment de la destination sont supprimés.
+Un utilisateur déjà connecté arrivant sur `/login` va directement vers `/lists`.
+Une connexion dans un autre onglet nettoie le formulaire et respecte la même
+destination. Si l’utilisateur quitte la page pendant l’envoi, tous ses champs
+sont effacés ; la session peut se finaliser en arrière-plan, sans redirection tardive.
+Une déconnexion ou un changement de génération rend les anciens résultats caducs.
+
+Les erreurs de tentative restent dans la vue, avec messages français locaux,
+référence technique et délai `Retry-After` éventuel. L’adresse non confirmée
+propose `/confirm-email` sans e-mail dans l’URL ni renvoi automatique.
+La récupération du mot de passe et Google restent dans leurs US dédiées.
 
 ## Profil utilisateur
 

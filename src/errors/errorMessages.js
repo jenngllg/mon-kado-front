@@ -12,6 +12,10 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  CLIENT_LOGIN_COMPLETION_REQUIRED: {
+    title: "Connexion à recommencer",
+    message: "La session n’a pas pu être vérifiée. Connecte-toi à nouveau.",
+  },
   CLIENT_LOGOUT_UNCONFIRMED: {
     title: "Déconnexion serveur non confirmée",
     message: "L’accès local est fermé. Réessaie pour terminer la déconnexion auprès du serveur.",

@@ -51,6 +51,39 @@ function infrastructure() {
 }
 
 describe("browser session coordinator", () => {
+  it("cancels a waiting lock with a caller signal, without acquiring it", async () => {
+    // Arrange
+    const { coordinator, request } = infrastructure();
+    request.mockImplementation((_name, options) => new Promise((_, reject) => options.signal.addEventListener("abort", () => reject(new DOMException("private", "AbortError")))));
+    const controller = new AbortController(); const operation = vi.fn(async () => 42);
+    const work = coordinator.exclusive(operation, { signal: controller.signal }).catch(error => error);
+    // Act
+    controller.abort("private");
+    // Assert
+    expect(await work).toMatchObject({ name: "AbortError" });
+    expect(operation).not.toHaveBeenCalled();
+  });
+
+  it("ignores caller cancellation after the operation has acquired the lock", async () => {
+    // Arrange
+    const { coordinator } = infrastructure();
+    const gate = barrier(); const entered = barrier(); const controller = new AbortController();
+    const work = coordinator.exclusive(async () => { entered.resolve(); await gate.promise; return 42; }, { signal: controller.signal });
+    await entered.promise;
+    // Act
+    controller.abort(); gate.resolve();
+    // Assert
+    expect(await work).toBe(42);
+  });
+
+  it("does not connect for an already-aborted lock request", async () => {
+    // Arrange
+    const { coordinator, request } = infrastructure(); const controller = new AbortController(); controller.abort();
+    // Act / Assert
+    await expect(coordinator.exclusive(async () => 42, { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("stores only opaque metadata and atomically rejects an obsolete mutation", async () => {
     // Arrange
     const { coordinator, getStored, db, channel } = infrastructure();

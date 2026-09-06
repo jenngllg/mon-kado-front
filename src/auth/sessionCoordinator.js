@@ -7,7 +7,7 @@ import { ApiError, createAbortError } from "../api/apiError.js";
  * @typedef {{
  *   read: () => Promise<SessionMetadata>,
  *   change: (pending: boolean, reason: SessionChangeReason, expected?: string) => Promise<SessionMetadata | null>,
- *   exclusive: <T>(operation: () => Promise<T>) => Promise<T>,
+ *   exclusive: <T>(operation: () => Promise<T>, options?: {signal?: AbortSignal}) => Promise<T>,
  *   announceLogout: () => void,
  *   subscribe: (listener: (event: SessionEvent) => void) => () => void,
  *   dispose: () => void
@@ -74,23 +74,29 @@ export function createSessionCoordinator({
 
   /** @template T
    * @param {() => Promise<T>} operation Cookie mutation.
+   * @param {{signal?: AbortSignal}} [options] Cancels waiting only, never a granted lock.
    * @returns {Promise<T>} Serialized result.
    */
-  async function exclusive(operation) {
+  async function exclusive(operation, { signal } = {}) {
+    if (signal?.aborted) throw createAbortError();
     connect();
     if (locks === undefined) throw unavailable();
     const controller = new AbortController();
     waitingLocks.add(controller);
     const timeout = setTimeout(() => controller.abort(), 30_000);
+    const waitingSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
+    let acquired = false;
     try {
-      return await locks.request(namespace, { mode: "exclusive", signal: controller.signal }, async () => {
+      return await locks.request(namespace, { mode: "exclusive", signal: waitingSignal }, async () => {
+        acquired = true;
         clearTimeout(timeout);
         waitingLocks.delete(controller);
-        if (disposed) throw createAbortError();
+        if (disposed || signal?.aborted) throw createAbortError();
         return operation();
       });
     } catch (error) {
       if (disposed) throw createAbortError();
+      if (!acquired && signal?.aborted) throw createAbortError();
       if (controller.signal.aborted) throw new ApiError({ kind: "timeout", errorCode: "CLIENT_SESSION_BUSY" });
       throw error instanceof ApiError || error instanceof DOMException ? error : unavailable();
     } finally {

@@ -1,11 +1,13 @@
 import { createSessionManager } from "../auth/sessionManager.js";
-import { createLoginTarget, isProtectedRoute } from "../auth/sessionGuards.js";
+import { createLoginTarget, getLoginDestination, isProtectedRoute } from "../auth/sessionGuards.js";
 import { createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading } from "../components/index.js";
 import { createApplicationShell } from "./applicationShell.js";
 import { createApplicationRoutes } from "./routes.js";
 import { createRouter } from "../router/router.js";
 import { createPlaceholderView } from "../views/index.js";
 import { installGlobalErrorHandlers } from "../errors/index.js";
+import { ApiError } from "../api/apiError.js";
+import { toUserFacingError } from "../errors/errorMessages.js";
 import { RouteNames, RoutePaths } from "./routeContracts.js";
 
 /** Wires the persistent shell, routes and sole session manager.
@@ -47,11 +49,13 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
     const gainedAccess = previous.status !== "authenticated" && state.status === "authenticated";
     previous = state;
     renderFeedback();
-    if (gainedAccess && current?.name === RouteNames.Register && window.location.pathname === current.url.pathname) {
+    if (gainedAccess && (current?.name === RouteNames.Register || current?.name === RouteNames.Login) &&
+      window.location.pathname === current.url.pathname) {
       // Clear credentials entered in this tab before the protected guard yields.
       disposeComponent(shell.outlet);
       shell.outlet.replaceChildren(createLoadingState({ label: "Vérification de la session…" }));
-      void router.replace(RoutePaths.Lists);
+      const destination = current.name === RouteNames.Login ? getLoginDestination(current.url.searchParams) : RoutePaths.Lists;
+      void router.replace(destination);
     }
     if (lostAccess && isProtectedRoute(current?.name)) {
       // Remove private content before an asynchronous guard can yield.
@@ -87,10 +91,13 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
     const state = session.getSnapshot();
     disposeComponent(shell.sessionFeedback);
     shell.sessionFeedback.replaceChildren();
-    const visible = state.issue !== null && (!routeErrorVisible || state.logoutPending);
+    const loginOwnsError = router.getCurrentRoute()?.name === RouteNames.Login && window.location.pathname === RoutePaths.Login;
+    const visible = state.logoutPending || (state.issue !== null && !routeErrorVisible && !loginOwnsError);
     shell.sessionFeedback.hidden = !visible;
-    if (!visible || state.issue === null) return;
-    const error = state.issue;
+    if (!visible) return;
+    const error = state.logoutPending
+      ? toUserFacingError(new ApiError({ kind: "network", errorCode: "CLIENT_LOGOUT_UNCONFIRMED" })) : state.issue;
+    if (error === null) return;
     shell.sessionFeedback.append(createAlert({ ...error, variant: "warning",
       detail: error.correlationId === null ? null : `Référence : ${error.correlationId}` }));
     if (state.logoutPending || state.status === "unavailable") shell.sessionFeedback.append(createRetryButton(state.logoutPending));

@@ -16,7 +16,7 @@ export function createSessionGuard(name, session) {
     let state;
     try { state = await session.ensureSession({ signal }); }
     catch (error) {
-      // An unavailable restoration must not prevent reaching a public login placeholder.
+      // An unavailable restoration must not prevent reaching a public sign-in form.
       if (AnonymousRoutes.has(name) && error instanceof ApiError) return;
       throw error;
     }
@@ -50,6 +50,14 @@ export function getSafeReturnTo(target) {
  */
 export function createLoginTarget(path) {
   return `${RoutePaths.Login}?${new URLSearchParams({ returnTo: getSafeReturnTo(path) })}`;
+}
+
+/** @param {URLSearchParams} searchParams Untrusted login parameters.
+ * @returns {string} A single validated protected destination.
+ */
+export function getLoginDestination(searchParams) {
+  const values = searchParams.getAll("returnTo");
+  return values.length === 1 ? getSafeReturnTo(values[0]) : RoutePaths.Lists;
 }
 
 /** @param {string | null | undefined} name Route name.

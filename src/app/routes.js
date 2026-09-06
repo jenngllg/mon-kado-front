@@ -13,6 +13,8 @@ import { createEmailConfirmationService } from "../features/emailConfirmation/em
 import { createEmailConfirmationView } from "../features/emailConfirmation/emailConfirmationView.js";
 import { createProfileService } from "../features/profile/profileService.js";
 import { createProfileView } from "../features/profile/profileView.js";
+import { createLoginService } from "../features/login/loginService.js";
+import { createLoginView } from "../features/login/loginView.js";
 
 export {
   NavigationItems,
@@ -23,15 +25,16 @@ export {
 const PlaceholderMessage =
   "Cette fonctionnalité sera disponible dans un prochain lot.";
 
-/** @param {Pick<import("../auth/sessionManager.js").SessionManager, "request" | "refreshIdentity">} session HTTP facade. */
+/** @param {import("../auth/sessionManager.js").SessionManager} session Session facade. */
 function createPageRoutes(session) {
   return Object.freeze([
-    createPlaceholderRoute(
-      RouteNames.Login,
-      RoutePaths.Login,
-      "Connexion",
-      "Compte MonKado",
-    ),
+    {
+      name: RouteNames.Login,
+      path: RoutePaths.Login,
+      title: "Se connecter · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createLoginView({ login: createLoginService(session), session, signal: context.signal }),
+    },
     createPlaceholderRoute(
       RouteNames.LinkGoogle,
       RoutePaths.LinkGoogle,
@@ -114,7 +117,7 @@ function createPageRoutes(session) {
 /**
  * Creates the complete frontend route catalogue.
  *
- * @param {{session: Pick<import("../auth/sessionManager.js").SessionManager, "ensureSession" | "request" | "refreshIdentity">}} options Session dependency.
+ * @param {{session: import("../auth/sessionManager.js").SessionManager}} options Session dependency.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
 export function createApplicationRoutes({ session }) {

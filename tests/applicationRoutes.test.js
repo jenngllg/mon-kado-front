@@ -12,6 +12,13 @@ import {
 } from "../src/app/index.js";
 import { createPlaceholderView } from "../src/views/index.js";
 const unusedSession = {
+  start: async () => { throw new Error("Unexpected restoration."); },
+  restore: async () => { throw new Error("Unexpected restoration."); },
+  establishSession: async () => { throw new Error("Unexpected authentication."); },
+  logout: async () => { throw new Error("Unexpected logout."); },
+  dispose: () => {},
+  getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "anonymous", user: null, etag: null, logoutPending: false, authenticationPending: false, issue: null }),
+  subscribe: () => () => {},
   refreshIdentity: async () => { throw new Error("This route must not load a profile."); },
   ensureSession: async () => { throw new Error("Rendering must not call the session service."); },
   request: async () => { throw new Error("Rendering must not call the API."); },
@@ -71,7 +78,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.Profile].some(candidate => candidate === name)))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.Profile].some(candidate => candidate === name)))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange
@@ -100,6 +107,14 @@ describe("application routes", () => {
     // Assert
     expect(view.querySelector("h1")?.textContent).toBe("Créer un compte");
     expect(view.querySelector("form")).not.toBeNull();
+    expect(view.querySelectorAll("input")).toHaveLength(3);
+  });
+
+  it("renders sign-in without making an API call", async () => {
+    // Arrange / Act
+    const view = await getRoute(RouteNames.Login).render(createRouteContext("/login"));
+    // Assert
+    expect(view.querySelector("h1")?.textContent).toBe("Se connecter");
     expect(view.querySelectorAll("input")).toHaveLength(3);
   });
 

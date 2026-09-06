@@ -1523,6 +1523,106 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/members": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Searches confirmed members by a partial display name, ignoring case and accents. */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: {
+                    /** @description The required search term, between 2 and 80 Unicode characters. */
+                    readonly displayName?: string;
+                    /** @description The one-based page number, defaulting to 1. */
+                    readonly page?: number | string;
+                    /** @description The page size, defaulting to 20 and limited to 100. */
+                    readonly pageSize?: number | string;
+                };
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["PaginatedResponseOfUserSearchResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Too Many Requests */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/members/current/deletion-requests": {
         readonly parameters: {
             readonly query?: never;
@@ -6558,6 +6658,35 @@ export interface components {
              */
             readonly totalPages?: number | string;
         };
+        /** @description Represents one page of API results. */
+        readonly PaginatedResponseOfUserSearchResponse: {
+            /**
+             * Format: int32
+             * @description Gets the requested one-based page number.
+             */
+            readonly currentPage: number | string;
+            /** @description Gets whether a following page containing items exists. */
+            readonly hasNextPage?: boolean;
+            /** @description Gets whether a preceding page containing items exists. */
+            readonly hasPreviousPage?: boolean;
+            /** @description Gets the current page items. */
+            readonly items: readonly components["schemas"]["UserSearchResponse"][];
+            /**
+             * Format: int32
+             * @description Gets the requested page size.
+             */
+            readonly pageSize: number | string;
+            /**
+             * Format: int32
+             * @description Gets the total matching item count.
+             */
+            readonly totalCount: number | string;
+            /**
+             * Format: int32
+             * @description Gets the total number of pages containing matching items.
+             */
+            readonly totalPages?: number | string;
+        };
         /** @description Represents register account request. */
         readonly RegisterAccountRequest: {
             /** @description Gets display name. */
@@ -6772,6 +6901,16 @@ export interface components {
              * @description Gets the requested reserved quantity.
              */
             readonly quantity: null | number | string;
+        };
+        /** @description Exposes only the public identity needed to display a member search result. */
+        readonly UserSearchResponse: {
+            /** @description Gets the display name. */
+            readonly displayName: string;
+            /**
+             * Format: uuid
+             * @description Gets the member identifier.
+             */
+            readonly id: string;
         };
         /** @description Represents validation error. */
         readonly ValidationError: {

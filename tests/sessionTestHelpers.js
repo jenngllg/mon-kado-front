@@ -1,4 +1,6 @@
 import { vi } from "vitest";
+import { waitForSession } from "../src/auth/sessionAsync.js";
+import { createAbortError } from "../src/api/apiError.js";
 
 /** @returns {{promise: Promise<void>, resolve: () => void}} Deterministic barrier. */
 export function barrier() {
@@ -32,9 +34,13 @@ export function createCoordinatorHub() {
         broadcast({ type: "changed", reason });
         return state;
       },
-      exclusive: operation => {
-        const result = tail.then(operation);
-        tail = result.then(() => {}, () => {});
+      exclusive: (operation, { signal } = {}) => {
+        const result = waitForSession(tail, signal).then(() => {
+          if (signal?.aborted) throw createAbortError();
+          return operation();
+        });
+        const previous = tail;
+        tail = Promise.allSettled([previous, result]).then(() => {});
         return result;
       },
       announceLogout: () => broadcast({ type: "logout-intent" }),

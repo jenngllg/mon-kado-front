@@ -21,6 +21,7 @@ const RenewalMargin = 60_000;
  *   user: CurrentSessionResponse | null,
  *   etag: string | null,
  *   logoutPending: boolean,
+ *   authenticationPending?: boolean,
  *   issue: import("../errors/errorMessages.js").UserFacingError | null
  * }>} SessionSnapshot
  */
@@ -31,7 +32,7 @@ const RenewalMargin = 60_000;
  *   ensureSession: (options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   refreshIdentity: (options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   request: Request,
- *   establishSession: (authenticate: Authenticate) => Promise<SessionSnapshot>,
+ *   establishSession: (authenticate: Authenticate, options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   getSnapshot: () => SessionSnapshot,
  *   subscribe: (listener: (state: SessionSnapshot) => void) => () => void,
  *   logout: () => Promise<SessionSnapshot>,
@@ -63,7 +64,7 @@ export function createSessionManager({
   /** @type {SessionMetadata | null} */
   let metadata = null;
   /** @type {SessionSnapshot} */
-  let snapshot = Object.freeze({ status: "initializing", user: null, etag: null, logoutPending: false, issue: null });
+  let snapshot = Object.freeze({ status: "initializing", user: null, etag: null, logoutPending: false, authenticationPending: false, issue: null });
   /** @type {ApiError | null} */
   let failure = null;
   /** @type {Promise<SessionSnapshot> | null} */
@@ -82,6 +83,7 @@ export function createSessionManager({
   let tokenVersion = 0;
   let identityReadVersion = 0;
   let blocked = false;
+  let authenticationPending = false;
   let disposed = false;
   const lifetime = new AbortController();
   const api = createApiClient({
@@ -115,7 +117,7 @@ export function createSessionManager({
       disposed = true;
       lifetime.abort();
       clearCredentials();
-      snapshot = Object.freeze({ status: "anonymous", user: null, etag: null, logoutPending: blocked, issue: null });
+      snapshot = Object.freeze({ status: "anonymous", user: null, etag: null, logoutPending: blocked, authenticationPending: false, issue: null });
       subscribers.clear();
       unsubscribe();
       coordinator.dispose();
@@ -221,10 +223,11 @@ export function createSessionManager({
     try {
       await synchronize();
       expected = revision;
-      if (blocked) return snapshot;
+      if (blocked && !authenticationPending) return snapshot;
       await coordinator.exclusive(async () => {
         await verify(expected);
-        if (blocked) return;
+        if (blocked && !authenticationPending) return;
+        if (authenticationPending) publish("initializing");
         // Recheck after queuing, and reuse a rotated token if only identity loading failed.
         if (isFresh(credentials) && snapshot.status === "authenticated") return;
         if (!isFresh(candidate)) {
@@ -240,7 +243,8 @@ export function createSessionManager({
       if (disposed || expected !== revision || isAbortError(error)) return snapshot;
       const safe = safeFailure(error);
       if (safe.statusCode === 401) {
-        if (hadSession) expire(safe);
+        if (authenticationPending) abandonAuthentication();
+        else if (hadSession) expire(safe);
         else {
           clearCredentials();
           publish("anonymous");
@@ -255,55 +259,78 @@ export function createSessionManager({
    */
   async function loadIdentity(token, expected) {
     const identityClient = createApiClient({ baseUrl: apiBaseUrl, fetchImplementation, accessTokenProvider: () => token.token });
-    const response = await identityClient.request(`${SessionPath}/current`, { authentication: "required" });
+    const response = await identityClient.request(`${SessionPath}/current`, { authentication: "required", signal: lifetime.signal });
     await verify(expected);
     const user = readUser(response);
-    if (token.expiresAt <= now()) throw invalidResponse();
+    if (response.status !== 200 || !isStrongEntityTag(response.metadata.etag) ||
+      validateDisplayName(user.displayName) !== null || token.expiresAt <= now()) throw invalidResponse(response);
+    if (authenticationPending && blocked) {
+      const next = await coordinator.change(false, "established", metadata?.generation);
+      if (next === null || expected !== revision || disposed) throw createAbortError();
+      metadata = next;
+      blocked = false;
+    }
     credentials = token;
     tokenVersion += 1;
     candidate = null;
+    authenticationPending = false;
     api.invalidateCsrfToken();
     publish("authenticated", user, response.metadata.etag);
   }
 
   /** Runs future JSON login/link operations under the same cookie lock.
    * @param {Authenticate} authenticate Operation returning the access-token envelope.
+   * @param {{signal?: AbortSignal}} [options] Cancels the caller and an operation not yet started.
    * @returns {Promise<SessionSnapshot>} Confirmed identity.
    */
-  function establishSession(authenticate) {
+  function establishSession(authenticate, { signal } = {}) {
     assertActive();
-    if (establishing !== null) return establishing;
+    if (signal?.aborted) return Promise.reject(createAbortError());
+    if (establishing !== null) return waitForSession(establishing, signal);
+    const previousFailure = failure;
     clearCredentials();
     publish("initializing");
     const expected = revision;
+    const waitingSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
+    let started = false;
     establishing = coordinator.exclusive(async () => {
       await synchronize();
-      // A prior logout marker may be superseded only by this explicit successful login.
-      if (expected !== revision) throw createAbortError();
-      const previous = metadata?.generation;
+      if (expected !== revision || waitingSignal.aborted) throw createAbortError();
+      publish("initializing");
       api.invalidateCsrfToken();
+      // Before submitting credentials, an abandoned view can still cancel safely.
+      // A started CSRF request may set a cookie: keep the lock until it settles.
+      await api.refreshCsrfToken();
+      await verify(expected);
+      if (waitingSignal.aborted) throw createAbortError();
+      started = true;
       const response = await authenticate({
-        request: (path, options = {}) => api.request(path, { ...options, authentication: "none", csrf: true }),
+        request: (path, options = {}) => api.request(path, { ...options, authentication: "none", csrf: true, signal: lifetime.signal }),
       });
       await verify(expected);
+      if (response.status !== 200) throw invalidResponse(response);
       const token = readCredentials(response, now());
-      const identityClient = createApiClient({ baseUrl: apiBaseUrl, fetchImplementation, accessTokenProvider: () => token.token });
-      const identity = await identityClient.request(`${SessionPath}/current`, { authentication: "required" });
-      const user = readUser(identity);
-      if (token.expiresAt <= now()) throw invalidResponse(identity);
-      await verify(expected);
-      const next = await coordinator.change(false, "established", previous);
+      // Cookie ownership changed, even if identity loading fails afterward.
+      const next = await coordinator.change(blocked, "established", metadata?.generation);
       if (next === null || expected !== revision || disposed) throw createAbortError();
       metadata = next;
-      blocked = false;
-      credentials = token;
-      tokenVersion += 1;
+      candidate = token;
+      authenticationPending = true;
       api.invalidateCsrfToken();
-      publish("authenticated", user, identity.metadata.etag);
+      publish("initializing");
+      await loadIdentity(token, expected);
       return snapshot;
-    }).catch(error => {
-      if (expected === revision && !disposed && !isAbortError(error)) {
-        if (blocked) publish("anonymous", null, null, logoutIssue());
+    }, { signal: waitingSignal }).catch(error => {
+      if (!started && waitingSignal.aborted) error = createAbortError();
+      if (expected === revision && !disposed) {
+        if (isAbortError(error)) {
+          if (!started && previousFailure !== null) setUnavailable(previousFailure);
+          else if (!authenticationPending) publish("anonymous", null, null, blocked ? logoutIssue() : null);
+        } else if (authenticationPending) {
+          const safe = safeFailure(error);
+          if (safe.statusCode === 401) abandonAuthentication();
+          else setUnavailable(safe);
+        } else if (blocked) publish("anonymous", null, null, logoutIssue());
         else {
           const safe = safeFailure(error);
           if (safe.kind === "http" && safe.statusCode !== null && safe.statusCode < 500 && safe.statusCode !== 429) publish("anonymous");
@@ -312,7 +339,19 @@ export function createSessionManager({
       }
       throw isAbortError(error) ? createAbortError() : safeFailure(error);
     }).finally(() => { establishing = null; });
-    return establishing;
+    return waitForSession(establishing, waitingSignal);
+  }
+
+  /** A rejected final identity cannot be revived by an implicit refresh. */
+  function abandonAuthentication() {
+    const previous = metadata?.generation;
+    clearCredentials();
+    publish("anonymous", null, null,
+      toUserFacingError(new ApiError({ kind: "http", statusCode: 401, errorCode: "CLIENT_LOGIN_COMPLETION_REQUIRED" })));
+    const expected = revision;
+    void coordinator.change(blocked, "expired", previous).then(next => {
+      if (next !== null && expected === revision && !disposed) metadata = next;
+    }, () => {});
   }
 
   /** @returns {Promise<SessionSnapshot>} Local closure and attempted server logout. */
@@ -391,9 +430,13 @@ export function createSessionManager({
     try {
       const changed = await synchronize(event.reason === "established" ? "initializing" : "anonymous");
       if (!changed || blocked) return;
-      if (event.reason === "established") await restore();
+      if (event.reason === "established") {
+        // An older queued login must settle before this tab can restore the new generation.
+        if (establishing !== null) await establishing.catch(() => {});
+        if (!disposed && !blocked) await restore();
+      }
       else publish("anonymous", null, null, event.reason === "expired" ? toUserFacingError(authenticationRequired()) : null);
-    } catch (error) { if (!disposed) setUnavailable(safeFailure(error)); }
+    } catch (error) { if (!disposed && !isAbortError(error)) setUnavailable(safeFailure(error)); }
   }
 
   /** Reconcile metadata, but never renew solely because an idle tab became visible. */
@@ -409,6 +452,7 @@ export function createSessionManager({
     tokenVersion += 1;
     credentials = null;
     candidate = null;
+    authenticationPending = false;
     api.invalidateCsrfToken();
     for (const controller of protectedRequests) controller.abort();
     protectedRequests.clear();
@@ -422,7 +466,7 @@ export function createSessionManager({
   function publish(status, user = null, etag = null, issue = null) {
     if (disposed) return;
     if (status !== "unavailable") failure = null;
-    snapshot = Object.freeze({ status, user, etag, logoutPending: blocked, issue });
+    snapshot = Object.freeze({ status, user, etag, logoutPending: blocked, authenticationPending, issue });
     for (const listener of subscribers) listener(snapshot);
   }
 
