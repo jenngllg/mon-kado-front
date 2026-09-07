@@ -173,12 +173,17 @@ describe("graphic foundations", () => {
     expect(control).toContain("padding-inline: min(3vw, var(--space-4))");
   });
   it("shares the creation card with editing and wraps comparison content and actions", () => {
-    expect(viewStyles).toMatch(/\.wishlist-create-view,\s*\.wishlist-edit-view\s*\{/);
+    expect(viewStyles).toMatch(/\.wishlist-create-view,\s*\.wishlist-edit-view,\s*\.wishlist-delete-view\s*\{/);
     const comparison = viewStyles.match(/\.wishlist-edit-view__comparison\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(comparison).toContain("overflow-wrap: anywhere");
     expect(comparison).toContain("var(--color-warning-soft)");
     expect(viewStyles).toContain(".wishlist-form__actions > *");
     expect(viewStyles.match(/\.wishlist-edit-view__comparison dd\s*\{([^}]+)\}/)?.[1]).toContain("white-space: pre-wrap");
+  });
+  it("separates deletion from editing and wraps the destructive confirmation at enlarged text sizes", () => {
+    expect(viewStyles.match(/\.wishlist-edit-view__deletion\s*\{([^}]+)\}/)?.[1]).toContain("border-block-start: 1px solid var(--color-border)");
+    expect(viewStyles.match(/\.wishlist-delete-view__warning\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(4vw, var(--space-4))");
+    expect(viewStyles.match(/\.wishlist-delete-view__details dd\s*\{([^}]+)\}/)?.[1]).toContain("overflow-wrap: anywhere");
   });
 });
 

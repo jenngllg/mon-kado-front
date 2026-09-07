@@ -35,7 +35,10 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
   const useVersion = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: useStored }); useVersion.hidden = true;
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
   actions.append(submit, cancel, reread, useVersion); form.append(actions);
-  view.append(title, intro, feedback, status, comparison, form, retry, createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists }));
+  const deletion = textElement("section", ""); deletion.className = "wishlist-edit-view__deletion flow"; deletion.hidden = true;
+  deletion.append(textElement("h2", "Suppression de la liste"), textElement("p", "Cette action est définitive. Les modifications non enregistrées seront abandonnées en quittant ce formulaire."),
+    createActionLink({ label: "Supprimer cette liste", href: isWishlistId(wishlistId) ? RoutePaths.DeleteList.replace(":listId", wishlistId) : RoutePaths.Lists, variant: "danger" }));
+  view.append(title, intro, feedback, status, comparison, form, retry, createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists }), deletion);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); base = null; editor.reset(); clearFeedback(); clearComparison(); status.textContent = "";
@@ -67,6 +70,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
     if (disposed) return;
     const suspended = base?.wishlist.isSuspended === true;
     form.hidden = base === null || terminal;
+    deletion.hidden = base === null || terminal || suspended || busy || blocked;
     for (const field of fields) field.control.disabled = busy || suspended || terminal;
     submit.disabled = busy || blocked || suspended || terminal || !hasChanges();
     submit.textContent = decision ? "Enregistrer ma saisie" : "Enregistrer les modifications";

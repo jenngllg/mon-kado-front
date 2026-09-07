@@ -103,7 +103,8 @@
 .email-confirmation-view,
 .profile-view,
 .wishlist-create-view,
-.wishlist-edit-view {
+.wishlist-edit-view,
+.wishlist-delete-view {
   --flow-space: var(--space-5);
 
   width: min(100%, var(--content-narrow));
@@ -125,7 +126,8 @@
 .email-confirmation-view h1,
 .profile-view h1,
 .wishlist-create-view h1,
-.wishlist-edit-view h1 {
+.wishlist-edit-view h1,
+.wishlist-delete-view h1 {
   font-size: var(--font-size-2xl);
 }
 
@@ -346,6 +348,35 @@
 .wishlist-edit-view__comparison dd {
   margin: 0;
   white-space: pre-wrap;
+}
+
+.wishlist-edit-view__deletion {
+  padding-block-start: var(--space-6);
+  border-block-start: 1px solid var(--color-border);
+}
+
+.wishlist-edit-view__deletion h2,
+.wishlist-delete-view h2 {
+  font-size: var(--font-size-xl);
+}
+
+.wishlist-delete-view__details dt {
+  margin-block-start: var(--space-3);
+  font-weight: var(--font-weight-bold);
+}
+
+.wishlist-delete-view__details dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wishlist-delete-view__warning {
+  padding: var(--space-4);
+  padding-inline: min(4vw, var(--space-4));
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-soft);
 }
 
 @media (min-width: 48rem) {

@@ -1014,6 +1014,53 @@ déconnexion ou un changement de compte annulent l’attente, effacent les champ
 et ignorent les réponses tardives, sans garantir l’annulation d’un PUT déjà
 reçu. Aucun brouillon persistant, rafraîchissement périodique ou garde de sortie.
 
+## Supprimer une liste (#884)
+
+La page protégée `/lists/{listId}/delete` est accessible depuis la zone de
+suppression, séparée du formulaire de modification. Elle charge une version
+fraîche avec `loadOne()`, nomme la liste et explique la suppression définitive
+de la liste, de ses cadeaux et de ses accès de partage. Elle ne révèle aucune
+réservation ni participant et ne promet pas un effacement immédiat des fichiers
+images : le backend planifie leur nettoyage. Aucun compteur ou appel aux cadeaux
+n’est nécessaire ; cette US ne dépend pas du détail #882.
+
+`createWishlistDeleteView({ wishlistId, loadOne, remove, onDeleted, signal })`
+retourne une confirmation accessible, sans modale, saisie du nom ou case
+supplémentaire. « Supprimer définitivement » exige une activation explicite ;
+« Annuler » revient à la modification et « Retour à Mes listes » à la collection.
+Le routeur conserve le focus initial. Annuler ne restaure pas les modifications
+non enregistrées abandonnées en quittant le formulaire précédent.
+
+`createWishlistsService(session).remove(id, { etag, signal })` envoie un seul
+`DELETE /api/v1/wishlists/{id}` avec JWT requis, `If-Match` exact et contrôle
+du corps vide, sans corps ni CSRF supplémentaire. Seul `204` avec `data: null`
+est accepté. L’ETag est celui de la liste : il ne constitue pas une version
+globale de tous ses cadeaux. Un identifiant invalide ou une précondition faible,
+absente ou générique (`*`) interdit le transport.
+
+Aucune disparition optimiste : le nom reste visible pendant l’envoi et la
+confirmation comme l’annulation sont désactivées. Après succès, l’instance ne
+peut plus supprimer ; l’application remplace la route par `/lists`, recharge
+sa collection et affiche une seule notification « Liste supprimée ». Une erreur
+de navigation reste distincte de la suppression confirmée et offre un retour
+à Mes listes, jamais un nouveau DELETE.
+
+Les conflits `412`, préconditions `428` ou validations `ifMatch` imposent
+« Relire la liste », puis une nouvelle confirmation explicite de la version
+actualisée. Un échec de relecture maintient le blocage ; il n’y a aucun enchaînement
+automatique GET/DELETE. Réseau, timeout, réponse invalide ou erreur serveur pendant
+la suppression sont présentés comme un résultat incertain et imposent également
+une relecture. Un `404`, y compris après cette relecture, signifie « Liste
+introuvable », jamais un succès attribué à cette tentative. Les listes suspendues
+restent en consultation uniquement, sans motif, jusqu’à une relecture qui les
+montre de nouveau modifiables.
+
+Les erreurs restent françaises et locales à la vue, avec référence technique
+et `Retry-After` pour `429` ; seul le traitement habituel des `401` affecte la
+session. Aucun retry automatique n’est ajouté. Quitter la page ou changer de
+session efface ses données et annule l’attente sans garantir l’annulation d’un
+DELETE déjà reçu. Les réponses tardives ne redirigent pas et ne notifient pas.
+
 ## Contrôles qualité
 
 ```shell

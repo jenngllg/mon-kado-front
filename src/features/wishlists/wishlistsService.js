@@ -13,10 +13,11 @@ import { isCalendarDate, isWishlistId, isWishlistOccasion, trimWishlistText } fr
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["UpdateWishlistRequest"]} UpdateWishlistRequest */
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<CreatedWishlist>} LoadWishlist */
 /** @typedef {(wishlistId: string, values: WishlistValues, options: {etag: string, signal: AbortSignal}) => Promise<CreatedWishlist>} UpdateWishlist */
+/** @typedef {(wishlistId: string, options: {etag: string, signal: AbortSignal}) => Promise<void>} RemoveWishlist */
 
 /** Creates owned-list operations without retaining unused API fields.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
- * @returns {{load: LoadWishlists, create: CreateWishlist, loadOne: LoadWishlist, update: UpdateWishlist}} Injectable wishlist operations.
+ * @returns {{load: LoadWishlists, create: CreateWishlist, loadOne: LoadWishlist, update: UpdateWishlist, remove: RemoveWishlist}} Injectable wishlist operations.
  */
 export function createWishlistsService(session) {
   return {
@@ -59,6 +60,16 @@ export function createWishlistsService(session) {
       return versionedWishlist(await session.request(`/api/v1/wishlists/${wishlistId}`, {
         method: "PUT", authentication: "required", body, ifMatch: etag, signal,
       }), 200, wishlistId);
+    },
+    remove: async (wishlistId, { etag, signal }) => {
+      requireWishlistId(wishlistId);
+      if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428, errorCode: "REQUEST_PRECONDITION_REQUIRED" });
+      const response = await session.request(`/api/v1/wishlists/${wishlistId}`, {
+        method: "DELETE", authentication: "required", ifMatch: etag, expectEmptyResponse: true, signal,
+      });
+      if (response.status !== 204 || response.data !== null) {
+        throw new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
+      }
     },
   };
 }

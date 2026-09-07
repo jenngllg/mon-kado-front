@@ -1,6 +1,6 @@
 import { createSessionManager } from "../auth/sessionManager.js";
 import { createLoginTarget, getLoginDestination, isProtectedRoute } from "../auth/sessionGuards.js";
-import { createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, showNotification } from "../components/index.js";
+import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, showNotification } from "../components/index.js";
 import { createApplicationShell } from "./applicationShell.js";
 import { createApplicationRoutes } from "./routes.js";
 import { createRouter } from "../router/router.js";
@@ -22,6 +22,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   let routeErrorVisible = false;
   let passwordChangeNotice = false;
   let protectedViewEpoch = 0;
+  /** @type {number | null} */ let confirmedWishlistDeletionEpoch = null;
   /** @type {string | null} */
   let googleDestination = null;
   let googleVerified = false;
@@ -44,6 +45,20 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
           showNotification(shell.notificationRegion, { message: "Liste créée", variant: "success" });
         }
       },
+      onWishlistDeleted: async context => {
+        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.DeleteList ||
+          window.location.pathname.replace(/\/+$/, "") !== RoutePaths.DeleteList.replace(":listId", context.params.listId) ||
+          session.getSnapshot().status !== "authenticated") return;
+        const epoch = protectedViewEpoch;
+        confirmedWishlistDeletionEpoch = epoch;
+        try {
+          const route = await router.replace(RoutePaths.Lists);
+          if (!disposed && epoch === protectedViewEpoch && route !== null && route === router.getCurrentRoute() &&
+            route.name === RouteNames.Lists && window.location.pathname === RoutePaths.Lists && session.getSnapshot().status === "authenticated") {
+            showNotification(shell.notificationRegion, { message: "Liste supprimée", variant: "success" });
+          }
+        } finally { confirmedWishlistDeletionEpoch = null; }
+      },
       onGoogleDestination: path => { googleDestination = path; googleVerified = false; googleFlowRoute = RouteNames.GoogleReturn; },
       onGoogleLinkDestination: path => { googleDestination = path; googleVerified = false; googleFlowRoute = RouteNames.LinkGoogle; },
       onGoogleAuthenticated: () => { googleVerified = true; finishGoogle(); },
@@ -65,6 +80,10 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       view.append(createAlert({ ...error, variant: "error", headingLevel: 1,
         detail: error.correlationId === null ? null : `Référence : ${error.correlationId}` }));
       if (session.getSnapshot().status === "unavailable") view.append(createRetryButton(false));
+      if (confirmedWishlistDeletionEpoch === protectedViewEpoch && session.getSnapshot().status === "authenticated") {
+        view.append(createAlert({ title: "Liste supprimée", message: "Ta liste est supprimée, mais le retour à Mes listes a échoué.", variant: "success" }),
+          createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists }));
+      }
       return view;
     },
   });
