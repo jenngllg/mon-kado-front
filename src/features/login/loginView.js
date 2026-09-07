@@ -5,14 +5,17 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { LoginErrorMessages, LoginServerMessages, validateLoginField } from "./loginValidation.js";
+import { createGoogleButton } from "../google/googleButton.js";
+import { GoogleMessages } from "../google/googleMessages.js";
 
 /** Creates the public login view. Redirects belong exclusively to session/router integration.
  * @param {{login: import("./loginService.js").Login,
  *   session: Pick<import("../../auth/sessionManager.js").SessionManager, "restore" | "subscribe" | "getSnapshot">,
- *   signal?: AbortSignal, passwordChanged?: boolean}} options View-owned operations and one local notice.
+ *   signal?: AbortSignal, passwordChanged?: boolean,
+ *   startGoogle?: import("../google/googleService.js").StartGoogle, returnTo?: string}} options View-owned operations and one local notice.
  * @returns {HTMLElement} Disposable routed form.
  */
-export function createLoginView({ login, session, signal, passwordChanged = false }) {
+export function createLoginView({ login, session, signal, passwordChanged = false, startGoogle, returnTo = RoutePaths.Lists }) {
   const view = textElement("section", "");
   view.className = "login-view flow";
   const feedback = textElement("div", "");
@@ -28,6 +31,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   const lifetime = new AbortController();
   let disposed = false;
   let busy = false;
+  let googleBusy = false;
   let pending = false;
   let accepted = false;
   let summary = false;
@@ -78,6 +82,8 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   rememberLabel.append(remember, textElement("span", "Se souvenir de moi"));
   const submit = createButton({ label: "Se connecter", type: "submit" });
   form.append(rememberLabel, submit);
+  const googleButton = startGoogle ? createGoogleButton(() => { void departGoogle(); }) : null;
+  if (googleButton) form.append(textElement("p", "ou"), googleButton);
   const links = textElement("div", "");
   links.className = "cluster";
   links.append(createActionLink({ label: "Mot de passe oublié ?", href: RoutePaths.ForgotPassword }),
@@ -104,7 +110,10 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
     if (pending) accepted = true;
     if (pending || state.status === "authenticated") clearPassword();
     updateControls();
-    if (!busy && state.issue !== null && (pending || !state.logoutPending)) showSessionIssue(state);
+    if (!busy && !googleBusy && state.issue !== null && (pending || !state.logoutPending)) showSessionIssue(state);
+  });
+  addComponentEventListener(view, window, "pageshow", event => {
+    if (/** @type {PageTransitionEvent} */ (event).persisted && !disposed) { googleBusy = false; updateControls(); }
   });
   registerComponentCleanup(view, () => {
     disposed = true;
@@ -152,14 +161,36 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   }
   function updateControls() {
     setButtonLoading(submit, busy);
-    for (const field of fields) field.control.disabled = busy || pending;
-    remember.disabled = busy || pending;
-    visibility.disabled = busy || pending;
-    submit.disabled = busy || pending;
+    for (const field of fields) field.control.disabled = busy || pending || googleBusy;
+    remember.disabled = busy || pending || googleBusy;
+    visibility.disabled = busy || pending || googleBusy;
+    submit.disabled = busy || pending || googleBusy;
+    if (googleButton) {
+      setButtonLoading(googleButton, googleBusy);
+      googleButton.disabled = busy || pending || googleBusy;
+    }
     form.hidden = pending;
-    form.setAttribute("aria-busy", String(busy));
-    status.hidden = !busy;
-    status.textContent = busy ? pending ? "Vérification de la session…" : "Connexion en cours…" : "";
+    form.setAttribute("aria-busy", String(busy || googleBusy));
+    status.hidden = !busy && !googleBusy;
+    status.textContent = googleBusy ? "Ouverture de Google…" : busy ? pending ? "Vérification de la session…" : "Connexion en cours…" : "";
+  }
+  async function departGoogle() {
+    if (!active() || busy || pending || googleBusy || !startGoogle) return;
+    const rememberMe = remember.checked;
+    googleBusy = true;
+    deferredBlur = null;
+    clearFeedback();
+    clearPassword();
+    fields[0].control.value = "";
+    remember.checked = false;
+    updateControls();
+    try { await startGoogle({ rememberMe, returnTo, signal: lifetime.signal }); }
+    catch (error) {
+      if (!active()) return;
+      googleBusy = false;
+      updateControls();
+      if (!isAbortError(error)) { showTranslated(toUserFacingError(error, GoogleMessages)); feedback.focus(); }
+    }
   }
   /** @param {import("../../errors/errorMessages.js").UserFacingError} translated Safe translated failure. */
   function showTranslated(translated) {
@@ -177,7 +208,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
     }
   }
   async function retryIdentity() {
-    if (!active() || busy) return;
+    if (!active() || busy || googleBusy) return;
     busy = true;
     clearFeedback();
     updateControls();
@@ -196,7 +227,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
     }
   }
   async function submitLogin() {
-    if (!active() || busy || pending) return;
+    if (!active() || busy || pending || googleBusy) return;
     deferredBlur = null;
     clearFeedback();
     for (const field of fields) validate(field);

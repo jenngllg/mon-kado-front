@@ -12,6 +12,7 @@ import {
 } from "../src/app/index.js";
 import { createPlaceholderView } from "../src/views/index.js";
 const unusedSession = {
+  prepareExternalAuthentication: async () => { throw new Error("Unexpected Google preparation."); },
   start: async () => { throw new Error("Unexpected restoration."); },
   restore: async () => { throw new Error("Unexpected restoration."); },
   establishSession: async () => { throw new Error("Unexpected authentication."); },
@@ -32,6 +33,7 @@ const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
   [RouteNames.Login, RoutePaths.Login],
   [RouteNames.LinkGoogle, RoutePaths.LinkGoogle],
+  [RouteNames.GoogleReturn, RoutePaths.GoogleReturn],
   [RouteNames.Register, RoutePaths.Register],
   [RouteNames.ConfirmEmail, RoutePaths.ConfirmEmail],
   [RouteNames.ConfirmEmailChange, RoutePaths.ConfirmEmailChange],
@@ -83,7 +85,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.GoogleReturn, RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange

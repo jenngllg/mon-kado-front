@@ -1,0 +1,37 @@
+@font-face {
+  font-family: "MonKado Google Sans";
+  src: url("../assets/google/google-sans-medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Official brand values are confined to Google's sign-in action. */
+.google-button {
+  --google-background: #fff;
+  --google-border: #747775;
+  --google-text: #1f1f1f;
+  min-block-size: 44px;
+  inline-size: 100%;
+  padding: 12px;
+  gap: 10px;
+  border: 1px solid var(--google-border);
+  border-radius: var(--radius-md);
+  background: var(--google-background);
+  color: var(--google-text);
+  font-family: "MonKado Google Sans", Arial, sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-transform: none;
+}
+
+.google-button:hover,
+.google-button:active {
+  background: var(--google-background);
+  color: var(--google-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.google-button img { inline-size: 20px; block-size: 20px; max-inline-size: none; }
+.google-button .ui-button__decoration { flex-shrink: 0; }

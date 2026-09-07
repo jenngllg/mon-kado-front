@@ -22,6 +22,13 @@ import { createPasswordChangeView } from "../features/passwordChange/passwordCha
 import { createEmailChangeService } from "../features/emailChange/emailChangeService.js";
 import { createEmailChangeView } from "../features/emailChange/emailChangeView.js";
 import { createEmailChangeConfirmationView } from "../features/emailChange/emailChangeConfirmationView.js";
+import { createGoogleReturnView } from "../features/google/googleReturnView.js";
+import { getLoginDestination } from "../auth/sessionGuards.js";
+import { createActionLink } from "../components/index.js";
+
+/** @typedef {{google?: import("../features/google/googleService.js").GoogleService,
+ * onGoogleDestination?: (path: string) => void, onGoogleAuthenticated?: () => void,
+ * onGoogleLinkRequired?: () => void}} GoogleRouteOptions */
 
 export {
   NavigationItems,
@@ -34,8 +41,10 @@ const PlaceholderMessage =
 
 /** @param {import("../auth/sessionManager.js").SessionManager} session Session facade.
  * @param {() => boolean} consumePasswordChangeNotice Local, single-use login notice.
+ * @param {GoogleRouteOptions} googleFlow External return integration.
  */
-function createPageRoutes(session, consumePasswordChangeNotice) {
+function createPageRoutes(session, consumePasswordChangeNotice, googleFlow) {
+  const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {} } = googleFlow;
   return Object.freeze([
     {
       name: RouteNames.Login,
@@ -43,20 +52,36 @@ function createPageRoutes(session, consumePasswordChangeNotice) {
       title: "Se connecter · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createLoginView({ login: createLoginService(session), session, signal: context.signal,
-          passwordChanged: consumePasswordChangeNotice() }),
+          passwordChanged: consumePasswordChangeNotice(), startGoogle: google?.enabled ? google.start : undefined,
+          returnTo: getLoginDestination(context.searchParams) }),
     },
-    createPlaceholderRoute(
-      RouteNames.LinkGoogle,
-      RoutePaths.LinkGoogle,
-      "Connexion avec Google",
-      "Compte MonKado",
-    ),
+    {
+      name: RouteNames.LinkGoogle, path: RoutePaths.LinkGoogle, title: "Vérification Google · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        context.consumeFragment();
+        const view = createPlaceholderView({ title: "Vérification complémentaire nécessaire", eyebrow: "Compte MonKado", message: PlaceholderMessage });
+        view.append(createActionLink({ label: "Se connecter par e-mail", href: RoutePaths.Login }));
+        return view;
+      },
+    },
+    {
+      name: RouteNames.GoogleReturn, path: RoutePaths.GoogleReturn, title: "Connexion avec Google · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        if (!google) {
+          context.consumeFragment();
+          return createPlaceholderView({ title: "Connexion Google indisponible", message: "Tu peux utiliser la connexion par e-mail.", eyebrow: "Compte MonKado" });
+        }
+        return createGoogleReturnView({ google, session, consumeFragment: context.consumeFragment, signal: context.signal,
+          onDestination: onGoogleDestination, onAuthenticated: onGoogleAuthenticated, onLinkRequired: onGoogleLinkRequired });
+      },
+    },
     {
       name: RouteNames.Register,
       path: RoutePaths.Register,
       title: "Créer un compte · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createRegistrationView({ register: createRegistrationService(session), signal: context.signal }),
+        createRegistrationView({ register: createRegistrationService(session), signal: context.signal,
+          startGoogle: google?.enabled ? google.start : undefined }),
     },
     {
       name: RouteNames.ConfirmEmail,
@@ -134,10 +159,10 @@ function createPageRoutes(session, consumePasswordChangeNotice) {
 /**
  * Creates the complete frontend route catalogue.
  *
- * @param {{session: import("../auth/sessionManager.js").SessionManager, consumePasswordChangeNotice?: () => boolean}} options Session and local notice dependencies.
+ * @param {{session: import("../auth/sessionManager.js").SessionManager, consumePasswordChangeNotice?: () => boolean} & GoogleRouteOptions} options Session and local notice dependencies.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
-export function createApplicationRoutes({ session, consumePasswordChangeNotice = () => false }) {
+export function createApplicationRoutes({ session, consumePasswordChangeNotice = () => false, ...googleFlow }) {
   return [
     Object.freeze({
       name: RouteNames.Home,
@@ -145,7 +170,7 @@ export function createApplicationRoutes({ session, consumePasswordChangeNotice =
       title: "MonKado · Les cadeaux qui font vraiment plaisir",
       render: createHomeView,
     }),
-    ...createPageRoutes(session, consumePasswordChangeNotice).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
+    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
   ];
 }
 

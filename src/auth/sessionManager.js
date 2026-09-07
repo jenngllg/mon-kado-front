@@ -30,12 +30,13 @@ const RenewalMargin = 60_000;
 /** @typedef {(transport: Readonly<{request: Request}>) => Promise<import("../api/apiClient.js").ApiResponse<unknown>>} ResetPassword */
 /** @typedef {Readonly<{sessionIssue: import("../errors/errorMessages.js").UserFacingError | null}>} PasswordResetResult */
 /** @typedef {Readonly<{
- *   start: () => Promise<SessionSnapshot>,
+ *   start: (options?: {restore?: boolean}) => Promise<SessionSnapshot>,
  *   restore: () => Promise<SessionSnapshot>,
  *   ensureSession: (options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   refreshIdentity: (options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   request: Request,
- *   establishSession: (authenticate: Authenticate, options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
+ *   prepareExternalAuthentication: (options?: {signal?: AbortSignal}) => Promise<Readonly<{generation: string}>>,
+ *   establishSession: (authenticate: Authenticate, options?: {signal?: AbortSignal, expectedGeneration?: string}) => Promise<SessionSnapshot>,
  *   resetPassword: (reset: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   changePassword: (change: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   confirmEmailChange: (confirm: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
@@ -67,6 +68,8 @@ export function createSessionManager({
   let credentials = null;
   /** @type {Credentials | null} */
   let candidate = null;
+  /** @type {string | null} Cookie accepted, but generation publication may still need an explicit retry. */
+  let pendingAuthenticationGeneration = null;
   /** @type {SessionMetadata | null} */
   let metadata = null;
   /** @type {SessionSnapshot} */
@@ -81,6 +84,7 @@ export function createSessionManager({
   let signingOut = null;
   /** @type {Promise<SessionSnapshot> | null} */
   let establishing = null;
+  let establishingExternal = false;
   /** @type {Promise<PasswordResetResult> | null} */
   let resetting = null;
   /** @type {Promise<PasswordResetResult> | null} */
@@ -120,6 +124,7 @@ export function createSessionManager({
     refreshIdentity,
     request,
     establishSession,
+    prepareExternalAuthentication,
     resetPassword,
     changePassword,
     confirmEmailChange,
@@ -145,10 +150,18 @@ export function createSessionManager({
     },
   });
 
-  /** @returns {Promise<SessionSnapshot>} Idempotent initial restoration. */
-  function start() {
+  /** @param {{restore?: boolean}} [options] External callbacks initialize metadata without touching cookies.
+   * @returns {Promise<SessionSnapshot>} Idempotent initialization.
+   */
+  function start({ restore: restoreCookie = true } = {}) {
     assertActive();
-    initial ??= restore();
+    initial ??= restoreCookie ? restore() : synchronize().then(() => {
+      if (!disposed && snapshot.status === "initializing" && establishing === null) publish("anonymous");
+      return snapshot;
+    }).catch(error => {
+      if (!disposed && !isAbortError(error)) setUnavailable(safeFailure(error));
+      return snapshot;
+    });
     return initial;
   }
 
@@ -274,6 +287,7 @@ export function createSessionManager({
   async function renewUnderLock(expected, userId) {
     await verify(expected);
     if (blocked && !authenticationPending) return;
+    if (pendingAuthenticationGeneration !== null) await commitAuthenticationGeneration(expected);
     if (authenticationPending) publish("initializing");
     if (isFresh(credentials) && snapshot.status === "authenticated") return;
     if (!isFresh(candidate)) {
@@ -311,24 +325,58 @@ export function createSessionManager({
     publish("authenticated", user, response.metadata.etag);
   }
 
+  /** Captures only non-secret coordination metadata before leaving this document.
+   * @param {{signal?: AbortSignal}} [options] Cancels preparation, never a started mutation.
+   * @returns {Promise<Readonly<{generation: string}>>} Origin-session generation.
+   */
+  async function prepareExternalAuthentication({ signal } = {}) {
+    assertActive();
+    return coordinator.exclusive(async () => {
+      await synchronize();
+      if (signal?.aborted) throw createAbortError();
+      if (establishing !== null || authenticationPending || snapshot.status === "signingOut") {
+        throw new ApiError({ kind: "http", errorCode: "CLIENT_SESSION_BUSY" });
+      }
+      if (metadata === null) throw new ApiError({ kind: "network", errorCode: "CLIENT_SESSION_COORDINATION_UNAVAILABLE" });
+      return Object.freeze({ generation: metadata.generation });
+    }, { signal });
+  }
+
   /** Runs future JSON login/link operations under the same cookie lock.
    * @param {Authenticate} authenticate Operation returning the access-token envelope.
-   * @param {{signal?: AbortSignal}} [options] Cancels the caller and an operation not yet started.
+   * @param {{signal?: AbortSignal, expectedGeneration?: string}} [options] Cancels waiting and optionally binds an external return to its departure generation.
    * @returns {Promise<SessionSnapshot>} Confirmed identity.
    */
-  function establishSession(authenticate, { signal } = {}) {
+  function establishSession(authenticate, { signal, expectedGeneration } = {}) {
     assertActive();
     if (signal?.aborted) return Promise.reject(createAbortError());
-    if (establishing !== null) return waitForSession(establishing, signal);
+    if (establishing !== null) {
+      if (expectedGeneration !== undefined || establishingExternal) {
+        return Promise.reject(new ApiError({ kind: "http", errorCode: "CLIENT_SESSION_BUSY" }));
+      }
+      return waitForSession(establishing, signal);
+    }
     const previousFailure = failure;
-    clearCredentials();
-    publish("initializing");
-    const expected = revision;
+    establishingExternal = expectedGeneration !== undefined;
+    let ownsState = !establishingExternal;
+    if (ownsState) {
+      clearCredentials();
+      publish("initializing");
+    }
+    let expected = revision;
     const waitingSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
     let started = false;
     establishing = coordinator.exclusive(async () => {
       await synchronize();
+      if (expectedGeneration !== undefined && metadata?.generation !== expectedGeneration) {
+        throw new ApiError({ kind: "http", errorCode: "CLIENT_GOOGLE_SUPERSEDED" });
+      }
       if (expected !== revision || waitingSignal.aborted) throw createAbortError();
+      if (!ownsState) {
+        clearCredentials();
+        expected = revision;
+        ownsState = true;
+      }
       publish("initializing");
       api.invalidateCsrfToken();
       // Before submitting credentials, an abandoned view can still cancel safely.
@@ -344,18 +392,17 @@ export function createSessionManager({
       if (response.status !== 200) throw invalidResponse(response);
       const token = readCredentials(response, now());
       // Cookie ownership changed, even if identity loading fails afterward.
-      const next = await coordinator.change(blocked, "established", metadata?.generation);
-      if (next === null || expected !== revision || disposed) throw createAbortError();
-      metadata = next;
       candidate = token;
       authenticationPending = true;
+      pendingAuthenticationGeneration = metadata?.generation ?? null;
+      await commitAuthenticationGeneration(expected);
       api.invalidateCsrfToken();
       publish("initializing");
       await loadIdentity(token, expected);
       return snapshot;
     }, { signal: waitingSignal }).catch(error => {
       if (!started && waitingSignal.aborted) error = createAbortError();
-      if (expected === revision && !disposed) {
+      if (ownsState && expected === revision && !disposed) {
         if (isAbortError(error)) {
           if (!started && previousFailure !== null) setUnavailable(previousFailure);
           else if (!authenticationPending) publish("anonymous", null, null, blocked ? logoutIssue() : null);
@@ -371,8 +418,27 @@ export function createSessionManager({
         }
       }
       throw isAbortError(error) ? createAbortError() : safeFailure(error);
-    }).finally(() => { establishing = null; });
+    }).finally(() => {
+      establishing = null;
+      establishingExternal = false;
+      // A cold callback rejected before owning the session must finish metadata-only startup.
+      if (!ownsState && !disposed && snapshot.status === "initializing") {
+        publish("anonymous", null, null, blocked ? logoutIssue() : null);
+      }
+    });
     return waitForSession(establishing, waitingSignal);
+  }
+
+  /** Publishes accepted cookie ownership without ever repeating the authentication POST.
+   * @param {number} expected Original local revision.
+   */
+  async function commitAuthenticationGeneration(expected) {
+    await verify(expected);
+    if (pendingAuthenticationGeneration === null) return;
+    const next = await coordinator.change(blocked, "established", pendingAuthenticationGeneration);
+    if (next === null || expected !== revision || disposed) throw createAbortError();
+    metadata = next;
+    pendingAuthenticationGeneration = null;
   }
 
   /** A rejected final identity cannot be revived by an implicit refresh. */
@@ -631,6 +697,7 @@ export function createSessionManager({
     credentials = null;
     candidate = null;
     authenticationPending = false;
+    pendingAuthenticationGeneration = null;
     pendingResetClosure = null;
     api.invalidateCsrfToken();
     for (const controller of protectedRequests) controller.abort();

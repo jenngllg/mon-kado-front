@@ -18,7 +18,7 @@ export class PublicConfigurationError extends Error {
  * Reads and validates the public frontend configuration.
  *
  * @param {Record<string, unknown>} environment Vite public environment values.
- * @returns {Readonly<{ apiBaseUrl: string }>} Validated public configuration.
+ * @returns {Readonly<{ apiBaseUrl: string, googleAuthEnabled: boolean }>} Validated public configuration.
  * @throws {PublicConfigurationError} When the API base URL is missing or invalid.
  */
 export function createPublicConfiguration(environment) {
@@ -51,5 +51,7 @@ export function createPublicConfiguration(environment) {
 
   return Object.freeze({
     apiBaseUrl: parsedApiBaseUrl.href.replace(/\/$/, ""),
+    // Fail closed for absent or malformed feature flags without blocking public pages.
+    googleAuthEnabled: environment.VITE_GOOGLE_AUTH_ENABLED === "true",
   });
 }

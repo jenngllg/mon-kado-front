@@ -16,7 +16,7 @@ describe("createPublicConfiguration", () => {
     const configuration = createPublicConfiguration(environment);
 
     // Assert
-    expect(configuration).toEqual({ apiBaseUrl: expectedApiBaseUrl });
+    expect(configuration).toEqual({ apiBaseUrl: expectedApiBaseUrl, googleAuthEnabled: false });
     expect(Object.isFrozen(configuration)).toBe(true);
   });
 

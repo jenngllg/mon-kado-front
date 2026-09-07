@@ -5,6 +5,8 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { RegistrationServerMessages, validateRegistrationConfirmation, validateRegistrationField } from "./registrationValidation.js";
+import { createGoogleButton } from "../google/googleButton.js";
+import { GoogleMessages } from "../google/googleMessages.js";
 
 /** @typedef {import("./registrationValidation.js").RegistrationField} RegistrationField */
 /** @typedef {RegistrationField | "confirmation"} RegistrationFormField */
@@ -17,10 +19,11 @@ const Fields = Object.freeze([
 ]);
 
 /** Creates an accessible registration view with explicit, idempotent cleanup.
- * @param {{register: import("./registrationService.js").Register, signal?: AbortSignal}} options Dependencies.
+ * @param {{register: import("./registrationService.js").Register, signal?: AbortSignal,
+ * startGoogle?: import("../google/googleService.js").StartGoogle}} options Dependencies.
  * @returns {HTMLElement} Routed view.
  */
-export function createRegistrationView({ register, signal }) {
+export function createRegistrationView({ register, signal, startGoogle }) {
   const view = document.createElement("section");
   view.className = "registration-view flow";
   const heading = textElement("h1", "Créer un compte");
@@ -38,6 +41,7 @@ export function createRegistrationView({ register, signal }) {
   const lifetime = new AbortController();
   let disposed = false;
   let submitting = false;
+  let googleBusy = false;
   let completed = false;
   let validationSummary = false;
   /** @type {HTMLButtonElement | null} */
@@ -88,6 +92,8 @@ export function createRegistrationView({ register, signal }) {
   });
   const submit = createButton({ label: "Créer mon compte", type: "submit" });
   form.append(submit);
+  const googleButton = startGoogle ? createGoogleButton(() => { void departGoogle(); }) : null;
+  if (googleButton) form.append(textElement("p", "ou"), googleButton);
   const login = textElement("p", "Déjà un compte ? ");
   login.append(createActionLink({ label: "Se connecter", href: RoutePaths.Login }));
   view.append(heading, introduction, feedback, status, form, login);
@@ -101,6 +107,9 @@ export function createRegistrationView({ register, signal }) {
   });
   addComponentEventListener(form, document, "pointercancel", () => { pressedAction = null; flushBlur(); });
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void submitRegistration(); });
+  addComponentEventListener(view, window, "pageshow", event => {
+    if (/** @type {PageTransitionEvent} */ (event).persisted && !disposed && !completed) { googleBusy = false; setLoading(false); }
+  });
   registerComponentCleanup(view, () => {
     disposed = true;
     lifetime.abort();
@@ -163,10 +172,33 @@ export function createRegistrationView({ register, signal }) {
   function setLoading(loading) {
     submitting = loading;
     setButtonLoading(submit, loading);
-    for (const field of fields) field.control.disabled = loading;
-    for (const { button } of visibilityControls) button.disabled = loading;
-    form.setAttribute("aria-busy", String(loading));
-    status.textContent = loading ? "Envoi de la demande…" : "";
+    for (const field of fields) field.control.disabled = loading || googleBusy;
+    for (const { button } of visibilityControls) button.disabled = loading || googleBusy;
+    submit.disabled = loading || googleBusy;
+    if (googleButton) { setButtonLoading(googleButton, googleBusy); googleButton.disabled = loading || googleBusy; }
+    form.setAttribute("aria-busy", String(loading || googleBusy));
+    status.textContent = googleBusy ? "Ouverture de Google…" : loading ? "Envoi de la demande…" : "";
+  }
+
+  async function departGoogle() {
+    if (disposed || submitting || completed || googleBusy || !startGoogle) return;
+    googleBusy = true;
+    deferredBlur = null;
+    clearFeedback();
+    clearInputs();
+    setLoading(false);
+    try { await startGoogle({ rememberMe: false, returnTo: RoutePaths.Lists, signal: lifetime.signal }); }
+    catch (error) {
+      if (disposed) return;
+      googleBusy = false;
+      setLoading(false);
+      if (!isAbortError(error)) {
+        const translated = toUserFacingError(error, GoogleMessages);
+        showFeedback({ ...translated, detail: translated.correlationId ? `Référence : ${translated.correlationId}` : null });
+        feedback.tabIndex = -1;
+        feedback.focus();
+      }
+    }
   }
 
   function clearInputs() {
@@ -178,7 +210,7 @@ export function createRegistrationView({ register, signal }) {
   }
 
   async function submitRegistration() {
-    if (disposed || submitting || completed) return;
+    if (disposed || submitting || completed || googleBusy) return;
     deferredBlur = null;
     clearFeedback();
     for (const field of fields) validate(field);

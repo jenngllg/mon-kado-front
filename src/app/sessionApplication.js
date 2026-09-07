@@ -9,21 +9,33 @@ import { installGlobalErrorHandlers } from "../errors/index.js";
 import { ApiError } from "../api/apiError.js";
 import { toUserFacingError } from "../errors/errorMessages.js";
 import { RouteNames, RoutePaths } from "./routeContracts.js";
+import { createGoogleService } from "../features/google/googleService.js";
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
- * @param {{apiBaseUrl: string, session?: import("../auth/sessionManager.js").SessionManager}} options Dependencies.
+ * @param {{apiBaseUrl: string, googleAuthEnabled?: boolean, google?: import("../features/google/googleService.js").GoogleService,
+ * session?: import("../auth/sessionManager.js").SessionManager}} options Dependencies.
  */
-export function createSessionApplication(root, { apiBaseUrl, session = createSessionManager({ apiBaseUrl }) }) {
+export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, session = createSessionManager({ apiBaseUrl }),
+  google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
   let disposed = false;
   let routeErrorVisible = false;
   let passwordChangeNotice = false;
+  /** @type {string | null} */
+  let googleDestination = null;
+  let googleVerified = false;
   const shell = createApplicationShell({ onLogout: () => { void session.logout(); } });
   root.replaceChildren(shell.element);
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({
     outlet: shell.outlet,
-    routes: createApplicationRoutes({ session, consumePasswordChangeNotice: () => {
+    routes: createApplicationRoutes({ session, google,
+      onGoogleDestination: path => { googleDestination = path; googleVerified = false; },
+      onGoogleAuthenticated: () => { googleVerified = true; finishGoogle(); },
+      onGoogleLinkRequired: () => {
+        if (isGoogleReturnCurrent()) void router.replace(RoutePaths.LinkGoogle);
+      },
+      consumePasswordChangeNotice: () => {
       const notice = passwordChangeNotice;
       passwordChangeNotice = false;
       return notice;
@@ -44,9 +56,11 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
   let previous = session.getSnapshot();
   const unsubscribeRouter = router.subscribe(route => {
     if (route?.name !== RouteNames.Login) passwordChangeNotice = false;
+    if (route?.name !== RouteNames.GoogleReturn) { googleDestination = null; googleVerified = false; }
     routeErrorVisible = false;
     shell.setCurrentRoute(route);
     renderFeedback();
+    finishGoogle();
   });
   const unsubscribeSession = session.subscribe(state => {
     shell.setSession(state);
@@ -82,11 +96,16 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
 
   return Object.freeze({
     shell, router, session,
-    start: () => { void session.start(); return router.start(); },
+    start: () => {
+      // A callback must validate its departure generation before any cookie restoration.
+      void session.start({ restore: window.location.pathname.replace(/\/+$/, "") !== RoutePaths.GoogleReturn });
+      return router.start();
+    },
     dispose: () => {
       if (disposed) return;
       disposed = true;
       passwordChangeNotice = false;
+      googleDestination = null;
       removeGlobalErrors();
       unsubscribeRouter();
       unsubscribeSession();
@@ -96,12 +115,24 @@ export function createSessionApplication(root, { apiBaseUrl, session = createSes
     },
   });
 
+  function isGoogleReturnCurrent() {
+    return !disposed && router.getCurrentRoute()?.name === RouteNames.GoogleReturn &&
+      window.location.pathname.replace(/\/+$/, "") === RoutePaths.GoogleReturn;
+  }
+  function finishGoogle() {
+    if (!googleVerified || !isGoogleReturnCurrent() || googleDestination === null || session.getSnapshot().status !== "authenticated") return;
+    const destination = googleDestination;
+    googleDestination = null;
+    void router.replace(destination);
+  }
+
   /** Presents session-wide failures without replacing public content. */
   function renderFeedback() {
     const state = session.getSnapshot();
     disposeComponent(shell.sessionFeedback);
     shell.sessionFeedback.replaceChildren();
-    const loginOwnsError = router.getCurrentRoute()?.name === RouteNames.Login && window.location.pathname === RoutePaths.Login;
+    const loginOwnsError = (router.getCurrentRoute()?.name === RouteNames.Login && window.location.pathname === RoutePaths.Login) ||
+      window.location.pathname.replace(/\/+$/, "") === RoutePaths.GoogleReturn;
     const visible = state.logoutPending || (state.issue !== null && !routeErrorVisible && !loginOwnsError);
     shell.sessionFeedback.hidden = !visible;
     if (!visible) return;

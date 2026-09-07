@@ -7,4 +7,5 @@
 @import "./styles/components.css" layer(components);
 @import "./styles/shell.css" layer(components);
 @import "./styles/views.css" layer(components);
+@import "./styles/google.css" layer(components);
 @import "./styles/utilities.css" layer(utilities);

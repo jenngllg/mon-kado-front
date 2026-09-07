@@ -750,6 +750,73 @@ utilisables depuis JavaScript avec JSDoc, sans import runtime :
 La génération fournit exclusivement des déclarations TypeScript. Le client
 HTTP commun reste écrit et contrôlé manuellement.
 
+## Connexion et inscription Google — #868, intégration backend en attente
+
+Le frontend est préparé contre le contrat prévu de l’US backend préalable.
+**Ce contrat n’est pas encore livré : Google reste désactivé par défaut et le
+parcours réel n’est pas validé.** Les tests utilisent exclusivement une API contrôlée.
+Ne pas activer cette fonctionnalité avant livraison du backend et validation en HTTPS.
+
+`VITE_GOOGLE_AUTH_ENABLED=false` masque les boutons. Seule la chaîne exacte `true`
+les affiche ; les valeurs absentes ou malformées restent désactivées. Même activé,
+le départ exige HTTPS côté frontend et API, ainsi que Web Locks, IndexedDB,
+BroadcastChannel et un `sessionStorage` utilisable. Aucun certificat, port ou
+paramètre Google Cloud n’est modifié ici. La connexion par e-mail reste accessible.
+
+Les boutons « Continuer avec Google » de `/login` et `/register` effectuent une
+navigation complète dans le même onglet vers `GET /api/v1/auth/google`, avec
+`returnPath=/login/google-return`. Sur la connexion, `rememberMe` reprend la case
+existante ; sur l’inscription, il vaut `false`. Aucun champ du formulaire classique
+n’est validé ni transmis à Google. Les saisies sont effacées au départ. Logo et
+police officiels sont servis localement ; le frontend ne charge aucun SDK Google.
+
+Le retour attendu est `/login/google-return#flow={binding}` ou un fragment
+`error=cancelled`, `error=failed` ou `error=unavailable`. La route consomme le
+fragment immédiatement, sans restauration préalable du cookie. Le binding est
+base64url canonique, 43 caractères / 32 octets, et reste uniquement en mémoire
+pendant l’opération. Il ne constitue pas un jeton OAuth. Un rechargement ne rejoue
+pas la finalisation et impose de recommencer depuis la connexion.
+
+Un contexte par onglet est conservé dans `sessionStorage` pendant cinq minutes au
+maximum : génération opaque, heure de départ et destination protégée nettoyée.
+La clé est isolée par origine API. Ce contexte ne contient ni binding, jeton,
+identité, mot de passe, adresse e-mail, query string ou fragment. Il est consommé
+une seule fois au retour ; une tentative suivante remplace un contexte abandonné.
+Il sert uniquement à la continuité de navigation, jamais à prouver une identité.
+
+`session.prepareExternalAuthentication({ signal })` capture la génération sous
+le verrou commun. `establishSession(authenticate, { signal, expectedGeneration })`
+refuse une ancienne génération avant tout POST et ne mutualise pas deux tentatives
+Google ni une tentative Google avec une connexion classique. Le verrou n’est pas
+conservé pendant la visite de Google. `start({ restore: false })` initialise
+uniquement les métadonnées pour les retours externes, sans laisser le shell bloqué.
+
+Le service attend `POST /api/v1/auth/google/completions`, corps exclusivement
+`{ flow }`, sans JWT et avec CSRF, puis `200 AccessTokenResponse`. Le gestionnaire
+conserve le JWT en mémoire et vérifie l’identité et son ETag fort. Une panne de
+publication de génération ou de lecture de l’identité après acceptation se reprend
+par « Réessayer la vérification de session », **sans second POST de finalisation**.
+Une déconnexion ou un changement de compte plus récent reste prioritaire. Une
+annulation avant le POST l’empêche ; après son démarrage, elle ne fait qu’arrêter
+l’attente de la vue. Aucun rejeu supplémentaire n’est ajouté.
+
+La redirection remplace le retour par le `returnTo` protégé validé ou `/lists`.
+Quitter la page empêche toute redirection tardive. Les erreurs utilisent les
+messages français locaux ; les textes fournisseur/backend ne sont jamais affichés.
+Un résultat réseau incertain n’est pas présenté comme un échec certain.
+
+Les réponses `409 GOOGLE_ACCOUNT_LINK_REQUIRED` et
+`409 GOOGLE_ADDITIONAL_VERIFICATION_REQUIRED` conduisent à l’état temporaire
+`/login/link-google`, sans binding transmis et sans formulaire de liaison fictif.
+Le parcours de liaison reste dans son US dédiée et devra recommencer un flux neuf.
+
+La requête `PendingGoogleCompletionRequest` est un alias local explicitement
+provisoire : aucun schéma anticipé n’a été ajouté au fichier OpenAPI généré.
+Après livraison du prérequis, régénérer les types depuis un checkout backend propre
+de `origin/develop`, remplacer cet alias par le schéma publié et exécuter
+`pnpm api:types:check`. Cette vérification d’intégration, les cookies du vrai backend,
+le fournisseur Google et son activation HTTPS restent à valider avant activation.
+
 ## Contrôles qualité
 
 ```shell

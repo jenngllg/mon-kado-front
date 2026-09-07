@@ -95,6 +95,7 @@
 .registration-view,
 .recovery-view,
 .login-view,
+.google-return-view,
 .email-confirmation-view,
 .profile-view {
   --flow-space: var(--space-5);
@@ -112,6 +113,7 @@
 .registration-view h1,
 .recovery-view h1,
 .login-view h1,
+.google-return-view h1,
 .email-confirmation-view h1,
 .profile-view h1 {
   font-size: var(--font-size-2xl);
