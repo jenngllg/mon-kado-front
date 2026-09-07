@@ -1,6 +1,6 @@
 import { createSessionManager } from "../auth/sessionManager.js";
 import { createLoginTarget, getLoginDestination, isProtectedRoute } from "../auth/sessionGuards.js";
-import { createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading } from "../components/index.js";
+import { createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, showNotification } from "../components/index.js";
 import { createApplicationShell } from "./applicationShell.js";
 import { createApplicationRoutes } from "./routes.js";
 import { createRouter } from "../router/router.js";
@@ -24,13 +24,16 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   /** @type {string | null} */
   let googleDestination = null;
   let googleVerified = false;
+  /** @type {string} */
+  let googleFlowRoute = RouteNames.GoogleReturn;
   const shell = createApplicationShell({ onLogout: () => { void session.logout(); } });
   root.replaceChildren(shell.element);
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({
     outlet: shell.outlet,
     routes: createApplicationRoutes({ session, google,
-      onGoogleDestination: path => { googleDestination = path; googleVerified = false; },
+      onGoogleDestination: path => { googleDestination = path; googleVerified = false; googleFlowRoute = RouteNames.GoogleReturn; },
+      onGoogleLinkDestination: path => { googleDestination = path; googleVerified = false; googleFlowRoute = RouteNames.LinkGoogle; },
       onGoogleAuthenticated: () => { googleVerified = true; finishGoogle(); },
       onGoogleLinkRequired: () => {
         if (isGoogleReturnCurrent()) void router.replace(RoutePaths.LinkGoogle);
@@ -56,7 +59,8 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   let previous = session.getSnapshot();
   const unsubscribeRouter = router.subscribe(route => {
     if (route?.name !== RouteNames.Login) passwordChangeNotice = false;
-    if (route?.name !== RouteNames.GoogleReturn) { googleDestination = null; googleVerified = false; }
+    if (route?.name !== googleFlowRoute) { googleDestination = null; googleVerified = false; }
+    if (route?.name !== RouteNames.GoogleReturn && route?.name !== RouteNames.LinkGoogle) google.discardLinkContinuation();
     routeErrorVisible = false;
     shell.setCurrentRoute(route);
     renderFeedback();
@@ -98,7 +102,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     shell, router, session,
     start: () => {
       // A callback must validate its departure generation before any cookie restoration.
-      void session.start({ restore: window.location.pathname.replace(/\/+$/, "") !== RoutePaths.GoogleReturn });
+      void session.start({ restore: !isGooglePath() });
       return router.start();
     },
     dispose: () => {
@@ -110,6 +114,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       unsubscribeRouter();
       unsubscribeSession();
       router.dispose();
+      google.dispose();
       session.dispose();
       disposeComponent(shell.element);
     },
@@ -119,11 +124,24 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     return !disposed && router.getCurrentRoute()?.name === RouteNames.GoogleReturn &&
       window.location.pathname.replace(/\/+$/, "") === RoutePaths.GoogleReturn;
   }
+  function isGooglePath() {
+    const path = window.location.pathname.replace(/\/+$/, "");
+    return path === RoutePaths.GoogleReturn || path === RoutePaths.LinkGoogle;
+  }
   function finishGoogle() {
-    if (!googleVerified || !isGoogleReturnCurrent() || googleDestination === null || session.getSnapshot().status !== "authenticated") return;
+    if (!googleVerified || disposed || router.getCurrentRoute()?.name !== googleFlowRoute ||
+      window.location.pathname.replace(/\/+$/, "") !== (googleFlowRoute === RouteNames.LinkGoogle ? RoutePaths.LinkGoogle : RoutePaths.GoogleReturn) ||
+      googleDestination === null || session.getSnapshot().status !== "authenticated") return;
     const destination = googleDestination;
+    const linked = googleFlowRoute === RouteNames.LinkGoogle;
     googleDestination = null;
-    void router.replace(destination);
+    googleVerified = false;
+    void router.replace(destination).then(() => {
+      if (linked && !disposed && router.getCurrentRoute()?.url.pathname === destination &&
+        window.location.pathname === destination && session.getSnapshot().status === "authenticated") {
+        showNotification(shell.notificationRegion, { message: "Compte Google associé", variant: "success" });
+      }
+    });
   }
 
   /** Presents session-wide failures without replacing public content. */
@@ -132,7 +150,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     disposeComponent(shell.sessionFeedback);
     shell.sessionFeedback.replaceChildren();
     const loginOwnsError = (router.getCurrentRoute()?.name === RouteNames.Login && window.location.pathname === RoutePaths.Login) ||
-      window.location.pathname.replace(/\/+$/, "") === RoutePaths.GoogleReturn;
+      isGooglePath();
     const visible = state.logoutPending || (state.issue !== null && !routeErrorVisible && !loginOwnsError);
     shell.sessionFeedback.hidden = !visible;
     if (!visible) return;

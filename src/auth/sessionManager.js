@@ -36,6 +36,7 @@ const RenewalMargin = 60_000;
  *   refreshIdentity: (options?: {signal?: AbortSignal}) => Promise<SessionSnapshot>,
  *   request: Request,
  *   prepareExternalAuthentication: (options?: {signal?: AbortSignal}) => Promise<Readonly<{generation: string}>>,
+ *   observeExternalAuthentication: (generation: string, invalidated: () => void) => () => void,
  *   establishSession: (authenticate: Authenticate, options?: {signal?: AbortSignal, expectedGeneration?: string}) => Promise<SessionSnapshot>,
  *   resetPassword: (reset: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   changePassword: (change: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
@@ -99,6 +100,8 @@ export function createSessionManager({
   const subscribers = new Set();
   /** @type {Set<AbortController>} */
   const protectedRequests = new Set();
+  /** @type {Set<{generation: string, invalidated: () => void}>} */
+  const externalObservers = new Set();
   let revision = 0;
   let tokenVersion = 0;
   let identityReadVersion = 0;
@@ -125,6 +128,7 @@ export function createSessionManager({
     request,
     establishSession,
     prepareExternalAuthentication,
+    observeExternalAuthentication,
     resetPassword,
     changePassword,
     confirmEmailChange,
@@ -139,6 +143,7 @@ export function createSessionManager({
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      invalidateExternalAuthentications();
       lifetime.abort();
       clearCredentials();
       snapshot = Object.freeze({ status: "anonymous", user: null, etag: null, logoutPending: blocked, authenticationPending: false, issue: null });
@@ -342,6 +347,28 @@ export function createSessionManager({
     }, { signal });
   }
 
+  /** Watches only non-secret generation metadata, never credentials or identity.
+   * @param {string} generation Departure generation.
+   * @param {() => void} invalidated One-shot invalidation callback.
+   * @returns {() => void} Idempotent unsubscribe, which does not invalidate the owner.
+   */
+  function observeExternalAuthentication(generation, invalidated) {
+    assertActive();
+    const observer = { generation, invalidated };
+    externalObservers.add(observer);
+    if (metadata?.generation !== generation) invalidateExternalAuthentications(false);
+    return () => { externalObservers.delete(observer); };
+  }
+
+  /** @param {boolean} [all] Whether a logout/expiry invalidates every continuation. */
+  function invalidateExternalAuthentications(all = true) {
+    for (const observer of [...externalObservers]) {
+      if (!all && observer.generation === metadata?.generation) continue;
+      externalObservers.delete(observer);
+      observer.invalidated();
+    }
+  }
+
   /** Runs future JSON login/link operations under the same cookie lock.
    * @param {Authenticate} authenticate Operation returning the access-token envelope.
    * @param {{signal?: AbortSignal, expectedGeneration?: string}} [options] Cancels waiting and optionally binds an external return to its departure generation.
@@ -395,6 +422,8 @@ export function createSessionManager({
       candidate = token;
       authenticationPending = true;
       pendingAuthenticationGeneration = metadata?.generation ?? null;
+      // Accepted credentials must disappear from views before asynchronous metadata writes.
+      publish("initializing");
       await commitAuthenticationGeneration(expected);
       api.invalidateCsrfToken();
       publish("initializing");
@@ -601,6 +630,7 @@ export function createSessionManager({
   /** @returns {Promise<SessionSnapshot>} Local closure and attempted server logout. */
   function logout() {
     assertActive();
+    invalidateExternalAuthentications();
     if (signingOut !== null) return signingOut;
     clearCredentials();
     blocked = true;
@@ -630,6 +660,7 @@ export function createSessionManager({
 
   /** @param {ApiError} error Current JWT received 401. */
   function expire(error) {
+    invalidateExternalAuthentications();
     const previous = metadata?.generation;
     clearCredentials();
     publish("anonymous", null, null, toUserFacingError(error));
@@ -649,6 +680,7 @@ export function createSessionManager({
     if (metadata?.generation === next.generation) return false;
     const changed = metadata !== null;
     metadata = next;
+    invalidateExternalAuthentications(false);
     if (changed) clearCredentials();
     blocked = next.logoutPending;
     if (blocked) publish("anonymous", null, null, logoutIssue());
@@ -666,6 +698,7 @@ export function createSessionManager({
   async function handleEvent(event) {
     if (disposed) return;
     if (event.type === "logout-intent") {
+      invalidateExternalAuthentications();
       clearCredentials();
       blocked = true;
       publish("signingOut");
@@ -712,6 +745,7 @@ export function createSessionManager({
    */
   function publish(status, user = null, etag = null, issue = null, endReason) {
     if (disposed) return;
+    invalidateExternalAuthentications(false);
     if (status !== "unavailable") failure = null;
     snapshot = Object.freeze({ status, user, etag, logoutPending: blocked, authenticationPending, issue, ...(endReason ? { endReason } : {}) });
     for (const listener of subscribers) listener(snapshot);

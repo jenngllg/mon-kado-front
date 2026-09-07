@@ -805,10 +805,10 @@ Quitter la page empêche toute redirection tardive. Les erreurs utilisent les
 messages français locaux ; les textes fournisseur/backend ne sont jamais affichés.
 Un résultat réseau incertain n’est pas présenté comme un échec certain.
 
-Les réponses `409 GOOGLE_ACCOUNT_LINK_REQUIRED` et
-`409 GOOGLE_ADDITIONAL_VERIFICATION_REQUIRED` conduisent à l’état temporaire
-`/login/link-google`, sans binding transmis et sans formulaire de liaison fictif.
-Le parcours de liaison reste dans son US dédiée et devra recommencer un flux neuf.
+Une réponse `409 GOOGLE_ACCOUNT_LINK_REQUIRED` transmet la continuation en mémoire
+au formulaire #869 décrit ci-dessous. `409 GOOGLE_ADDITIONAL_VERIFICATION_REQUIRED`
+reste un état distinct sur le retour Google, sans formulaire de mot de passe : ce
+parcours supplémentaire n’est pas implémenté.
 
 La requête `PendingGoogleCompletionRequest` est un alias local explicitement
 provisoire : aucun schéma anticipé n’a été ajouté au fichier OpenAPI généré.
@@ -816,6 +816,71 @@ Après livraison du prérequis, régénérer les types depuis un checkout backen
 de `origin/develop`, remplacer cet alias par le schéma publié et exécuter
 `pnpm api:types:check`. Cette vérification d’intégration, les cookies du vrai backend,
 le fournisseur Google et son activation HTTPS restent à valider avant activation.
+
+## Association explicite Google — #869, intégration backend en attente
+
+Le formulaire public `/login/link-google` poursuit uniquement une tentative #868
+pour laquelle le backend exige la preuve du mot de passe **MonKado**. Il ne demande
+jamais le mot de passe Google, ne présente pas d’identité supposée et ne permet pas
+de choisir un autre compte par saisie d’une adresse e-mail. La liaison depuis le
+profil, la dissociation et la vérification supplémentaire restent hors périmètre.
+
+Le contrat **anticipé** est `POST /api/v1/auth/google/link` avec le corps JSON
+exclusivement `{ flow, currentPassword }`, sans query string, JWT ou ETag, avec CSRF
+et cookies. Le mot de passe existant est non blanc et limité à 128 caractères
+Unicode, sans minimum de 12 caractères ni modification de sa valeur. Le succès
+exige `200 AccessTokenResponse`, puis une identité valide et un ETag fort.
+
+**Prérequis backend non livré :** déplacer `flow` de l’URL vers
+`LinkGoogleAccountRequest`, publier ce schéma et conserver le cookie protégé lors
+du `409 GOOGLE_ACCOUNT_LINK_REQUIRED`. `PendingGoogleLinkRequest` est donc un alias
+JSDoc local provisoire ; les déclarations OpenAPI générées ne sont pas modifiées.
+Il n’existe aucun repli vers l’ancien `/link?flow=…`. Google reste désactivé et la
+validation actuelle utilise une API contrôlée, pas le backend ni Google réels.
+
+`google.takeLinkContinuation()` transfère la continuation une seule fois à la vue.
+Son API expose `link(currentPassword, { signal })`, `getSnapshot()`, `subscribe()`
+et `dispose()`, ainsi que la destination protégée déjà nettoyée ; jamais le binding.
+Le contexte reste uniquement en mémoire. Ni les URLs et l’historique, ni les logs,
+erreurs, stockages ou messages inter-onglets ne doivent recevoir son contenu.
+
+L’échéance de cinq minutes reste celle du départ #868, sans prolongation après une
+erreur ou un changement de vue. L’expiration, l’abandon et la destruction effacent
+le contexte et les saisies. L’accès direct et le rechargement affichent
+« Association à recommencer », nettoient tout fragment et initialisent uniquement
+les métadonnées de session, sans restauration automatique du cookie.
+
+`session.observeExternalAuthentication(generation, invalidated)` observe une
+génération opaque avec désabonnement idempotent : une génération différente,
+une expiration de session ou une déconnexion invalident immédiatement la preuve.
+La soumission revérifie la génération sous le verrou via `establishSession()`.
+L’annulation avant l’appel l’empêche ; après démarrage du POST, seule l’attente de
+la vue s’interrompt et le gestionnaire termine l’opération coordonnée.
+
+Dès réception d’un jeton valide, la vue efface et remasque le mot de passe, et la
+continuation libère le binding avant la publication de génération et la lecture
+d’identité. Si cette finalisation échoue, l’association acceptée reste distincte
+de la vérification de session inachevée. « Réessayer la vérification de session »
+utilise uniquement `session.restore()`, sans second POST et sans nouvelle preuve.
+Un `401` de finalisation ou un changement de session termine cette récupération.
+
+Les erreurs de preuve restent volontairement génériques ; les conflits et les
+parcours rejetés imposent de recommencer. Les messages sont français, sans texte
+backend directement affiché, avec corrélation et `Retry-After` disponible. Un
+timeout ou une panne réseau ne prouve pas l’échec de l’association : le formulaire
+propose une tentative explicite tant que le parcours reste valide, ou le retour
+à la connexion. Seul le rejeu antiforgery préexistant est automatique.
+
+Après finalisation, l’intégration session/routeur remplace la page par le `returnTo`
+validé ou `/lists` et affiche une notification locale « Compte Google associé ».
+Quitter la page empêche cette redirection et cette notification tardives ; les
+autres onglets ne reçoivent pas la confirmation locale. Une déconnexion serveur
+non confirmée conserve son alerte persistante jusqu’à une finalisation réussie.
+
+Après livraison du prérequis backend, régénérer les types depuis un checkout
+temporaire propre de `origin/develop`, remplacer l’alias provisoire et exécuter
+`pnpm api:types:check`. Le parcours réel, les cookies et HTTPS doivent être validés
+avant activation ; aucune dépendance E2E permanente n’est ajoutée au frontend.
 
 ## Contrôles qualité
 

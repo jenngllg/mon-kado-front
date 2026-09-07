@@ -96,6 +96,7 @@
 .recovery-view,
 .login-view,
 .google-return-view,
+.google-link-view,
 .email-confirmation-view,
 .profile-view {
   --flow-space: var(--space-5);
@@ -114,6 +115,7 @@
 .recovery-view h1,
 .login-view h1,
 .google-return-view h1,
+.google-link-view h1,
 .email-confirmation-view h1,
 .profile-view h1 {
   font-size: var(--font-size-2xl);
@@ -153,11 +155,13 @@
 
 /* Keep enlarged text readable without letting rem-based padding consume the card. */
 .login-view,
+.google-link-view,
 .recovery-view {
   padding-inline: min(4vw, var(--space-7));
 }
 
 .login-view .ui-button,
+.google-link-view .ui-button,
 .recovery-view .ui-button {
   padding-inline: min(4vw, var(--space-5));
 }
@@ -181,6 +185,7 @@
 }
 
 .login-view > div > .ui-button,
+.google-link-view > div > .ui-button,
 .login-view > div:not(.cluster) > .action-link {
   margin-block-start: var(--space-3);
 }

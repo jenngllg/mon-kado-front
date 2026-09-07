@@ -151,7 +151,7 @@ describe("session routes and shell", () => {
     expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes");
   });
 
-  it.each(["/", "/confirm-email", "/confirm-email-change", "/forgot-password", "/reset-password", "/login/link-google", "/shared-wishlists/share-1#secret-fixture", "/missing"])("keeps %s public during an API outage", async path => {
+  it.each(["/", "/confirm-email", "/confirm-email-change", "/forgot-password", "/reset-password", "/shared-wishlists/share-1#secret-fixture", "/missing"])("keeps %s public during an API outage", async path => {
     // Arrange
     const transport = createSessionTransport(); transport.state.refreshStatus = 503;
     const app = mount(path, transport);

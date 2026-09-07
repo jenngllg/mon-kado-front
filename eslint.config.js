@@ -45,6 +45,7 @@ export default [
       "tests/emailChangeApplication.test.js",
       "tests/googleView.test.js",
       "tests/googleApplication.test.js",
+      "tests/googleLinkView.test.js",
     ],
     languageOptions: {
       globals: globals.browser,

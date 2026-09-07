@@ -42,7 +42,7 @@ export function createGoogleReturnView({ google, session, consumeFragment, signa
     } catch (error) {
       if (!disposed) {
         if (isAbortError(error)) failure(new ApiError({ kind: "http", errorCode: "CLIENT_GOOGLE_SUPERSEDED" }));
-        else if (error instanceof ApiError && ["GOOGLE_ACCOUNT_LINK_REQUIRED", "GOOGLE_ADDITIONAL_VERIFICATION_REQUIRED"].includes(error.errorCode ?? "")) onLinkRequired();
+        else if (error instanceof ApiError && error.statusCode === 409 && error.errorCode === "GOOGLE_ACCOUNT_LINK_REQUIRED") onLinkRequired();
         else failure(error);
       }
     } finally { busy = false; }

@@ -1,6 +1,7 @@
 import { ApiError, createAbortError } from "../../api/apiError.js";
 import { getSafeReturnTo } from "../../auth/sessionGuards.js";
 import { RoutePaths } from "../../app/routeContracts.js";
+import { createGoogleLinkContinuation } from "./googleLinkContinuation.js";
 
 const Lifetime = 5 * 60_000;
 const GenerationPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -31,7 +32,7 @@ export function parseGoogleReturn(fragment) {
 }
 
 /** Creates the anticipated backend adapter with injectable browser boundaries.
- * @param {{session: Pick<import("../../auth/sessionManager.js").SessionManager, "prepareExternalAuthentication" | "establishSession">,
+ * @param {{session: Pick<import("../../auth/sessionManager.js").SessionManager, "prepareExternalAuthentication" | "establishSession" | "subscribe" | "observeExternalAuthentication">,
  * apiBaseUrl: string, enabled?: boolean, frontendOrigin?: string,
  * storage?: () => Pick<Storage, "getItem" | "setItem" | "removeItem">,
  * redirect?: (url: string) => void, now?: () => number}} options Dependencies.
@@ -44,11 +45,20 @@ export function createGoogleService({ session, apiBaseUrl, enabled = false,
   const secure = api.protocol === "https:" && frontend.protocol === "https:" && !api.username && !api.password;
   const storageKey = `monkado-google-attempt:${api.origin}`;
   let preparing = false;
-  return Object.freeze({ enabled, start, consumeReturn, complete });
+  /** @type {import("./googleLinkContinuation.js").GoogleLinkContinuation | null} */
+  let pendingLink = null;
+  const continuations = new Set();
+  return Object.freeze({ enabled, start, consumeReturn, complete, discardLinkContinuation,
+    takeLinkContinuation: () => { const owned = pendingLink; pendingLink = null; return owned; },
+    dispose: () => { for (const continuation of continuations) continuation.dispose(); continuations.clear(); pendingLink = null; },
+  });
+
+  function discardLinkContinuation() { pendingLink?.dispose(); pendingLink = null; }
 
   /** @type {StartGoogle} */
   async function start({ rememberMe, returnTo, signal }) {
     requireEnabled();
+    discardLinkContinuation();
     if (signal?.aborted) throw createAbortError();
     if (preparing) throw new ApiError({ kind: "http", errorCode: "CLIENT_SESSION_BUSY" });
     preparing = true;
@@ -111,7 +121,15 @@ export function createGoogleService({ session, apiBaseUrl, enabled = false,
       /** @type {PendingGoogleCompletionRequest} */
       const body = { flow: handoff.flow };
       return request("/api/v1/auth/google/completions", { method: "POST", body, authentication: "none", csrf: true });
-    }, { signal, expectedGeneration: handoff.attempt.generation });
+    }, { signal, expectedGeneration: handoff.attempt.generation }).catch(error => {
+      if (!signal?.aborted && error instanceof ApiError && error.statusCode === 409 && error.errorCode === "GOOGLE_ACCOUNT_LINK_REQUIRED") {
+        discardLinkContinuation();
+        const continuation = createGoogleLinkContinuation({ handoff, session, now, onDispose: () => { continuations.delete(continuation); } });
+        continuations.add(continuation);
+        pendingLink = continuation;
+      }
+      throw error;
+    });
   }
 
   function requireEnabled() {

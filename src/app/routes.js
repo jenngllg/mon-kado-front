@@ -23,11 +23,12 @@ import { createEmailChangeService } from "../features/emailChange/emailChangeSer
 import { createEmailChangeView } from "../features/emailChange/emailChangeView.js";
 import { createEmailChangeConfirmationView } from "../features/emailChange/emailChangeConfirmationView.js";
 import { createGoogleReturnView } from "../features/google/googleReturnView.js";
+import { createGoogleLinkView } from "../features/google/googleLinkView.js";
 import { getLoginDestination } from "../auth/sessionGuards.js";
-import { createActionLink } from "../components/index.js";
 
 /** @typedef {{google?: import("../features/google/googleService.js").GoogleService,
  * onGoogleDestination?: (path: string) => void, onGoogleAuthenticated?: () => void,
+ * onGoogleLinkDestination?: (path: string) => void,
  * onGoogleLinkRequired?: () => void}} GoogleRouteOptions */
 
 export {
@@ -44,7 +45,7 @@ const PlaceholderMessage =
  * @param {GoogleRouteOptions} googleFlow External return integration.
  */
 function createPageRoutes(session, consumePasswordChangeNotice, googleFlow) {
-  const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {} } = googleFlow;
+  const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
     {
       name: RouteNames.Login,
@@ -56,12 +57,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow) {
           returnTo: getLoginDestination(context.searchParams) }),
     },
     {
-      name: RouteNames.LinkGoogle, path: RoutePaths.LinkGoogle, title: "Vérification Google · MonKado",
+      name: RouteNames.LinkGoogle, path: RoutePaths.LinkGoogle, title: "Associer Google · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         context.consumeFragment();
-        const view = createPlaceholderView({ title: "Vérification complémentaire nécessaire", eyebrow: "Compte MonKado", message: PlaceholderMessage });
-        view.append(createActionLink({ label: "Se connecter par e-mail", href: RoutePaths.Login }));
-        return view;
+        return createGoogleLinkView({ continuation: google?.takeLinkContinuation() ?? null, session,
+          signal: context.signal, onDestination: onGoogleLinkDestination, onAuthenticated: onGoogleAuthenticated });
       },
     },
     {

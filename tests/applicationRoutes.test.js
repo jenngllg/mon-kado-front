@@ -13,6 +13,7 @@ import {
 import { createPlaceholderView } from "../src/views/index.js";
 const unusedSession = {
   prepareExternalAuthentication: async () => { throw new Error("Unexpected Google preparation."); },
+  observeExternalAuthentication: () => () => {},
   start: async () => { throw new Error("Unexpected restoration."); },
   restore: async () => { throw new Error("Unexpected restoration."); },
   establishSession: async () => { throw new Error("Unexpected authentication."); },
@@ -85,7 +86,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.GoogleReturn, RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.LinkGoogle, RouteNames.GoogleReturn, RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange
