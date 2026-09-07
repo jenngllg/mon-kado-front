@@ -89,7 +89,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   links.append(createActionLink({ label: "Mot de passe oublié ?", href: RoutePaths.ForgotPassword }),
     createActionLink({ label: "Créer un compte", href: RoutePaths.Register }));
   view.append(textElement("h1", "Se connecter"), textElement("p", "Retrouve tes listes et les cadeaux que tu prépares pour tes proches."),
-    feedback, status, form, links);
+    status, feedback, form, links);
   if (passwordChanged) view.insertBefore(createAlert({ variant: "success", title: "Mot de passe modifié",
     message: "Tu peux maintenant te connecter avec ton nouveau mot de passe." }), feedback);
 
@@ -171,8 +171,10 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
     }
     form.hidden = pending;
     form.setAttribute("aria-busy", String(busy || googleBusy));
-    status.hidden = !busy && !googleBusy;
-    status.textContent = googleBusy ? "Ouverture de Google…" : busy ? pending ? "Vérification de la session…" : "Connexion en cours…" : "";
+    status.hidden = !busy && !googleBusy && !pending;
+    status.textContent = pending
+      ? "Tes identifiants ont été acceptés. Il reste à vérifier ta session pour terminer la connexion."
+      : googleBusy ? "Ouverture de Google…" : busy ? "Connexion en cours…" : "";
   }
   async function departGoogle() {
     if (!active() || busy || pending || googleBusy || !startGoogle) return;

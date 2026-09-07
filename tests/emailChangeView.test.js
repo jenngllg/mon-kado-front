@@ -76,7 +76,7 @@ describe("email change request validation and view", () => {
     gate.resolve(); await settle(); expect(f.view.querySelector("form")).not.toBeNull();
     disposeComponent(f.view);
     const failing = vi.fn().mockRejectedValueOnce(new ApiError({ kind: "network" })).mockResolvedValue(Profile);
-    const other = await mountRequest(undefined, failing); expect(other.view.textContent).toContain("Connexion impossible");
+    const other = await mountRequest(undefined, failing); expect(other.view.textContent).toContain("Service MonKado injoignable");
     button(other.view, "Réessayer").click(); await settle(); expect(other.view.querySelector("form")).not.toBeNull();
   });
   it.each(['W/"weak"', "", '*'])("blocks writes on an unusable loaded ETag", async etag => {

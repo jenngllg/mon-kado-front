@@ -137,6 +137,16 @@ describe("graphic foundations", () => {
     // Assert
     expect(selectorsAreDefined).toBe(true);
   });
+
+  it("keeps enlarged text from being squeezed by fixed card and button insets", () => {
+    // Arrange / Act
+    const placeholder = viewStyles.match(/\.placeholder-view\s*\{([^}]+)\}/)?.[1] ?? "";
+    const cards = viewStyles.match(/\.registration-view,\s*\.recovery-view,[^{]+\{([^}]+)\}/)?.[1] ?? "";
+    // Assert
+    expect(placeholder).toContain("padding-inline: min(7vw, var(--space-8))");
+    expect(cards).toContain("padding-inline: min(4vw, var(--space-7))");
+    expect(componentStyles).toContain("padding: var(--space-3) min(4vw, var(--space-5))");
+  });
 });
 
 /**

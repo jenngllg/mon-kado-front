@@ -36,6 +36,7 @@
 .home-hero__secondary-action,
 .placeholder-view__action {
   padding: var(--space-3) var(--space-5);
+  padding-inline: min(4vw, var(--space-5));
   text-decoration: none;
 }
 
@@ -59,6 +60,7 @@
   --flow-space: var(--space-3);
 
   padding: clamp(var(--space-6), 7vw, var(--space-8));
+  padding-inline: min(7vw, var(--space-8));
   border-radius: var(--radius-xl);
   background: var(--color-surface-sage);
   box-shadow: var(--shadow-md);
@@ -81,6 +83,7 @@
   width: min(100%, var(--content-narrow));
   margin-inline: auto;
   padding: clamp(var(--space-6), 7vw, var(--space-8));
+  padding-inline: min(7vw, var(--space-8));
   border: 1px solid var(--color-border);
   border-block-start: var(--space-1) solid var(--color-accent);
   border-radius: var(--radius-xl);
@@ -104,6 +107,7 @@
   width: min(100%, var(--content-narrow));
   margin-inline: auto;
   padding: clamp(var(--space-4), 4vw, var(--space-7));
+  padding-inline: min(4vw, var(--space-7));
   border: 1px solid var(--color-border);
   border-block-start: var(--space-1) solid var(--color-accent);
   border-radius: var(--radius-xl);
@@ -151,19 +155,6 @@
   align-items: center;
   min-height: var(--control-min-size);
   cursor: pointer;
-}
-
-/* Keep enlarged text readable without letting rem-based padding consume the card. */
-.login-view,
-.google-link-view,
-.recovery-view {
-  padding-inline: min(4vw, var(--space-7));
-}
-
-.login-view .ui-button,
-.google-link-view .ui-button,
-.recovery-view .ui-button {
-  padding-inline: min(4vw, var(--space-5));
 }
 
 .email-change-view__controls {

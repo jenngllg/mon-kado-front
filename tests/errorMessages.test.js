@@ -62,7 +62,7 @@ describe("toUserFacingError", () => {
   });
 
   it.each([
-    ["network", "Connexion impossible"],
+    ["network", "Service MonKado injoignable"],
     ["timeout", "Le service met trop de temps à répondre"],
     ["invalidResponse", "Réponse inattendue"],
   ])("maps the %s error kind", (kind, expectedTitle) => {

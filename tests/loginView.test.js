@@ -194,10 +194,12 @@ describe("login form", () => {
     // Assert
     expect(app.fields[1].value).toBe("");
     expect(app.form.hidden).toBe(true);
+    expect(app.view.querySelector('[role="status"]')?.textContent).toContain("Tes identifiants ont été acceptés");
     app.emit({ status: "unavailable", issue: toUserFacingError(failure) });
     gate.resolve(); await Promise.resolve(); await Promise.resolve();
     const retry = [...app.view.querySelectorAll("button")].find(button => button.textContent === "Réessayer la vérification de session");
     expect(retry).toBeDefined();
+    expect(app.view.querySelector('[role="status"]')?.hasAttribute("hidden")).toBe(false);
     retry?.click(); await Promise.resolve(); await Promise.resolve();
     expect(app.session.restore).toHaveBeenCalledOnce();
     expect(app.login).toHaveBeenCalledOnce();

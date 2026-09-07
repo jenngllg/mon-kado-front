@@ -23,7 +23,7 @@ export function createHomeView() {
   const description = document.createElement("p");
   description.className = "home-hero__description";
   description.textContent =
-    "Créez et partagez vos listes d’envies, puis retrouvez vos réservations au même endroit.";
+    "Crée et partage tes listes d’envies, puis retrouve tes réservations au même endroit.";
 
   const actions = document.createElement("div");
   actions.className = "home-hero__actions cluster";

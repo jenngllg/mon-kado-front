@@ -74,6 +74,14 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   sessionFeedback.className = "app-session-feedback container container--regular";
   sessionFeedback.hidden = true;
   element.append(skipLink, header, sessionFeedback, outlet, notificationRegion);
+  // Native focus scrolling can leave a field behind the sticky header.
+  addComponentEventListener(element, outlet, "focusin", event => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || target === outlet) return;
+    if (target.getBoundingClientRect().top < header.getBoundingClientRect().bottom) {
+      target.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    }
+  });
   // Skipping content is a focus action: hash navigation would remount views whose link was consumed.
   addComponentEventListener(element, skipLink, "click", event => {
     const click = /** @type {MouseEvent} */ (event);

@@ -32,6 +32,7 @@ const NotificationStates = new WeakMap();
  *   startedAt: number,
  *   timerIdentifier: number | null,
  *   pauseReasons: Set<string>,
+ *   returnFocus: HTMLElement | null,
  *   onDismiss: (() => void) | null
  * }} NotificationState
  */
@@ -119,7 +120,7 @@ export function showNotification(
   NotificationStates.set(notification, state);
   registerComponentCleanup(
     notification,
-    () => clearNotificationTimer(state),
+    () => { clearNotificationTimer(state); state.returnFocus = null; },
   );
   registerPauseInteractions(notification, state);
   region.append(notification);
@@ -145,8 +146,19 @@ export function dismissNotification(notification) {
   }
 
   state.dismissed = true;
+  const document = notification.ownerDocument;
+  const restoreFocus = notification.contains(document.activeElement);
+  const previousFocus = state.returnFocus;
   disposeComponent(notification);
   notification.remove();
+  if (restoreFocus) {
+    if (previousFocus?.isConnected && !previousFocus.matches(":disabled") &&
+      !previousFocus.closest('[hidden], [inert], [aria-hidden="true"]')) previousFocus.focus();
+    if (document.activeElement === document.body) {
+      const main = document.querySelector("main[tabindex]");
+      if (main instanceof HTMLElement) main.focus();
+    }
+  }
   state.onDismiss?.();
 }
 
@@ -163,6 +175,7 @@ function createNotificationState(durationMilliseconds, onDismiss) {
     startedAt: 0,
     timerIdentifier: null,
     pauseReasons: new Set(),
+    returnFocus: null,
     onDismiss,
   };
 }
@@ -188,7 +201,11 @@ function registerPauseInteractions(notification, state) {
     notification,
     notification,
     "focusin",
-    () => pauseDismissal(state, "focus"),
+    event => {
+      const previous = /** @type {FocusEvent} */ (event).relatedTarget;
+      if (previous instanceof HTMLElement && !notification.contains(previous)) state.returnFocus = previous;
+      pauseDismissal(state, "focus");
+    },
   );
   addComponentEventListener(
     notification,

@@ -33,6 +33,7 @@ export default [
       "tests/applicationRoutes.test.js",
       "tests/applicationShell.test.js",
       "tests/uiFoundationRegression.test.js",
+      "tests/designAuditRegression.test.js",
       "tests/sessionApplication.test.js",
       "tests/registrationView.test.js",
       "tests/emailConfirmationView.test.js",

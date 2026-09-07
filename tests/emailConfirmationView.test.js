@@ -99,7 +99,7 @@ describe("email confirmation view", () => {
     expect(confirm).toHaveBeenCalledOnce();
   });
   it.each([
-    [new ApiError({ kind: "network" }), "Connexion impossible"],
+    [new ApiError({ kind: "network" }), "Service MonKado injoignable"],
     [new ApiError({ kind: "timeout" }), "Le service met trop de temps"],
     [new ApiError({ kind: "invalidResponse" }), "Réponse inattendue"],
     [new ApiError({ kind: "http", statusCode: 503, correlationId: "support-fixture" }), "Référence : support-fixture"],

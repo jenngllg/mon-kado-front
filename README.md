@@ -138,7 +138,10 @@ bibliothèque fournit :
 Les notifications d’information et de succès disparaissent après cinq
 secondes. Les avertissements restent huit secondes et les erreurs restent
 affichées jusqu’à leur fermeture. Le compte à rebours est suspendu tant que la
-notification est survolée ou contient le focus.
+notification est survolée ou contient le focus. Une fermeture depuis la
+notification restitue le focus au contrôle précédent encore disponible, ou au
+contenu principal si ce contrôle a disparu. Une fermeture sans focus dans la
+notification ne déplace pas le focus.
 
 Tout composant enregistrant un événement ou un timer inscrit son nettoyage dans
 un registre commun. Appeler `disposeComponent(element)` avant d’abandonner un

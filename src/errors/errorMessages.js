@@ -77,7 +77,7 @@ const CommonMessages = Object.freeze({
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const KindMessages = Object.freeze({
   network: {
-    title: "Connexion impossible",
+    title: "Service MonKado injoignable",
     message: "Impossible de joindre le service MonKado. Vérifie ta connexion ou réessaie dans quelques instants.",
   },
   timeout: {
