@@ -147,6 +147,21 @@ describe("graphic foundations", () => {
     expect(cards).toContain("padding-inline: min(4vw, var(--space-7))");
     expect(componentStyles).toContain("padding: var(--space-3) min(4vw, var(--space-5))");
   });
+
+  it("keeps owned-list cards mobile-first with two flexible columns and wrapping names", () => {
+    // Arrange / Act
+    const grid = viewStyles.match(/\.wishlists-grid\s*\{([^}]+)\}/)?.[1] ?? "";
+    const card = viewStyles.match(/\.wishlist-card\s*\{([^}]+)\}/)?.[1] ?? "";
+    // Assert
+    expect(grid).toContain("grid-template-columns: minmax(0, 1fr)");
+    expect(viewStyles).toMatch(/@media \(min-width: 48rem\)\s*\{\s*\.wishlists-grid\s*\{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+    expect(card).toContain("overflow-wrap: anywhere");
+    expect(card).toContain("min-width: 0");
+    expect(card).toContain("var(--color-surface)");
+    expect(card).toContain("padding-inline: min(4vw, var(--space-6))");
+    expect(viewStyles.match(/\.wishlist-card__occasion\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(3vw, var(--space-3))");
+    expect(viewStyles.match(/\.wishlist-card__suspension\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(4vw, var(--space-4))");
+  });
 });
 
 /**

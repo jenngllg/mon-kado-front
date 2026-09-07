@@ -11,7 +11,7 @@ export interface paths {
             readonly path?: never;
             readonly cookie?: never;
         };
-        /** Lists reported wishlists, counting and ordering only reports matching the optional reason filter. */
+        /** Lists reported wishlists, counting and ordering only reports matching the status and reason filters. */
         readonly get: {
             readonly parameters: {
                 readonly query?: {
@@ -23,6 +23,8 @@ export interface paths {
                     readonly pageSize?: number | string;
                     /** @description The optional reason. */
                     readonly reason?: components["schemas"]["WishlistReportReason"];
+                    /** @description The disposition filter, defaulting to pending; all includes processed reports. */
+                    readonly status?: components["schemas"]["WishlistReportStatusFilter"];
                 };
                 readonly header?: never;
                 readonly path?: never;
@@ -340,6 +342,8 @@ export interface paths {
                     readonly pageSize?: number | string;
                     /** @description The optional reason. */
                     readonly reason?: components["schemas"]["WishlistReportReason"];
+                    /** @description The disposition filter, defaulting to pending; all includes processed reports. */
+                    readonly status?: components["schemas"]["WishlistReportStatusFilter"];
                 };
                 readonly header?: never;
                 readonly path: {
@@ -437,6 +441,506 @@ export interface paths {
                 };
                 /** @description Too Many Requests */
                 readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/reported-wishlists/{wishlistId}/reports/{reportId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Reads a report in any disposition and its own ETag, independently of the wishlist version. */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    /** @description The report identifier. */
+                    readonly reportId: string;
+                    /** @description The parent wishlist identifier. */
+                    readonly wishlistId: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description Strong entity tag representing the current resource version. */
+                        readonly ETag?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["WishlistReportDetails"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        /** Reviews, corrects, or reopens one report without changing wishlist moderation or sending notifications. */
+        readonly put: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header: {
+                    /** @description Strong entity tag returned when the resource was retrieved or last modified. */
+                    readonly "If-Match": string;
+                };
+                readonly path: {
+                    /** @description The report identifier. */
+                    readonly reportId: string;
+                    /** @description The parent wishlist identifier. */
+                    readonly wishlistId: string;
+                };
+                readonly cookie?: never;
+            };
+            /** @description The cancellation token. */
+            readonly requestBody: {
+                readonly content: {
+                    readonly "application/*+json": components["schemas"]["UpdateWishlistReportReviewRequest"];
+                    readonly "application/json": components["schemas"]["UpdateWishlistReportReviewRequest"];
+                };
+            };
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description Strong entity tag representing the current resource version. */
+                        readonly ETag?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["WishlistReportDetails"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Precondition Failed */
+                readonly 412: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                readonly 413: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                readonly 415: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Precondition Required */
+                readonly 428: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/admin/reported-wishlists/{wishlistId}/reports/{reportId}/events": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Reads the private history of one report, including corrections and reopening. */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: {
+                    /** @description The optional one-based page, defaulting to one. */
+                    readonly page?: number | string;
+                    /** @description The optional page size, defaulting to twenty and limited to one hundred. */
+                    readonly pageSize?: number | string;
+                };
+                readonly header?: never;
+                readonly path: {
+                    /** @description The report identifier. */
+                    readonly reportId: string;
+                    /** @description The parent wishlist identifier. */
+                    readonly wishlistId: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["PaginatedResponseOfWishlistReportReviewEventDetails"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
@@ -8456,6 +8960,35 @@ export interface components {
              */
             readonly totalPages?: number | string;
         };
+        /** @description Represents one page of API results. */
+        readonly PaginatedResponseOfWishlistReportReviewEventDetails: {
+            /**
+             * Format: int32
+             * @description Gets the requested one-based page number.
+             */
+            readonly currentPage: number | string;
+            /** @description Gets whether a following page containing items exists. */
+            readonly hasNextPage?: boolean;
+            /** @description Gets whether a preceding page containing items exists. */
+            readonly hasPreviousPage?: boolean;
+            /** @description Gets the current page items. */
+            readonly items: readonly components["schemas"]["WishlistReportReviewEventDetails"][];
+            /**
+             * Format: int32
+             * @description Gets the requested page size.
+             */
+            readonly pageSize: number | string;
+            /**
+             * Format: int32
+             * @description Gets the total matching item count.
+             */
+            readonly totalCount: number | string;
+            /**
+             * Format: int32
+             * @description Gets the total number of pages containing matching items.
+             */
+            readonly totalPages?: number | string;
+        };
         /** @description Represents register account request. */
         readonly RegisterAccountRequest: {
             /** @description Gets display name. */
@@ -8754,6 +9287,12 @@ export interface components {
             /** @description Gets the required suspension reason, or null for reactivation. */
             readonly reason?: null | string;
         };
+        /** @description Requests a report disposition and optional private note. */
+        readonly UpdateWishlistReportReviewRequest: {
+            /** @description Gets the optional private note; omission clears the current note. */
+            readonly reviewNote?: null | string;
+            readonly status?: null | components["schemas"]["WishlistReportStatus"];
+        };
         /** @description Represents a private wishlist update request. */
         readonly UpdateWishlistRequest: {
             /**
@@ -8962,9 +9501,54 @@ export interface components {
             readonly id?: string;
             /** @description The report reason. */
             readonly reason?: components["schemas"]["WishlistReportReason"];
+            /**
+             * Format: date-time
+             * @description Gets the latest UTC review date.
+             */
+            readonly reviewedAt?: null | string;
+            /**
+             * Format: uuid
+             * @description Gets the latest deciding administrator, or null after account deletion.
+             */
+            readonly reviewedByAdministratorId?: null | string;
+            /** @description Gets the latest private review note. */
+            readonly reviewNote?: null | string;
+            /** @description Gets the current disposition. */
+            readonly status?: components["schemas"]["WishlistReportStatus"];
         };
         /** @enum {string} */
         readonly WishlistReportReason: "spamOrScam" | "inappropriateContent" | "privacyViolation" | "other";
+        /** @description Contains private administrative report review data. */
+        readonly WishlistReportReviewEventDetails: {
+            /**
+             * Format: uuid
+             * @description The administrator identifier, or null after deletion.
+             */
+            readonly administratorId?: null | string;
+            /**
+             * Format: uuid
+             * @description The review event identifier.
+             */
+            readonly id?: string;
+            /** @description The optional private note. */
+            readonly note?: null | string;
+            /**
+             * Format: date-time
+             * @description The UTC review date.
+             */
+            readonly occurredAt?: string;
+            /** @description The previous disposition. */
+            readonly previousStatus?: components["schemas"]["WishlistReportStatus"];
+            /** @description The new disposition. */
+            readonly status?: components["schemas"]["WishlistReportStatus"];
+        };
+        /**
+         * @description Identifies the current administrative disposition of a report.
+         * @enum {string}
+         */
+        readonly WishlistReportStatus: "pending" | "upheld" | "dismissed";
+        /** @enum {string} */
+        readonly WishlistReportStatusFilter: "pending" | "upheld" | "dismissed" | "all";
         /** @description Represents the private details of a wishlist. */
         readonly WishlistResponse: {
             /**

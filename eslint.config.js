@@ -38,6 +38,8 @@ export default [
       "tests/registrationView.test.js",
       "tests/emailConfirmationView.test.js",
       "tests/profileView.test.js",
+      "tests/wishlistsView.test.js",
+      "tests/wishlistsApplication.test.js",
       "tests/loginView.test.js",
       "tests/loginApplication.test.js",
       "tests/passwordRecoveryViews.test.js",

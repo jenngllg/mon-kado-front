@@ -25,6 +25,8 @@ import { createEmailChangeConfirmationView } from "../features/emailChange/email
 import { createGoogleReturnView } from "../features/google/googleReturnView.js";
 import { createGoogleLinkView } from "../features/google/googleLinkView.js";
 import { getLoginDestination } from "../auth/sessionGuards.js";
+import { createWishlistsService } from "../features/wishlists/wishlistsService.js";
+import { createWishlistsView } from "../features/wishlists/wishlistsView.js";
 
 /** @typedef {{google?: import("../features/google/googleService.js").GoogleService,
  * onGoogleDestination?: (path: string) => void, onGoogleAuthenticated?: () => void,
@@ -123,12 +125,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow) {
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createEmailChangeView({ load: createProfileService(session).load, ...createEmailChangeService(session), signal: context.signal }),
     },
-    createPlaceholderRoute(
-      RouteNames.Lists,
-      RoutePaths.Lists,
-      "Mes listes",
-      "Listes de cadeaux",
-    ),
+    {
+      name: RouteNames.Lists, path: RoutePaths.Lists, title: "Mes listes · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createWishlistsView({ ...createWishlistsService(session), signal: context.signal }),
+    },
     createPlaceholderRoute(
       RouteNames.NewList,
       RoutePaths.NewList,

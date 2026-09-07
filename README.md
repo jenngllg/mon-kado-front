@@ -889,6 +889,37 @@ temporaire propre de `origin/develop`, remplacer l’alias provisoire et exécut
 `pnpm api:types:check`. Le parcours réel, les cookies et HTTPS doivent être validés
 avant activation ; aucune dépendance E2E permanente n’est ajoutée au frontend.
 
+## Mes listes (#880)
+
+La page protégée `/lists` charge les listes du membre avec
+`GET /api/v1/wishlists` via `session.request()` et un JWT requis. Chaque ouverture
+effectue une nouvelle lecture, sans cache partagé, stockage persistant ni
+rafraîchissement périodique. L’ordre du serveur est conservé, sans tri ni
+pagination côté frontend.
+
+`createWishlistsService(session).load({ signal })` attend `200` et un tableau
+valide (y compris `[]`), sans exiger d’ETag. Le résultat immuable ne conserve que
+l’identifiant, le nom, l’occasion, la date et l’indicateur de suspension ; les
+identifiants dupliqués et dates calendaires invalides sont refusés.
+`createWishlistsView({ load, signal })` présente les états chargement, vide,
+cartes et erreur avec réessai explicite. Le titre et l’action de création restent
+disponibles. Les erreurs techniques sont traduites avec leur référence de support
+et le délai `Retry-After` disponible, sans retry automatique ni déconnexion pour
+une simple erreur de lecture.
+
+Les occasions et dates sont affichées en français ; les dates civiles utilisent
+`<time>` et UTC pour éviter un décalage de jour. Une date absente affiche
+« Sans date ». Une liste suspendue reste consultable et indique uniquement
+« Liste suspendue » et « Consultation uniquement », jamais son motif.
+Les liens « Ouvrir » identifient leur liste pour les technologies d’assistance.
+
+La destruction de la vue annule la lecture, nettoie ses événements et retire les
+cartes. Les réponses tardives sont ignorées ; les gardes et le retrait immédiat
+des données après changement de session restent ceux du socle. La création
+(`/lists/new`, #881) et le détail (`/lists/:listId`, #882) restent des pages
+temporaires explicites. Aucun compteur, cadeau, image ou état de partage n’est
+inventé.
+
 ## Contrôles qualité
 
 ```shell

@@ -71,6 +71,7 @@ export function createSessionTransport() {
   };
   const fetch = vi.fn(async (input, init) => {
     const path = new URL(String(input)).pathname;
+    if (path === "/api/v1/wishlists" && init?.method === "GET") return Response.json([]);
     if (path === "/security/csrf-token") return Response.json({ token: "csrf-fixture" });
     if (path.endsWith("/refresh")) {
       state.refreshCount += 1;
