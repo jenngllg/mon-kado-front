@@ -321,14 +321,17 @@ en mémoire dans chaque onglet ; l’identité vient de
 
 La restauration utilise `POST /api/v1/auth/sessions/refresh` avec CSRF et le
 cookie HttpOnly géré par le backend. Le JWT est renouvelé à l’usage, à moins
-de 60 secondes de son expiration annoncée par `expiresIn`. Il n’existe aucun
-renouvellement périodique pendant l’inactivité. Les appels concurrents d’un
+de 60 secondes de son expiration annoncée par `expiresIn`. Le renouvellement
+exige un statut `200` et un jeton valide : un autre succès HTTP est une réponse
+invalide, sans publication de session connectée ni rejeu automatique.
+Il n’existe aucun renouvellement périodique pendant l’inactivité. Les appels concurrents d’un
 onglet partagent la même tentative ; annuler une attente n’annule pas la
 rotation commune. Un `401` du JWT courant ferme la session, sans refresh ni
 rejeu de l’opération. Un `401` initial sans cookie est un état anonyme normal.
 
-Les routes `/profile`, `/lists`, `/lists/new`, `/lists/:listId` et
-`/reservations` sont protégées. Les gardes attendent la restauration, puis
+Les routes `/profile`, `/profile/password`, `/profile/email`, `/lists`,
+`/lists/new`, `/lists/:listId` et `/reservations` sont protégées.
+Les gardes attendent la restauration, puis
 redirigent les visiteurs anonymes avec `replace` vers `/login?returnTo=...`.
 `getSafeReturnTo()` conserve uniquement un chemin protégé interne, sans query
 string ni fragment ; la destination par défaut est `/lists`. Les utilisateurs
@@ -350,7 +353,8 @@ d’un onglet suspendu. Les résultats obsolètes sont abandonnés.
 
 La déconnexion efface immédiatement les credentials et retire les vues privées.
 Son intention est persistée indépendamment du verrou réseau ; le `DELETE`
-attend ensuite la fin d’une rotation engagée. Si le serveur ne confirme pas,
+attend ensuite la fin d’une rotation engagée et exige `204` sans corps. Un autre
+statut de succès ne lève pas le blocage de restauration. Si le serveur ne confirme pas,
 l’alerte « Déconnexion serveur non confirmée » propose Réessayer. Le blocage
 survit au rechargement et à l’ouverture d’un nouvel onglet, jusqu’à confirmation
 serveur ou nouvelle connexion explicitement demandée et réussie. Le navigateur

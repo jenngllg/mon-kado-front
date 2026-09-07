@@ -644,7 +644,8 @@ export function createSessionManager({
       await coordinator.exclusive(async () => {
         await verify(expected);
         api.invalidateCsrfToken();
-        await api.request(`${SessionPath}/current`, { method: "DELETE", csrf: true });
+        const response = await api.request(`${SessionPath}/current`, { method: "DELETE", csrf: true, expectEmptyResponse: true });
+        if (response.status !== 204 || response.data !== null) throw invalidResponse(response);
         const next = await coordinator.change(false, "logout", intent.generation);
         if (next === null || expected !== revision || disposed) throw createAbortError();
         metadata = next;
@@ -771,7 +772,7 @@ export function createSessionManager({
  */
 function readCredentials(response, now) {
   const value = response.data;
-  if (!isRecord(value) || value.tokenType !== "Bearer" ||
+  if (response.status !== 200 || !isRecord(value) || value.tokenType !== "Bearer" ||
     typeof value.accessToken !== "string" || !/^[\x21-\x7e]+$/.test(value.accessToken) ||
     !(typeof value.expiresIn === "number" || (typeof value.expiresIn === "string" && /^\d+(?:\.\d+)?$/.test(value.expiresIn))) ||
     !Number.isFinite(Number(value.expiresIn)) || Number(value.expiresIn) <= 0 ||

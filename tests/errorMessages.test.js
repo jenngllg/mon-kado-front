@@ -3,6 +3,15 @@ import { ApiError } from "../src/api/apiError.js";
 import { toUserFacingError } from "../src/errors/errorMessages.js";
 
 describe("toUserFacingError", () => {
+  it("describes an unreachable API without assuming an internet outage", () => {
+    // Arrange
+    const error = new ApiError({ kind: "network" });
+    // Act
+    const result = toUserFacingError(error);
+    // Assert
+    expect(result.message).toBe("Impossible de joindre le service MonKado. Vérifie ta connexion ou réessaie dans quelques instants.");
+  });
+
   it("maps a common error code without exposing backend copy", () => {
     // Arrange
     const error = new ApiError({

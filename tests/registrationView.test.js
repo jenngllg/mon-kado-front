@@ -276,7 +276,7 @@ describe("registration view", () => {
   it.each([
     [new ApiError({ kind: "http", statusCode: 429, retryAfterSeconds: 42 }), "Réessaie dans 42 seconde(s)."],
     [new ApiError({ kind: "http", statusCode: 503, correlationId: "support-fixture" }), "Référence : support-fixture"],
-    [new ApiError({ kind: "network" }), "Vérifie ta connexion internet"],
+    [new ApiError({ kind: "network" }), "Impossible de joindre le service MonKado"],
     [new ApiError({ kind: "timeout" }), "Le service met trop de temps"],
     [new ApiError({ kind: "invalidResponse" }), "Réponse inattendue"],
     [new Error("private fixture details"), "Une erreur est survenue"],

@@ -146,7 +146,7 @@ describe("login form", () => {
     [new ApiError({ kind: "http", statusCode: 401, errorCode: "ACCOUNT_EMAIL_NOT_CONFIRMED" }), "Confirme ton adresse e-mail"],
     [new ApiError({ kind: "http", statusCode: 429, retryAfterSeconds: 42 }), "Réessaie dans 42 seconde(s)."],
     [new ApiError({ kind: "http", statusCode: 503, correlationId: "fixture-support" }), "Référence : fixture-support"],
-    [new ApiError({ kind: "network" }), "Vérifie ta connexion internet"],
+    [new ApiError({ kind: "network" }), "Impossible de joindre le service MonKado"],
     [new ApiError({ kind: "timeout" }), "Le service met trop de temps"],
   ])("shows local French errors with no retry or loss of unaccepted input", async (error, copy) => {
     // Arrange

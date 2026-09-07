@@ -78,7 +78,7 @@ const CommonMessages = Object.freeze({
 const KindMessages = Object.freeze({
   network: {
     title: "Connexion impossible",
-    message: "Vérifie ta connexion internet puis réessaie.",
+    message: "Impossible de joindre le service MonKado. Vérifie ta connexion ou réessaie dans quelques instants.",
   },
   timeout: {
     title: "Le service met trop de temps à répondre",
