@@ -101,7 +101,8 @@
 .google-return-view,
 .google-link-view,
 .email-confirmation-view,
-.profile-view {
+.profile-view,
+.wishlist-create-view {
   --flow-space: var(--space-5);
 
   width: min(100%, var(--content-narrow));
@@ -121,7 +122,8 @@
 .google-return-view h1,
 .google-link-view h1,
 .email-confirmation-view h1,
-.profile-view h1 {
+.profile-view h1,
+.wishlist-create-view h1 {
   font-size: var(--font-size-2xl);
 }
 
@@ -133,13 +135,24 @@
 .recovery-form,
 .login-form,
 .confirmation-form,
-.profile-form {
+.profile-form,
+.wishlist-form {
   --flow-space: var(--space-5);
 }
 
 .registration-form__visibility {
   justify-self: start;
   text-align: start;
+}
+
+.wishlist-form .form-field {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+
+.wishlist-form .form-field__control {
+  min-width: 0;
+  padding-inline: min(3vw, var(--space-4));
 }
 
 .registration-form > .ui-button,

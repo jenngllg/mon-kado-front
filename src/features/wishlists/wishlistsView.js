@@ -3,8 +3,8 @@ import { RoutePaths } from "../../app/routeContracts.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createActionLink, createAlert, createButton, createEmptyState, createLoadingState, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
+import { WishlistOccasions as OccasionLabels } from "./wishlistValidation.js";
 
-const OccasionLabels = Object.freeze({ birthday: "Anniversaire", christmas: "Noël", wedding: "Mariage", birth: "Naissance", other: "Autre" });
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** Creates an owned-list overview with a fresh, view-owned read.

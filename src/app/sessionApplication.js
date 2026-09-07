@@ -21,6 +21,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   let disposed = false;
   let routeErrorVisible = false;
   let passwordChangeNotice = false;
+  let protectedViewEpoch = 0;
   /** @type {string | null} */
   let googleDestination = null;
   let googleVerified = false;
@@ -32,6 +33,17 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   const router = createRouter({
     outlet: shell.outlet,
     routes: createApplicationRoutes({ session, google,
+      onWishlistCreated: async (created, context) => {
+        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.NewList ||
+          window.location.pathname.replace(/\/+$/, "") !== RoutePaths.NewList || session.getSnapshot().status !== "authenticated") return;
+        const epoch = protectedViewEpoch;
+        const destination = `${RoutePaths.Lists}/${created.wishlist.id}`;
+        const route = await router.replace(destination);
+        if (!disposed && epoch === protectedViewEpoch && route !== null && route === router.getCurrentRoute() &&
+          route.name === RouteNames.ListDetails && window.location.pathname === destination && session.getSnapshot().status === "authenticated") {
+          showNotification(shell.notificationRegion, { message: "Liste créée", variant: "success" });
+        }
+      },
       onGoogleDestination: path => { googleDestination = path; googleVerified = false; googleFlowRoute = RouteNames.GoogleReturn; },
       onGoogleLinkDestination: path => { googleDestination = path; googleVerified = false; googleFlowRoute = RouteNames.LinkGoogle; },
       onGoogleAuthenticated: () => { googleVerified = true; finishGoogle(); },
@@ -71,6 +83,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     const current = router.getCurrentRoute();
     const lostAccess = previous.status === "authenticated" && state.status !== "authenticated";
     const gainedAccess = previous.status !== "authenticated" && state.status === "authenticated";
+    if (lostAccess) protectedViewEpoch++;
     previous = state;
     renderFeedback();
     if (gainedAccess && (current?.name === RouteNames.Register || current?.name === RouteNames.Login) &&

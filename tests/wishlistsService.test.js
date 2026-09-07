@@ -45,6 +45,14 @@ describe("owned wishlists service", () => {
     expect(await load({ signal })).toEqual([]);
     expect(request).toHaveBeenCalledTimes(2);
   });
+  it("uses backend Unicode whitespace rules rather than JavaScript-only trimming", async () => {
+    // Arrange
+    const valid = setup([{ ...item, name: "\ufeff" }]);
+    const invalid = setup([{ ...item, name: "\u0085" }]);
+    // Act / Assert
+    expect((await valid.load({ signal }))[0].name).toBe("\ufeff");
+    await expect(invalid.load({ signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it.each(["birthday", "christmas", "wedding", "birth", "other"])("accepts occasion %s", async occasion => {
     // Arrange
     const { load } = setup([{ ...item, occasion }]);

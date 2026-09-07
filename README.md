@@ -915,10 +915,55 @@ Les liens « Ouvrir » identifient leur liste pour les technologies d’assistan
 
 La destruction de la vue annule la lecture, nettoie ses événements et retire les
 cartes. Les réponses tardives sont ignorées ; les gardes et le retrait immédiat
-des données après changement de session restent ceux du socle. La création
-(`/lists/new`, #881) et le détail (`/lists/:listId`, #882) restent des pages
-temporaires explicites. Aucun compteur, cadeau, image ou état de partage n’est
-inventé.
+des données après changement de session restent ceux du socle. Le détail
+(`/lists/:listId`, #882) reste une page temporaire explicite. Aucun compteur,
+cadeau, image ou état de partage n’est inventé.
+
+## Créer une liste (#881)
+
+La route protégée `/lists/new` présente un formulaire seul : nom et occasion
+obligatoires, date de l’événement et message facultatifs. Les cinq occasions
+du contrat sont traduites dans un `select` natif. Aucun bénéficiaire, aperçu,
+image, partage ni cadeau n’est créé par ce formulaire.
+
+`createWishlistView({ create, onCreated, signal, now })` réutilise les composants
+communs. Les validations de `wishlistValidation.js` sont propres aux listes :
+100 caractères Unicode pour le nom, 500 pour le message après nettoyage des
+extrémités, sans troncature. Le nom nettoyé refuse les contrôles et séparateurs
+de ligne/paragraphe ; le message autorise tabulations et retours à la ligne,
+mais aucun autre contrôle. Les séquences Unicode invalides sont refusées.
+Le comptage précède toute normalisation NFC, laissée au serveur avec l’unicité.
+La date facultative doit être calendaire et au moins égale au jour courant UTC,
+recalculé à chaque soumission grâce à l’horloge injectable `now: () => Date`.
+Cette contrainte ne s’applique pas à la lecture des anciennes listes.
+
+`createWishlistsService(session).create(values, { signal })` envoie uniquement
+`{ name, occasion, eventDate, message }` à `POST /api/v1/wishlists`, avec JWT
+requis, sans CSRF supplémentaire ni `If-Match`. Nom et message sont nettoyés
+aux extrémités ; date absente et message blanc deviennent `null`. Le succès
+exige `201`, une liste valide et un ETag fort. Le résultat immuable
+`{ wishlist, etag }` ne conserve aucun motif de suspension ni métadonnée inutile.
+`Location` n’est pas nécessaire ; l’identifiant validé fournit la destination.
+
+Après succès, les saisies sont effacées et la soumission est définitivement
+verrouillée pour cette instance. L’application remplace l’URL par `/lists/{id}`
+et affiche une seule notification « Liste créée ». Le détail reste temporaire
+jusqu’à #882, dépendante du complément backend sur les cadeaux. Une navigation
+échouée ne permet jamais de rejouer une création déjà confirmée.
+
+`WISHLIST_NAME_ALREADY_EXISTS` est relié au champ nom. Les autres erreurs
+utilisent des textes français, les références techniques et `Retry-After`
+lorsqu’il est disponible. Après un résultat incertain (réseau, timeout, réponse
+invalide ou erreur serveur), consulter Mes listes avant une nouvelle tentative
+explicite : le frontend ne peut pas garantir que rien n’a été créé.
+Il n’effectue aucun retry automatique du POST.
+
+Les contrôles sont désactivés pendant l’envoi ; validation, résumé et focus
+conservent la protection du clic après blur. Quitter la vue ou changer de
+session efface les saisies et annule l’attente, sans garantir l’annulation d’une
+création déjà reçue par le serveur. Les réponses tardives ne provoquent ni
+redirection ni notification. Aucun brouillon n’est conservé et aucune nouvelle
+garde de sortie n’est ajoutée.
 
 ## Contrôles qualité
 

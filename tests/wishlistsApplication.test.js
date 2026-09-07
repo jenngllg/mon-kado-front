@@ -52,7 +52,7 @@ describe("owned wishlists session integration", () => {
     expect(window.location.pathname).toBe("/login"); expect(app.state.reads).toBe(0);
     expect(window.location.search).toBe("?returnTo=%2Flists");
   });
-  it("retains navigation, loads on each mount and keeps create/detail as placeholders", async () => {
+  it("retains navigation, loads on each mount and keeps only detail as a placeholder", async () => {
     // Arrange
     const app = setup();
     // Act
@@ -63,7 +63,8 @@ describe("owned wishlists session integration", () => {
     expect(document.title).toBe("Mes listes · MonKado");
     for (const path of ["/lists/new", "/lists/" + item.id]) {
       await app.router.navigate(path);
-      expect(app.shell.outlet.textContent).toContain("Cette fonctionnalité sera disponible dans un prochain lot.");
+      if (path === "/lists/new") expect(app.shell.outlet.querySelector('form[aria-label="Créer une liste"]')).not.toBeNull();
+      else expect(app.shell.outlet.textContent).toContain("Cette fonctionnalité sera disponible dans un prochain lot.");
       await app.router.navigate("/lists"); await until(app.shell.outlet, () => app.shell.outlet.querySelector("li") !== null);
     }
     expect(app.state.reads).toBe(3);

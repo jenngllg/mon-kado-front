@@ -162,6 +162,16 @@ describe("graphic foundations", () => {
     expect(viewStyles.match(/\.wishlist-card__occasion\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(3vw, var(--space-3))");
     expect(viewStyles.match(/\.wishlist-card__suspension\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(4vw, var(--space-4))");
   });
+  it("allows native creation fields to shrink at 320px with enlarged text", () => {
+    // Arrange / Act
+    const field = viewStyles.match(/\.wishlist-form \.form-field\s*\{([^}]+)\}/)?.[1] ?? "";
+    const control = viewStyles.match(/\.wishlist-form \.form-field__control\s*\{([^}]+)\}/)?.[1] ?? "";
+    // Assert
+    expect(field).toContain("grid-template-columns: minmax(0, 1fr)");
+    expect(field).toContain("min-width: 0");
+    expect(control).toContain("min-width: 0");
+    expect(control).toContain("padding-inline: min(3vw, var(--space-4))");
+  });
 });
 
 /**
