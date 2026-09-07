@@ -1,3 +1,4 @@
+import { parseApiJson } from "./json.js";
 import {
   ApiError,
   createAbortError,
@@ -623,7 +624,7 @@ async function decodeResponse(response) {
   }
 
   try {
-    return { data: JSON.parse(responseText), isValid: true, isEmpty: false };
+    return { data: parseApiJson(responseText), isValid: true, isEmpty: false };
   } catch {
     return { data: null, isValid: false, isEmpty: false };
   }

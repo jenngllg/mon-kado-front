@@ -180,6 +180,13 @@ describe("graphic foundations", () => {
     expect(viewStyles).toContain(".wishlist-form__actions > *");
     expect(viewStyles.match(/\.wishlist-edit-view__comparison dd\s*\{([^}]+)\}/)?.[1]).toContain("white-space: pre-wrap");
   });
+  it("keeps owner details fluid and gift images stable without changing the public tokens", () => {
+    expect(viewStyles.match(/\.wish-grid\s*\{([^}]+)\}/)?.[1]).toContain("minmax(min(100%, 17rem), 1fr)");
+    expect(viewStyles.match(/\.wishlist-details-note\s*\{([^}]+)\}/)?.[1]).toContain("white-space: pre-wrap");
+    expect(viewStyles.match(/\.wish-card__media\s*\{([^}]+)\}/)?.[1]).toContain("aspect-ratio: 4 / 3");
+    expect(viewStyles.match(/\.wish-card__media img\s*\{([^}]+)\}/)?.[1]).toContain("object-fit: contain");
+    expect(viewStyles).toMatch(/@media \(min-width: 64rem\)\s*\{\s*\.wishlist-details-layout/);
+  });
   it("separates deletion from editing and wraps the destructive confirmation at enlarged text sizes", () => {
     expect(viewStyles.match(/\.wishlist-edit-view__deletion\s*\{([^}]+)\}/)?.[1]).toContain("border-block-start: 1px solid var(--color-border)");
     expect(viewStyles.match(/\.wishlist-delete-view__warning\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(4vw, var(--space-4))");

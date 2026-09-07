@@ -252,7 +252,7 @@ describe("session routes and shell", () => {
   it("keeps the home free of business state and cleans logout handlers", async () => {
     // Arrange
     const app = mount(); await app.start(); await app.session.start();
-    const routes = createApplicationRoutes({ session: app.session });
+    const routes = createApplicationRoutes({ session: app.session, apiBaseUrl: "http://localhost:7000" });
     expect(routes).toHaveLength(19);
     const button = [...app.shell.element.querySelectorAll("button")].find(item => item.textContent === "Se déconnecter");
     app.dispose(); app.dispose();

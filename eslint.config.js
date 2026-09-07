@@ -46,6 +46,8 @@ export default [
       "tests/wishlistEditApplication.test.js",
       "tests/wishlistDeleteView.test.js",
       "tests/wishlistDeleteApplication.test.js",
+      "tests/wishlistDetailsView.test.js",
+      "tests/wishlistDetailsApplication.test.js",
       "tests/loginView.test.js",
       "tests/loginApplication.test.js",
       "tests/passwordRecoveryViews.test.js",

@@ -11,6 +11,8 @@ function setup() {
   const transport = createSessionTransport(); const original = transport.fetch.getMockImplementation(); const hub = createCoordinatorHub();
   const state = { status: 201, writes: 0, beforeWrite: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
+    if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}`) return Response.json(item, { headers: { ETag: '"created"' } });
+    if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}/wishes`) return Response.json({ wishes: [] }, { headers: { ETag: '"collection"' } });
     if (new URL(String(input)).pathname === "/api/v1/wishlists") {
       state.writes++; expect(init?.method).toBe("POST");
       const headers = new Headers(init?.headers);
@@ -46,14 +48,15 @@ describe("wishlist creation application integration", () => {
     const app = setup(); app.transport.state.refreshStatus = 401; await app.start();
     expect(window.location.pathname).toBe("/login"); expect(window.location.search).toBe("?returnTo=%2Flists%2Fnew"); expect(app.state.writes).toBe(0);
   });
-  it("replaces creation with the temporary detail and emits one notice in the initiating shell", async () => {
+  it("replaces creation with the real detail and emits one notice in the initiating shell", async () => {
     const app = setup(); await app.start(); const length = window.history.length;
     expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes");
     expect(document.activeElement).toBe(app.shell.outlet);
     const form = app.fillAndSend();
     await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Liste créée") === true);
     expect(window.location.pathname).toBe("/lists/" + item.id); expect(window.history.length).toBe(length);
-    expect(app.shell.outlet.textContent).toContain("Cette fonctionnalité sera disponible dans un prochain lot.");
+    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Cette liste ne contient pas encore de cadeau") === true);
+    expect(app.shell.outlet.querySelector("h1")?.textContent).toBe(item.name);
     expect(document.activeElement).toBe(app.shell.outlet); expect(app.state.writes).toBe(1);
     expect(app.shell.notificationRegion.children).toHaveLength(1);
     expect(/** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value).toBe("");

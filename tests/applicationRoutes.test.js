@@ -55,7 +55,7 @@ const ExpectedRoutes = [
 describe("application routes", () => {
   it("exposes the complete route catalogue with static list routes first", () => {
     // Arrange
-    const routes = createApplicationRoutes({ session: unusedSession });
+    const routes = createApplicationRoutes({ session: unusedSession, apiBaseUrl: "http://localhost:7000" });
 
     // Act
     const routeContracts = routes.map((route) => [route.name, route.path]);
@@ -88,7 +88,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.DeleteList, RouteNames.EditList, RouteNames.NewList, RouteNames.Lists, RouteNames.LinkGoogle, RouteNames.GoogleReturn, RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.ListDetails, RouteNames.DeleteList, RouteNames.EditList, RouteNames.NewList, RouteNames.Lists, RouteNames.LinkGoogle, RouteNames.GoogleReturn, RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange
@@ -166,7 +166,7 @@ describe("application routes", () => {
  * @returns {import("../src/router/router.js").RouteDefinition} Matching route.
  */
 function getRoute(name) {
-  const route = createApplicationRoutes({ session: unusedSession }).find(
+  const route = createApplicationRoutes({ session: unusedSession, apiBaseUrl: "http://localhost:7000" }).find(
     (candidate) => candidate.name === name,
   );
 

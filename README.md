@@ -109,7 +109,7 @@ liens sont affichés horizontalement. Sur les écrans plus étroits, ils sont
 regroupés dans un menu déroulant utilisable au clavier et refermé après chaque
 navigation. Un lien d’évitement permet d’atteindre directement le contenu.
 
-`createApplicationRoutes({ session })` centralise les routes réservées aux prochaines
+`createApplicationRoutes({ session, apiBaseUrl })` centralise les routes réservées aux prochaines
 fonctionnalités : compte, confirmation d’e-mail, profil, listes, réservations
 et partage invité. Tant que leur US n’est pas développée, chaque route affiche
 une page temporaire explicite sans formulaire, donnée fictive ni appel API
@@ -917,8 +917,8 @@ Les liens « Ouvrir » identifient leur liste pour les technologies d’assistan
 La destruction de la vue annule la lecture, nettoie ses événements et retire les
 cartes. Les réponses tardives sont ignorées ; les gardes et le retrait immédiat
 des données après changement de session restent ceux du socle. Le détail
-(`/lists/:listId`, #882) reste une page temporaire explicite. Aucun compteur,
-cadeau, image ou état de partage n’est inventé.
+(`/lists/:listId`, #882) charge désormais les cadeaux réels. Aucun compteur
+ou état de partage n’est inventé.
 
 ## Créer une liste (#881)
 
@@ -948,8 +948,7 @@ exige `201`, une liste valide et un ETag fort. Le résultat immuable
 
 Après succès, les saisies sont effacées et la soumission est définitivement
 verrouillée pour cette instance. L’application remplace l’URL par `/lists/{id}`
-et affiche une seule notification « Liste créée ». Le détail reste temporaire
-jusqu’à #882, dépendante du complément backend sur les cadeaux. Une navigation
+et affiche une seule notification « Liste créée » sur le détail réel. Une navigation
 échouée ne permet jamais de rejouer une création déjà confirmée.
 
 `WISHLIST_NAME_ALREADY_EXISTS` est relié au champ nom. Les autres erreurs
@@ -969,7 +968,7 @@ garde de sortie n’est ajoutée.
 ## Modifier une liste (#883)
 
 La page protégée `/lists/{listId}/edit` est accessible par « Modifier » sur les
-cartes non suspendues de Mes listes. Le détail et les cadeaux restent dans #882.
+cartes non suspendues de Mes listes et depuis le détail de #882.
 La création et l’édition partagent `wishlistForm.js`, les quatre champs natifs,
 les validations Unicode et la protection du clic après blur. Une date passée
 peut être conservée **inchangée** ou retirée ; une date différente doit être au
@@ -1078,6 +1077,49 @@ pnpm preview
 
 Le build statique est généré dans `dist/`. La commande `preview` le rend
 accessible localement sur <http://localhost:5173>.
+
+## Consulter une liste et ses cadeaux (#882)
+
+La route propriétaire `/lists/:listId` charge les informations de liste puis la
+collection complète de cadeaux, sans pagination, tri local ni requêtes individuelles.
+Les occasions et dates sont françaises (date calendaire en UTC) ; notes et messages
+conservent leurs retours à la ligne. Une liste suspendue reste consultable sans
+motif de suspension ni liens de modification/suppression. Aucune réservation,
+quantité restante, progression ou information sur les participants n’est exposée.
+Les futures actions cadeaux ne sont pas simulées.
+
+`createWishesService(session, { apiBaseUrl }).load(wishlistId, { signal })` appelle
+`GET /api/v1/wishlists/{wishlistId}/wishes` avec JWT requis, sans corps, CSRF,
+précondition ou retry supplémentaire. Le contrat #894 exige `200`, `wishes`, un
+ETag fort de collection et un ETag fort par cadeau. Le résultat `{ wishes, etag }`
+est immuable et conserve l’ordre serveur. Les versions de liste, de collection et
+de cadeau restent distinctes. Le décodeur JSON préserve les littéraux entiers
+dépassant la précision JavaScript sous forme de chaînes ; les positions Int64 sont
+validées et conservées exactement, sans arrondi ni tri à partir de ces valeurs.
+
+Les liens produits doivent être absolus HTTP(S), sans identifiants ; une valeur
+dangereuse reste du texte « Lien produit indisponible ». Les liens valides annoncent
+le nouvel onglet et utilisent `noopener noreferrer`. Aucune page marchande n’est
+chargée automatiquement. Les images proviennent exclusivement de l’origine API
+configurée et du chemin signé correspondant à la liste et au cadeau. Le grant
+opaque est utilisé tel que fourni, uniquement dans la vue et la source d’image,
+jamais dans un stockage, log ou historique. Dimensions réservées, chargement
+différé et absence de referrer limitent les déplacements et divulgations.
+
+Une image absente possède une surface neutre ; une image refusée, expirée ou cassée
+affiche « Image indisponible ». « Actualiser les cadeaux » recharge explicitement
+la collection, ses versions et ses URL signées, sans rafraîchissement automatique.
+Le téléversement appartient à #892. Une panne de collection conserve les
+informations de liste et propose une relecture indépendante. Un `404` efface toutes
+les données affichées et reste « Liste introuvable », sans révéler l’accès.
+Les erreurs françaises incluent la référence disponible et le délai de `429`.
+
+`createWishlistDetailsView({ wishlistId, loadOne, loadWishes, signal })` possède ses
+lectures et sources d’images. La destruction les annule/nettoie et ignore les
+réponses tardives ; une nouvelle ouverture relit le serveur. Le routeur conserve
+le focus initial, les relectures explicites ciblent le titre ou l’alerte. Les
+gardes et le retrait immédiat des données lors d’un changement de session ne
+changent pas. Aucun cache inter-vues ni donnée de surprise n’est conservé.
 
 ## Périmètre actuel
 

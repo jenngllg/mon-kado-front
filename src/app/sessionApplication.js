@@ -33,7 +33,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({
     outlet: shell.outlet,
-    routes: createApplicationRoutes({ session, google,
+    routes: createApplicationRoutes({ session, google, apiBaseUrl,
       onWishlistCreated: async (created, context) => {
         if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.NewList ||
           window.location.pathname.replace(/\/+$/, "") !== RoutePaths.NewList || session.getSnapshot().status !== "authenticated") return;

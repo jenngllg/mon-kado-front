@@ -12,6 +12,8 @@ function setup() {
   const transport = createSessionTransport(); const original = transport.fetch.getMockImplementation(); const hub = createCoordinatorHub();
   const state = { status: 200, reads: 0, items: [item], beforeRead: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
+    if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}`) return Response.json({ ...item, message: null }, { headers: { ETag: '"list"' } });
+    if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}/wishes`) return Response.json({ wishes: [] }, { headers: { ETag: '"collection"' } });
     if (new URL(String(input)).pathname === "/api/v1/wishlists") {
       state.reads++;
       expect(init?.method).toBe("GET");
@@ -52,7 +54,7 @@ describe("owned wishlists session integration", () => {
     expect(window.location.pathname).toBe("/login"); expect(app.state.reads).toBe(0);
     expect(window.location.search).toBe("?returnTo=%2Flists");
   });
-  it("retains navigation, loads on each mount and keeps only detail as a placeholder", async () => {
+  it("retains navigation and loads each overview, creation and detail route", async () => {
     // Arrange
     const app = setup();
     // Act
@@ -64,7 +66,7 @@ describe("owned wishlists session integration", () => {
     for (const path of ["/lists/new", "/lists/" + item.id]) {
       await app.router.navigate(path);
       if (path === "/lists/new") expect(app.shell.outlet.querySelector('form[aria-label="Créer une liste"]')).not.toBeNull();
-      else expect(app.shell.outlet.textContent).toContain("Cette fonctionnalité sera disponible dans un prochain lot.");
+      else { await until(app.shell.outlet, () => app.shell.outlet.querySelector("h1")?.textContent === item.name); expect(app.shell.outlet.querySelector(".wishlist-details-view")).not.toBeNull(); }
       await app.router.navigate("/lists"); await until(app.shell.outlet, () => app.shell.outlet.querySelector("li") !== null);
     }
     expect(app.state.reads).toBe(3);
