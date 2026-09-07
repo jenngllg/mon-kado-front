@@ -28,6 +28,7 @@ import { getLoginDestination } from "../auth/sessionGuards.js";
 import { createWishlistsService } from "../features/wishlists/wishlistsService.js";
 import { createWishlistsView } from "../features/wishlists/wishlistsView.js";
 import { createWishlistView } from "../features/wishlists/createWishlistView.js";
+import { createWishlistEditView } from "../features/wishlists/wishlistEditView.js";
 
 /** @typedef {(created: import("../features/wishlists/wishlistsService.js").CreatedWishlist, context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistCreatedHandler */
 
@@ -139,6 +140,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishlistView({ create: createWishlistsService(session).create, signal: context.signal,
           onCreated: created => onWishlistCreated(created, context) }),
+    },
+    {
+      name: RouteNames.EditList, path: RoutePaths.EditList, title: "Modifier ma liste · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createWishlistEditView({ ...createWishlistsService(session), wishlistId: context.params.listId, signal: context.signal }),
     },
     createPlaceholderRoute(
       RouteNames.ListDetails,

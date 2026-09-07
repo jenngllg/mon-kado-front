@@ -1,8 +1,9 @@
 import { RouteNames, RoutePaths } from "../app/routeContracts.js";
 import { ApiError } from "../api/apiError.js";
+import { isWishlistId } from "../features/wishlists/wishlistValidation.js";
 
 /** @type {Set<string>} */
-const ProtectedRoutes = new Set([RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.Lists, RouteNames.NewList, RouteNames.ListDetails, RouteNames.Reservations]);
+const ProtectedRoutes = new Set([RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.ListDetails, RouteNames.Reservations]);
 /** @type {Set<string>} */
 const AnonymousRoutes = new Set([RouteNames.Login, RouteNames.Register]);
 
@@ -39,6 +40,8 @@ export function getSafeReturnTo(target) {
     const path = url.pathname.replace(/\/+$/, "") || "/";
     const decoded = decodeURIComponent(path);
     if (url.origin !== "https://monkado.invalid" || hasUnsafeCharacters(decoded) || /[?#]/.test(decoded)) return RoutePaths.Lists;
+    const edit = /^\/lists\/([^/]+)\/edit$/.exec(path);
+    if (edit && isWishlistId(edit[1])) return path;
     if (path === RoutePaths.Profile || path === RoutePaths.PasswordChange || path === RoutePaths.EmailChange || path === RoutePaths.Lists || path === RoutePaths.Reservations ||
       (/^\/lists\/[^/]+$/.test(path) && /^\/lists\/[^/]+$/.test(decoded))) return path;
   } catch { /* Malformed destinations are never reflected. */ }

@@ -1,17 +1,10 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { RoutePaths } from "../../app/routeContracts.js";
-import { createActionLink, createAlert, createButton, createFormField, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
+import { createActionLink, createAlert, createButton, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
-import { isWishlistOccasion, validateWishlistField, WishlistOccasions, WishlistServerMessages } from "./wishlistValidation.js";
-
-/** @type {ReadonlyArray<{name: import("./wishlistValidation.js").WishlistField, label: string, description: string, required: boolean}>} */
-const Fields = Object.freeze([
-  { name: "name", label: "Nom de la liste", description: "100 caractères maximum.", required: true },
-  { name: "occasion", label: "Occasion", description: "Choisis l’occasion de ta liste.", required: true },
-  { name: "eventDate", label: "Date de l’événement (facultatif)", description: "Aujourd’hui ou plus tard, selon le jour UTC.", required: false },
-  { name: "message", label: "Message (facultatif)", description: "500 caractères maximum. Les retours à la ligne sont autorisés.", required: false },
-]);
+import { isWishlistOccasion, validateWishlistField, WishlistServerMessages } from "./wishlistValidation.js";
+import { createWishlistForm } from "./wishlistForm.js";
 
 /** Creates a single-use creation form; route/session ownership remains in the application.
  * @param {{create: import("./wishlistsService.js").CreateWishlist,
@@ -23,60 +16,20 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
   const view = textElement("section", ""); view.className = "wishlist-create-view flow";
   const title = textElement("h1", "Créer une liste");
   const intro = textElement("p", "Donne un nom à ta liste et précise l’occasion."); intro.className = "registration-view__intro";
-  const form = document.createElement("form"); form.noValidate = true; form.className = "wishlist-form flow";
-  form.setAttribute("aria-label", "Créer une liste");
   const feedback = textElement("div", ""); feedback.hidden = true;
   const status = textElement("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   let disposed = false; let submitting = false; let completed = false; let validationSummary = false;
-  /** @type {HTMLButtonElement | null} */ let pressedAction = null;
-  /** @type {(() => void) | null} */ let deferredBlur = null;
-  const fields = Fields.map(definition => {
-    const control = definition.name === "occasion" ? document.createElement("select") :
-      definition.name === "message" ? document.createElement("textarea") : document.createElement("input");
-    control.name = definition.name;
-    if (control instanceof HTMLInputElement) control.type = definition.name === "eventDate" ? "date" : "text";
-    if (control instanceof HTMLTextAreaElement) control.rows = 4;
-    if (control instanceof HTMLSelectElement) {
-      const placeholder = textElement("option", "Choisir…"); placeholder.value = ""; control.append(placeholder);
-      for (const [value, label] of Object.entries(WishlistOccasions)) {
-        const option = textElement("option", label); option.value = value; control.append(option);
-      }
-    }
-    const element = createFormField({ ...definition, control }); form.append(element);
-    const field = { ...definition, element, control, dirty: false, checked: false, error: /** @type {string | null} */ (null) };
-    const update = () => {
-      if (submitting || completed || disposed) return;
-      field.dirty = true;
-      if (field.checked) validate(field);
-      updateSummary();
-    };
-    addComponentEventListener(form, control, "input", update);
-    addComponentEventListener(form, control, "change", update);
-    addComponentEventListener(form, control, "blur", event => {
-      if (submitting || completed || disposed || (!field.dirty && control.value === "")) return;
-      const check = () => { validate(field); updateSummary(); };
-      // Preserve the native click target while its preceding blur validates a field.
-      if (pressedAction !== null && /** @type {FocusEvent} */ (event).relatedTarget === pressedAction) deferredBlur = check;
-      else check();
-    });
-    return field;
+  const { form, fields, validate, discardDeferredBlur } = createWishlistForm({
+    label: "Créer une liste", validateValue: (field, value) => validateWishlistField(field, value, now),
+    inactive: () => submitting || completed || disposed, onChange: updateSummary,
   });
   const submit = createButton({ label: "Créer ma liste", type: "submit" }); form.append(submit);
   const back = createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
   view.append(title, intro, feedback, status, form, back);
-  addComponentEventListener(form, form, "pointerdown", event => {
-    const target = event.target instanceof Element ? event.target.closest("button") : null;
-    pressedAction = target instanceof HTMLButtonElement ? target : null;
-  });
-  addComponentEventListener(form, document, "pointerup", event => {
-    if (!(event.target instanceof Node && pressedAction?.contains(event.target))) flushBlur();
-    pressedAction = null;
-  });
-  addComponentEventListener(form, document, "pointercancel", () => { pressedAction = null; flushBlur(); });
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void submitWishlist(); });
   registerComponentCleanup(view, () => {
-    disposed = true; lifetime.abort(); deferredBlur = null; pressedAction = null;
+    disposed = true; lifetime.abort(); discardDeferredBlur();
     clearInputs(); clearFeedback(); status.textContent = "";
   });
   if (signal) {
@@ -85,14 +38,7 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
   }
   return view;
 
-  function flushBlur() { const check = deferredBlur; deferredBlur = null; check?.(); }
   function clearInputs() { for (const field of fields) field.control.value = ""; }
-  /** @param {typeof fields[number]} field Field being checked. */
-  function validate(field) {
-    field.checked = true;
-    field.error = field.name === "eventDate" && field.control.validity.badInput ? WishlistServerMessages.eventDate : validateWishlistField(field.name, field.control.value, now);
-    setFormFieldValidation(field.element, field.error);
-  }
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); feedback.hidden = true; validationSummary = false; }
   function updateSummary() { if (validationSummary && fields.every(field => field.error === null)) clearFeedback(); }
   /** @param {Parameters<typeof createAlert>[0]} options Safe local presentation. */
@@ -113,7 +59,7 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
   }
   async function submitWishlist() {
     if (disposed || submitting || completed) return;
-    deferredBlur = null; clearFeedback();
+    discardDeferredBlur(); clearFeedback();
     for (const field of fields) validate(field);
     const invalid = fields.find(field => field.error !== null);
     if (invalid) { summary(); invalid.control.focus(); return; }

@@ -50,3 +50,19 @@ export function validateWishlistField(field, value, now = () => new Date()) {
   }
   return [...clean].length > 500 ? "Le message ne doit pas dépasser 500 caractères." : null;
 }
+
+/** Validates edits against the latest server version, including an unchanged past date.
+ * @param {WishlistField} field Field name. @param {string} value Raw input.
+ * @param {string | null} originalDate Current server date. @param {() => Date} [now] UTC clock.
+ * @returns {string | null} French validation.
+ */
+export function validateWishlistEditField(field, value, originalDate, now = () => new Date()) {
+  if (field === "eventDate" && value === originalDate && isCalendarDate(value)) return null;
+  return validateWishlistField(field, value, now);
+}
+
+/** @param {unknown} value Untrusted route or resource ID. @returns {value is string} Non-null canonical GUID. */
+export function isWishlistId(value) {
+  return typeof value === "string" && /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(value) &&
+    value !== "00000000-0000-0000-0000-000000000000";
+}

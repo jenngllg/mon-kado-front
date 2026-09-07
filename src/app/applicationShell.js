@@ -256,6 +256,7 @@ function getActiveNavigationRoute(routeName) {
   if (
     routeName === RouteNames.Lists ||
     routeName === RouteNames.NewList ||
+    routeName === RouteNames.EditList ||
     routeName === RouteNames.ListDetails
   ) {
     return RouteNames.Lists;

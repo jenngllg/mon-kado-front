@@ -63,8 +63,13 @@ describe("owned wishlists view", () => {
     expect(view.textContent).toContain("Consultation uniquement");
     expect(view.querySelector("img")).toBeNull();
     expect(view.querySelector("a a")).toBeNull();
+    const edits = [...view.querySelectorAll('a[href$="/edit"]')];
+    expect(edits).toHaveLength(1);
+    expect(edits[0].getAttribute("href")).toBe(`/lists/${item.id}/edit`);
+    expect(edits[0].getAttribute("aria-label")).toBe(`Modifier la liste « ${item.name} »`);
+    expect(edits[0].textContent).toBe("Modifier");
     for (const card of view.querySelectorAll("li")) {
-      const link = card.querySelector("a");
+      const link = card.querySelector(".wishlist-card__open");
       expect(link?.textContent).toBe("Ouvrir");
       expect(link?.getAttribute("aria-label")).toContain(card.querySelector("h2")?.textContent);
       expect(link?.getAttribute("href")).toMatch(/^\/lists\/019c/);

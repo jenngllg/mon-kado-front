@@ -2046,7 +2046,7 @@ export interface paths {
                     headers: {
                         /** @description Always no-store for this response. */
                         readonly "Cache-Control"?: string;
-                        /** @description Redirect destination for the provider challenge or callback completion/failure route. A successful callback completion route includes only an opaque flow binding. It never contains an access token, refresh token or identity claim. */
+                        /** @description Redirect destination for the provider challenge or callback completion/failure route. A successful callback redirects to /login/google-return#flow={binding}, with only an opaque flow binding and no session created yet. It never contains an access token, refresh token or identity claim. */
                         readonly Location?: string;
                         readonly [name: string]: unknown;
                     };
@@ -2151,9 +2151,9 @@ export interface paths {
                     headers: {
                         /** @description Always no-store for this response. */
                         readonly "Cache-Control"?: string;
-                        /** @description Redirect destination for the provider challenge or callback completion/failure route. A successful callback completion route includes only an opaque flow binding. It never contains an access token, refresh token or identity claim. */
+                        /** @description Redirect destination for the provider challenge or callback completion/failure route. A successful callback redirects to /login/google-return#flow={binding}, with only an opaque flow binding and no session created yet. It never contains an access token, refresh token or identity claim. */
                         readonly Location?: string;
-                        /** @description Issues a five-minute HttpOnly, Secure, SameSite=Lax and host-only Google external cookie. It contains no Google token, MonKado token or unprotected identity claim. */
+                        /** @description Issues an HttpOnly, Secure, SameSite=Lax and host-only Google external cookie within the original five-minute challenge deadline. It contains no Google token, MonKado token or unprotected identity claim. */
                         readonly "Set-Cookie"?: string;
                         readonly [name: string]: unknown;
                     };
@@ -2213,6 +2213,149 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/auth/google/completions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Finalizes a validated browser flow and creates a MonKado bearer session. */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header: {
+                    /** @description Request token obtained from GET /security/csrf-token. */
+                    readonly "X-CSRF-TOKEN": string;
+                };
+                readonly path?: never;
+                readonly cookie: {
+                    /** @description Short-lived Data Protection cookie containing only validated Google identity claims and protected flow state. It is HttpOnly, Secure, SameSite=Lax, host-only and expires no later than five minutes after the Google challenge. Local development uses MonKado.GoogleExternal. It never contains Google or MonKado tokens. */
+                    readonly "__Host-MonKado.GoogleExternal": string;
+                };
+            };
+            /** @description The cancellation token. */
+            readonly requestBody: {
+                readonly content: {
+                    readonly "application/*+json": components["schemas"]["CompleteGoogleSessionRequest"];
+                    readonly "application/json": components["schemas"]["CompleteGoogleSessionRequest"];
+                };
+            };
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description Rotating refresh token cookie. It is HttpOnly, SameSite=Strict, host-only, and uses Path=/. Production uses the Secure __Host-MonKado.Refresh name; local development uses MonKado.Refresh. It is a browser-session cookie unless rememberMe requests the fixed 30-day expiration. */
+                        readonly "Set-Cookie"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["AccessTokenResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                readonly 409: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                readonly 413: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                readonly 415: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Too Many Requests */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/auth/google/link": {
         readonly parameters: {
             readonly query?: never;
@@ -2225,17 +2368,14 @@ export interface paths {
         /** Proves the current MonKado password and explicitly links the validated Google identity. */
         readonly post: {
             readonly parameters: {
-                readonly query: {
-                    /** @description Opaque five-minute browser-flow binding returned in the frontend redirect fragment. It is required to prevent concurrent Google flows from being crossed and is not an access, refresh or Google token. */
-                    readonly flow: string;
-                };
+                readonly query?: never;
                 readonly header: {
                     /** @description Request token obtained from GET /security/csrf-token. */
                     readonly "X-CSRF-TOKEN": string;
                 };
                 readonly path?: never;
                 readonly cookie: {
-                    /** @description Short-lived Data Protection cookie containing only validated Google identity claims and protected flow state. It is HttpOnly, Secure, SameSite=Lax, host-only and expires after five minutes. Local development uses MonKado.GoogleExternal. It never contains Google or MonKado tokens. */
+                    /** @description Short-lived Data Protection cookie containing only validated Google identity claims and protected flow state. It is HttpOnly, Secure, SameSite=Lax, host-only and expires no later than five minutes after the Google challenge. Local development uses MonKado.GoogleExternal. It never contains Google or MonKado tokens. */
                     readonly "__Host-MonKado.GoogleExternal": string;
                 };
             };
@@ -8594,6 +8734,11 @@ export interface components {
             /** @description Gets the authorization scheme. */
             readonly tokenType: string;
         };
+        /** @description Contains only the browser proof returned by the validated Google callback. */
+        readonly CompleteGoogleSessionRequest: {
+            /** @description Gets the opaque browser-flow binding. */
+            readonly flow: null | string;
+        };
         /** @description Represents confirm email request. */
         readonly ConfirmEmailRequest: {
             /** @description Gets token. */
@@ -8795,6 +8940,8 @@ export interface components {
         readonly LinkGoogleAccountRequest: {
             /** @description Gets the exact current MonKado password. */
             readonly currentPassword: null | string;
+            /** @description Gets the opaque browser-flow binding. */
+            readonly flow: null | string;
         };
         /** @description Represents login request. */
         readonly LoginRequest: {

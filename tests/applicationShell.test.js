@@ -129,6 +129,7 @@ describe("application shell", () => {
     [RouteNames.Home, "Accueil"],
     [RouteNames.Lists, "Mes listes"],
     [RouteNames.NewList, "Mes listes"],
+    [RouteNames.EditList, "Mes listes"],
     [RouteNames.ListDetails, "Mes listes"],
     [RouteNames.Reservations, "Mes réservations"],
     [RouteNames.Login, "Connexion"],
@@ -141,7 +142,7 @@ describe("application shell", () => {
     const shell = createTestShell();
     document.body.append(shell.element);
     getMenuButton(shell.element).click();
-    if ([RouteNames.Lists, RouteNames.NewList, RouteNames.ListDetails, RouteNames.Reservations].some(name => name === routeName)) {
+    if ([RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.ListDetails, RouteNames.Reservations].some(name => name === routeName)) {
       shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
     }
 

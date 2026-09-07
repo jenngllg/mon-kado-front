@@ -112,7 +112,12 @@ function createCard(item) {
   const open = createActionLink({ label: "Ouvrir", href: RoutePaths.ListDetails.replace(":listId", item.id) });
   open.setAttribute("aria-label", "Ouvrir la liste « " + item.name + " »");
   open.classList.add("wishlist-card__open");
-  card.append(open);
+  const actions = textElement("div", ""); actions.className = "wishlist-card__actions cluster";
+  if (!item.isSuspended) {
+    const edit = createActionLink({ label: "Modifier", href: RoutePaths.EditList.replace(":listId", item.id) });
+    edit.setAttribute("aria-label", "Modifier la liste « " + item.name + " »"); actions.append(edit);
+  }
+  actions.append(open); card.append(actions);
   return card;
 }
 

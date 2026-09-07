@@ -757,12 +757,15 @@ utilisables depuis JavaScript avec JSDoc, sans import runtime :
 La génération fournit exclusivement des déclarations TypeScript. Le client
 HTTP commun reste écrit et contrôlé manuellement.
 
-## Connexion et inscription Google — #868, intégration backend en attente
+## Connexion et inscription Google — #868, intégration réelle en attente
 
-Le frontend est préparé contre le contrat prévu de l’US backend préalable.
-**Ce contrat n’est pas encore livré : Google reste désactivé par défaut et le
-parcours réel n’est pas validé.** Les tests utilisent exclusivement une API contrôlée.
-Ne pas activer cette fonctionnalité avant livraison du backend et validation en HTTPS.
+Le frontend est préparé contre le contrat de l’US backend préalable #879.
+Ce contrat est maintenant publié sur `origin/develop` et ses types ont été
+régénérés pendant #883 depuis la révision propre
+`6afe486024820272732240cc5044d6e553bd95e3`, après examen de la dérive Google.
+**Google reste désactivé par défaut et le parcours réel n’est pas validé.**
+Les tests utilisent une API contrôlée ; l’intégration et les essais HTTPS
+restent nécessaires avant activation.
 
 `VITE_GOOGLE_AUTH_ENABLED=false` masque les boutons. Seule la chaîne exacte `true`
 les affiche ; les valeurs absentes ou malformées restent désactivées. Même activé,
@@ -817,14 +820,13 @@ au formulaire #869 décrit ci-dessous. `409 GOOGLE_ADDITIONAL_VERIFICATION_REQUI
 reste un état distinct sur le retour Google, sans formulaire de mot de passe : ce
 parcours supplémentaire n’est pas implémenté.
 
-La requête `PendingGoogleCompletionRequest` est un alias local explicitement
-provisoire : aucun schéma anticipé n’a été ajouté au fichier OpenAPI généré.
-Après livraison du prérequis, régénérer les types depuis un checkout backend propre
-de `origin/develop`, remplacer cet alias par le schéma publié et exécuter
-`pnpm api:types:check`. Cette vérification d’intégration, les cookies du vrai backend,
+La requête `PendingGoogleCompletionRequest` reste un alias local provisoire.
+Le schéma `CompleteGoogleSessionRequest` est désormais généré depuis #879 ;
+la migration de l’alias appartient à la reprise de l’intégration Google, pas à
+la modification des listes. Cette vérification d’intégration, les cookies du vrai backend,
 le fournisseur Google et son activation HTTPS restent à valider avant activation.
 
-## Association explicite Google — #869, intégration backend en attente
+## Association explicite Google — #869, intégration réelle en attente
 
 Le formulaire public `/login/link-google` poursuit uniquement une tentative #868
 pour laquelle le backend exige la preuve du mot de passe **MonKado**. Il ne demande
@@ -832,16 +834,16 @@ jamais le mot de passe Google, ne présente pas d’identité supposée et ne pe
 de choisir un autre compte par saisie d’une adresse e-mail. La liaison depuis le
 profil, la dissociation et la vérification supplémentaire restent hors périmètre.
 
-Le contrat **anticipé** est `POST /api/v1/auth/google/link` avec le corps JSON
+Le contrat publié par #879 est `POST /api/v1/auth/google/link` avec le corps JSON
 exclusivement `{ flow, currentPassword }`, sans query string, JWT ou ETag, avec CSRF
 et cookies. Le mot de passe existant est non blanc et limité à 128 caractères
 Unicode, sans minimum de 12 caractères ni modification de sa valeur. Le succès
 exige `200 AccessTokenResponse`, puis une identité valide et un ETag fort.
 
-**Prérequis backend non livré :** déplacer `flow` de l’URL vers
-`LinkGoogleAccountRequest`, publier ce schéma et conserver le cookie protégé lors
-du `409 GOOGLE_ACCOUNT_LINK_REQUIRED`. `PendingGoogleLinkRequest` est donc un alias
-JSDoc local provisoire ; les déclarations OpenAPI générées ne sont pas modifiées.
+Le prérequis #879 publie `flow` dans `LinkGoogleAccountRequest` et prévoit la
+conservation du contexte protégé lors du `409 GOOGLE_ACCOUNT_LINK_REQUIRED`.
+Les déclarations ont été régénérées lors de #883. `PendingGoogleLinkRequest`
+reste un alias JSDoc local provisoire jusqu’à la reprise de l’intégration Google.
 Il n’existe aucun repli vers l’ancien `/link?flow=…`. Google reste désactivé et la
 validation actuelle utilise une API contrôlée, pas le backend ni Google réels.
 
@@ -884,8 +886,7 @@ Quitter la page empêche cette redirection et cette notification tardives ; les
 autres onglets ne reçoivent pas la confirmation locale. Une déconnexion serveur
 non confirmée conserve son alerte persistante jusqu’à une finalisation réussie.
 
-Après livraison du prérequis backend, régénérer les types depuis un checkout
-temporaire propre de `origin/develop`, remplacer l’alias provisoire et exécuter
+Lors de cette reprise, remplacer l’alias provisoire par le schéma publié et exécuter
 `pnpm api:types:check`. Le parcours réel, les cookies et HTTPS doivent être validés
 avant activation ; aucune dépendance E2E permanente n’est ajoutée au frontend.
 
@@ -964,6 +965,54 @@ session efface les saisies et annule l’attente, sans garantir l’annulation d
 création déjà reçue par le serveur. Les réponses tardives ne provoquent ni
 redirection ni notification. Aucun brouillon n’est conservé et aucune nouvelle
 garde de sortie n’est ajoutée.
+
+## Modifier une liste (#883)
+
+La page protégée `/lists/{listId}/edit` est accessible par « Modifier » sur les
+cartes non suspendues de Mes listes. Le détail et les cadeaux restent dans #882.
+La création et l’édition partagent `wishlistForm.js`, les quatre champs natifs,
+les validations Unicode et la protection du clic après blur. Une date passée
+peut être conservée **inchangée** ou retirée ; une date différente doit être au
+moins égale au jour courant UTC, recalculé à la soumission. Cette exception ne
+modifie pas la validation de création.
+
+`createWishlistEditView({ wishlistId, loadOne, update, signal, now })` charge
+une version fraîche à chaque ouverture. `createWishlistsService(session)` expose
+`loadOne(id, { signal })` et `update(id, values, { etag, signal })` : GET et PUT
+sur `/api/v1/wishlists/{id}`, JWT requis, réponse `200` avec ressource valide,
+identifiant correspondant et ETag fort. Le PUT contient exclusivement
+`{ name, occasion, eventDate, message }`, avec nettoyage identique à la création
+et transmission exacte de `If-Match`, sans CSRF supplémentaire ni retry.
+
+L’enregistrement est désactivé sans changement effectif ou pendant une
+opération. « Annuler les modifications » restaure localement la dernière base
+chargée, sans appel API. Après succès, l’utilisateur reste sur le formulaire,
+voit « Modifications enregistrées » et utilise la ressource et l’ETag retournés
+par le PUT : aucune relecture supplémentaire.
+
+Un `412` conserve toute la saisie et bloque l’écriture jusqu’à « Relire la
+liste ». La version relue est présentée séparément du brouillon, sans fusion.
+« Enregistrer ma saisie » remplace explicitement les quatre informations avec
+le nouvel ETag ; « Utiliser la version enregistrée » l’adopte sans PUT. Les
+conflits suivants suivent le même cycle. La dernière version relue devient la
+base de l’annulation et de la validation de date. Une annulation locale ne lève
+jamais à elle seule un blocage de précondition.
+
+Précondition absente/inexploitable (`428`, validation `ifMatch`, ETag faible),
+suspension détectée ou résultat de PUT incertain (réseau, timeout, réponse
+invalide, erreur serveur) imposent également une relecture avant toute nouvelle
+écriture explicite. Un échec de relecture conserve le brouillon et le blocage.
+Le frontend ne prétend pas que les anciennes valeurs sont restées inchangées.
+Les listes suspendues affichent « Consultation uniquement », sans leur motif ;
+une liste inaccessible ou supprimée reçoit le même état « Liste introuvable ».
+
+Les erreurs de nom et de validation sont françaises, sans afficher les textes
+backend ; les erreurs techniques et `429` utilisent le catalogue, la corrélation
+et `Retry-After`. Une panne de lecture/écriture reste locale à la vue et ne
+modifie pas la session (hors traitement habituel des `401`). Le départ, la
+déconnexion ou un changement de compte annulent l’attente, effacent les champs
+et ignorent les réponses tardives, sans garantir l’annulation d’un PUT déjà
+reçu. Aucun brouillon persistant, rafraîchissement périodique ou garde de sortie.
 
 ## Contrôles qualité
 
