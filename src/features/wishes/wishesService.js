@@ -15,16 +15,22 @@ import { createWishPayload, safeHttpUrl } from "./wishValidation.js";
 /** @typedef {Readonly<CreatedWish & {values: Readonly<import("./wishValidation.js").WishValues>}>} EditableWish */
 /** @typedef {(wishlistId: string, wishId: string, options: {signal: AbortSignal}) => Promise<EditableWish>} LoadWish */
 /** @typedef {(wishlistId: string, wishId: string, values: import("./wishValidation.js").WishValues, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} UpdateWish */
+/** @typedef {(wishlistId: string, wishId: string, options: {etag: string, signal: AbortSignal}) => Promise<void>} RemoveWish */
 
 /** Reads the complete private collection; grants and versions belong to the caller's view.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{apiBaseUrl: string}} options Trusted API configuration.
- * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish}} Injectable owner operations.
+ * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish, remove: RemoveWish}} Injectable owner operations.
  */
 export function createWishesService(session, { apiBaseUrl }) {
   const base = safeHttpUrl(apiBaseUrl);
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
-  return { loadOne: async (wishlistId, wishId, { signal }) => {
+  return { remove: async (wishlistId, wishId, { etag, signal }) => {
+    const path = itemPath(wishlistId, wishId);
+    if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+    const response = await session.request(path, { method: "DELETE", authentication: "required", ifMatch: etag, expectEmptyResponse: true, signal });
+    if (response.status !== 204 || response.data !== null) throw new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
+  }, loadOne: async (wishlistId, wishId, { signal }) => {
     const path = itemPath(wishlistId, wishId);
     const response = await session.request(path, { method: "GET", authentication: "required", signal });
     return editable(response, wishlistId, wishId, base);

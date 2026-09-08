@@ -6,14 +6,16 @@ import { createActionLink, createAlert, createButton, createLoadingState, dispos
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId, trimWishlistText } from "../wishlists/wishlistValidation.js";
 import { createWishForm } from "./wishForm.js";
+import { createWishDeleteDialog } from "./wishDeleteDialog.js";
 import { createWishPayload, parseWishPrice, WishPayloadTooLarge, WishServerMessages } from "./wishValidation.js";
 
 /** Edits an independently versioned gift without replacing a local draft on reread.
  * @param {{wishlistId: string, wishId: string, loadWishlist: import("../wishlists/wishlistsService.js").LoadWishlist,
- * loadOne: import("./wishesService.js").LoadWish, update: import("./wishesService.js").UpdateWish, signal?: AbortSignal}} options Owner operations.
+ * loadOne: import("./wishesService.js").LoadWish, update: import("./wishesService.js").UpdateWish,
+ * remove?: import("./wishesService.js").RemoveWish, onDeleted?: () => void | Promise<void>, signal?: AbortSignal}} options Owner operations.
  * @returns {HTMLElement} Disposable protected view.
  */
-export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, update, signal }) {
+export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, update, remove, onDeleted = () => {}, signal }) {
   const view = element("section", ""); view.className = "wish-edit-view flow";
   const title = element("h1", "Modifier un cadeau"); title.tabIndex = -1;
   const listName = element("p", "");
@@ -22,6 +24,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   const status = element("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   /** @type {import("./wishesService.js").EditableWish | null} */ let base = null;
+  /** @type {HTMLDialogElement | null} */ let deletionDialog = null;
   let disposed = false; let busy = false; let blocked = true; let suspended = false; let terminal = false; let decision = false; let validationSummary = false;
   const editor = createWishForm({ label: "Modifier un cadeau", inactive: () => disposed || busy || suspended || terminal,
     onChange: () => { if (validationSummary && editor.fields.every(field => field.error === null)) clearFeedback(); sync(); } });
@@ -34,10 +37,15 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } });
   actions.append(submit, cancel, useVersion); form.append(actions);
   const destination = isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists;
+  const deletion = element("section", ""); deletion.className = "wish-edit-view__deletion flow";
+  const deleteButton = createButton({ label: "Supprimer ce cadeau", variant: "danger", onClick: openDeletion });
+  deletion.append(element("h2", "Suppression du cadeau"), element("p", "Tu devras confirmer cette action définitive."), deleteButton);
   view.append(title, listName, feedback, status, comparison, form, reread, retry, createActionLink({ label: "Retour à la liste", href: destination }));
+  view.append(deletion);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); base = null; editor.discardDeferredBlur(); editor.clear(); clearFeedback(); clearComparison();
+    if (deletionDialog) { disposeComponent(deletionDialog); deletionDialog.remove(); deletionDialog = null; }
     listName.textContent = ""; status.textContent = ""; sync();
   });
   if (signal) {
@@ -71,9 +79,41 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     reread.hidden = disposed || terminal || !base || !blocked; reread.disabled = busy;
     retry.hidden = disposed || terminal || base !== null || busy; retry.disabled = busy;
     form.setAttribute("aria-busy", String(busy));
+    deletion.hidden = !remove || disposed || terminal || base === null || suspended;
+    deleteButton.disabled = disposed || busy || terminal || suspended || base === null || deletionDialog !== null;
+  }
+  function openDeletion() {
+    if (!remove || disposed || busy || terminal || suspended || !base || deletionDialog) return;
+    editor.discardDeferredBlur();
+    const modal = createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadOne, remove, signal: lifetime.signal,
+      onUnavailable: state => { if (disposed) return; if (state === "suspended") lockSuspended(); else notFound(state === "wishlistMissing"); sync(); },
+      onDeleted: async () => {
+        if (disposed) return;
+        terminal = true; blocked = true; base = null; editor.clear(); clearComparison(); listName.textContent = "";
+        disposeComponent(form); form.remove(); sync();
+        show({ title: "Cadeau supprimé", message: "La suppression de ton cadeau est confirmée.", variant: "success" });
+        modal.close();
+        try { await onDeleted(); }
+        catch { if (!disposed) show({ title: "Cadeau supprimé", message: "Ton cadeau est supprimé, mais le retour à la liste a échoué. Utilise le lien ci-dessous.", variant: "success" }).focus(); }
+      } });
+    deletionDialog = modal; view.append(modal); sync();
+    // This one-shot owner listener survives the dialog's own close cleanup.
+    const restoreFocus = () => {
+      if (deletionDialog !== modal) return;
+      deletionDialog = null;
+      if (disposed || lifetime.signal.aborted) return;
+      sync(); if (view.isConnected) { if (!deletion.hidden && !deleteButton.disabled) deleteButton.focus(); else title.focus(); }
+    };
+    modal.addEventListener("close", restoreFocus, { once: true, signal: lifetime.signal });
+    try { modal.showModal(); }
+    catch {
+      modal.removeEventListener("close", restoreFocus);
+      disposeComponent(modal); modal.remove(); deletionDialog = null; sync();
+      show({ title: "Confirmation indisponible", message: "La fenêtre de confirmation n’a pas pu être ouverte. Réessaie depuis cette page." }).focus();
+    }
   }
   function useStored() {
-    if (disposed || busy || suspended || terminal || !base) return;
+    if (disposed || busy || suspended || terminal || !base || deletionDialog) return;
     editor.discardDeferredBlur(); editor.reset(base.values); decision = false; clearComparison();
     if (!blocked) clearFeedback();
     sync(); title.focus();
@@ -88,7 +128,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   }
   /** @param {boolean} explicit User retry. */
   async function read(explicit) {
-    if (disposed || busy || terminal) return;
+    if (disposed || busy || terminal || deletionDialog) return;
     if (!isWishlistId(wishlistId)) { notFound(true); return; }
     if (!isWishlistId(wishId)) { notFound(false); return; }
     editor.discardDeferredBlur();
@@ -118,7 +158,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     } finally { if (!disposed) { busy = false; sync(); } }
   }
   async function save() {
-    if (disposed || busy || blocked || suspended || terminal || !base || !changed()) return;
+    if (disposed || busy || blocked || suspended || terminal || !base || !changed() || deletionDialog) return;
     editor.discardDeferredBlur(); clearFeedback(); for (const field of fields) editor.validate(field);
     const invalid = fields.find(field => field.error !== null);
     if (invalid) { show({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." }); validationSummary = true; invalid.control.focus(); return; }

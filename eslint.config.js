@@ -61,6 +61,8 @@ export default [
       "tests/googleView.test.js",
       "tests/googleApplication.test.js",
       "tests/googleLinkView.test.js",
+      "tests/wishDeleteDialog.test.js",
+      "tests/wishDeleteApplication.test.js",
     ],
     languageOptions: {
       globals: globals.browser,

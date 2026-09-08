@@ -34,6 +34,36 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 15; i++) await Promise.resolve(); }
 
 describe("gift editor", () => {
+  it("owns a unique modal and keeps the exact editor draft and original ETag on cancellation", async () => {
+    const remove = vi.fn(async () => {}); const ui = setup({ remove }); await settle(); ui.input(0, "Mon brouillon");
+    ui.loadOne.mockResolvedValue(stored("Serveur récent", '"dialog-tag"')); ui.click("Supprimer ce cadeau"); ui.click("Supprimer ce cadeau"); await settle();
+    expect(ui.view.querySelectorAll("dialog")).toHaveLength(1); expect(ui.view.querySelector("dialog")?.textContent).toContain("Serveur récent"); expect(ui.fields[0].value).toBe("Mon brouillon");
+    ui.send(); expect(ui.update).not.toHaveBeenCalled(); const dialog = /** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog")); dialog.close(); await settle();
+    expect(ui.view.querySelector("dialog")).toBeNull(); expect(document.activeElement?.textContent).toBe("Supprimer ce cadeau"); expect(ui.fields[0].value).toBe("Mon brouillon");
+    ui.send(); await settle(); expect(ui.update.mock.calls[0][3].etag).toBe('"gift"'); expect(remove).not.toHaveBeenCalled();
+  });
+  it.each(["wishlistMissing", "wishMissing", "suspended"])("propagates safe dialog state %s to the editor", async state => {
+    const ui = setup({ remove: async () => {} }); await settle(); ui.input(0, "Brouillon privé");
+    if (state === "wishlistMissing") ui.loadWishlist.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
+    else if (state === "wishMissing") ui.loadOne.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
+    else ui.loadWishlist.mockResolvedValue({ ...list, wishlist: { ...list.wishlist, isSuspended: true } });
+    ui.click("Supprimer ce cadeau"); await settle(); const dialog = /** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog")); expect(dialog.open).toBe(true); dialog.close(); await settle();
+    ui.send(); expect(ui.update).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
+    if (state === "suspended") {
+      expect(ui.fields[0].value).toBe("Brouillon privé"); expect(ui.fields.every(field => field.disabled)).toBe(true);
+      ui.loadWishlist.mockResolvedValue(list); ui.click("Relire le cadeau"); await settle(); expect(ui.fields[0].disabled).toBe(false); expect(ui.fields[0].value).toBe("Brouillon privé");
+    } else { expect(ui.view.querySelector("form")).toBeNull(); expect(ui.fields.every(field => field.value === "")).toBe(true); }
+  });
+  it("locks and erases the editor after deletion even if navigation fails", async () => {
+    const remove = vi.fn(async () => {}), onDeleted = vi.fn(async () => { throw new Error("navigation"); }); const ui = setup({ remove, onDeleted }); await settle(); ui.input(0, "Brouillon"); ui.click("Supprimer ce cadeau"); await settle(); ui.click("Supprimer définitivement"); await settle();
+    expect(remove).toHaveBeenCalledTimes(1); expect(onDeleted).toHaveBeenCalledTimes(1); expect(ui.view.querySelector("dialog,form")).toBeNull(); expect(ui.fields.every(field => field.value === "")).toBe(true);
+    expect(ui.view.textContent).toContain("Cadeau supprimé"); ui.send(); ui.click("Supprimer ce cadeau"); expect(ui.update).not.toHaveBeenCalled(); expect(remove).toHaveBeenCalledTimes(1);
+  });
+  it("cannot open before a read or during an update, and safely handles unavailable native dialog support", async () => {
+    const gate = barrier(); const ui = setup({ remove: async () => {}, update: async () => { await gate.promise; return stored(); } });
+    ui.click("Supprimer ce cadeau"); expect(ui.view.querySelector("dialog")).toBeNull(); await settle(); ui.input(0, "Autre"); ui.send(); ui.click("Supprimer ce cadeau"); expect(ui.view.querySelector("dialog")).toBeNull(); gate.resolve(); await settle();
+    const native = vi.spyOn(HTMLDialogElement.prototype, "showModal").mockImplementationOnce(() => { throw new Error("not available"); }); ui.click("Supprimer ce cadeau"); await settle(); expect(ui.view.querySelector("dialog")).toBeNull(); expect(ui.view.textContent).toContain("Confirmation indisponible"); native.mockRestore();
+  });
   it("reads parent then gift with one lifetime, renders five labelled fields and starts unchanged", async () => {
     const gate = barrier(); const parent = vi.fn(/** @type {import("../src/features/wishlists/wishlistsService.js").LoadWishlist} */ (async () => { await gate.promise; return list; })); const ui = setup({ loadWishlist: parent });
     expect(ui.form.hidden).toBe(true); ui.send(); expect(ui.loadOne).not.toHaveBeenCalled(); expect(ui.update).not.toHaveBeenCalled();

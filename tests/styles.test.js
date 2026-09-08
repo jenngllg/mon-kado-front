@@ -187,6 +187,17 @@ describe("graphic foundations", () => {
     expect(viewStyles.match(/\.wish-card__media img\s*\{([^}]+)\}/)?.[1]).toContain("object-fit: contain");
     expect(viewStyles).toMatch(/@media \(min-width: 64rem\)\s*\{\s*\.wishlist-details-layout/);
   });
+  it("bounds the native gift modal to the viewport with internal scrolling and token-based presentation", () => {
+    const modal = viewStyles.match(/\.wish-delete-dialog\s*\{([^}]+)\}/)?.[1] ?? "";
+    expect(modal).toContain("width: min(var(--content-narrow), calc(100% - var(--space-6)))");
+    expect(modal).toContain("max-height: calc(100dvh - var(--space-6))");
+    expect(modal).toContain("overflow: auto");
+    expect(modal).toContain("overscroll-behavior: contain");
+    expect(modal).toContain("overflow-wrap: anywhere");
+    expect(modal).toContain("background: var(--color-surface)");
+    expect(viewStyles).toContain(".wish-delete-dialog::backdrop");
+    expect(viewStyles.match(/\.wish-edit-view__deletion\s*\{([^}]+)\}/)?.[1]).toContain("border-block-start: 1px solid var(--color-border)");
+  });
   it("separates deletion from editing and wraps the destructive confirmation at enlarged text sizes", () => {
     expect(viewStyles.match(/\.wishlist-edit-view__deletion\s*\{([^}]+)\}/)?.[1]).toContain("border-block-start: 1px solid var(--color-border)");
     expect(viewStyles.match(/\.wishlist-delete-view__warning\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(4vw, var(--space-4))");

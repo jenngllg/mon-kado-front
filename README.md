@@ -1236,6 +1236,58 @@ réponses tardives, sans garantir l’annulation d’une écriture reçue par le
 Aucun brouillon persistant, garde de sortie, image, suppression ou traitement de
 réservation n’est ajouté.
 
+## Supprimer un cadeau (#887)
+
+L’éditeur propose « Supprimer ce cadeau » dans une zone distincte. La confirmation
+utilise une modale native `dialog`, sans nouvelle route. À chaque ouverture, elle
+relit la liste puis le cadeau et son ETag individuel, indépendamment du brouillon
+et de la version détenus par l’éditeur. Elle présente les cinq informations
+actuelles, le lien produit comme texte, et rappelle que les autres cadeaux sont
+conservés. Aucun compteur ni renseignement sur les réservations n’est affiché.
+Le nettoyage éventuel des images relève du backend, sans promesse d’effacement
+immédiat côté navigateur.
+
+`createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadOne, remove,
+onDeleted, onUnavailable, signal })` retourne un `HTMLDialogElement`. Son propriétaire
+l’ajoute au DOM et appelle `showModal()`. Le titre reçoit le focus initial ; les
+relations ARIA et le comportement modal natif maintiennent le contexte accessible.
+Annuler et Échap ferment la fenêtre avant l’envoi, sans modifier le brouillon ;
+le clic sur l’arrière-plan ne ferme pas la fenêtre. Le focus revient au déclencheur
+ou au titre de l’éditeur lorsque celui-ci n’est plus disponible.
+
+`createWishesService(...).remove(wishlistId, wishId, { etag, signal })` envoie
+`DELETE /api/v1/wishlists/{wishlistId}/wishes/{wishId}`, JWT requis et ETag fort du
+cadeau dans `If-Match`, sans corps ni CSRF supplémentaire. Seul `204` sans corps
+est accepté ; aucun ETag de réponse n’est nécessaire. Aucun retry n’est ajouté.
+Pendant le DELETE, Annuler et Échap sont temporairement bloqués, la progression
+est annoncée et la double confirmation impossible. Le timeout commun reste actif.
+
+Un conflit `412`, une précondition manquante ou inexploitable impose « Relire le
+cadeau », puis une nouvelle confirmation explicite. Les lectures de la modale ne
+remplacent jamais l’ETag d’édition. Après réseau, timeout, réponse invalide ou erreur
+serveur, la suppression peut avoir eu lieu : « La suppression de ton cadeau ne
+peut pas être confirmée. Relis le cadeau avant de réessayer. » Une relecture
+échouée conserve le blocage ; un `404` n’est jamais assimilé à un succès.
+
+Le callback `onUnavailable` transmet uniquement `wishlistMissing`, `wishMissing`
+ou `suspended`. Les deux premiers nettoient aussi le formulaire sous-jacent ;
+le dernier bloque l’édition en conservant sa saisie. Chaque opération doit relire
+une version valide avant de reprendre. Les autres erreurs sont françaises,
+avec référence de corrélation et délai de `429` disponibles, sans duplication
+dans le shell ni modification de session hors traitement habituel des `401`.
+
+Après succès, le formulaire et la modale sont verrouillés et nettoyés. L’application
+remplace l’URL par le détail de la liste et affiche une seule notification
+« Cadeau supprimé ». Le détail relit la liste et sa collection complète : supprimer
+le dernier cadeau affiche l’état vide, sans pagination. Une erreur de navigation
+ou de relecture ne remet pas en cause le succès et ne permet pas un second DELETE.
+
+La fermeture nettoie les événements et données de la modale. Une navigation,
+une destruction ou un changement de session la ferme même pendant le DELETE,
+annule l’attente et ignore les réponses tardives. Cela ne garantit pas l’annulation
+d’une suppression déjà reçue par le serveur. Aucun brouillon persistant, opération
+optimiste, réservation ou traitement d’image n’est ajouté.
+
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants

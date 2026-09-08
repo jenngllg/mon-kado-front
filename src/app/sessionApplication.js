@@ -23,6 +23,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   let passwordChangeNotice = false;
   let protectedViewEpoch = 0;
   /** @type {number | null} */ let confirmedWishlistDeletionEpoch = null;
+  /** @type {{epoch: number, destination: string} | null} */ let confirmedWishDeletion = null;
   /** @type {string | null} */
   let googleDestination = null;
   let googleVerified = false;
@@ -34,6 +35,21 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   const router = createRouter({
     outlet: shell.outlet,
     routes: createApplicationRoutes({ session, google, apiBaseUrl,
+      onWishDeleted: async context => {
+        const editPath = RoutePaths.EditWish.replace(":listId", context.params.listId).replace(":wishId", context.params.wishId);
+        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.EditWish ||
+          window.location.pathname.replace(/\/+$/, "") !== editPath || session.getSnapshot().status !== "authenticated") return;
+        const epoch = protectedViewEpoch;
+        const destination = RoutePaths.ListDetails.replace(":listId", context.params.listId);
+        confirmedWishDeletion = { epoch, destination };
+        try {
+          const route = await router.replace(destination);
+          if (!disposed && epoch === protectedViewEpoch && route !== null && route === router.getCurrentRoute() &&
+            route.name === RouteNames.ListDetails && window.location.pathname === destination && session.getSnapshot().status === "authenticated") {
+            showNotification(shell.notificationRegion, { message: "Cadeau supprimé", variant: "success" });
+          }
+        } finally { confirmedWishDeletion = null; }
+      },
       onWishCreated: async (created, context) => {
         const parentId = context.params.listId;
         if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.NewWish ||
@@ -96,6 +112,10 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       if (confirmedWishlistDeletionEpoch === protectedViewEpoch && session.getSnapshot().status === "authenticated") {
         view.append(createAlert({ title: "Liste supprimée", message: "Ta liste est supprimée, mais le retour à Mes listes a échoué.", variant: "success" }),
           createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists }));
+      }
+      if (confirmedWishDeletion?.epoch === protectedViewEpoch && session.getSnapshot().status === "authenticated") {
+        view.append(createAlert({ title: "Cadeau supprimé", message: "Ton cadeau est supprimé, mais le retour à la liste a échoué.", variant: "success" }),
+          createActionLink({ label: "Retour à la liste", href: confirmedWishDeletion.destination }));
       }
       return view;
     },
