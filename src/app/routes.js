@@ -36,6 +36,9 @@ import { createWishlistDetailsView } from "../features/wishlists/wishlistDetails
 import { createWishesService } from "../features/wishes/wishesService.js";
 import { createWishCreateView } from "../features/wishes/wishCreateView.js";
 import { createWishEditView } from "../features/wishes/wishEditView.js";
+import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
+import { createSharedWishlistService } from "../features/sharing/sharedWishlistService.js";
+import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
 
 /** @typedef {(created: import("../features/wishlists/wishlistsService.js").CreatedWishlist, context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistCreatedHandler */
 /** @typedef {(context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistDeletedHandler */
@@ -63,8 +66,9 @@ const PlaceholderMessage =
  * @param {string} apiBaseUrl Trusted origin for signed gift images.
  * @param {WishCreatedHandler} onWishCreated Local gift creation completion.
  * @param {WishlistDeletedHandler} onWishDeleted Local gift deletion completion.
+ * @param {import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext} sharing Private tab context.
  */
-function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted) {
+function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing) {
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
     {
@@ -195,22 +199,25 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       "Mes réservations",
       "Cadeaux réservés",
     ),
-    createPlaceholderRoute(
-      RouteNames.SharedWishlist,
-      RoutePaths.SharedWishlist,
-      "Liste de cadeaux partagée",
-      "Accès invité",
-    ),
+    {
+      name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de cadeaux partagée · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const state = sharing.enter(context.params.shareLinkId, context.consumeFragment());
+        if (state !== "ready") return createSharedWishlistEntryView(state);
+        return createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
+          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).load });
+      },
+    },
   ]);
 }
 
 /**
  * Creates the complete frontend route catalogue.
  *
- * @param {{session: import("../auth/sessionManager.js").SessionManager, apiBaseUrl: string, consumePasswordChangeNotice?: () => boolean, onWishlistCreated?: WishlistCreatedHandler, onWishlistDeleted?: WishlistDeletedHandler, onWishCreated?: WishCreatedHandler, onWishDeleted?: WishlistDeletedHandler} & GoogleRouteOptions} options Session and local notice dependencies.
+ * @param {{session: import("../auth/sessionManager.js").SessionManager, apiBaseUrl: string, sharing?: import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext, consumePasswordChangeNotice?: () => boolean, onWishlistCreated?: WishlistCreatedHandler, onWishlistDeleted?: WishlistDeletedHandler, onWishCreated?: WishCreatedHandler, onWishDeleted?: WishlistDeletedHandler} & GoogleRouteOptions} options Session and local notice dependencies.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
-export function createApplicationRoutes({ session, apiBaseUrl, consumePasswordChangeNotice = () => false, onWishlistCreated = () => {}, onWishlistDeleted = () => {}, onWishCreated = () => {}, onWishDeleted = () => {}, ...googleFlow }) {
+export function createApplicationRoutes({ session, apiBaseUrl, sharing = createSharedWishlistContext(), consumePasswordChangeNotice = () => false, onWishlistCreated = () => {}, onWishlistDeleted = () => {}, onWishCreated = () => {}, onWishDeleted = () => {}, ...googleFlow }) {
   return [
     Object.freeze({
       name: RouteNames.Home,
@@ -218,7 +225,7 @@ export function createApplicationRoutes({ session, apiBaseUrl, consumePasswordCh
       title: "MonKado · Les cadeaux qui font vraiment plaisir",
       render: createHomeView,
     }),
-    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
+    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
   ];
 }
 

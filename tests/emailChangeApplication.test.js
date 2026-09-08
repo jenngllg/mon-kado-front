@@ -83,7 +83,7 @@ describe("routed email changes", () => {
   });
   it("leaves fragments of other public routes untouched", async () => {
     // Arrange / Act
-    const app = mount("/shared-wishlists/share-1#separate-secret"); await app.start();
+    const app = mount("/#separate-secret"); await app.start();
     // Assert
     expect(window.location.hash).toBe("#separate-secret"); expect(app.shell.outlet.textContent).not.toContain("separate-secret");
   });

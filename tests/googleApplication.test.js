@@ -85,7 +85,7 @@ describe("Google session/router integration", () => {
   });
   it("does not touch fragments on other public routes", async () => {
     // Arrange / Act
-    const { app } = mount("/shared-wishlists/id#share-secret"); await app.start();
+    const { app } = mount("/#share-secret"); await app.start();
     // Assert
     expect(window.location.hash).toBe("#share-secret"); expect(app.shell.outlet.textContent).not.toContain("share-secret");
   });

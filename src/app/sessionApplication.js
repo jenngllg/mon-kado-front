@@ -10,6 +10,7 @@ import { ApiError } from "../api/apiError.js";
 import { toUserFacingError } from "../errors/errorMessages.js";
 import { RouteNames, RoutePaths } from "./routeContracts.js";
 import { createGoogleService } from "../features/google/googleService.js";
+import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
@@ -19,6 +20,7 @@ import { createGoogleService } from "../features/google/googleService.js";
 export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, session = createSessionManager({ apiBaseUrl }),
   google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
   let disposed = false;
+  const sharing = createSharedWishlistContext();
   let routeErrorVisible = false;
   let passwordChangeNotice = false;
   let protectedViewEpoch = 0;
@@ -34,7 +36,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({
     outlet: shell.outlet,
-    routes: createApplicationRoutes({ session, google, apiBaseUrl,
+    routes: createApplicationRoutes({ session, google, apiBaseUrl, sharing,
       onWishDeleted: async context => {
         const editPath = RoutePaths.EditWish.replace(":listId", context.params.listId).replace(":wishId", context.params.wishId);
         if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.EditWish ||
@@ -166,6 +168,12 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   return Object.freeze({
     shell, router, session,
     start: () => {
+      // Public share fragments must be consumed before background cookie restoration.
+      if (/^\/shared-wishlists\/[^/]+\/?$/.test(window.location.pathname)) {
+        const started = router.start();
+        void session.start();
+        return started;
+      }
       // A callback must validate its departure generation before any cookie restoration.
       void session.start({ restore: !isGooglePath() });
       return router.start();
@@ -179,6 +187,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       unsubscribeRouter();
       unsubscribeSession();
       router.dispose();
+      sharing.dispose();
       google.dispose();
       session.dispose();
       disposeComponent(shell.element);

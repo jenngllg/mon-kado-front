@@ -208,7 +208,7 @@ export function createRouter({
       () => {
         assertCurrentNavigation(identifier, navigationIdentifier, controller.signal);
         if (browserWindow.location.href !== url.href) throw new DOMException("Navigation aborted.", "AbortError");
-        const fragment = url.hash;
+        const fragment = url.hash || (url.href.endsWith("#") ? "#" : "");
         if (!fragment) return "";
         const previousHref = url.href;
         url.hash = "";

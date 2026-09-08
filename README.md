@@ -1443,8 +1443,8 @@ utiliser cette même origine. Seul `WISHLIST_SHARE_LINK_NOT_FOUND` en lecture si
 qu’aucun lien n’existe. Après conflit de création ou résultat incertain, une
 relecture explicite est obligatoire avant une nouvelle création. Aucun POST
 n’est rejoué automatiquement ; quitter la page ne garantit pas son annulation
-côté serveur. Le renouvellement et la désactivation sont décrits ci-dessous ; la
-consultation publique reste dans son US dédiée.
+côté serveur. Le renouvellement, la désactivation et la consultation publique sont
+décrits ci-dessous.
 
 ## Renouvellement du lien (#896)
 
@@ -1484,6 +1484,37 @@ et nettoient les données, y compris pendant l’envoi. L’annulation de l’at
 garantit pas celle d’une suppression déjà reçue par le serveur. Le presse-papiers
 n’est pas effacé. La désactivation ne garantit ni l’effacement du contenu déjà
 consulté ni son retrait instantané d’un navigateur distant sans nouvelle requête.
+
+## Consultation publique d’une liste (#898)
+
+Un lien `/shared-wishlists/{shareLinkId}#{secret}` permet la consultation sans compte.
+Le fragment est consommé avant les appels réseau, y compris la restauration de
+session au démarrage direct. Son secret Base64URL de 256 bits reste exclusivement
+en mémoire et est envoyé par `X-MonKado-Share-Token` au GET public, sans JWT,
+CSRF supplémentaire ni création de participation. Aucun secret n’est ajouté au
+DOM, aux instantanés publics, à l’historique, aux stockages ou aux notifications.
+
+Un seul contexte est conservé par application dans l’onglet. Quitter la page puis
+revenir en navigation interne peut le réutiliser, avec une nouvelle lecture des
+données. Un autre lien le remplace ; un nouveau fragment invalide ne réutilise pas
+le précédent. Un rechargement ou nouvel onglet sans fragment demande de rouvrir
+le lien reçu. Un refus définitif connu efface le contexte et le contenu affiché ;
+une panne récupérable conserve le contexte pour un réessai explicite. La fermeture
+de l’application le nettoie. La continuité après connexion reste dans son US.
+
+La réponse publique fournit le nom du propriétaire et toute la collection dans
+l’ordre serveur, sans pagination ni ETag exigé. Les projections n’incluent aucune
+participation, réservation ou disponibilité. Les cartes sont consultatives, sans
+actions de gestion. Les dates restent calendaires ; les liens produits sont
+neutralisés s’ils ne sont pas sûrs. Les images utilisent uniquement les URLs
+signées publiques correspondant à l’API, au lien et au cadeau ; une image expirée
+ou indisponible ne déclenche aucune boucle de renouvellement. « Actualiser la
+liste » relit explicitement le contenu complet et retire l’ancienne version.
+
+Chargement, vide, erreur récupérable et lien indisponible possèdent des états
+accessibles. La consultation reste publique après une déconnexion. Une révocation
+distante n’est connue qu’à la prochaine requête : aucun retrait instantané distant
+n’est promis. Les captures et contrôles navigateur emploient des données de test.
 
 ## Périmètre actuel
 

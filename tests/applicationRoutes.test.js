@@ -90,7 +90,7 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.EditWish, RouteNames.NewWish, RouteNames.ListDetails, RouteNames.DeleteList, RouteNames.EditList, RouteNames.NewList, RouteNames.Lists, RouteNames.LinkGoogle, RouteNames.GoogleReturn, RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
+  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.SharedWishlist, RouteNames.EditWish, RouteNames.NewWish, RouteNames.ListDetails, RouteNames.DeleteList, RouteNames.EditList, RouteNames.NewList, RouteNames.Lists, RouteNames.LinkGoogle, RouteNames.GoogleReturn, RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
     "renders an explicit placeholder for %s",
     async (routeName, routePath) => {
       // Arrange

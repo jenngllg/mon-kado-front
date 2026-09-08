@@ -2,7 +2,7 @@ import { RoutePaths } from "../../app/routeContracts.js";
 import { createWishImage } from "./wishImage.js";
 import { createActionLink } from "../../components/index.js";
 const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-/** @param {import("./wishesService.js").Wish} item Safe minimal model. @param {boolean} suspended Read-only parent. @param {{editable?: boolean}} [options] Card actions. @returns {HTMLLIElement} Gift card without reservation information. */
+/** @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable"> & {note?: string | null, wishlistId?: string}} item Safe minimal model. @param {boolean} suspended Read-only parent. @param {{editable?: boolean}} [options] Card actions. @returns {HTMLLIElement} Gift card without reservation information. */
 export function createWishCard(item, suspended, { editable = true } = {}) {
   const card = element("li", ""); card.className = "wish-card";
   const media = createWishImage(item);
@@ -15,7 +15,7 @@ export function createWishCard(item, suspended, { editable = true } = {}) {
     const link = createActionLink({ label: "Voir le produit", href: item.url }); link.target = "_blank"; link.rel = "noopener noreferrer";
     link.setAttribute("aria-label", `Voir le produit « ${item.name} » (nouvel onglet)`); content.append(link);
   } else if (item.productUnavailable) content.append(element("p", "Lien produit indisponible"));
-  if (editable) {
+  if (editable && item.wishlistId) {
     const edit = createActionLink({ label: suspended ? "Consulter" : "Modifier", href: RoutePaths.EditWish.replace(":listId", item.wishlistId).replace(":wishId", item.id) });
     edit.setAttribute("aria-label", `${suspended ? "Consulter" : "Modifier"} le cadeau « ${item.name} »`); content.append(edit);
   }
