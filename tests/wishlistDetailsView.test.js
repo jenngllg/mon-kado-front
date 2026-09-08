@@ -53,7 +53,8 @@ describe("wishlist owner detail", () => {
   it("shows an empty state with the implemented manual creation action", async () => {
     const ui = setup({ loadWishes: async () => ({ wishes: [], etag: '"empty"' }) }); await settle();
     expect(ui.view.textContent).toContain("Cette liste ne contient pas encore de cadeau"); expect(ui.view.querySelectorAll("li")).toHaveLength(0);
-    expect(ui.view.querySelector(`a[href="/lists/${id}/wishes/new"]`)?.textContent).toBe("Ajouter un cadeau"); expect(ui.view.querySelector("button")?.textContent).toBe("Actualiser les cadeaux");
+    expect(ui.view.querySelector(`a[href="/lists/${id}/wishes/new"]`)?.textContent).toBe("Ajouter un cadeau"); expect(ui.view.querySelector("button:not([hidden])")?.textContent).toBe("Actualiser les cadeaux");
+    expect([...ui.view.querySelectorAll("button")].find(button => button.textContent === "Réorganiser les cadeaux")?.hidden).toBe(true);
   });
   it.each([["birthday", "Anniversaire"], ["christmas", "Noël"], ["wedding", "Mariage"], ["birth", "Naissance"], ["other", "Autre"]])("supports occasion %s and optional date/message/price/note/image", async (occasion, label) => {
     const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, occasion: /** @type {typeof list.wishlist.occasion} */ (occasion), eventDate: null, message: null } }),

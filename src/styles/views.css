@@ -501,6 +501,41 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.wish-reorder-view { min-width: 0; }
+.wish-reorder-actions { padding-block: var(--space-4); }
+.wish-reorder-actions > * { max-width: 100%; white-space: normal; }
+.wish-reorder-commands {
+  padding: var(--space-4);
+  border-block-start: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+.wish-reorder-commands .cluster { gap: var(--space-2); }
+.wish-reorder-commands button { max-width: 100%; white-space: normal; }
+.wish-reorder-handle { touch-action: none; cursor: grab; }
+.wish-reorder-rank { font-weight: var(--font-weight-bold); }
+.wish-reorder-dragging { outline: 2px solid var(--color-text); outline-offset: -2px; }
+.wish-reorder-view .wish-card { position: relative; }
+.wish-reorder-before::after,
+.wish-reorder-after::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: var(--space-1);
+  background: var(--color-text);
+  pointer-events: none;
+  z-index: 1;
+}
+.wish-reorder-before::after { inset-block-start: 0; }
+.wish-reorder-after::after { inset-block-end: 0; }
+.wish-reorder-comparison {
+  padding: var(--space-4);
+  background: var(--color-warning-soft);
+  border-radius: var(--radius-lg);
+  overflow-wrap: anywhere;
+}
+.wish-reorder-comparison ol { padding-inline-start: var(--space-6); }
+.wish-reorder-status { overflow-wrap: anywhere; }
+
 @media (min-width: 64rem) {
   .wishlist-details-layout {
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);

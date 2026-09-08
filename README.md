@@ -1288,6 +1288,62 @@ annule l’attente et ignore les réponses tardives. Cela ne garantit pas l’an
 d’une suppression déjà reçue par le serveur. Aucun brouillon persistant, opération
 optimiste, réservation ou traitement d’image n’est ajouté.
 
+## Réorganiser les cadeaux (#888)
+
+Le détail propose « Réorganiser les cadeaux » pour une liste non suspendue
+comportant au moins deux cadeaux. Ce mode reste sur la même URL et relit la liste,
+la collection complète et son ETag avant toute manipulation. Les cartes restent
+complètes, avec leurs images, notes, prix, quantités et liens produits sûrs.
+Les autres actions locales de gestion sont masquées pendant la réorganisation.
+
+Chaque carte affiche son rang et propose Monter, Descendre et un champ de position
+avec validation explicite par Déplacer. Ces commandes fonctionnent au clavier et
+par simples clics ou touchers, sans dépendre du glisser-déposer. Le focus suit le
+cadeau déplacé et une annonce accessible donne sa nouvelle position.
+
+La poignée utilise les Pointer Events avec capture et un seuil de 6 px.
+L’indicateur montre l’insertion proposée ; seul un relâchement valide modifie le
+brouillon. Le défilement automatique facilite les déplacements longs. Le
+défilement tactile reste natif hors de la poignée. Échap, une annulation du
+pointeur, une perte de capture ou un changement de disposition abandonnent
+uniquement le geste en cours. Les captures et animations sont nettoyées avec
+le composant. Aucune bibliothèque de drag-and-drop n’est ajoutée.
+
+`createWishesReorderView({ wishlistId, loadWishlist, loadWishes, reorder,
+onSaved, onCancel, signal })` retourne un élément DOM possédé par le détail.
+La collection serveur, son ETag et le tableau complet des identifiants proposés
+sont séparés en mémoire. Aucun déplacement ne déclenche une écriture.
+Les commandes Enregistrer l’ordre et Annuler sont présentes aux deux extrémités.
+Annuler abandonne le brouillon puis relit les données en consultation.
+
+`createWishesService(...).reorder(wishlistId, wishIds, { etag, signal })`
+envoie uniquement `{ wishIds }` par `PATCH` sur la collection de cadeaux,
+avec JWT requis et `If-Match` de **collection**, sans CSRF supplémentaire.
+L’ordre contient tous les identifiants, une seule fois, avec une limite de
+1 000 cadeaux. Aucun découpage, troncature, pagination ou envoi partiel.
+Le succès attendu est `200` avec `WishOrderResponse`, ETag fort de collection,
+ETag individuels et positions Int64 exactes strictement croissantes.
+Les versions de liste, de collection et de cadeaux restent distinctes.
+
+Un conflit de version ou de composition, une précondition invalide, ou un
+résultat réseau incertain bloque l’écriture et impose une relecture explicite.
+Le brouillon n’est pas effacé par cette lecture : si les identifiants sont
+inchangés, l’utilisateur compare les deux ordres et choisit lequel conserver.
+Si leur ensemble a changé, il doit explicitement repartir de la collection
+actualisée ; aucune fusion automatique ni rejeu du PATCH.
+
+Un succès verrouille l’instance, efface le brouillon et revient à la consultation,
+avec « Ordre des cadeaux enregistré » et une lecture fraîche. Une panne de cette
+lecture ne rejoue jamais l’écriture confirmée. La suspension bloque les actions ;
+un contenu introuvable efface les cartes. Les erreurs restent françaises avec
+corrélation et délai de 429 disponibles, sans duplication dans le shell.
+
+Les brouillons ne sont ni persistés ni diffusés entre onglets. Quitter la page
+les abandonne sans garde supplémentaire ; un changement de session retire
+immédiatement la vue protégée. Les réponses tardives sont ignorées.
+L’annulation de l’attente ne garantit pas l’annulation d’une écriture déjà reçue
+par le serveur. Aucun traitement de réservation ou d’image n’est ajouté.
+
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants

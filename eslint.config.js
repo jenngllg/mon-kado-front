@@ -62,6 +62,9 @@ export default [
       "tests/googleApplication.test.js",
       "tests/googleLinkView.test.js",
       "tests/wishDeleteDialog.test.js",
+      "tests/wishesReorderView.test.js",
+      "tests/wishReorderDrag.test.js",
+      "tests/wishReorderApplication.test.js",
       "tests/wishDeleteApplication.test.js",
     ],
     languageOptions: {

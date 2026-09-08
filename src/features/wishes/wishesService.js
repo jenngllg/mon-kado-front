@@ -16,16 +16,38 @@ import { createWishPayload, safeHttpUrl } from "./wishValidation.js";
 /** @typedef {(wishlistId: string, wishId: string, options: {signal: AbortSignal}) => Promise<EditableWish>} LoadWish */
 /** @typedef {(wishlistId: string, wishId: string, values: import("./wishValidation.js").WishValues, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} UpdateWish */
 /** @typedef {(wishlistId: string, wishId: string, options: {etag: string, signal: AbortSignal}) => Promise<void>} RemoveWish */
+/** @typedef {Readonly<{wishes: ReadonlyArray<Readonly<{id: string, position: string, entityTag: string}>>, etag: string}>} WishOrder */
+/** @typedef {(wishlistId: string, wishIds: ReadonlyArray<string>, options: {etag: string, signal: AbortSignal}) => Promise<WishOrder>} ReorderWishes */
 
 /** Reads the complete private collection; grants and versions belong to the caller's view.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{apiBaseUrl: string}} options Trusted API configuration.
- * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish, remove: RemoveWish}} Injectable owner operations.
+ * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish, remove: RemoveWish, reorder: ReorderWishes}} Injectable owner operations.
  */
 export function createWishesService(session, { apiBaseUrl }) {
   const base = safeHttpUrl(apiBaseUrl);
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
-  return { remove: async (wishlistId, wishId, { etag, signal }) => {
+  return { reorder: async (wishlistId, wishIds, { etag, signal }) => {
+    if (!isWishlistId(wishlistId)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_NOT_FOUND" });
+    if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+    if (!Array.isArray(wishIds) || wishIds.length > 1000 || wishIds.some(id => !isWishlistId(id)) || new Set(wishIds.map(id => id.toLowerCase())).size !== wishIds.length) {
+      throw new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "wishIds", errorMessage: null }] });
+    }
+    /** @type {import("../../api/generated/openapi.js").components["schemas"]["ReorderWishesRequest"]} */
+    const body = { wishIds: [...wishIds] };
+    const response = await session.request(`/api/v1/wishlists/${wishlistId}/wishes`, { method: "PATCH", authentication: "required", body, ifMatch: etag, signal });
+    const data = /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["WishOrderResponse"]> | null} */ (response.data);
+    const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
+    if (response.status !== 200 || !data || !Array.isArray(data.wishes) || data.wishes.length !== body.wishIds?.length || !isStrongEntityTag(response.metadata.etag)) throw invalid();
+    /** @type {bigint | null} */ let previous = null;
+    const wishes = data.wishes.map((item, index) => {
+      const position = exactPosition(item?.position);
+      if (!item || !isWishlistId(item.id) || item.id.toLowerCase() !== body.wishIds?.[index].toLowerCase() || !isStrongEntityTag(item.entityTag) || position === null || (previous !== null && BigInt(position) <= previous)) throw invalid();
+      previous = BigInt(position);
+      return Object.freeze({ id: item.id, position, entityTag: item.entityTag });
+    });
+    return Object.freeze({ wishes: Object.freeze(wishes), etag: response.metadata.etag });
+  }, remove: async (wishlistId, wishId, { etag, signal }) => {
     const path = itemPath(wishlistId, wishId);
     if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
     const response = await session.request(path, { method: "DELETE", authentication: "required", ifMatch: etag, expectEmptyResponse: true, signal });

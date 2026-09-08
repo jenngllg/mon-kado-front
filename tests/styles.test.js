@@ -187,6 +187,15 @@ describe("graphic foundations", () => {
     expect(viewStyles.match(/\.wish-card__media img\s*\{([^}]+)\}/)?.[1]).toContain("object-fit: contain");
     expect(viewStyles).toMatch(/@media \(min-width: 64rem\)\s*\{\s*\.wishlist-details-layout/);
   });
+  it("keeps reordering touch interception on the handle only and insertion markers layout-neutral", () => {
+    expect(viewStyles.match(/\.wish-reorder-handle\s*\{([^}]+)\}/)?.[1]).toContain("touch-action: none");
+    const indicator = viewStyles.match(/\.wish-reorder-after::after\s*\{([^}]+)\}/)?.[1] ?? "";
+    expect(indicator).toContain("position: absolute"); expect(indicator).toContain("z-index: 1");
+    expect(indicator).toContain("pointer-events: none"); expect(indicator).toContain("background: var(--color-text)");
+    expect(viewStyles).toContain(".wish-reorder-before::after { inset-block-start: 0; }");
+    expect(viewStyles).toContain(".wish-reorder-after::after { inset-block-end: 0; }");
+    expect(viewStyles.match(/\.wish-reorder-commands button\s*\{([^}]+)\}/)?.[1]).toContain("white-space: normal");
+  });
   it("bounds the native gift modal to the viewport with internal scrolling and token-based presentation", () => {
     const modal = viewStyles.match(/\.wish-delete-dialog\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(modal).toContain("width: min(var(--content-narrow), calc(100% - var(--space-6)))");
