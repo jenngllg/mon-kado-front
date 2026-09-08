@@ -1386,6 +1386,43 @@ leur expiration demande une actualisation explicite, sans boucle de chargement.
 Un WISH_IMAGE_NOT_FOUND ne signifie pas que le cadeau est supprimé. Le nettoyage
 physique des anciennes images relève du backend et n’est pas promis immédiat.
 
+## Importer un cadeau depuis un lien (#893)
+
+La page d’ajout propose les modes « Ajout manuel » et « Depuis un lien ».
+« Ajouter depuis un lien » depuis la liste sélectionne le second avec `?mode=url` ;
+l’URL marchande n’est jamais transmise dans l’URL frontend. Changer de mode
+conserve les cinq saisies et annule l’analyse en cours, sans changer de route.
+
+`createWishImportService(session).preview(wishlistId, url, { signal })` utilise
+le POST `/api/v1/wishlists/{wishlistId}/wish-import-previews`, avec JWT, JSON `{ url }`,
+sans CSRF supplémentaire ni ETag. Son timeout est de 30 secondes, contre un budget
+backend maximal de 20 secondes. Aucun retry automatique n’est ajouté.
+Le backend contrôle les destinations, récupère la page et normalise l’image ;
+aucun scraping ni téléchargement marchand n’est effectué dans le navigateur.
+
+Les suggestions ne sont pas garanties : nom, prix en euros et image peuvent être
+absents. Aucune devise n’est convertie. Un formulaire vierge est prérempli ; une
+saisie existante est remplacée uniquement après « Appliquer les suggestions »,
+qui conserve la note et la quantité. On peut garder sa saisie et poursuivre
+manuellement. L’image proposée peut être conservée ou retirée avant enregistrement.
+Les images Base64 sont bornées, validées et décodées en WebP, puis affichées via
+une URL objet révocable ; aucun aperçu ni brouillon n’est persisté.
+
+« Ajouter ce cadeau » crée d’abord le cadeau avec le contrat de #885, puis envoie
+l’image retenue avec son ETag individuel via #892. Ces deux opérations ne sont
+pas atomiques. Après création confirmée, aucun échec ne permet de recréer le cadeau.
+Si l’image échoue, la page conserve le succès partiel : une relecture de la liste
+et du cadeau, suivie d’une confirmation explicite avec l’ETag relu, reprend
+uniquement l’image. Un résultat réseau incertain ne prouve pas son absence.
+Il reste possible de rejoindre la liste sans réessayer ; quitter la page abandonne
+l’image temporaire, mais conserve le cadeau déjà créé. Une image confirmée n’est
+jamais renvoyée pour corriger un échec de navigation ou de lecture ultérieur.
+
+Aucune synchronisation ultérieure du prix ou du contenu marchand n’est réalisée.
+Les opérations sont annulables, les réponses obsolètes ignorées, et les données
+effacées au départ de la vue ou lors d’un changement de session. L’annulation
+locale ne garantit pas l’annulation d’une mutation déjà reçue par le serveur.
+
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants

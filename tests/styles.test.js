@@ -217,6 +217,10 @@ describe("graphic foundations", () => {
     expect(viewStyles.match(/\.wishlist-delete-view__warning\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(4vw, var(--space-4))");
     expect(viewStyles.match(/\.wishlist-delete-view__details dd\s*\{([^}]+)\}/)?.[1]).toContain("overflow-wrap: anywhere");
   });
+  it("keeps the import image choice a full tactile target using shared tokens", () => {
+    expect(viewStyles.match(/\.wish-import__keep\s*\{([^}]+)\}/)?.[1]).toContain("min-block-size: var(--control-min-size)");
+    expect(viewStyles.match(/\.wish-import\s*\{([^}]+)\}/)?.[1]).toContain("var(--color-border)");
+  });
 });
 
 /**

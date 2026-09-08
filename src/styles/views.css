@@ -540,6 +540,9 @@
 }
 .wish-reorder-comparison ol { padding-inline-start: var(--space-6); }
 .wish-reorder-status { overflow-wrap: anywhere; }
+.wish-import { border-block-end: 1px solid var(--color-border); padding-block-end: var(--space-5); }
+.wish-import__keep { min-block-size: var(--control-min-size); cursor: pointer; }
+.wish-import__keep input { inline-size: var(--space-5); block-size: var(--space-5); flex-shrink: 0; }
 
 @media (min-width: 64rem) {
   .wishlist-details-layout {

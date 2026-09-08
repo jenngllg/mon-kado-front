@@ -34,7 +34,7 @@ function setup() {
   window.history.replaceState(null, "", path); const root = document.createElement("div"); document.body.append(root);
   const app = createSessionApplication(root, { apiBaseUrl: "http://localhost:7000", session }); cleanups.push(app.dispose);
   function fillAndSend() {
-    const form = /** @type {HTMLFormElement} */ (root.querySelector("form"));
+    const form = /** @type {HTMLFormElement} */ (root.querySelector('form[aria-label="Ajouter un cadeau"]'));
     /** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value = ` ${wish.name} `;
     /** @type {HTMLInputElement} */ (form.elements.namedItem("price")).value = "0,29";
     /** @type {HTMLInputElement} */ (form.elements.namedItem("quantity")).value = "2";
@@ -49,7 +49,7 @@ function until(root, predicate) {
     observer.observe(root, { childList: true, subtree: true, attributes: true, characterData: true }); cleanups.push(() => observer.disconnect()); });
 }
 /** @param {ReturnType<typeof setup>} app App. */
-function ready(app) { return until(app.shell.outlet, () => app.shell.outlet.querySelector("form")?.hidden === false); }
+function ready(app) { return until(app.shell.outlet, () => /** @type {HTMLFormElement | null} */ (app.shell.outlet.querySelector('form[aria-label="Ajouter un cadeau"]'))?.hidden === false); }
 
 describe("manual gift creation integration", () => {
   it.each([[path, path], [path + "?secret=x#private", path], [path + "/", path], ["https://evil.test" + path, "/lists"], ["/lists/bad/wishes/new", "/lists"], ["/lists/00000000-0000-0000-0000-000000000000/wishes/new", "/lists"], [path + "/extra", "/lists"]])("validates returnTo %s", (target, expected) => expect(getSafeReturnTo(target)).toBe(expected));
@@ -69,9 +69,11 @@ describe("manual gift creation integration", () => {
     const app = setup(); await app.start(); await app.router.navigate(detail);
     await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Cette liste ne contient pas encore de cadeau"));
     expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.textContent).toBe("Ajouter un cadeau");
+    expect(app.shell.outlet.querySelector(`a[href="${path}?mode=url"]`)?.textContent).toBe("Ajouter depuis un lien");
     app.state.saved = true; await app.router.replace(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null); expect(app.shell.outlet.querySelector(`a[href="${path}"]`)).not.toBeNull();
     app.state.suspended = true; await app.router.replace(detail); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Consultation uniquement")); expect(app.shell.outlet.querySelector(`a[href="${path}"]`)).toBeNull();
-    await app.router.navigate(path); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Consultation uniquement")); expect(app.state.writes).toBe(0); expect(app.shell.outlet.querySelector("form")?.hidden).toBe(true);
+    expect(app.shell.outlet.querySelector(`a[href="${path}?mode=url"]`)).toBeNull();
+    await app.router.navigate(path); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Consultation uniquement")); expect(app.state.writes).toBe(0); expect(/** @type {HTMLFormElement | null} */ (app.shell.outlet.querySelector('form[aria-label="Ajouter un cadeau"]'))?.hidden).toBe(true);
   });
   it.each([401, 403, 404, 409, 413, 429, 503])("keeps HTTP %s safe without retry or duplicate shell error", async status => {
     const app = setup(); app.state.status = status; await app.start(); await ready(app); app.fillAndSend();

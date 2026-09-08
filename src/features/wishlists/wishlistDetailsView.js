@@ -90,6 +90,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
     else if (!reordering) {
       const add = createActionLink({ label: "Ajouter un cadeau", href: RoutePaths.NewWish.replace(":listId", wishlistId) });
       add.classList.add("home-hero__primary-action"); listContent.append(add);
+      listContent.append(createActionLink({ label: "Ajouter depuis un lien", href: RoutePaths.NewWish.replace(":listId", wishlistId) + "?mode=url" }));
       listContent.append(createActionLink({ label: "Modifier les informations", href: RoutePaths.EditList.replace(":listId", wishlistId) }));
       const danger = element("div", ""); danger.className = "wishlist-details-danger";
       danger.append(createActionLink({ label: "Supprimer cette liste", href: RoutePaths.DeleteList.replace(":listId", wishlistId), variant: "danger" })); listContent.append(danger);

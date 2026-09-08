@@ -5,14 +5,18 @@ import { createActionLink, createAlert, createButton, createLoadingState, dispos
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { createWishForm } from "./wishForm.js";
+import { createWishImportPanel } from "./wishImportPanel.js";
+import { createWishImportCompletion } from "./wishImportCompletion.js";
 import { createWishPayload, WishPayloadTooLarge, WishServerMessages } from "./wishValidation.js";
 
 /** Owns a single-use manual creation form and a fresh check of its parent list.
  * @param {{wishlistId: string, loadOne: import("../wishlists/wishlistsService.js").LoadWishlist,
- * create: import("./wishesService.js").CreateWish, onCreated: (created: import("./wishesService.js").CreatedWish) => void | Promise<void>, signal?: AbortSignal}} options View operations.
+ * create: import("./wishesService.js").CreateWish, onCreated: (created: import("./wishesService.js").CreatedWish) => void | Promise<void>, signal?: AbortSignal,
+ * preview?: import("./wishImportService.js").PreviewWish, uploadImage?: import("./wishesService.js").UploadWishImage,
+ * loadWish?: import("./wishesService.js").LoadWish, initialMode?: string}} options View operations.
  * @returns {HTMLElement} Protected route view.
  */
-export function createWishCreateView({ wishlistId, loadOne, create, onCreated, signal }) {
+export function createWishCreateView({ wishlistId, loadOne, create, onCreated, signal, preview, uploadImage, loadWish, initialMode }) {
   const view = element("section", ""); view.className = "wish-create-view flow";
   const title = element("h1", "Ajouter un cadeau"); title.tabIndex = -1;
   const listName = element("p", "");
@@ -20,15 +24,19 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   const status = element("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   let disposed = false; let busy = false; let blocked = true; let terminal = false; let completed = false; let validationSummary = false;
-  const { form, fields, validate, getValues, clear, discardDeferredBlur } = createWishForm({ inactive: () => disposed || busy || blocked || terminal || completed,
+  const { form, fields, validate, getValues, clear, reset, discardDeferredBlur } = createWishForm({ inactive: () => disposed || busy || blocked || terminal || completed,
     onChange: () => { if (validationSummary && fields.every(field => field.error === null)) clearFeedback(); } });
   const submit = createButton({ label: "Ajouter ce cadeau", type: "submit" }); form.append(submit);
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
   const destination = isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists;
   const cancel = createActionLink({ label: "Annuler", href: destination });
+  const importer = preview && uploadImage && loadWish ? createWishImportPanel({ wishlistId, preview, initialMode, getValues,
+    apply: values => { discardDeferredBlur(); reset(values); clearFeedback(); }, onBusy: syncControls,
+    onUnavailable: error => { presentFailure(error, false); syncControls(); } }) : null;
   view.append(title, element("p", "Ajoute une idée cadeau à ta liste."), listName, feedback, status, form, retry, cancel);
+  if (importer) view.insertBefore(importer.element, form);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void addWish(); });
-  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); discardDeferredBlur(); clear(); clearFeedback(); listName.textContent = ""; status.textContent = ""; form.hidden = true; submit.disabled = true; });
+  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); if (importer) disposeComponent(importer.element); discardDeferredBlur(); clear(); clearFeedback(); listName.textContent = ""; status.textContent = ""; form.hidden = true; submit.disabled = true; });
   if (signal) {
     addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });
     if (signal.aborted) disposeComponent(view);
@@ -41,8 +49,9 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   function show(options) { clearFeedback(); feedback.hidden = false; const alert = createAlert({ variant: "error", ...options }); alert.tabIndex = -1; feedback.append(alert); return alert; }
   function syncControls() {
     form.hidden = disposed || blocked || terminal || completed;
-    for (const field of fields) field.control.disabled = disposed || busy || blocked || terminal || completed;
-    submit.disabled = disposed || busy || blocked || terminal || completed;
+    for (const field of fields) field.control.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
+    submit.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
+    importer?.update(disposed || busy || blocked || terminal || completed);
     retry.hidden = disposed || !blocked || busy || terminal || completed; retry.disabled = busy;
     form.setAttribute("aria-busy", String(busy));
   }
@@ -63,27 +72,34 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
     } finally { if (!disposed) { busy = false; syncControls(); } }
   }
   async function addWish() {
-    if (disposed || busy || blocked || terminal || completed) return;
+    if (disposed || busy || blocked || terminal || completed || importer?.isBusy()) return;
     discardDeferredBlur(); clearFeedback(); for (const field of fields) validate(field);
     const invalid = fields.find(field => field.error !== null);
     if (invalid) { show({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." }); validationSummary = true; invalid.control.focus(); return; }
     // Validate the aggregate byte limit even when the operation is injected.
     try { createWishPayload(getValues()); } catch (error) { presentFailure(error, false); focusFeedback(); return; }
+    const selectedImage = importer?.getImage();
     busy = true; syncControls(); setButtonLoading(submit, true); status.textContent = "Ajout de ton cadeau…";
     /** @type {import("./wishesService.js").CreatedWish} */ let created;
     try { created = await create(wishlistId, getValues(), { signal: lifetime.signal }); }
     catch (error) { if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) presentFailure(error, true); return; }
     finally { if (!disposed) { busy = false; setButtonLoading(submit, false); status.textContent = ""; syncControls(); } }
     if (disposed || lifetime.signal.aborted) return;
-    completed = true; clear(); syncControls();
+    completed = true; clear(); importer?.clear(); syncControls();
     show({ title: "Cadeau ajouté", message: "Ton cadeau a bien été ajouté à la liste.", variant: "success" });
     cancel.textContent = "Retour à la liste";
+    if (selectedImage && uploadImage && loadWish) {
+      clearFeedback();
+      const completion = createWishImportCompletion({ wishlistId, created, image: selectedImage, uploadImage, loadWish, loadWishlist: loadOne, signal: lifetime.signal,
+        onComplete: async result => { if (!disposed && !lifetime.signal.aborted) await onCreated(result); } });
+      view.insertBefore(completion, cancel); return;
+    }
     try { await onCreated(created); }
     catch { if (!disposed) show({ title: "Cadeau ajouté", message: "Ton cadeau est ajouté, mais l’ouverture de la liste a échoué. Utilise le lien ci-dessous.", variant: "success" }).focus(); }
   }
   function focusFeedback() { /** @type {HTMLElement | null} */ (feedback.firstElementChild)?.focus(); }
   function notFound() {
-    terminal = true; blocked = true; clear(); listName.textContent = ""; disposeComponent(form); form.remove();
+    terminal = true; blocked = true; clear(); importer?.clear(); listName.textContent = ""; disposeComponent(form); form.remove();
     show({ title: "Liste introuvable", message: "Cette liste n’est pas disponible. Tu peux revenir à Mes listes." });
     cancel.href = RoutePaths.Lists; cancel.textContent = "Retour à Mes listes"; syncControls();
   }

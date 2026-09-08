@@ -26,6 +26,7 @@ import { createGoogleReturnView } from "../features/google/googleReturnView.js";
 import { createGoogleLinkView } from "../features/google/googleLinkView.js";
 import { getLoginDestination } from "../auth/sessionGuards.js";
 import { createWishlistsService } from "../features/wishlists/wishlistsService.js";
+import { createWishImportService } from "../features/wishes/wishImportService.js";
 import { createWishlistsView } from "../features/wishlists/wishlistsView.js";
 import { createWishlistView } from "../features/wishlists/createWishlistView.js";
 import { createWishlistEditView } from "../features/wishlists/wishlistEditView.js";
@@ -165,9 +166,13 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     },
     {
       name: RouteNames.NewWish, path: RoutePaths.NewWish, title: "Ajouter un cadeau · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishCreateView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
-          create: createWishesService(session, { apiBaseUrl }).create, signal: context.signal, onCreated: created => onWishCreated(created, context) }),
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const wishes = createWishesService(session, { apiBaseUrl });
+        return createWishCreateView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
+          create: wishes.create, uploadImage: wishes.uploadImage, loadWish: wishes.loadOne, preview: createWishImportService(session).preview,
+          initialMode: context.searchParams.getAll("mode").length === 1 ? context.searchParams.get("mode") ?? "" : "",
+          signal: context.signal, onCreated: created => onWishCreated(created, context) });
+      },
     },
     {
       name: RouteNames.EditWish, path: RoutePaths.EditWish, title: "Modifier un cadeau · MonKado",
