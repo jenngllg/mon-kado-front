@@ -7,6 +7,7 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-
 const image = `https://api.example/api/v1/shared-wishlists/${id}/wishes/${wishId}/image?token=IMAGE_GRANT`;
 const wish = { id: wishId, name: "Un cadeau", price: 12.34, quantity: 2, url: "https://shop.example/item", imageUrl: image, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 };
 const data = { id: listId, name: "Anniversaire", ownerDisplayName: "Camille", occasion: "birthday", eventDate: "2024-02-29", message: "Bienvenue", wishes: [wish], currentParticipant: { displayName: "PRIVATE_PARTICIPANT" } };
+const detail = { ...wish, note: "  Note complète\n<script>texte</script>\nfin  ", currentParticipant: { displayName: "PRIVATE_PARTICIPANT" } };
 /** @param {unknown} [body] API data. @param {number} [status] Status. */
 function setup(body = data, status = 200) {
   const context = createSharedWishlistContext(); context.enter(id, "#" + secret);
@@ -81,5 +82,52 @@ describe("shared wishlist service", () => {
   it("propagates view cancellation without erasing the tab context", async () => {
     const service = setup(); const gate = barrier(); service.request.mockImplementation(async () => { await gate.promise; return { data, status: 200, metadata: { correlationId: null, etag: null, location: null, retryAfterSeconds: null } }; });
     const pending = service.load(id, service.options); const assertion = expect(pending).rejects.toMatchObject({ name: "AbortError" }); service.controller.abort(); gate.resolve(); await assertion; expect(service.context.enter(id, "")).toBe("ready");
+  });
+});
+
+describe("shared gift detail service", () => {
+  it("reads only the public detail with a combined signal, no ETag and an immutable safe projection", async () => {
+    const service = setup(detail); const result = await service.loadOne(id, wishId, service.options);
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/wishes/${wishId}`, { method: "GET", authentication: "none", shareToken: secret, signal: expect.any(AbortSignal) });
+    expect(result).toEqual({ id: wishId, name: wish.name, note: detail.note, price: 12.34, quantity: 2, url: wish.url, imageUrl: image, imageUnavailable: false, productUnavailable: false });
+    expect(Object.isFrozen(result)).toBe(true); expect(JSON.stringify(result)).not.toMatch(/reserved|availableQuantity|Participant|position|etag|PRIVATE|AAAA/i);
+  });
+  it.each([null, ""])("preserves absent or empty note %s", async note => {
+    const service = setup({ ...detail, note }); expect((await service.loadOne(id, wishId, service.options)).note).toBe(note);
+  });
+  it.each([null, [], {}, { ...detail, id: listId }, { ...detail, note: undefined }, { ...detail, note: 1 }, { ...detail, note: "\ud800" }, { ...detail, price: "1" }, { ...detail, quantity: 0 }, { ...detail, name: " " }])("rejects incoherent detail without retaining its body", async body => {
+    const service = setup(body); const error = await service.loadOne(id, wishId, service.options).catch(value => value);
+    expect(error).toMatchObject({ kind: "invalidResponse", correlationId: "support" }); expect(JSON.stringify(error)).not.toMatch(/PRIVATE|IMAGE_GRANT|script/);
+  });
+  it.each([201, 202, 204])("requires 200, not %s", async status => {
+    const service = setup(detail, status); await expect(service.loadOne(id, wishId, service.options)).rejects.toMatchObject({ kind: "invalidResponse" }); expect(service.request).toHaveBeenCalledOnce();
+  });
+  it.each(["bad", "00000000-0000-0000-0000-000000000000"])("rejects bad gift ID %s without destroying valid list access", async candidate => {
+    const service = setup(detail); await expect(service.loadOne(id, candidate, service.options)).rejects.toMatchObject({ statusCode: 404, errorCode: "SHARED_WISH_NOT_FOUND" }); expect(service.request).not.toHaveBeenCalled(); expect(service.context.enter(id, "")).toBe("ready");
+  });
+  it("rejects invalid share IDs and clears their previous context without HTTP", async () => {
+    const service = setup(detail); await expect(service.loadOne("bad", wishId, service.options)).rejects.toMatchObject({ statusCode: 404, errorCode: "SHARED_WISHLIST_NOT_FOUND" }); expect(service.context.enter(id, "")).toBe("missing"); expect(service.request).not.toHaveBeenCalled();
+  });
+  it.each([null, "SHARED_WISHLIST_NOT_FOUND", "UNKNOWN", "SHARED_WISH_NOT_FOUND"])("distinguishes 404 %s without retry", async errorCode => {
+    const service = setup(detail); service.request.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404, errorCode }));
+    await expect(service.loadOne(id, wishId, service.options)).rejects.toMatchObject({ statusCode: 404, errorCode }); expect(service.request).toHaveBeenCalledOnce(); expect(service.context.enter(id, "")).toBe(errorCode === "SHARED_WISH_NOT_FOUND" ? "ready" : "missing");
+  });
+  it.each([401, 403, 429, 500, 503])("keeps access after technical HTTP %s", async statusCode => {
+    const service = setup(detail); service.request.mockRejectedValue(new ApiError({ kind: "http", statusCode })); await expect(service.loadOne(id, wishId, service.options)).rejects.toMatchObject({ statusCode }); expect(service.request).toHaveBeenCalledOnce(); expect(service.context.enter(id, "")).toBe("ready");
+  });
+  it.each(["network", "timeout"])("keeps access after %s", async kind => {
+    const service = setup(detail); service.request.mockRejectedValue(new ApiError({ kind: /** @type {import("../src/api/apiError.js").ApiErrorKind} */ (kind) })); await expect(service.loadOne(id, wishId, service.options)).rejects.toMatchObject({ kind }); expect(service.request).toHaveBeenCalledOnce(); expect(service.context.enter(id, "")).toBe("ready");
+  });
+  it.each([image.replace(id, listId), image.replace(wishId, listId), "https://evil.test/image?token=x", image + "&token=y", image + "&extra=y", image + "#fragment"])("neutralizes unsafe detail image %s and product credentials", async imageUrl => {
+    const service = setup({ ...detail, imageUrl, url: "https://user:pass@shop.test/item" }); expect(await service.loadOne(id, wishId, service.options)).toMatchObject({ imageUrl: null, imageUnavailable: true, url: null, productUnavailable: true, note: detail.note });
+  });
+  it.each([false, true])("rejects stale detail completion without invalidating newer access, rejection=%s", async reject => {
+    const service = setup(detail), gate = barrier(); service.request.mockImplementation(async () => { await gate.promise; if (reject) throw new ApiError({ kind: "http", statusCode: 404 }); return { data: detail, status: 200, metadata: { correlationId: null, etag: null, location: null, retryAfterSeconds: null } }; });
+    const pending = service.loadOne(id, wishId, service.options); const assertion = expect(pending).rejects.toMatchObject({ name: "AbortError" }); service.context.enter(listId, "#" + secret); gate.resolve(); await assertion; expect(service.context.enter(listId, "")).toBe("ready");
+  });
+  it("transmits cancellation and does not read without a matching context", async () => {
+    const service = setup(detail); service.context.clear(); await expect(service.loadOne(id, wishId, service.options)).rejects.toMatchObject({ name: "AbortError" }); expect(service.request).not.toHaveBeenCalled();
+    service.context.enter(id, "#" + secret); const gate = barrier(); service.request.mockImplementation(async () => { await gate.promise; return { data: detail, status: 200, metadata: { correlationId: null, etag: null, location: null, retryAfterSeconds: null } }; });
+    const pending = service.loadOne(id, wishId, service.options); const assertion = expect(pending).rejects.toMatchObject({ name: "AbortError" }); service.controller.abort(); gate.resolve(); await assertion; expect(service.context.enter(id, "")).toBe("ready");
   });
 });

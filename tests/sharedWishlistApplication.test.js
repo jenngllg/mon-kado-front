@@ -5,18 +5,21 @@ import { createSessionManager } from "../src/auth/sessionManager.js";
 import { barrier, createCoordinatorHub, createSessionTransport, untilSession } from "./sessionTestHelpers.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", secret = "A".repeat(43), path = `/shared-wishlists/${id}`;
 const data = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", name: "Liste publique", ownerDisplayName: "Camille", occasion: "other", eventDate: null, message: null, wishes: [], currentParticipant: null };
+const wish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e06", name: "Cadeau public", note: "Note\ncomplète", price: null, quantity: 1, url: null, imageUrl: null, reservedQuantity: 1, currentParticipantReservedQuantity: 1 };
+const detailPath = `${path}/wishes/${wish.id}`;
 /** @type {ReturnType<typeof createSessionApplication>[]} */ const apps = [];
 afterEach(() => { apps.splice(0).forEach(app => app.dispose()); document.body.replaceChildren(); window.history.replaceState({}, "", "/"); });
 /** @param {string} [target] Initial URL. */
 function setup(target = path + "#" + secret) {
   window.history.replaceState({}, "", target); const transport = createSessionTransport(), hub = createCoordinatorHub(), fallback = transport.fetch.getMockImplementation();
-  const state = { status: 200, reads: 0, beforeRead: async () => {} };
+  const state = { status: 200, reads: 0, detailReads: 0, errorCode: "SHARED_WISHLIST_NOT_FOUND", beforeRead: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
     expect(window.location.hash).toBe("");
     if (new URL(String(input)).pathname.startsWith("/api/v1/shared-wishlists/")) {
       state.reads++; await state.beforeRead(); const headers = new Headers(init?.headers);
       expect(headers.get("X-MonKado-Share-Token")).toBe(secret); expect(headers.get("Authorization")).toBeNull(); expect(headers.get("X-CSRF-TOKEN")).toBeNull(); expect(headers.get("If-Match")).toBeNull(); expect(init?.method).toBe("GET"); expect(init?.body).toBeUndefined(); expect(init?.credentials).toBe("include"); expect(String(input)).not.toContain(secret);
-      return state.status === 200 ? Response.json(data) : Response.json({ statusCode: state.status, title: "PRIVATE", message: "PRIVATE", errorCode: "SHARED_WISHLIST_NOT_FOUND", validationErrors: null }, { status: state.status });
+      const isDetail = new URL(String(input)).pathname.endsWith(`/wishes/${wish.id}`); if (isDetail) state.detailReads++;
+      return state.status === 200 ? Response.json(isDetail ? wish : { ...data, wishes: [wish] }) : Response.json({ statusCode: state.status, title: "PRIVATE", message: "PRIVATE", errorCode: state.errorCode, validationErrors: null }, { status: state.status });
     }
     return fallback?.(input, init) ?? new Response(null, { status: 500 });
   });
@@ -62,5 +65,45 @@ describe("public shared wishlist integration", () => {
     await app.session.logout(); expect(app.router.getCurrentRoute()?.url.pathname).toBe(path); expect(app.shell.outlet.textContent).toContain(data.name);
     state.status = 404; app.shell.outlet.querySelector("button")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Lien de partage indisponible") === true); expect(app.shell.outlet.textContent).not.toContain(data.name);
     await app.router.navigate("/"); await app.router.navigate(path); expect(app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(state.reads).toBe(2);
+  });
+});
+
+describe("public shared gift integration", () => {
+  it("opens accessible detail links, reloads each direction and never publishes credentials", async () => {
+    const { app, state, hub } = setup(); await app.start(); await observe(() => app.shell.outlet.querySelector(`a[href="${detailPath}"]`) !== null);
+    const link = /** @type {HTMLAnchorElement} */ (app.shell.outlet.querySelector(`a[href="${detailPath}"]`)); expect(link.getAttribute("aria-label")).toBe(`Voir le cadeau « ${wish.name} »`); link.click();
+    await observe(() => app.shell.outlet.querySelector("h1")?.textContent === wish.name); expect(state.reads).toBe(2); expect(state.detailReads).toBe(1); expect(app.router.getCurrentRoute()?.url.pathname).toBe(detailPath);
+    expect(app.shell.element.innerHTML).not.toMatch(/reservedQuantity|currentParticipant|AAAA/); expect(JSON.stringify(hub.messages)).not.toContain(secret); expect(JSON.stringify(app.router.getCurrentRoute())).not.toContain(secret);
+    app.shell.outlet.querySelector(`a[href="${path}"]`)?.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 })); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); expect(state.reads).toBe(3);
+  });
+  it.each([detailPath, detailPath + "#" + secret, detailPath + "#malformed"])("requires original list context on direct entry %s before session restoration", async target => {
+    const { app, state } = setup(target); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); expect(window.location.hash).toBe(""); expect(app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(state.reads).toBe(0); expect(app.router.getCurrentRoute()?.url.hash).toBe("");
+  });
+  it("discards a detail fragment without replacing existing context, but reload loses access", async () => {
+    const { app, state } = setup(); await app.start(); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name);
+    await app.router.navigate(detailPath + "#malformed"); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === wish.name); expect(state.detailReads).toBe(1); expect(window.location.hash).toBe("");
+    app.dispose(); const fresh = setup(detailPath); await fresh.app.start(); expect(fresh.app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(fresh.state.reads).toBe(0);
+  });
+  it("rejects an invalid gift without HTTP and preserves list access, unlike an invalid share", async () => {
+    const { app, state } = setup(); await app.start(); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name);
+    await app.router.navigate(`${path}/wishes/bad`); await observe(() => app.shell.outlet.textContent?.includes("Cadeau introuvable") === true); expect(state.reads).toBe(1);
+    await app.router.navigate(path); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); expect(state.reads).toBe(2);
+    await app.router.navigate(`/shared-wishlists/bad/wishes/${wish.id}#discard`); expect(app.shell.outlet.textContent).toContain("Lien de partage indisponible"); await app.router.navigate(path); expect(app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(state.reads).toBe(2);
+  });
+  it.each(["SHARED_WISH_NOT_FOUND", "SHARED_WISHLIST_NOT_FOUND", "UNKNOWN"])("preserves only appropriate access after %s", async errorCode => {
+    const { app, state } = setup(); await app.start(); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); state.status = 404; state.errorCode = errorCode;
+    await app.router.navigate(detailPath); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null); expect(app.shell.outlet.querySelector("h1")?.textContent).toBe(errorCode === "SHARED_WISH_NOT_FOUND" ? "Cadeau introuvable" : "Lien de partage indisponible");
+    state.status = 200; await app.router.navigate(path);
+    if (errorCode === "SHARED_WISH_NOT_FOUND") { await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); expect(state.reads).toBe(3); }
+    else { expect(app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(state.reads).toBe(2); }
+  });
+  it.each([401, 403, 503])("does not change the member session or duplicate detail error %s", async status => {
+    const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); state.status = status;
+    await app.router.navigate(detailPath); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null); expect(app.session.getSnapshot().status).toBe("authenticated"); expect(app.shell.element.querySelectorAll('[role="alert"]')).toHaveLength(1);
+  });
+  it("remains public through logout during a read and ignores completion after departure", async () => {
+    const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name);
+    const gate = barrier(); state.beforeRead = () => gate.promise; await app.router.navigate(detailPath); await app.session.logout(); expect(app.router.getCurrentRoute()?.url.pathname).toBe(detailPath); gate.resolve(); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === wish.name);
+    const late = barrier(); state.beforeRead = () => late.promise; app.shell.outlet.querySelector("button")?.click(); await app.router.navigate("/"); late.resolve(); await Promise.resolve(); expect(app.shell.outlet.querySelector("h1")?.textContent).not.toBe(wish.name);
   });
 });

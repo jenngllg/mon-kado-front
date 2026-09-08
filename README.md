@@ -1516,6 +1516,29 @@ accessibles. La consultation reste publique après une déconnexion. Une révoca
 distante n’est connue qu’à la prochaine requête : aucun retrait instantané distant
 n’est promis. Les captures et contrôles navigateur emploient des données de test.
 
+## Détail d’un cadeau partagé (#899)
+
+« Voir le cadeau » ouvre `/shared-wishlists/{shareLinkId}/wishes/{wishId}` dans
+une page publique dédiée. La lecture utilise exclusivement le contrat public,
+le contexte en mémoire et l’en-tête de partage, jamais un endpoint propriétaire
+ni un JWT. Elle n’exige pas d’ETag et ne crée aucune participation. La note
+complète conserve ses retours à la ligne ; aucune donnée de réservation ou de
+participant n’est retenue. Aucun nom de liste n’est déduit du détail.
+
+Les liens de navigation ne contiennent que les identifiants. Tout fragment reçu
+sur le détail est immédiatement consommé, avant la restauration de session,
+mais ne peut jamais établir ou remplacer l’accès. Il faut d’abord ouvrir le lien
+original de la liste. Le contexte est conservé lors des allers-retours internes ;
+un rechargement ou nouvel onglet impose de rouvrir ce lien original.
+
+Un cadeau introuvable (`SHARED_WISH_NOT_FOUND`) conserve le contexte et le retour
+à la liste. Un partage inaccessible ou autre `404` efface le contexte et affiche
+« Lien de partage indisponible », sans révéler sa cause. Les erreurs techniques
+restent réessayables et ne modifient pas la session. « Actualiser le cadeau »
+retire l’ancienne version et effectue une lecture fraîche, comme le retour à la
+liste. Une image expirée conserve les autres informations et perd sa source ;
+seule une actualisation explicite peut obtenir une nouvelle URL signée.
+
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants

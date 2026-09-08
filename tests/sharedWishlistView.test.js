@@ -23,6 +23,7 @@ describe("shared wishlist presentation", () => {
     expect(ui.view.querySelector("h1")?.textContent).toBe(list.name); expect(ui.view.textContent).toContain("Une liste de Camille"); expect(ui.view.textContent).toContain("29 février 2024"); expect(ui.view.querySelector("time")?.dateTime).toBe("2024-02-29");
     expect(ui.view.querySelector("ul")?.getAttribute("role")).toBe("list"); expect(ui.view.querySelector("h3")?.textContent).toBe("Un cadeau"); expect(ui.view.textContent).toContain("Quantité souhaitée : 2");
     const link = ui.view.querySelector('a[target="_blank"]'); expect(link?.getAttribute("rel")).toBe("noopener noreferrer"); expect(link?.getAttribute("aria-label")).toContain("Un cadeau");
+    const detail = ui.view.querySelector(`a[href="/shared-wishlists/${id}/wishes/${id}"]`); expect(detail?.textContent).toBe("Voir le cadeau"); expect(detail?.getAttribute("aria-label")).toBe("Voir le cadeau « Un cadeau »"); expect(detail?.querySelector("a")).toBeNull();
     expect(ui.view.querySelector("img")?.referrerPolicy).toBe("no-referrer"); expect(ui.view.textContent).not.toMatch(/Modifier|Supprimer|Réserver|Participer|Réorganiser/); expect(ui.view.querySelectorAll("button")).toHaveLength(1);
   });
   it.each(["birthday", "christmas", "wedding", "birth", "other"])("renders occasion %s and absent date", async occasion => {

@@ -192,7 +192,7 @@ describe("graphic foundations", () => {
   it("keeps owner details fluid and gift images stable without changing the public tokens", () => {
     expect(viewStyles.match(/\.wish-grid\s*\{([^}]+)\}/)?.[1]).toContain("minmax(min(100%, 17rem), 1fr)");
     expect(viewStyles.match(/\.wishlist-details-note\s*\{([^}]+)\}/)?.[1]).toContain("white-space: pre-wrap");
-    expect(viewStyles.match(/\.wish-card__media\s*\{([^}]+)\}/)?.[1]).toContain("aspect-ratio: 4 / 3");
+    expect(viewStyles.match(/^\.wish-card__media\s*\{([^}]+)\}/m)?.[1]).toContain("aspect-ratio: 4 / 3");
     expect(viewStyles.match(/\.wish-card__media img\s*\{([^}]+)\}/)?.[1]).toContain("object-fit: contain");
     expect(viewStyles).toMatch(/@media \(min-width: 64rem\)\s*\{\s*\.wishlist-details-layout/);
   });
@@ -236,6 +236,11 @@ describe("graphic foundations", () => {
     for (const suffix of ["", " h2", " dt", " dd"]) {
       expect(viewStyles).toContain(`.wish-edit-view__comparison${suffix},\n.wishlist-edit-view__comparison${suffix} {`);
     }
+  });
+  it("keeps multiline notes and responsive shared details without fixed widths", () => {
+    expect(viewStyles).toMatch(/\.wishlist-details-note\s*\{[^}]*white-space:\s*pre-wrap/);
+    expect(viewStyles).toMatch(/\.shared-wish-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+    expect(viewStyles).toMatch(/@media \(min-width: 48rem\)\s*\{\s*\.shared-wish-layout/);
   });
 });
 

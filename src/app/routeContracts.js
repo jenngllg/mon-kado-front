@@ -20,6 +20,7 @@ export const RouteNames = Object.freeze({
   ListDetails: "list-details",
   Reservations: "reservations",
   SharedWishlist: "shared-wishlist",
+  SharedWish: "shared-wish",
 });
 
 export const RoutePaths = Object.freeze({
@@ -44,6 +45,7 @@ export const RoutePaths = Object.freeze({
   ListDetails: "/lists/:listId",
   Reservations: "/reservations",
   SharedWishlist: "/shared-wishlists/:shareLinkId",
+  SharedWish: "/shared-wishlists/:shareLinkId/wishes/:wishId",
 });
 
 export const NavigationItems = Object.freeze([

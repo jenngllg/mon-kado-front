@@ -44,7 +44,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal }) {
       if (list.message) { const message = element("p", list.message); message.className = "wishlist-details-note"; details.append(message); }
       gifts.hidden = false;
       if (!list.wishes.length) results.append(createEmptyState({ title: "Cette liste ne contient pas encore de cadeau", message: "Les idées cadeaux apparaîtront ici." }));
-      else { const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list"); for (const wish of list.wishes) cards.append(createWishCard(wish, false, { editable: false })); results.append(cards); }
+      else { const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list"); for (const wish of list.wishes) cards.append(createWishCard(wish, false, { editable: false, detailHref: `/shared-wishlists/${shareLinkId}/wishes/${wish.id}` })); results.append(cards); }
       refresh.hidden = false; if (explicit) title.focus();
     } catch (error) {
       if (disposed || isAbortError(error)) return;

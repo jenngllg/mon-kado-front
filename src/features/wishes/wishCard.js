@@ -2,8 +2,8 @@ import { RoutePaths } from "../../app/routeContracts.js";
 import { createWishImage } from "./wishImage.js";
 import { createActionLink } from "../../components/index.js";
 const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-/** @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable"> & {note?: string | null, wishlistId?: string}} item Safe minimal model. @param {boolean} suspended Read-only parent. @param {{editable?: boolean}} [options] Card actions. @returns {HTMLLIElement} Gift card without reservation information. */
-export function createWishCard(item, suspended, { editable = true } = {}) {
+/** @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable"> & {note?: string | null, wishlistId?: string}} item Safe minimal model. @param {boolean} suspended Read-only parent. @param {{editable?: boolean, detailHref?: string}} [options] Card actions. @returns {HTMLLIElement} Gift card without reservation information. */
+export function createWishCard(item, suspended, { editable = true, detailHref } = {}) {
   const card = element("li", ""); card.className = "wish-card";
   const media = createWishImage(item);
   const content = element("div", ""); content.className = "wish-card__content flow";
@@ -11,6 +11,10 @@ export function createWishCard(item, suspended, { editable = true } = {}) {
   if (item.note) { const note = element("p", item.note); note.className = "wishlist-details-note"; content.append(note); }
   const price = element("p", item.price === null ? "Prix non renseigné" : PriceFormat.format(item.price)); price.className = "wish-card__price";
   content.append(price, element("p", `Quantité souhaitée : ${item.quantity}`));
+  if (detailHref) {
+    const detail = createActionLink({ label: "Voir le cadeau", href: detailHref });
+    detail.setAttribute("aria-label", `Voir le cadeau « ${item.name} »`); content.append(detail);
+  }
   if (item.url) {
     const link = createActionLink({ label: "Voir le produit", href: item.url }); link.target = "_blank"; link.rel = "noopener noreferrer";
     link.setAttribute("aria-label", `Voir le produit « ${item.name} » (nouvel onglet)`); content.append(link);

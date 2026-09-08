@@ -39,6 +39,7 @@ import { createWishEditView } from "../features/wishes/wishEditView.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
 import { createSharedWishlistService } from "../features/sharing/sharedWishlistService.js";
 import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
+import { createSharedWishView } from "../features/sharing/sharedWishView.js";
 
 /** @typedef {(created: import("../features/wishlists/wishlistsService.js").CreatedWishlist, context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistCreatedHandler */
 /** @typedef {(context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistDeletedHandler */
@@ -206,6 +207,17 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         if (state !== "ready") return createSharedWishlistEntryView(state);
         return createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
           load: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).load });
+      },
+    },
+    {
+      name: RouteNames.SharedWish, path: RoutePaths.SharedWish, title: "Cadeau partagé · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        // Only an original list link can establish access; a detail fragment is discarded.
+        context.consumeFragment();
+        const state = sharing.enter(context.params.shareLinkId, "");
+        if (state !== "ready") return createSharedWishlistEntryView(state);
+        return createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
+          loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).loadOne });
       },
     },
   ]);

@@ -169,7 +169,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     shell, router, session,
     start: () => {
       // Public share fragments must be consumed before background cookie restoration.
-      if (/^\/shared-wishlists\/[^/]+\/?$/.test(window.location.pathname)) {
+      if (/^\/shared-wishlists\/[^/]+(?:\/wishes\/[^/]+)?\/?$/.test(window.location.pathname)) {
         const started = router.start();
         void session.start();
         return started;

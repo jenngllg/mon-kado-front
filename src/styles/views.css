@@ -417,6 +417,28 @@
   overflow-wrap: anywhere;
 }
 
+.shared-wish-view { overflow-wrap: anywhere; }
+.shared-wish-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+.shared-wish-layout > * { min-width: 0; }
+.shared-wish-layout .wish-card__media {
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+}
+.shared-wish-information {
+  padding: min(4vw, var(--space-6));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-sage);
+}
+@media (min-width: 48rem) {
+  .shared-wish-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
 .wishlist-details-gifts {
   min-width: 0;
 }
