@@ -21,6 +21,24 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("owner share section", () => {
+  it("owns one renewal dialog, preserves the link on cancel and adopts only confirmed renewal", async () => {
+    const renewed = { ...link, shareUrl: link.shareUrl.replace(/A/g, "E"), etag: '"new"' }; const renew = vi.fn(async () => renewed);
+    const ui = setup({ load: async () => link, renew }); await settle();
+    ui.button("Renouveler le lien").click(); ui.button("Renouveler le lien").click(); expect(ui.view.querySelectorAll("dialog")).toHaveLength(1); expect(renew).not.toHaveBeenCalled();
+    ui.button("Annuler").click(); expect(ui.input.value).toBe(link.shareUrl); expect(document.activeElement).toBe(ui.button("Renouveler le lien"));
+    ui.button("Renouveler le lien").click(); /** @type {HTMLButtonElement} */ (ui.view.querySelector('dialog button[data-variant="danger"]') ?? [...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Renouveler le lien")).click();
+    expect(ui.input.value).toBe(""); await settle(); expect(ui.input.value).toBe(renewed.shareUrl); expect(ui.view.querySelector("dialog")).toBeNull();
+    expect(ui.view.textContent).toContain("Lien de partage renouvelé"); expect(document.activeElement).toBe(ui.view.querySelector("h2")); expect(ui.copyText).not.toHaveBeenCalled();
+  });
+  it("cannot bypass renewal reread by closing the modal or invoking a hidden creation button", async () => {
+    const renew = vi.fn(async () => { throw new ApiError({ kind: "http", statusCode: 412 }); }); const load = vi.fn(async () => link);
+    const ui = setup({ load, renew }); await settle(); ui.button("Renouveler le lien").click();
+    /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Renouveler le lien")).click(); await settle();
+    ui.button("Annuler").click(); expect(ui.button("Renouveler le lien").hidden).toBe(true); expect(ui.input.value).toBe("");
+    ui.button("Créer le lien de partage").click(); expect(ui.create).not.toHaveBeenCalled(); ui.button("Renouveler le lien").click(); expect(ui.view.querySelector("dialog")).toBeNull();
+    load.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.button("Actualiser le lien").click(); await settle(); expect(ui.button("Renouveler le lien").hidden).toBe(true);
+    ui.button("Actualiser le lien").click(); await settle(); expect(ui.input.value).toBe(link.shareUrl); expect(renew).toHaveBeenCalledOnce();
+  });
   it("loads without creating or changing initial focus, then creates only once and exposes a labelled readonly link", async () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Chargement du lien"); expect(ui.create).not.toHaveBeenCalled(); await settle();
     expect(document.activeElement).toBe(document.body); expect(ui.view.textContent).toContain("Aucun lien de partage créé");

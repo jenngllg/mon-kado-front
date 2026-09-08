@@ -6,11 +6,12 @@ import { isWishlistId } from "./wishlistValidation.js";
 /** @typedef {Readonly<Pick<WishlistShareLinkResponse, "id" | "shareUrl"> & {etag: string}>} WishlistShareLink */
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishlistShareLink | null>} LoadWishlistShare */
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishlistShareLink>} CreateWishlistShare */
+/** @typedef {(wishlistId: string, options: {etag: string, signal: AbortSignal}) => Promise<WishlistShareLink>} RenewWishlistShare */
 
 /** Creates owner share operations without persisting their bearer links.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{frontendOrigin: string}} options Trusted frontend origin.
- * @returns {{load: LoadWishlistShare, create: CreateWishlistShare}} Share operations.
+ * @returns {{load: LoadWishlistShare, create: CreateWishlistShare, renew: RenewWishlistShare}} Share operations.
  */
 export function createWishlistShareService(session, { frontendOrigin }) {
   let origin;
@@ -26,14 +27,18 @@ export function createWishlistShareService(session, { frontendOrigin }) {
       }
     },
     create: (id, options) => request(id, "POST", 201, options.signal),
+    renew: (id, options) => {
+      if (!isStrongEntityTag(options.etag)) return Promise.reject(new ApiError({ kind: "http", statusCode: 428 }));
+      return request(id, "PUT", 200, options.signal, options.etag);
+    },
   };
 
   /** @param {string} id List ID. @param {string} method HTTP method. @param {number} status Expected status.
-   * @param {AbortSignal} signal Cancellation. @returns {Promise<WishlistShareLink>} Validated private link.
+   * @param {AbortSignal} signal Cancellation. @param {string} [etag] Link version. @returns {Promise<WishlistShareLink>} Validated private link.
    */
-  async function request(id, method, status, signal) {
+  async function request(id, method, status, signal, etag) {
     if (!isWishlistId(id)) throw new ApiError({ kind: "invalidResponse" });
-    const response = await session.request(`/api/v1/wishlists/${id}/share-link`, { method, authentication: "required", signal });
+    const response = await session.request(`/api/v1/wishlists/${id}/share-link`, { method, authentication: "required", signal, ...(etag ? { ifMatch: etag } : {}) });
     const data = response.data;
     if (response.status !== status || !data || typeof data !== "object" || !("id" in data) || !isWishlistId(data.id) ||
       !("shareUrl" in data) || typeof data.shareUrl !== "string" || !isStrongEntityTag(response.metadata.etag)) throw invalid();

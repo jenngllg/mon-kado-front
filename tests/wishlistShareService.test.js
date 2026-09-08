@@ -13,6 +13,21 @@ function setup(body = data, status = 200, etag = /** @type {string | null} */ ('
   return { request, ...service };
 }
 describe("wishlist share service", () => {
+  it("renews with the exact individual share ETag and no body or CSRF", async () => {
+    const service = setup(); const result = await service.renew(id, { etag: '"link-v2"', signal });
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/share-link`, { method: "PUT", authentication: "required", ifMatch: '"link-v2"', signal });
+    expect(result).toEqual({ id: shareId, shareUrl: data.shareUrl, etag: '"share-v1"' }); expect(Object.isFrozen(result)).toBe(true);
+  });
+  it.each(["", "*", 'W/"weak"', "bare"])("rejects renewal precondition %s before HTTP", async etag => {
+    const service = setup(); await expect(service.renew(id, { etag, signal })).rejects.toMatchObject({ statusCode: 428 }); expect(service.request).not.toHaveBeenCalled();
+  });
+  it.each([201, 202, 204])("rejects renewal success %s without replay", async status => {
+    const service = setup(data, status); await expect(service.renew(id, { etag: '"link"', signal })).rejects.toMatchObject({ kind: "invalidResponse" }); expect(service.request).toHaveBeenCalledOnce();
+  });
+  it.each([401, 403, 404, 412, 428, 429, 500])("preserves renewal failure %s without replay", async statusCode => {
+    const service = setup(); const error = new ApiError({ kind: "http", statusCode }); service.request.mockRejectedValue(error);
+    await expect(service.renew(id, { etag: '"link"', signal })).rejects.toBe(error); expect(service.request).toHaveBeenCalledOnce();
+  });
   it.each(["invalid-private-value", "javascript:private-value", "https://user@monkado.example", origin + "/"])("rejects an invalid frontend origin without retaining it", frontendOrigin => {
     const service = setup();
     try { createWishlistShareService({ request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (service.request) }, { frontendOrigin }); throw Error("Expected rejection"); }

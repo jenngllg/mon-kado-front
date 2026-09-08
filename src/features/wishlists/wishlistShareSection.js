@@ -2,14 +2,15 @@ import { ApiError, isAbortError } from "../../api/apiError.js";
 import { createAlert, createButton, createFormField, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
+import { createWishlistShareRenewDialog } from "./wishlistShareRenewDialog.js";
 
 /** Owner-only share section, independent of the gift collection.
  * @param {{wishlistId: string, load: import("./wishlistShareService.js").LoadWishlistShare,
- * create: import("./wishlistShareService.js").CreateWishlistShare, copyText: (text: string) => Promise<void>,
+ * create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, copyText: (text: string) => Promise<void>,
  * onUnavailable: (state: "wishlistMissing" | "suspended") => void, signal?: AbortSignal}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createWishlistShareSection({ wishlistId, load, create, copyText, onUnavailable, signal }) {
+export function createWishlistShareSection({ wishlistId, load, create, renew, copyText, onUnavailable, signal }) {
   const section = document.createElement("section"); section.className = "wishlist-share flow";
   const title = document.createElement("h2"); title.textContent = "Partager ma liste"; title.tabIndex = -1;
   const help = document.createElement("p"); help.textContent = "Toute personne possédant ce lien peut consulter ta liste. Partage-le uniquement avec les personnes de ton choix.";
@@ -22,11 +23,13 @@ export function createWishlistShareSection({ wishlistId, load, create, copyText,
   const generate = createButton({ label: "Créer le lien de partage", onClick: () => { void perform(true, true); } });
   const copy = createButton({ label: "Copier le lien", onClick: () => { void copyLink(); } });
   const refresh = createButton({ label: "Actualiser le lien", variant: "secondary", onClick: () => { void perform(false, true); } });
-  actions.append(generate, copy, refresh); section.append(title, help, feedback, status, empty, field, actions);
+  const renewButton = createButton({ label: "Renouveler le lien", variant: "secondary", onClick: openRenewal });
+  actions.append(generate, copy, refresh, renewButton); section.append(title, help, feedback, status, empty, field, actions);
   const lifetime = new AbortController();
   let disposed = false; let busy = false; let terminal = false; let absent = false;
   /** @type {import("./wishlistShareService.js").WishlistShareLink | null} */ let link = null;
-  registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); link = null; input.value = ""; clearFeedback(); status.textContent = ""; sync(); });
+  /** @type {HTMLDialogElement | null} */ let dialog = null;
+  registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); dialog = null; link = null; input.value = ""; clearFeedback(); status.textContent = ""; sync(); });
   if (signal) {
     addComponentEventListener(section, signal, "abort", () => disposeComponent(section), { once: true });
     if (signal.aborted) disposeComponent(section);
@@ -39,12 +42,25 @@ export function createWishlistShareSection({ wishlistId, load, create, copyText,
     generate.hidden = !absent || terminal || disposed; copy.hidden = !link || terminal || disposed;
     refresh.hidden = terminal || disposed; empty.hidden = !absent || terminal || disposed;
     field.hidden = !link || terminal || disposed;
-    for (const button of [generate, copy, refresh]) button.disabled = busy || terminal || disposed;
+    renewButton.hidden = !renew || !link || busy || terminal || disposed;
+    for (const button of [generate, copy, refresh, renewButton]) button.disabled = busy || terminal || disposed || dialog !== null;
+  }
+  function openRenewal() {
+    if (!renew || !link || disposed || terminal || busy || dialog) return;
+    clearFeedback(); status.textContent = "";
+    dialog = createWishlistShareRenewDialog({ wishlistId, etag: link.etag, load, renew, signal: lifetime.signal,
+      onInvalidate: () => { link = null; input.value = ""; absent = false; status.textContent = "Relis le lien avant toute nouvelle opération de partage."; sync(); },
+      onRead: result => { if (disposed) return; link = result; input.value = result?.shareUrl ?? ""; absent = result === null; status.textContent = ""; sync(); },
+      onRenewed: result => { if (disposed) return; link = result; input.value = result.shareUrl; absent = false; status.textContent = "Lien de partage renouvelé. Communique le nouveau lien aux personnes de ton choix."; sync(); },
+      onUnavailable: state => { if (disposed) return; terminal = true; link = null; input.value = ""; sync(); onUnavailable(state); },
+      onClose: renewed => { dialog = null; if (disposed || !section.isConnected) return; sync(); if (!renewed && !renewButton.hidden && !renewButton.disabled) renewButton.focus(); else title.focus(); },
+    });
+    section.append(dialog); sync(); dialog.showModal();
   }
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); }
   /** @param {boolean} mutation Creation rather than read. @param {boolean} explicit User action. */
   async function perform(mutation, explicit) {
-    if (disposed || terminal || busy || (mutation && !absent)) return;
+    if (disposed || terminal || busy || dialog || (mutation && !absent)) return;
     busy = true; absent = false; link = null; input.value = ""; status.textContent = ""; clearFeedback();
     feedback.append(createLoadingState({ label: mutation ? "Création du lien de partage…" : "Chargement du lien de partage…" })); sync();
     refresh.textContent = "Actualiser le lien";
@@ -75,7 +91,7 @@ export function createWishlistShareSection({ wishlistId, load, create, copyText,
     } finally { busy = false; if (!disposed) sync(); }
   }
   async function copyLink() {
-    if (disposed || terminal || busy || !link) return;
+    if (disposed || terminal || busy || dialog || !link) return;
     busy = true; clearFeedback(); status.textContent = ""; sync();
     try {
       await copyText(link.shareUrl);

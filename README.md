@@ -1443,8 +1443,26 @@ utiliser cette même origine. Seul `WISHLIST_SHARE_LINK_NOT_FOUND` en lecture si
 qu’aucun lien n’existe. Après conflit de création ou résultat incertain, une
 relecture explicite est obligatoire avant une nouvelle création. Aucun POST
 n’est rejoué automatiquement ; quitter la page ne garantit pas son annulation
-côté serveur. Renouvellement, révocation et consultation publique restent dans
-leurs US respectives.
+côté serveur. Le renouvellement est décrit ci-dessous ; révocation et consultation
+publique restent dans leurs US respectives.
+
+## Renouvellement du lien (#896)
+
+« Actualiser le lien » effectue seulement une lecture. « Renouveler le lien »
+demande une confirmation dans une modale native puis un PUT sans corps, avec
+l’ETag individuel du lien. L’ancien lien cesse de donner accès à la liste après
+réussite ; il faut communiquer le nouveau. Les participations ne sont pas supprimées.
+La confirmation n’affiche aucun secret et ne lance aucune requête à son ouverture.
+
+Pendant le PUT, l’ancien lien est retiré et la fermeture locale est bloquée.
+Un départ ou changement de session ferme néanmoins immédiatement la modale.
+Après tout échec, une relecture et une nouvelle décision explicite sont nécessaires,
+y compris après fermeture de la modale. Un résultat réseau incertain ne permet
+pas de conclure que l’ancien lien fonctionne encore. Aucun PUT n’est rejoué
+automatiquement, et une relecture ne constitue pas une preuve de réussite de la
+tentative précédente. Après succès, le nouveau lien est proposé sans copie automatique.
+Le presse-papiers existant n’est jamais effacé. Quitter la vue annule l’attente,
+sans garantir l’annulation d’une mutation déjà reçue par le serveur.
 
 ## Périmètre actuel
 

@@ -473,7 +473,8 @@
   padding-block-start: var(--space-6);
 }
 
-.wish-delete-dialog {
+.wish-delete-dialog,
+.wishlist-share-renew-dialog {
   margin: auto;
   width: min(var(--content-narrow), calc(100% - var(--space-6)));
   max-height: calc(100dvh - var(--space-6));
@@ -488,11 +489,13 @@
   overflow-wrap: anywhere;
 }
 
-.wish-delete-dialog::backdrop {
+.wish-delete-dialog::backdrop,
+.wishlist-share-renew-dialog::backdrop {
   background: color-mix(in srgb, var(--color-text) 55%, transparent);
 }
 
 .wish-delete-dialog h2 { font-size: var(--font-size-xl); }
+.wishlist-share-renew-dialog h2 { font-size: var(--font-size-xl); }
 .wish-delete-dialog__details dt { font-weight: var(--font-weight-bold); }
 .wish-delete-dialog__details dd {
   margin: 0;
