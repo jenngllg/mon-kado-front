@@ -220,6 +220,18 @@ describe("graphic foundations", () => {
   it("keeps the import image choice a full tactile target using shared tokens", () => {
     expect(viewStyles.match(/\.wish-import__keep\s*\{([^}]+)\}/)?.[1]).toContain("min-block-size: var(--control-min-size)");
     expect(viewStyles.match(/\.wish-import\s*\{([^}]+)\}/)?.[1]).toContain("var(--color-border)");
+    expect(viewStyles.match(/\.wish-import__keep input\s*\{([^}]+)\}/)?.[1]).toContain("accent-color: var(--color-text)");
+  });
+  it("makes the selected import mode visible without relying on color alone", () => {
+    const selected = viewStyles.match(/\.wish-import__modes \[aria-pressed="true"\]\s*\{([^}]+)\}/)?.[1] ?? "";
+    expect(selected).toContain("background: var(--color-surface-sage)");
+    expect(selected).toContain("color: var(--color-text)");
+    expect(selected).toContain("text-decoration: underline");
+  });
+  it("shares readable comparison styling between list and gift drafts", () => {
+    for (const suffix of ["", " h2", " dt", " dd"]) {
+      expect(viewStyles).toContain(`.wish-edit-view__comparison${suffix},\n.wishlist-edit-view__comparison${suffix} {`);
+    }
   });
 });
 

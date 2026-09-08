@@ -103,6 +103,11 @@ describe("gift editor", () => {
     ui.loadOne.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.click("Relire le cadeau"); await settle(); expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(draft);
     ui.loadOne.mockResolvedValue(stored("Autre onglet", '"conflict-2"')); ui.click("Relire le cadeau"); await settle();
     expect(ui.view.textContent).toContain("Version enregistrée"); expect(ui.view.textContent).toContain("Autre onglet"); expect(ui.fields.map(field => field.value)).toEqual(draft); expect(ui.update).toHaveBeenCalledTimes(1);
+    const comparison = ui.view.querySelector(".wish-edit-view__comparison");
+    expect(comparison?.querySelector("h2")?.textContent).toBe("Version enregistrée");
+    expect(comparison?.querySelectorAll("dt")).toHaveLength(5);
+    expect(comparison?.querySelectorAll("dd")).toHaveLength(5);
+    expect(comparison?.contains(ui.form)).toBe(false);
     ui.click("Enregistrer ma saisie"); await settle(); expect(ui.update.mock.calls[1][3].etag).toBe('"conflict-2"'); expect(ui.submit.disabled).toBe(true);
     ui.loadOne.mockResolvedValue(stored("Version finale", '"conflict-3"')); ui.click("Relire le cadeau"); await settle(); ui.click("Utiliser la version enregistrée");
     expect(ui.fields.map(field => field.value)).toEqual(Object.values(stored("Version finale").values)); expect(ui.submit.disabled).toBe(true); expect(ui.update).toHaveBeenCalledTimes(2); expect(ui.loadWishlist).toHaveBeenCalledTimes(4);

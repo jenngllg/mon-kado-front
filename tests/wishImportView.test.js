@@ -34,6 +34,19 @@ function setup(options = {}) {
   return { view, form, analysis, input, values, analyze, submit, create, loadOne, loadWish, uploadImage, preview, onCreated };
 }
 describe("two creation modes and suggestions", () => {
+  it("keeps the styled selected mode in sync with the accessible pressed state", async () => {
+    const ui = setup({ initialMode: undefined }); await settle();
+    const modes = ui.view.querySelector(".wish-import__modes");
+    expect(modes?.getAttribute("aria-label")).toBe("Méthode d’ajout");
+    expect(modes?.querySelector('[aria-pressed="true"]')?.textContent).toBe("Ajout manuel");
+    button(ui.view, "Depuis un lien").click();
+    expect(modes?.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1);
+    expect(modes?.querySelector('[aria-pressed="true"]')?.textContent).toBe("Depuis un lien");
+    expect(ui.analysis.hidden).toBe(false);
+    button(ui.view, "Ajout manuel").click();
+    expect(modes?.querySelector('[aria-pressed="true"]')?.textContent).toBe("Ajout manuel");
+    expect(ui.preview).not.toHaveBeenCalled();
+  });
   it("defaults to manual and preserves fields across local switches without analysis", async () => {
     const ui = setup({ initialMode: undefined }); await settle(); expect(ui.analysis.hidden).toBe(true); ui.values.name.value = "Ma saisie";
     button(ui.view, "Depuis un lien").click(); expect(ui.analysis.hidden).toBe(false); expect(document.activeElement).toBe(ui.input); button(ui.view, "Ajout manuel").click(); expect(ui.values.name.value).toBe("Ma saisie"); expect(ui.preview).not.toHaveBeenCalled();

@@ -23,7 +23,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   const title = element("h1", "Modifier un cadeau"); title.tabIndex = -1;
   const listName = element("p", "");
   const feedback = element("div", ""); feedback.className = "flow"; feedback.hidden = true;
-  const comparison = element("section", ""); comparison.className = "flow"; comparison.hidden = true;
+  const comparison = element("section", ""); comparison.className = "wish-edit-view__comparison flow"; comparison.hidden = true;
   const status = element("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   /** @type {import("./wishesService.js").EditableWish | null} */ let base = null;

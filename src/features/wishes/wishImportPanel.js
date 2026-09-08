@@ -13,7 +13,7 @@ import { validateWishField } from "./wishValidation.js";
  */
 export function createWishImportPanel({ wishlistId, preview, initialMode, getValues, apply, onBusy, onUnavailable }) {
   const element = node("section", ""); element.className = "wish-import flow";
-  const modes = node("div", ""); modes.className = "cluster"; modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "Méthode d’ajout");
+  const modes = node("div", ""); modes.className = "wish-import__modes cluster"; modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "Méthode d’ajout");
   const manual = createButton({ label: "Ajout manuel", variant: "secondary", onClick: () => switchMode(false) });
   const fromUrl = createButton({ label: "Depuis un lien", variant: "secondary", onClick: () => switchMode(true) }); modes.append(manual, fromUrl);
   const analysis = node("form", ""); analysis.noValidate = true; analysis.className = "wishlist-form flow"; analysis.setAttribute("aria-label", "Analyser un lien produit");
