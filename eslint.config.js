@@ -53,6 +53,7 @@ export default [
       "tests/sharedWishlistView.test.js",
       "tests/sharedWishView.test.js",
       "tests/wishlistParticipationSection.test.js",
+      "tests/memberWishlistParticipationSection.test.js",
       "tests/sharedWishlistApplication.test.js",
       "tests/wishlistDetailsApplication.test.js",
       "tests/wishCreateView.test.js",

@@ -18,12 +18,13 @@ function setup(target = path + "#" + secret) {
     expect(window.location.hash).toBe("");
     const pathname = new URL(String(input)).pathname;
     if (pathname.includes("/participants")) {
-      const headers = new Headers(init?.headers); expect(headers.get("Authorization")).toBeNull(); expect(headers.get("X-MonKado-Share-Token")).toBe(secret); expect(init?.credentials).toBe("include");
+      const headers = new Headers(init?.headers); const member = headers.has("Authorization"); expect(headers.get("X-MonKado-Share-Token")).toBe(secret); expect(init?.credentials).toBe("include");
       if (init?.method === "POST") {
-        state.joins++; expect(headers.get("X-CSRF-TOKEN")).not.toBeNull(); expect(JSON.parse(String(init.body))).toEqual({ displayName: "Alex" }); await state.beforeJoin(); state.joined = true;
+        state.joins++; expect(headers.get("X-CSRF-TOKEN")).not.toBeNull(); if (member) expect(init.body).toBeUndefined(); else expect(JSON.parse(String(init.body))).toEqual({ displayName: "Alex" }); await state.beforeJoin(); state.joined = true;
         return Response.json({ id, displayName: "Alex" }, { status: 201 });
       }
       state.participantReads++; expect(headers.get("X-CSRF-TOKEN")).toBeNull();
+      if (member && !state.joined && state.participantCode === "GUEST_SESSION_INVALID") return Response.json({ statusCode: 404, errorCode: "WISHLIST_PARTICIPANT_NOT_FOUND", title: null, message: null, validationErrors: null }, { status: 404 });
       return state.joined ? Response.json({ id, displayName: "Alex" }) : Response.json({ statusCode: state.participantStatus, errorCode: state.participantCode, title: null, message: null, validationErrors: null }, { status: state.participantStatus });
     }
     if (new URL(String(input)).pathname.startsWith("/api/v1/shared-wishlists/")) {
@@ -41,9 +42,15 @@ function setup(target = path + "#" + secret) {
 /** @param {() => boolean} predicate DOM milestone. */
 function observe(predicate) { if (predicate()) return Promise.resolve(); return new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(document.body, { childList: true, subtree: true, characterData: true }); }); }
 describe("public shared wishlist integration", () => {
+  it("joins with JWT and CSRF without a body or another collection read", async () => {
+    const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated");
+    await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Participer avec mon compte" && !button.disabled));
+    expect(state.joins).toBe(0); [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Participer avec mon compte")?.click();
+    await observe(() => app.shell.outlet.textContent?.includes("Participation enregistrée") === true); expect(state.joins).toBe(1); expect(state.reads).toBe(1); expect(app.shell.outlet.querySelector("input")).toBeNull();
+  });
   it.each([401, 503])("keeps the existing session after public read failure %s without a duplicate shell alert", async status => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true);
-    state.status = status; app.shell.outlet.querySelector("button")?.click(); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null);
+    state.status = status; [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Actualiser la liste")?.click(); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null);
     expect(app.session.getSnapshot().status).toBe("authenticated"); expect(app.shell.element.querySelectorAll('[role="alert"]')).toHaveLength(1); expect(state.reads).toBe(2);
     state.status = 200; app.shell.outlet.querySelector("button")?.click(); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true); expect(state.reads).toBe(3);
   });
@@ -121,7 +128,7 @@ describe("public shared gift integration", () => {
 
 describe("guest participation integration", () => {
   it("does not mount guest controls for an authenticated session", async () => {
-    const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); expect(app.shell.outlet.querySelector("form")).toBeNull(); expect(state.participantReads).toBe(0); expect(state.joins).toBe(0);
+    const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Participer avec mon compte" && !button.disabled)); expect(app.shell.outlet.querySelector("form")).toBeNull(); expect(state.participantReads).toBe(1); expect(state.joins).toBe(0);
   });
   it("joins explicitly with cookies and CSRF without reloading gifts or persisting participant state", async () => {
     const { app, state, transport, hub } = setup(); transport.state.refreshStatus = 401; await app.start(); await untilSession(app.session, value => value.status === "anonymous"); await observe(() => app.shell.outlet.querySelector("form")?.hidden === false);

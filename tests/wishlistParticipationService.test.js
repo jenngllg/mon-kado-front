@@ -13,6 +13,23 @@ function setup(data = participant, status = 200) {
   const controller = new AbortController(); return { ...service, request, context, controller, options: { signal: controller.signal } };
 }
 describe("guest participation service", () => {
+  it("looks up a member with JWT and without a body or CSRF", async () => {
+    const service = setup(); expect(await service.loadCurrentMember(id, service.options)).toEqual(participant);
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/participants/current`, { authentication: "required", method: "GET", shareToken: secret, signal: expect.any(AbortSignal) });
+  });
+  it.each([200, 201])("joins a member with an empty body, JWT and CSRF: %s", async status => {
+    const service = setup(participant, status); const result = await service.joinMember(id, service.options);
+    expect(result).toEqual({ ...participant, created: status === 201 }); expect(Object.isFrozen(result)).toBe(true);
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/participants`, { authentication: "required", method: "POST", shareToken: secret, signal: expect.any(AbortSignal), csrf: true });
+  });
+  it.each([401, 403, 409, 429, 503])("does not retry a failed member join: %s", async statusCode => {
+    const service = setup(); service.request.mockRejectedValue(new ApiError({ kind: "http", statusCode })); await expect(service.joinMember(id, service.options)).rejects.toMatchObject({ statusCode }); expect(service.request).toHaveBeenCalledOnce();
+  });
+  it("never interprets an invalid guest cookie as absence for a member", async () => {
+    const service = setup(); service.request.mockRejectedValue(new ApiError({ kind: "http", statusCode: 401, errorCode: "GUEST_SESSION_INVALID" })); await expect(service.loadCurrentMember(id, service.options)).rejects.toMatchObject({ statusCode: 401 }); expect(service.context.enter(id, "")).toBe("ready");
+    service.request.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_PARTICIPANT_NOT_FOUND" })); expect(await service.loadCurrentMember(id, service.options)).toBeNull();
+  });
+  it.each([202, 204])("rejects unexpected member success %s", async status => { const service = setup(participant, status); await expect(service.joinMember(id, service.options)).rejects.toMatchObject({ kind: "invalidResponse" }); });
   it("looks up anonymously without CSRF, body or versions and drops extra properties", async () => {
     const service = setup({ ...participant, guestToken: "PRIVATE", reservedQuantity: 1 }); const result = await service.loadCurrent(id, service.options);
     expect(result).toEqual(participant); expect(Object.isFrozen(result)).toBe(true);

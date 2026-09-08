@@ -2,6 +2,27 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Participation avec compte — #901
+
+Dans une liste partagée, une session authentifiée et stable affiche une section
+« Participer avec mon compte », sans champ de nom. Une lecture recherche d’abord
+la participation du compte ; seul un clic explicite déclenche le POST, sans corps,
+avec JWT, cookie et CSRF. La lecture publique des cadeaux reste indépendante.
+
+Une réponse `201` annonce « Participation enregistrée » ; une réponse `200`
+annonce « Participation reconnue ». Le nom affiché provient de la réponse serveur.
+Le backend peut rattacher une participation invitée reconnue au compte lors de ce
+POST ; le frontend ne manipule jamais le cookie invité. Un propriétaire reçoit
+« Tu ne peux pas participer à ta propre liste. », sans droit supplémentaire.
+
+Après un résultat réseau incertain, une vérification explicite est obligatoire
+avant toute nouvelle tentative. Une relecture ne prouve pas que la tentative
+précédente a créé la participation. Aucun rejeu supplémentaire n’est ajouté.
+Un changement de compte ou de session nettoie la section et invalide ses réponses
+anciennes, sans retirer la consultation publique. Quitter la vue ne garantit pas
+l’annulation d’un POST déjà reçu. La continuité de retour après connexion reste
+dans son US dédiée ; aucune réservation ou édition n’est proposée ici.
+
 ## Prérequis
 
 - Node.js 24 LTS
