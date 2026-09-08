@@ -16,6 +16,7 @@ function setup() {
   const state = { listStatus: 200, giftsStatus: 200, listReads: 0, giftReads: 0, beforeRead: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
     const path = new URL(String(input)).pathname;
+    if (path === `/api/v1/wishlists/${id}/share-link`) return Response.json({ statusCode: 404, title: null, message: null, validationErrors: null, errorCode: "WISHLIST_SHARE_LINK_NOT_FOUND" }, { status: 404 });
     if (path === `/api/v1/wishlists/${id}` || path === `/api/v1/wishlists/${id}/wishes`) {
       expect(init?.method).toBe("GET"); expect(init?.body).toBeUndefined(); expect(init?.credentials).toBe("include");
       const headers = new Headers(init?.headers); expect(headers.get("Authorization")).toMatch(/^Bearer jwt-fixture-/);

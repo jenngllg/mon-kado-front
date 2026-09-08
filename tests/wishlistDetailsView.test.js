@@ -26,6 +26,41 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
 describe("wishlist owner detail", () => {
+  function sharing() {
+    return { load: vi.fn(async () => ({ id, shareUrl: "https://example.test/#test-secret", etag: '"share"' })),
+      create: vi.fn(async () => ({ id, shareUrl: "https://example.test/#test-secret", etag: '"share"' })), copyText: vi.fn(async () => {}) };
+  }
+  it("loads share independently of pending gifts and does not create on entry", async () => {
+    const share = sharing(); const gate = barrier();
+    const ui = setup({ share, loadWishes: async () => { await gate.promise; return collection; } }); await settle();
+    expect(ui.view.querySelector("textarea")?.value).toContain("test-secret"); expect(share.create).not.toHaveBeenCalled();
+    expect(ui.view.textContent).toContain("Chargement de tes cadeaux"); gate.resolve(); await settle();
+  });
+  it("keeps gifts available when the share read fails", async () => {
+    const share = sharing(); share.load.mockRejectedValue(new ApiError({ kind: "network" }));
+    const ui = setup({ share }); await settle(); expect(ui.view.querySelector(".wish-card")).not.toBeNull();
+    expect(ui.view.querySelector(".wishlist-share [role=alert]")).not.toBeNull();
+  });
+  it("does not request a suspended list's share and preserves an empty collection on later suspension", async () => {
+    const share = sharing(); const suspended = setup({ share, loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, isSuspended: true } }) }); await settle();
+    expect(share.load).not.toHaveBeenCalled(); expect(suspended.view.textContent).toContain("Partage indisponible");
+    const ui = setup({ share, loadWishes: async () => ({ wishes: [], etag: '"empty"' }) }); await settle();
+    const input = ui.view.querySelector("textarea"); share.load.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" }));
+    ui.click("Actualiser le lien"); await settle(); expect(input?.value).toBe(""); expect(ui.view.querySelector("textarea")).toBeNull();
+    expect(ui.view.textContent).toContain("Cette liste ne contient pas encore de cadeau"); expect(ui.view.querySelector('a[href$="/wishes/new"]')).toBeNull();
+  });
+  it.each([false, true])("never republishes gifts after share reports inaccessible, rejected=%s", async rejected => {
+    const share = sharing(); const gate = barrier(); const ui = setup({ share, loadWishes: async () => { await gate.promise; if (rejected) throw new ApiError({ kind: "network" }); return collection; } });
+    await settle(); share.load.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 })); ui.click("Actualiser le lien"); await settle();
+    gate.resolve(); await settle(); expect(ui.view.querySelector("h1")?.textContent).toBe("Liste introuvable"); expect(ui.view.querySelector(".wish-card,textarea")).toBeNull();
+  });
+  it("cleans the share during reordering and reloads it on cancellation", async () => {
+    const share = sharing(); const ui = setup({ share, loadWishes: async () => ({ ...collection, wishes: [wish, { ...wish, id: "other" }] }), reorder: async () => ({ wishes: [], etag: '"reorder"' }) });
+    await settle(); const input = ui.view.querySelector("textarea"); ui.click("Réorganiser les cadeaux"); await settle();
+    expect(input?.value).toBe(""); expect(ui.view.querySelector(".wishlist-share")).toBeNull(); ui.click("Annuler"); await settle();
+    expect(share.load).toHaveBeenCalledTimes(2); expect(ui.view.querySelector("textarea")?.value).toContain("test-secret");
+    disposeComponent(ui.view); expect(ui.view.querySelector("textarea")).toBeNull();
+  });
   it("loads metadata before the collection and leaves initial focus to the router", async () => {
     const gate = barrier(); const loadOne = vi.fn(async () => { await gate.promise; return list; }); const ui = setup({ loadOne });
     expect(ui.view.textContent).toContain("Chargement de ta liste…"); expect(ui.loadWishes).not.toHaveBeenCalled(); gate.resolve(); await settle();

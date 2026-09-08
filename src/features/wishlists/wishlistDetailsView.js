@@ -1,4 +1,5 @@
 import { createWishCard } from "../wishes/wishCard.js";
+import { createWishlistShareSection } from "./wishlistShareSection.js";
 import { createWishesReorderView } from "../wishes/wishesReorderView.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { RoutePaths } from "../../app/routeContracts.js";
@@ -12,10 +13,11 @@ const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "lo
 
 /** Mounts owner-only list details and independently refreshable gifts.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
- * loadWishes: import("../wishes/wishesService.js").LoadWishes, reorder?: import("../wishes/wishesService.js").ReorderWishes, signal?: AbortSignal}} options View dependencies.
+ * loadWishes: import("../wishes/wishesService.js").LoadWishes, reorder?: import("../wishes/wishesService.js").ReorderWishes,
+ * share?: {load: import("./wishlistShareService.js").LoadWishlistShare, create: import("./wishlistShareService.js").CreateWishlistShare, copyText: (text: string) => Promise<void>}, signal?: AbortSignal}} options View dependencies.
  * @returns {HTMLElement} Routed component, with explicit disposal.
  */
-export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reorder, signal }) {
+export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reorder, share, signal }) {
   const view = element("section", ""); view.className = "wishlist-details-view flow";
   const back = createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
@@ -86,7 +88,11 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
     if (item.eventDate === null) listContent.append(element("p", "Sans date"));
     else { const date = element("time", DateFormat.format(new Date(item.eventDate + "T00:00:00Z"))); date.dateTime = item.eventDate; listContent.append(date); }
     if (item.message) { const message = element("p", item.message); message.className = "wishlist-details-note"; listContent.append(message); }
-    if (item.isSuspended) listContent.append(createAlert({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" }));
+    if (item.isSuspended) {
+      listContent.append(createAlert({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" }));
+      if (share) listContent.append(element("p", "Partage indisponible — Liste suspendue"));
+      listContent.append(createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void readList(true); } }));
+    }
     else if (!reordering) {
       const add = createActionLink({ label: "Ajouter un cadeau", href: RoutePaths.NewWish.replace(":listId", wishlistId) });
       add.classList.add("home-hero__primary-action"); listContent.append(add);
@@ -94,7 +100,21 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
       listContent.append(createActionLink({ label: "Modifier les informations", href: RoutePaths.EditList.replace(":listId", wishlistId) }));
       const danger = element("div", ""); danger.className = "wishlist-details-danger";
       danger.append(createActionLink({ label: "Supprimer cette liste", href: RoutePaths.DeleteList.replace(":listId", wishlistId), variant: "danger" })); listContent.append(danger);
+      if (share) listContent.append(createWishlistShareSection({ ...share, wishlistId, signal: lifetime.signal, onUnavailable: shareUnavailable }));
     }
+  }
+  /** @param {"wishlistMissing" | "suspended"} state Safe share access failure. */
+  function shareUnavailable(state) {
+    if (disposed || terminal) return;
+    if (state === "wishlistMissing") { notFound(); title.focus(); return; }
+    if (!list) return;
+    list = { ...list, wishlist: Object.freeze({ ...list.wishlist, isSuspended: true }) };
+    renderList(); organize.hidden = true;
+    if (collection?.wishes.length) {
+      clear(results); const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
+      for (const item of collection.wishes) cards.append(createWishCard(item, true)); results.append(cards);
+    }
+    title.focus();
   }
   /** @param {boolean} explicit Explicit retry or refresh. */
   async function readGifts(explicit) {
@@ -104,7 +124,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
     results.append(createLoadingState({ label: "Chargement de tes cadeaux…" }));
     try {
       const loaded = await loadWishes(wishlistId, { signal: lifetime.signal });
-      if (disposed || lifetime.signal.aborted) return;
+      if (disposed || terminal || lifetime.signal.aborted) return;
       collection = loaded; clear(results);
       if (collection.wishes.length === 0) results.append(createEmptyState({ title: "Cette liste ne contient pas encore de cadeau", message: "Tes idées cadeaux apparaîtront ici." }));
       else {
@@ -114,7 +134,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
       organize.hidden = !reorder || list?.wishlist.isSuspended === true || collection.wishes.length < 2;
       refresh.hidden = false; if (explicit) heading.focus();
     } catch (error) {
-      if (disposed || isAbortError(error)) return;
+      if (disposed || terminal || isAbortError(error)) return;
       refresh.hidden = true;
       if (error instanceof ApiError && error.statusCode === 404) { notFound(); if (explicit) title.focus(); }
       else showError(results, error, () => { void readGifts(true); }, explicit);

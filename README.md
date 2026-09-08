@@ -1423,6 +1423,29 @@ Les opérations sont annulables, les réponses obsolètes ignorées, et les donn
 effacées au départ de la vue ou lors d’un changement de session. L’annulation
 locale ne garantit pas l’annulation d’une mutation déjà reçue par le serveur.
 
+## Partager ma liste (#895)
+
+Le détail propriétaire charge son lien de partage indépendamment des cadeaux.
+Seule l’action « Créer le lien de partage » crée un lien ; aucune création,
+rotation ou copie n’est automatique. Une liste suspendue n’expose aucun lien.
+La section est détruite pendant la réorganisation et relue au retour.
+
+L’URL complète est sensible : toute personne la possédant peut consulter la liste.
+Elle reste en mémoire et dans le champ propriétaire en lecture seule, puis dans
+le presse-papiers uniquement après « Copier le lien ». Si la copie est refusée,
+le champ est sélectionné pour une copie manuelle. Le lien ne rejoint ni stockage,
+historique, navigation courante, notifications, logs ou messages inter-onglets.
+Quitter la vue ou changer de session efface le champ et ses références.
+
+Le service exige les statuts GET 200 / POST 201, un ETag fort propre au lien et
+une URL conforme à l’origine frontend courante : la configuration backend doit
+utiliser cette même origine. Seul `WISHLIST_SHARE_LINK_NOT_FOUND` en lecture signifie
+qu’aucun lien n’existe. Après conflit de création ou résultat incertain, une
+relecture explicite est obligatoire avant une nouvelle création. Aucun POST
+n’est rejoué automatiquement ; quitter la page ne garantit pas son annulation
+côté serveur. Renouvellement, révocation et consultation publique restent dans
+leurs US respectives.
+
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants

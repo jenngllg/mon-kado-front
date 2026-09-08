@@ -4,6 +4,166 @@
  */
 
 export interface paths {
+    readonly "/api/v1/admin/audit-events": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Retrieves a globally ordered page of retained administrative actions.
+         * @description All filters are combined with AND. From is inclusive and to exclusive; both require ISO 8601 timestamps with an explicit timezone.
+         *     RequestReference matches exactly, case-sensitively, after trimming. MemberId targets GDPR events, not moderated list owners.
+         *     Defaults: page=1, pageSize=20, maximum=100. Missing targets and out-of-range pages return empty collections.
+         *     Defaults apply only to absent parameters; supplied blank scalar filters return 400.
+         *     Administrator display names are current, not historical. Deleted actors remain null and do not hide events.
+         *     DownloadStarted records stream release, not successful archive receipt. Existing deletion and retention rules remain unchanged.
+         *     No email, archive content, reservation data, or secrets are returned. No If-Match or antiforgery token is required.
+         */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: {
+                    readonly action?: components["schemas"]["AdministrativeAuditAction"];
+                    readonly administratorId?: string;
+                    readonly exportId?: string;
+                    readonly from?: string;
+                    readonly memberId?: string;
+                    readonly page?: number | string;
+                    readonly pageSize?: number | string;
+                    readonly requestReference?: string;
+                    readonly to?: string;
+                    readonly wishlistId?: string;
+                };
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["PaginatedResponseOfAdministrativeAuditEventResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/admin/members/{memberId}/data-exports": {
         readonly parameters: {
             readonly query?: never;
@@ -10310,6 +10470,52 @@ export interface components {
             /** @description Gets the authorization scheme. */
             readonly tokenType: string;
         };
+        /**
+         * @description Identifies the existing administrative actions exposed by the global journal.
+         * @enum {string}
+         */
+        readonly AdministrativeAuditAction: "wishlistSuspended" | "wishlistSuspensionReasonUpdated" | "wishlistReactivated" | "memberDataExportRequested" | "memberDataExportDownloadStarted" | "memberErased";
+        /** @description Contains read-only administrative audit data. */
+        readonly AdministrativeAuditEventResponse: {
+            /** @description The normalized administrative action. */
+            readonly action?: components["schemas"]["AdministrativeAuditAction"];
+            /** @description The current actor display name, not a historical snapshot. */
+            readonly administratorDisplayName?: null | string;
+            /**
+             * Format: uuid
+             * @description The actor identifier, or null after deletion.
+             */
+            readonly administratorId?: null | string;
+            /**
+             * Format: date-time
+             * @description The UTC event date.
+             */
+            readonly createdAt?: string;
+            /**
+             * Format: uuid
+             * @description The recorded archive identifier.
+             */
+            readonly exportId?: null | string;
+            /**
+             * Format: uuid
+             * @description The original event identifier.
+             */
+            readonly id?: string;
+            /**
+             * Format: uuid
+             * @description The recorded GDPR target identifier, if still retained.
+             */
+            readonly memberId?: null | string;
+            /** @description The recorded private moderation reason. */
+            readonly reason?: null | string;
+            /** @description The recorded support reference. */
+            readonly requestReference?: null | string;
+            /**
+             * Format: uuid
+             * @description The moderated wishlist identifier.
+             */
+            readonly wishlistId?: null | string;
+        };
         /** @description Contains only the browser proof returned by the validated Google callback. */
         readonly CompleteGoogleSessionRequest: {
             /** @description Gets the opaque browser-flow binding. */
@@ -10547,6 +10753,35 @@ export interface components {
             readonly displayName: string;
             /** @description Gets the public profile-photo URL, or null for a generated avatar. */
             readonly profileImageUrl?: null | string;
+        };
+        /** @description Represents one page of API results. */
+        readonly PaginatedResponseOfAdministrativeAuditEventResponse: {
+            /**
+             * Format: int32
+             * @description Gets the requested one-based page number.
+             */
+            readonly currentPage: number | string;
+            /** @description Gets whether a following page containing items exists. */
+            readonly hasNextPage?: boolean;
+            /** @description Gets whether a preceding page containing items exists. */
+            readonly hasPreviousPage?: boolean;
+            /** @description Gets the current page items. */
+            readonly items: readonly components["schemas"]["AdministrativeAuditEventResponse"][];
+            /**
+             * Format: int32
+             * @description Gets the requested page size.
+             */
+            readonly pageSize: number | string;
+            /**
+             * Format: int32
+             * @description Gets the total matching item count.
+             */
+            readonly totalCount: number | string;
+            /**
+             * Format: int32
+             * @description Gets the total number of pages containing matching items.
+             */
+            readonly totalPages?: number | string;
         };
         /** @description Represents one page of API results. */
         readonly PaginatedResponseOfGiftReservationHistoryResponse: {

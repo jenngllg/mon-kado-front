@@ -26,6 +26,7 @@ import { createGoogleReturnView } from "../features/google/googleReturnView.js";
 import { createGoogleLinkView } from "../features/google/googleLinkView.js";
 import { getLoginDestination } from "../auth/sessionGuards.js";
 import { createWishlistsService } from "../features/wishlists/wishlistsService.js";
+import { createWishlistShareService } from "../features/wishlists/wishlistShareService.js";
 import { createWishImportService } from "../features/wishes/wishImportService.js";
 import { createWishlistsView } from "../features/wishlists/wishlistsView.js";
 import { createWishlistView } from "../features/wishlists/createWishlistView.js";
@@ -184,7 +185,9 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.ListDetails, path: RoutePaths.ListDetails, title: "Détail de la liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
-          loadWishes: createWishesService(session, { apiBaseUrl }).load, reorder: createWishesService(session, { apiBaseUrl }).reorder, signal: context.signal }),
+          loadWishes: createWishesService(session, { apiBaseUrl }).load, reorder: createWishesService(session, { apiBaseUrl }).reorder, signal: context.signal,
+          share: { ...createWishlistShareService(session, { frontendOrigin: window.location.origin }),
+            copyText: text => navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : Promise.reject(new Error("Clipboard unavailable")) } }),
     },
     createPlaceholderRoute(
       RouteNames.Reservations,

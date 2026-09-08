@@ -11,6 +11,10 @@ const viewStyles = readStyleFile("../src/styles/views.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
+  it("keeps private share URLs bounded and actions wrapping at narrow widths", () => {
+    expect(viewStyles.match(/\.wishlist-share textarea\s*\{([^}]+)\}/)?.[1]).toContain("min-inline-size: 0");
+    expect(viewStyles.match(/\.wishlist-share__actions\s*\{([^}]+)\}/)?.[1]).toContain("flex-wrap: wrap");
+  });
   it("bounds gift image previews and keeps the native file action touch accessible", () => {
     expect(viewStyles).toContain('.wish-image-section__preview img { max-width: 100%;');
     expect(viewStyles.match(/\.wish-image-section input::file-selector-button\s*\{([^}]+)\}/)?.[1]).toContain("min-height: 44px");
