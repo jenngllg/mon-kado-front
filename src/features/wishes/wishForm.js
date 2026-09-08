@@ -13,10 +13,10 @@ const Fields = Object.freeze([
 ]);
 
 /** Shared manual gift fields; each consuming view owns its operation.
- * @param {{inactive: () => boolean, onChange: () => void}} options Lifecycle and validation feedback.
+ * @param {{inactive: () => boolean, onChange: () => void, label?: string}} options Lifecycle and validation feedback.
  */
-export function createWishForm({ inactive, onChange }) {
-  const form = document.createElement("form"); form.noValidate = true; form.className = "wishlist-form flow"; form.setAttribute("aria-label", "Ajouter un cadeau");
+export function createWishForm({ inactive, onChange, label = "Ajouter un cadeau" }) {
+  const form = document.createElement("form"); form.noValidate = true; form.className = "wishlist-form flow"; form.setAttribute("aria-label", label);
   let disposed = false;
   /** @type {HTMLButtonElement | null} */ let pressedAction = null;
   /** @type {(() => void) | null} */ let deferredBlur = null;
@@ -53,7 +53,7 @@ export function createWishForm({ inactive, onChange }) {
   });
   addComponentEventListener(form, document, "pointercancel", () => { pressedAction = null; flushBlur(); });
   registerComponentCleanup(form, () => { disposed = true; deferredBlur = null; pressedAction = null; clear(); });
-  return { form, fields, validate, clear, discardDeferredBlur: () => { deferredBlur = null; },
+  return { form, fields, validate, clear, reset, discardDeferredBlur: () => { deferredBlur = null; },
     getValues: () => /** @type {import("./wishValidation.js").WishValues} */ (Object.fromEntries(fields.map(field => [field.name, field.control.value]))) };
 
   function flushBlur() { const check = deferredBlur; deferredBlur = null; check?.(); }
@@ -64,4 +64,6 @@ export function createWishForm({ inactive, onChange }) {
     setFormFieldValidation(field.element, field.error);
   }
   function clear() { for (const field of fields) { field.control.value = ""; field.dirty = false; field.checked = false; field.error = null; setFormFieldValidation(field.element, null); } }
+  /** @param {Readonly<import("./wishValidation.js").WishValues>} values Latest server values. */
+  function reset(values) { clear(); for (const field of fields) field.control.value = values[field.name]; }
 }

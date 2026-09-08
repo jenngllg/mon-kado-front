@@ -1176,6 +1176,66 @@ navigation/notification tardive, sans garantir l’annulation d’une création 
 reçue par le serveur. Aucun brouillon, aperçu, import, téléversement ou traitement
 de réservation n’est ajouté.
 
+## Consulter et modifier un cadeau (#886)
+
+Chaque carte propose « Modifier », ou « Consulter » lorsque la liste est suspendue,
+vers `/lists/:listId/wishes/:wishId/edit`. Cette route est protégée, conserve
+« Mes listes » active et peut servir de destination `returnTo`. Elle relit la liste,
+puis le cadeau : aucune version issue d’une carte n’est utilisée pour écrire.
+
+Le formulaire réutilise les cinq champs et validations de #885 : Unicode avant
+normalisation serveur, prix en euros sans arrondi silencieux, quantité entière,
+URL sûre et limite JSON UTF-8 de 4 096 octets. « Annuler les modifications »
+restaure localement la dernière version chargée. L’enregistrement est désactivé
+sans changement des valeurs destinées au serveur et pendant une opération.
+
+`createWishesService(session, { apiBaseUrl })` expose aussi :
+
+```js
+loadOne(wishlistId, wishId, { signal })
+update(wishlistId, wishId, values, { etag, signal })
+```
+
+Ces opérations utilisent GET et PUT sur `/api/v1/wishlists/{wishlistId}/wishes/{wishId}`,
+avec JWT requis. Le PUT transmet seulement `{ name, note, url, price, quantity }`
+et l’ETag fort exact du cadeau dans `If-Match`, sans CSRF supplémentaire.
+Les réponses doivent être `200`, identifier le bon cadeau et sa liste et fournir
+un ETag fort. La projection immuable `{ wish, etag, values }` sépare les données
+sûres de présentation des cinq valeurs textuelles d’édition : notamment, l’URL
+originale n’est pas remplacée silencieusement par sa représentation navigable.
+Les positions Int64 et la distinction entre les trois versions (liste, collection,
+cadeau) sont conservées. Aucun retry automatique n’est ajouté.
+
+`createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, update, signal })`
+reste affichée après succès avec « Modifications enregistrées ». Les valeurs et
+l’ETag renvoyés deviennent la nouvelle référence, sans relecture supplémentaire
+obligatoire. Revenir à la liste relit sa collection complète, sans mise à jour
+optimiste ni pagination.
+
+Sur `412`, `428` ou précondition inexploitable, la saisie est conservée et
+l’écriture bloquée. « Relire le cadeau » recharge la liste et le cadeau sans
+écraser le brouillon, puis compare les cinq valeurs serveur. « Enregistrer ma
+saisie » utilise le nouvel ETag et remplace ces cinq informations sans fusion
+automatique ; « Utiliser la version enregistrée » abandonne le brouillon.
+Une relecture échouée maintient le blocage, y compris lors de conflits successifs.
+
+Un refus `WISH_QUANTITY_BELOW_RESERVED` est rattaché à la quantité sans révéler
+d’auteur, de quantité réservée ou de minimum déduit. Une liste suspendue reste
+consultable, sans écriture jusqu’à une relecture valide. Un `404` retire et nettoie
+le formulaire sans distinguer suppression et absence d’accès. Les validations et
+erreurs techniques sont françaises ; les références et délais de `429` disponibles
+sont présentés sans texte backend ni compte à rebours.
+
+Une panne réseau, un timeout, une réponse invalide ou une erreur serveur pendant
+l’écriture peut masquer une modification déjà effectuée : « L’enregistrement de
+ton cadeau ne peut pas être confirmé. Relis le cadeau avant de réessayer. »
+La relecture et une décision explicite sont obligatoires avant un nouveau PUT.
+Les saisies et versions restent uniquement dans la vue montée. La destruction ou
+un changement de session efface ces données, annule l’attente et ignore les
+réponses tardives, sans garantir l’annulation d’une écriture reçue par le serveur.
+Aucun brouillon persistant, garde de sortie, image, suppression ou traitement de
+réservation n’est ajouté.
+
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants

@@ -12,16 +12,30 @@ import { createWishPayload, safeHttpUrl } from "./wishValidation.js";
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishCollection>} LoadWishes */
 /** @typedef {Readonly<{wish: Wish, etag: string}>} CreatedWish */
 /** @typedef {(wishlistId: string, values: import("./wishValidation.js").WishValues, options: {signal: AbortSignal}) => Promise<CreatedWish>} CreateWish */
+/** @typedef {Readonly<CreatedWish & {values: Readonly<import("./wishValidation.js").WishValues>}>} EditableWish */
+/** @typedef {(wishlistId: string, wishId: string, options: {signal: AbortSignal}) => Promise<EditableWish>} LoadWish */
+/** @typedef {(wishlistId: string, wishId: string, values: import("./wishValidation.js").WishValues, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} UpdateWish */
 
 /** Reads the complete private collection; grants and versions belong to the caller's view.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{apiBaseUrl: string}} options Trusted API configuration.
- * @returns {{load: LoadWishes, create: CreateWish}} Injectable collection reader and manual creation.
+ * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish}} Injectable owner operations.
  */
 export function createWishesService(session, { apiBaseUrl }) {
   const base = safeHttpUrl(apiBaseUrl);
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
-  return { load: async (wishlistId, { signal }) => {
+  return { loadOne: async (wishlistId, wishId, { signal }) => {
+    const path = itemPath(wishlistId, wishId);
+    const response = await session.request(path, { method: "GET", authentication: "required", signal });
+    return editable(response, wishlistId, wishId, base);
+  }, update: async (wishlistId, wishId, values, { etag, signal }) => {
+    const path = itemPath(wishlistId, wishId);
+    if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+    /** @type {import("../../api/generated/openapi.js").components["schemas"]["UpdateWishRequest"]} */
+    const body = createWishPayload(values);
+    const response = await session.request(path, { method: "PUT", authentication: "required", body, ifMatch: etag, signal });
+    return editable(response, wishlistId, wishId, base);
+  }, load: async (wishlistId, { signal }) => {
     if (!isWishlistId(wishlistId)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_NOT_FOUND" });
     const response = await session.request(`/api/v1/wishlists/${wishlistId}/wishes`, { method: "GET", authentication: "required", signal });
     const body = /** @type {Partial<WishCollectionResponse> | null} */ (response.data);
@@ -47,6 +61,28 @@ export function createWishesService(session, { apiBaseUrl }) {
     const wish = projectWish({ ...data, quantity, entityTag: response.metadata.etag }, wishlistId, base, invalid);
     return Object.freeze({ wish, etag: response.metadata.etag });
   } };
+}
+
+/** @param {string} wishlistId Parent. @param {string} wishId Gift. @returns {string} Validated private path. */
+function itemPath(wishlistId, wishId) {
+  if (!isWishlistId(wishlistId)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_NOT_FOUND" });
+  if (!isWishlistId(wishId)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "WISH_NOT_FOUND" });
+  return `/api/v1/wishlists/${wishlistId}/wishes/${wishId}`;
+}
+
+/** @param {Awaited<ReturnType<import("../../auth/sessionManager.js").SessionManager["request"]>>} response HTTP result.
+ * @param {string} wishlistId Parent. @param {string} wishId Gift. @param {URL} base API base. @returns {EditableWish} Isolated editable projection. */
+function editable(response, wishlistId, wishId, base) {
+  const data = /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["WishResponse"]> | null} */ (response.data);
+  const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
+  if (response.status !== 200 || !data || Array.isArray(data) || !isStrongEntityTag(response.metadata.etag)) throw invalid();
+  const quantity = typeof data.quantity === "string" && /^\d+$/.test(data.quantity) ? Number(data.quantity) : data.quantity;
+  const wish = projectWish({ ...data, quantity, entityTag: response.metadata.etag }, wishlistId, base, invalid);
+  if (wish.id.toLowerCase() !== wishId.toLowerCase()) throw invalid();
+  // Navigation uses the safe projection; editing must not silently rewrite the original URL.
+  const values = Object.freeze({ name: wish.name, note: wish.note ?? "", url: data.url ?? "",
+    price: wish.price === null ? "" : wish.price.toFixed(2).replace(".", ","), quantity: String(wish.quantity) });
+  return Object.freeze({ wish, etag: response.metadata.etag, values });
 }
 
 /** @param {unknown} value Untrusted item. @param {string} wishlistId Expected parent.

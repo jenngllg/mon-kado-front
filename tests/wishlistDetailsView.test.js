@@ -64,7 +64,8 @@ describe("wishlist owner detail", () => {
   });
   it("allows suspended-list consultation without mutation links or private moderation details", async () => {
     const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, isSuspended: true, ...{ suspensionReason: "PRIVATE_REASON" } } }) }); await settle();
-    expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.view.querySelector("li h3")).not.toBeNull(); expect(ui.view.querySelector(`a[href$="/edit"]`)).toBeNull();
+    expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.view.querySelector("li h3")).not.toBeNull(); expect(ui.view.querySelector(`a[href="/lists/${id}/edit"]`)).toBeNull();
+    expect(ui.view.querySelector('.wish-card a[href$="/edit"]')?.textContent).toBe("Consulter");
     expect(ui.view.querySelector(`a[href$="/delete"]`)).toBeNull(); expect(ui.view.textContent).not.toContain("PRIVATE_REASON");
   });
   it("renders hostile text without markup interpretation", async () => {

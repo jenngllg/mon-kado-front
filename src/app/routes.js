@@ -33,6 +33,7 @@ import { createWishlistDeleteView } from "../features/wishlists/wishlistDeleteVi
 import { createWishlistDetailsView } from "../features/wishlists/wishlistDetailsView.js";
 import { createWishesService } from "../features/wishes/wishesService.js";
 import { createWishCreateView } from "../features/wishes/wishCreateView.js";
+import { createWishEditView } from "../features/wishes/wishEditView.js";
 
 /** @typedef {(created: import("../features/wishlists/wishlistsService.js").CreatedWishlist, context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistCreatedHandler */
 /** @typedef {(context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistDeletedHandler */
@@ -166,6 +167,12 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishCreateView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
           create: createWishesService(session, { apiBaseUrl }).create, signal: context.signal, onCreated: created => onWishCreated(created, context) }),
+    },
+    {
+      name: RouteNames.EditWish, path: RoutePaths.EditWish, title: "Modifier un cadeau · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createWishEditView({ ...createWishesService(session, { apiBaseUrl }), wishlistId: context.params.listId, wishId: context.params.wishId,
+          loadWishlist: createWishlistsService(session).loadOne, signal: context.signal }),
     },
     {
       name: RouteNames.ListDetails, path: RoutePaths.ListDetails, title: "Détail de la liste · MonKado",

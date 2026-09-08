@@ -88,7 +88,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, sig
       if (collection.wishes.length === 0) results.append(createEmptyState({ title: "Cette liste ne contient pas encore de cadeau", message: "Tes idées cadeaux apparaîtront ici." }));
       else {
         const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
-        for (const item of collection.wishes) cards.append(createCard(item)); results.append(cards);
+        for (const item of collection.wishes) cards.append(createCard(item, list?.wishlist.isSuspended === true)); results.append(cards);
       }
       refresh.hidden = false; if (explicit) heading.focus();
     } catch (error) {
@@ -120,8 +120,8 @@ function showError(container, error, retry, focus) {
   container.append(alert, createButton({ label: "Réessayer", variant: "secondary", onClick: retry })); if (focus) alert.focus();
 }
 
-/** @param {import("../wishes/wishesService.js").Wish} item Safe minimal model. @returns {HTMLLIElement} Gift card without reservation information. */
-function createCard(item) {
+/** @param {import("../wishes/wishesService.js").Wish} item Safe minimal model. @param {boolean} suspended Read-only parent. @returns {HTMLLIElement} Gift card without reservation information. */
+function createCard(item, suspended) {
   const card = element("li", ""); card.className = "wish-card";
   const media = element("div", ""); media.className = "wish-card__media";
   const fallback = element("span", item.imageUnavailable ? "Image indisponible" : "Sans image"); media.append(fallback);
@@ -140,6 +140,8 @@ function createCard(item) {
     const link = createActionLink({ label: "Voir le produit", href: item.url }); link.target = "_blank"; link.rel = "noopener noreferrer";
     link.setAttribute("aria-label", `Voir le produit « ${item.name} » (nouvel onglet)`); content.append(link);
   } else if (item.productUnavailable) content.append(element("p", "Lien produit indisponible"));
+  const edit = createActionLink({ label: suspended ? "Consulter" : "Modifier", href: RoutePaths.EditWish.replace(":listId", item.wishlistId).replace(":wishId", item.id) });
+  edit.setAttribute("aria-label", `${suspended ? "Consulter" : "Modifier"} le cadeau « ${item.name} »`); content.append(edit);
   card.append(media, content); return card;
 }
 
