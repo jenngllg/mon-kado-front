@@ -40,6 +40,8 @@ import { createSharedWishlistContext } from "../features/sharing/sharedWishlistC
 import { createSharedWishlistService } from "../features/sharing/sharedWishlistService.js";
 import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
 import { createSharedWishView } from "../features/sharing/sharedWishView.js";
+import { createWishlistParticipationService } from "../features/sharing/wishlistParticipationService.js";
+import { createGuestParticipationHost } from "../features/sharing/guestParticipationHost.js";
 
 /** @typedef {(created: import("../features/wishlists/wishlistsService.js").CreatedWishlist, context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistCreatedHandler */
 /** @typedef {(context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistDeletedHandler */
@@ -206,7 +208,9 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const state = sharing.enter(context.params.shareLinkId, context.consumeFragment());
         if (state !== "ready") return createSharedWishlistEntryView(state);
         return createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
-          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).load });
+          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).load,
+          createParticipation: options => createGuestParticipationHost(session, { ...options, shareLinkId: context.params.shareLinkId,
+            ...createWishlistParticipationService(session, { context: sharing }) }) });
       },
     },
     {

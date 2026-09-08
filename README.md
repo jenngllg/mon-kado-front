@@ -1539,6 +1539,38 @@ retire l’ancienne version et effectue une lecture fraîche, comme le retour à
 liste. Une image expirée conserve les autres informations et perd sa source ;
 seule une actualisation explicite peut obtenir une nouvelle URL signée.
 
+## Participation invité (#900)
+
+La liste partagée présente « Participer à cette liste » uniquement lorsque la
+session MonKado est clairement anonyme. Une session en cours d’initialisation,
+de finalisation, indisponible ou en déconnexion non confirmée ne permet pas de
+commencer une participation invité. Les cadeaux restent consultables.
+
+Une lecture de `/participants/current` recherche d’abord la participation reconnue
+dans ce navigateur. `GUEST_SESSION_INVALID` (401) et
+`WISHLIST_PARTICIPANT_NOT_FOUND` (404) signifient ici une absence de reconnaissance,
+pas une perte du partage ni une déconnexion du compte. Les autres refus du partage
+retirent son contenu. Une panne de participation seule laisse les cadeaux visibles.
+
+La participation nécessite un clic explicite et un nom validé avec les règles
+communes : 80 caractères Unicode après nettoyage des extrémités, sans séquences
+invalides ni caractères de contrôle. Le POST transmet uniquement `displayName`,
+avec le secret de partage dans son en-tête, le CSRF et les cookies du transport,
+sans JWT. `201` indique une création ; `200` reprend le participant existant et son
+nom serveur, sans le renommer. Aucun ETag ni accès aux réservations n’est ajouté.
+
+Le backend gère seul le cookie invité HttpOnly. JavaScript ne lit, n’écrit et ne
+supprime pas ce cookie et ne persiste aucune identité invitée. La reconnaissance
+peut être perdue après expiration ou suppression du cookie. Le contexte de partage
+reste nécessaire : après rechargement, il faut rouvrir le lien original reçu.
+
+Après un résultat réseau incertain, « Vérifier ma participation » impose une
+lecture avant toute nouvelle tentative explicite. Une absence de reconnaissance
+ne prouve pas qu’aucune participation n’a été créée. Quitter la page ou se connecter
+annule l’attente et efface les saisies, mais n’annule pas nécessairement un POST
+déjà reçu ni son éventuel Set-Cookie. La participation avec un compte et le
+rattachement après connexion restent dans leurs US dédiées.
+
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants

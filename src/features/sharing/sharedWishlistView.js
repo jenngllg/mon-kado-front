@@ -7,10 +7,11 @@ import { createWishCard } from "../wishes/wishCard.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 /** Public collection; only its transport retains access to a bearer context.
- * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal}} options Dependencies.
+ * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal,
+ * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishlistView({ shareLinkId, load, signal }) {
+export function createSharedWishlistView({ shareLinkId, load, signal, createParticipation }) {
   const view = element("section", ""); view.className = "wishlist-details-view flow";
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
   const information = element("section", ""); information.className = "wishlist-details-info flow";
@@ -46,6 +47,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal }) {
       if (!list.wishes.length) results.append(createEmptyState({ title: "Cette liste ne contient pas encore de cadeau", message: "Les idées cadeaux apparaîtront ici." }));
       else { const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list"); for (const wish of list.wishes) cards.append(createWishCard(wish, false, { editable: false, detailHref: `/shared-wishlists/${shareLinkId}/wishes/${wish.id}` })); results.append(cards); }
       refresh.hidden = false; if (explicit) title.focus();
+      if (createParticipation) details.append(createParticipation({ onUnavailable: unavailable, signal: lifetime.signal }));
     } catch (error) {
       if (disposed || isAbortError(error)) return;
       clear(details);
@@ -62,6 +64,13 @@ export function createSharedWishlistView({ shareLinkId, load, signal }) {
         details.append(alert, createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } })); if (explicit) alert.focus();
       }
     } finally { busy = false; if (!disposed) { details.setAttribute("aria-busy", "false"); refresh.disabled = false; } }
+  }
+  function unavailable() {
+    if (disposed || terminal) return;
+    terminal = true; clear(details); clear(results); gifts.hidden = true; refresh.hidden = true;
+    title.textContent = "Lien de partage indisponible";
+    details.append(element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
+    title.focus();
   }
 }
 /** @param {"missing" | "invalid"} state Entry without usable credentials. @returns {HTMLElement} No-network state. */

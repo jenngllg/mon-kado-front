@@ -418,6 +418,11 @@
 }
 
 .shared-wish-view { overflow-wrap: anywhere; }
+.wishlist-participation {
+  padding-block-start: var(--space-5);
+  border-block-start: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
 .shared-wish-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

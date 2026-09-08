@@ -12,9 +12,20 @@ afterEach(() => { apps.splice(0).forEach(app => app.dispose()); document.body.re
 /** @param {string} [target] Initial URL. */
 function setup(target = path + "#" + secret) {
   window.history.replaceState({}, "", target); const transport = createSessionTransport(), hub = createCoordinatorHub(), fallback = transport.fetch.getMockImplementation();
-  const state = { status: 200, reads: 0, detailReads: 0, errorCode: "SHARED_WISHLIST_NOT_FOUND", beforeRead: async () => {} };
+  const state = { status: 200, reads: 0, detailReads: 0, errorCode: "SHARED_WISHLIST_NOT_FOUND", beforeRead: async () => {},
+    participantReads: 0, joins: 0, participantStatus: 401, participantCode: "GUEST_SESSION_INVALID", joined: false, beforeJoin: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
     expect(window.location.hash).toBe("");
+    const pathname = new URL(String(input)).pathname;
+    if (pathname.includes("/participants")) {
+      const headers = new Headers(init?.headers); expect(headers.get("Authorization")).toBeNull(); expect(headers.get("X-MonKado-Share-Token")).toBe(secret); expect(init?.credentials).toBe("include");
+      if (init?.method === "POST") {
+        state.joins++; expect(headers.get("X-CSRF-TOKEN")).not.toBeNull(); expect(JSON.parse(String(init.body))).toEqual({ displayName: "Alex" }); await state.beforeJoin(); state.joined = true;
+        return Response.json({ id, displayName: "Alex" }, { status: 201 });
+      }
+      state.participantReads++; expect(headers.get("X-CSRF-TOKEN")).toBeNull();
+      return state.joined ? Response.json({ id, displayName: "Alex" }) : Response.json({ statusCode: state.participantStatus, errorCode: state.participantCode, title: null, message: null, validationErrors: null }, { status: state.participantStatus });
+    }
     if (new URL(String(input)).pathname.startsWith("/api/v1/shared-wishlists/")) {
       state.reads++; await state.beforeRead(); const headers = new Headers(init?.headers);
       expect(headers.get("X-MonKado-Share-Token")).toBe(secret); expect(headers.get("Authorization")).toBeNull(); expect(headers.get("X-CSRF-TOKEN")).toBeNull(); expect(headers.get("If-Match")).toBeNull(); expect(init?.method).toBe("GET"); expect(init?.body).toBeUndefined(); expect(init?.credentials).toBe("include"); expect(String(input)).not.toContain(secret);
@@ -63,7 +74,7 @@ describe("public shared wishlist integration", () => {
   it("remains public after logout and invalidates access only when a 404 is known", async () => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true);
     await app.session.logout(); expect(app.router.getCurrentRoute()?.url.pathname).toBe(path); expect(app.shell.outlet.textContent).toContain(data.name);
-    state.status = 404; app.shell.outlet.querySelector("button")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Lien de partage indisponible") === true); expect(app.shell.outlet.textContent).not.toContain(data.name);
+    state.status = 404; [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Actualiser la liste")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Lien de partage indisponible") === true); expect(app.shell.outlet.textContent).not.toContain(data.name);
     await app.router.navigate("/"); await app.router.navigate(path); expect(app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(state.reads).toBe(2);
   });
 });
@@ -105,5 +116,30 @@ describe("public shared gift integration", () => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name);
     const gate = barrier(); state.beforeRead = () => gate.promise; await app.router.navigate(detailPath); await app.session.logout(); expect(app.router.getCurrentRoute()?.url.pathname).toBe(detailPath); gate.resolve(); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === wish.name);
     const late = barrier(); state.beforeRead = () => late.promise; app.shell.outlet.querySelector("button")?.click(); await app.router.navigate("/"); late.resolve(); await Promise.resolve(); expect(app.shell.outlet.querySelector("h1")?.textContent).not.toBe(wish.name);
+  });
+});
+
+describe("guest participation integration", () => {
+  it("does not mount guest controls for an authenticated session", async () => {
+    const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); expect(app.shell.outlet.querySelector("form")).toBeNull(); expect(state.participantReads).toBe(0); expect(state.joins).toBe(0);
+  });
+  it("joins explicitly with cookies and CSRF without reloading gifts or persisting participant state", async () => {
+    const { app, state, transport, hub } = setup(); transport.state.refreshStatus = 401; await app.start(); await untilSession(app.session, value => value.status === "anonymous"); await observe(() => app.shell.outlet.querySelector("form")?.hidden === false);
+    expect(state.reads).toBe(1); expect(state.participantReads).toBe(1); expect(state.joins).toBe(0);
+    const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector("input")); input.value = " Alex "; input.dispatchEvent(new Event("input", { bubbles: true })); /** @type {HTMLButtonElement | null} */ (app.shell.outlet.querySelector('button[type="submit"]'))?.click();
+    await observe(() => app.shell.outlet.textContent?.includes("Nom d’affichage : Alex") === true || app.shell.outlet.querySelector('[role="alert"]') !== null); expect(app.shell.outlet.querySelector('[role="alert"]')?.textContent ?? "").toBe(""); expect(state.joins).toBe(1); expect(state.reads).toBe(1); expect(input.value).toBe(""); expect(JSON.stringify(app.session.getSnapshot())).not.toContain("Alex"); expect(JSON.stringify(hub.messages)).not.toContain("Alex");
+    await app.router.navigate("/"); await app.router.navigate(path); await observe(() => app.shell.outlet.textContent?.includes("Nom d’affichage : Alex") === true); expect(state.participantReads).toBe(2); expect(state.joins).toBe(1);
+  });
+  it("removes all shared data when participation lookup discovers revocation", async () => {
+    const { app, state, transport } = setup(); transport.state.refreshStatus = 401; state.participantStatus = 404; state.participantCode = "SHARED_WISHLIST_NOT_FOUND"; await app.start(); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === "Lien de partage indisponible");
+    expect(app.shell.outlet.querySelector(".wish-card")).toBeNull(); expect(app.shell.outlet.querySelector("form")).toBeNull(); await app.router.navigate("/"); await app.router.navigate(path); expect(app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(state.reads).toBe(1);
+  });
+  it("keeps gifts available after a failed participation lookup", async () => {
+    const { app, state, transport } = setup(); transport.state.refreshStatus = 401; state.participantStatus = 503; await app.start(); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null); expect(app.shell.outlet.querySelectorAll(".wish-card")).toHaveLength(1); expect(app.session.getSnapshot().status).toBe("anonymous"); expect(app.shell.element.querySelectorAll('[role="alert"]')).toHaveLength(1);
+  });
+  it("clears a pending guest form on explicit authentication and ignores its late completion", async () => {
+    const { app, state, transport } = setup(); transport.state.refreshStatus = 401; await app.start(); await untilSession(app.session, value => value.status === "anonymous"); await observe(() => app.shell.outlet.querySelector("form")?.hidden === false);
+    const gate = barrier(), entered = barrier(); state.beforeJoin = () => { entered.resolve(); return gate.promise; }; const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector("input")); input.value = "Alex"; /** @type {HTMLButtonElement | null} */ (app.shell.outlet.querySelector('button[type="submit"]'))?.click(); await entered.promise;
+    await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); expect(app.shell.outlet.querySelector("form")).toBeNull(); expect(input.value).toBe(""); gate.resolve(); await Promise.resolve(); expect(app.shell.outlet.textContent).not.toContain("Nom d’affichage : Alex"); expect(app.shell.outlet.querySelectorAll(".wish-card")).toHaveLength(1);
   });
 });
