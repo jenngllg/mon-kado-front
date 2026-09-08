@@ -7,15 +7,18 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId, trimWishlistText } from "../wishlists/wishlistValidation.js";
 import { createWishForm } from "./wishForm.js";
 import { createWishDeleteDialog } from "./wishDeleteDialog.js";
+import { createWishImageSection } from "./wishImageSection.js";
+import { WishImageValidationError } from "./wishImageValidation.js";
 import { createWishPayload, parseWishPrice, WishPayloadTooLarge, WishServerMessages } from "./wishValidation.js";
 
 /** Edits an independently versioned gift without replacing a local draft on reread.
  * @param {{wishlistId: string, wishId: string, loadWishlist: import("../wishlists/wishlistsService.js").LoadWishlist,
  * loadOne: import("./wishesService.js").LoadWish, update: import("./wishesService.js").UpdateWish,
- * remove?: import("./wishesService.js").RemoveWish, onDeleted?: () => void | Promise<void>, signal?: AbortSignal}} options Owner operations.
+ * remove?: import("./wishesService.js").RemoveWish, onDeleted?: () => void | Promise<void>, signal?: AbortSignal,
+ * uploadImage?: import("./wishesService.js").UploadWishImage, removeImage?: import("./wishesService.js").RemoveWishImage}} options Owner operations.
  * @returns {HTMLElement} Disposable protected view.
  */
-export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, update, remove, onDeleted = () => {}, signal }) {
+export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, update, remove, onDeleted = () => {}, signal, uploadImage, removeImage }) {
   const view = element("section", ""); view.className = "wish-edit-view flow";
   const title = element("h1", "Modifier un cadeau"); title.tabIndex = -1;
   const listName = element("p", "");
@@ -25,6 +28,9 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   const lifetime = new AbortController();
   /** @type {import("./wishesService.js").EditableWish | null} */ let base = null;
   /** @type {HTMLDialogElement | null} */ let deletionDialog = null;
+  /** @type {HTMLDialogElement | null} */ let imageDialog = null;
+  let imageReadPending = false, imagePreserveDraft = false;
+  const imageNotice = element("div", ""); imageNotice.hidden = true;
   let disposed = false; let busy = false; let blocked = true; let suspended = false; let terminal = false; let decision = false; let validationSummary = false;
   const editor = createWishForm({ label: "Modifier un cadeau", inactive: () => disposed || busy || suspended || terminal,
     onChange: () => { if (validationSummary && editor.fields.every(field => field.error === null)) clearFeedback(); sync(); } });
@@ -39,13 +45,17 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   const destination = isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists;
   const deletion = element("section", ""); deletion.className = "wish-edit-view__deletion flow";
   const deleteButton = createButton({ label: "Supprimer ce cadeau", variant: "danger", onClick: openDeletion });
+  const imageSection = createWishImageSection({ onUpload: file => { void saveImage(file); }, onRemove: openImageDeletion, onRefresh: () => { void read(true); } });
   deletion.append(element("h2", "Suppression du cadeau"), element("p", "Tu devras confirmer cette action définitive."), deleteButton);
   view.append(title, listName, feedback, status, comparison, form, reread, retry, createActionLink({ label: "Retour à la liste", href: destination }));
+  if (uploadImage && removeImage) view.append(imageNotice, imageSection.element);
   view.append(deletion);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); base = null; editor.discardDeferredBlur(); editor.clear(); clearFeedback(); clearComparison();
     if (deletionDialog) { disposeComponent(deletionDialog); deletionDialog.remove(); deletionDialog = null; }
+    if (imageDialog) { disposeComponent(imageDialog); imageDialog.remove(); imageDialog = null; }
+    disposeComponent(imageSection.element); disposeComponent(imageNotice); imageNotice.replaceChildren();
     listName.textContent = ""; status.textContent = ""; sync();
   });
   if (signal) {
@@ -69,27 +79,30 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     }) || parseWishPrice(values.price) !== parseWishPrice(stored.price) ||
       Number(values.quantity) !== Number(stored.quantity) || values.quantity.trim() === "" || fields[4].control.validity.badInput;
   }
+  function hasTextDraft() { const values = editor.getValues(); return !!base && fields.some(field => values[field.name] !== base?.values[field.name]); }
+  function clearImageNotice() { disposeComponent(imageNotice); imageNotice.replaceChildren(); imageNotice.hidden = true; }
   function sync() {
     form.hidden = disposed || terminal || base === null;
-    for (const field of fields) field.control.disabled = disposed || terminal || busy || suspended;
-    submit.disabled = disposed || terminal || busy || blocked || suspended || !changed();
+    for (const field of fields) field.control.disabled = disposed || terminal || busy || suspended || imageDialog !== null;
+    submit.disabled = disposed || terminal || busy || blocked || suspended || imageDialog !== null || !changed();
     if (!busy) submit.textContent = decision ? "Enregistrer ma saisie" : "Enregistrer les modifications";
-    cancel.hidden = decision; cancel.disabled = disposed || terminal || busy || suspended || !base;
-    useVersion.hidden = !decision; useVersion.disabled = disposed || terminal || busy || suspended;
-    reread.hidden = disposed || terminal || !base || !blocked; reread.disabled = busy;
+    cancel.hidden = decision; cancel.disabled = disposed || terminal || busy || suspended || imageDialog !== null || !base;
+    useVersion.hidden = !decision; useVersion.disabled = disposed || terminal || busy || suspended || imageDialog !== null;
+    reread.hidden = disposed || terminal || !base || !blocked; reread.disabled = busy || imageDialog !== null;
     retry.hidden = disposed || terminal || base !== null || busy; retry.disabled = busy;
     form.setAttribute("aria-busy", String(busy));
     deletion.hidden = !remove || disposed || terminal || base === null || suspended;
-    deleteButton.disabled = disposed || busy || terminal || suspended || base === null || deletionDialog !== null;
+    deleteButton.disabled = disposed || busy || blocked || terminal || suspended || base === null || deletionDialog !== null || imageDialog !== null;
+    imageSection.update(base?.wish ?? null, disposed || busy || blocked || terminal || deletionDialog !== null || imageDialog !== null, suspended);
   }
   function openDeletion() {
-    if (!remove || disposed || busy || terminal || suspended || !base || deletionDialog) return;
+    if (!remove || disposed || busy || blocked || terminal || suspended || !base || deletionDialog || imageDialog) return;
     editor.discardDeferredBlur();
     const modal = createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadOne, remove, signal: lifetime.signal,
       onUnavailable: state => { if (disposed) return; if (state === "suspended") lockSuspended(); else notFound(state === "wishlistMissing"); sync(); },
       onDeleted: async () => {
         if (disposed) return;
-        terminal = true; blocked = true; base = null; editor.clear(); clearComparison(); listName.textContent = "";
+        terminal = true; blocked = true; base = null; editor.clear(); imageSection.clearSelection(); clearComparison(); listName.textContent = "";
         disposeComponent(form); form.remove(); sync();
         show({ title: "Cadeau supprimé", message: "La suppression de ton cadeau est confirmée.", variant: "success" });
         modal.close();
@@ -112,8 +125,74 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       show({ title: "Confirmation indisponible", message: "La fenêtre de confirmation n’a pas pu être ouverte. Réessaie depuis cette page." }).focus();
     }
   }
+  /** An image success never replays a mutation if its subsequent read fails.
+   * @param {string} label Confirmed result. */
+  async function imageSucceeded(label) {
+    if (disposed) return;
+    imageSection.clearSelection(); blocked = true; imageReadPending = true;
+    disposeComponent(imageNotice); imageNotice.replaceChildren(createAlert({ title: label, message: "Les informations du cadeau sont relues. Les autres saisies ne sont pas enregistrées.", variant: "success" })); imageNotice.hidden = false;
+    sync(); await read(true);
+  }
+  /** @param {Blob} file Validated selection, never the textual form. */
+  async function saveImage(file) {
+    if (!uploadImage || !base || disposed || busy || blocked || suspended || terminal || imageDialog || deletionDialog) return;
+    editor.discardDeferredBlur(); imagePreserveDraft = hasTextDraft(); busy = true; clearFeedback(); clearImageNotice(); sync(); status.textContent = "Enregistrement de l’image…";
+    let saved = false;
+    try {
+      const result = await uploadImage(wishlistId, wishId, file, { etag: base.etag, signal: lifetime.signal });
+      if (disposed || lifetime.signal.aborted) return;
+      base = result; saved = true;
+    } catch (error) { if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) imageFailure(error); }
+    finally { if (!disposed) { busy = false; status.textContent = ""; sync(); } }
+    if (saved && !disposed) await imageSucceeded("Image enregistrée"); else if (!disposed) focusFeedback();
+  }
+  function openImageDeletion() {
+    if (!removeImage || !base || disposed || busy || blocked || suspended || terminal || imageDialog || deletionDialog) return;
+    editor.discardDeferredBlur();
+    const modal = createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadOne, signal: lifetime.signal, imageOnly: true,
+      remove: async (listId, giftId, options) => { clearImageNotice(); await removeImage(listId, giftId, options); },
+      onRevalidationRequired: () => { if (!disposed) { blocked = true; sync(); } },
+      onUnavailable: state => { if (!disposed) { if (state === "suspended") lockSuspended(); else notFound(state === "wishlistMissing"); sync(); } },
+      onDeleted: async () => {
+        if (disposed || !base) return;
+        imagePreserveDraft = hasTextDraft(); blocked = true;
+        base = Object.freeze({ ...base, wish: Object.freeze({ ...base.wish, imageUrl: null, imageUnavailable: false }) });
+        imageDialog = null; modal.close(); disposeComponent(modal); modal.remove();
+        await imageSucceeded("Image supprimée");
+      } });
+    imageDialog = modal; view.append(modal); sync();
+    addComponentEventListener(view, modal, "close", () => {
+      if (imageDialog === modal) imageDialog = null;
+      if (!disposed) { sync(); const trigger = /** @type {HTMLButtonElement | null} */ (imageSection.element.querySelector('button.ui-button--danger')); if (trigger && !trigger.hidden && !trigger.disabled) trigger.focus(); else imageSection.title.focus(); }
+    }, { once: true });
+    try { modal.showModal(); } catch { imageDialog = null; disposeComponent(modal); modal.remove(); sync(); show({ title: "Confirmation indisponible", message: "La confirmation de suppression ne peut pas être ouverte." }).focus(); }
+  }
+  /** @param {unknown} error Safe image operation failure. */
+  function imageFailure(error) {
+    if (error instanceof ApiError && error.errorCode === "WISH_IMAGE_NOT_FOUND") {
+      blocked = true; show({ title: "Image indisponible", message: "Relis le cadeau pour vérifier son image actuelle." }); return;
+    }
+    if (error instanceof ApiError && error.statusCode === 404) { notFound(false); return; }
+    if (error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED") { lockSuspended(); return; }
+    const conflict = error instanceof ApiError && (error.statusCode === 412 || error.statusCode === 428 || error.validationErrors.some(item => item.propertyName === "ifMatch"));
+    const uncertain = !(error instanceof ApiError) && !(error instanceof WishImageValidationError) || error instanceof ApiError && (error.kind !== "http" || (error.statusCode ?? 0) >= 500);
+    if (conflict || uncertain) { blocked = true; decision = false; clearComparison(); }
+    const translated = toUserFacingError(error); const details = [];
+    if (error instanceof ApiError && error.correlationId) details.push(`Référence : ${error.correlationId}`);
+    if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) details.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
+    let message = translated.message;
+    if (error instanceof WishImageValidationError) message = error.message;
+    else if (conflict) message = "Ce cadeau a été modifié ailleurs. Ta sélection et tes saisies sont conservées. Relis le cadeau avant de continuer.";
+    else if (uncertain) message = "La modification de l’image ne peut pas être confirmée. Relis le cadeau avant de réessayer.";
+    else if (error instanceof ApiError) {
+      if (error.statusCode === 413) message = "L’image ne doit pas dépasser 10 Mio.";
+      else if (error.errorCode === "WISH_IMAGE_UNSUPPORTED_FORMAT" || error.statusCode === 415) message = "Choisis une image JPEG, PNG ou WebP non animée.";
+      else if (error.errorCode === "WISH_IMAGE_INVALID" || error.validationErrors.some(item => item.propertyName === "image")) message = "Cette image ne peut pas être utilisée. Vérifie son format et ses dimensions, ou choisis un autre fichier.";
+    }
+    show({ title: "Image non enregistrée", message, detail: details.join(" ") || null });
+  }
   function useStored() {
-    if (disposed || busy || suspended || terminal || !base || deletionDialog) return;
+    if (disposed || busy || suspended || terminal || !base || deletionDialog || imageDialog) return;
     editor.discardDeferredBlur(); editor.reset(base.values); decision = false; clearComparison();
     if (!blocked) clearFeedback();
     sync(); title.focus();
@@ -128,11 +207,11 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   }
   /** @param {boolean} explicit User retry. */
   async function read(explicit) {
-    if (disposed || busy || terminal || deletionDialog) return;
+    if (disposed || busy || terminal || deletionDialog || imageDialog) return;
     if (!isWishlistId(wishlistId)) { notFound(true); return; }
     if (!isWishlistId(wishId)) { notFound(false); return; }
     editor.discardDeferredBlur();
-    const preserve = base !== null;
+    const preserve = imageReadPending ? imagePreserveDraft : base !== null;
     busy = true; blocked = true; decision = false; clearComparison(); clearFeedback(); sync();
     feedback.hidden = false; feedback.append(createLoadingState({ label: "Chargement de ton cadeau…" }));
     let readingList = true;
@@ -144,6 +223,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       if (disposed || lifetime.signal.aborted) return;
       if (!isStrongEntityTag(loaded.etag)) throw new ApiError({ kind: "invalidResponse" });
       base = loaded; listName.textContent = list.wishlist.name; suspended = list.wishlist.isSuspended; clearFeedback();
+      imageReadPending = false;
       if (!preserve) editor.reset(loaded.values);
       blocked = suspended; decision = preserve && !suspended;
       if (suspended) show({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" });
@@ -158,7 +238,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     } finally { if (!disposed) { busy = false; sync(); } }
   }
   async function save() {
-    if (disposed || busy || blocked || suspended || terminal || !base || !changed() || deletionDialog) return;
+    if (disposed || busy || blocked || suspended || terminal || !base || !changed() || deletionDialog || imageDialog) return;
     editor.discardDeferredBlur(); clearFeedback(); for (const field of fields) editor.validate(field);
     const invalid = fields.find(field => field.error !== null);
     if (invalid) { show({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." }); validationSummary = true; invalid.control.focus(); return; }
@@ -182,7 +262,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   }
   /** @param {boolean} parent Missing list rather than gift. */
   function notFound(parent) {
-    terminal = true; blocked = true; base = null; editor.clear(); clearComparison(); listName.textContent = "";
+    terminal = true; blocked = true; base = null; editor.clear(); imageSection.clearSelection(); clearComparison(); listName.textContent = "";
     disposeComponent(form); form.remove(); show({ title: parent ? "Liste introuvable" : "Cadeau introuvable", message: "Ce contenu n’est pas disponible." }); sync();
   }
   function lockSuspended() { blocked = true; suspended = true; decision = false; clearComparison(); show({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" }); }

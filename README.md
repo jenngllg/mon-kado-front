@@ -1344,6 +1344,48 @@ immédiatement la vue protégée. Les réponses tardives sont ignorées.
 L’annulation de l’attente ne garantit pas l’annulation d’une écriture déjà reçue
 par le serveur. Aucun traitement de réservation ou d’image n’est ajouté.
 
+## Image du cadeau (#892)
+
+L’édition du cadeau comporte une section d’image indépendante des cinq champs.
+Choisir un fichier affiche seulement un aperçu local ; Enregistrer l’image ou
+Remplacer l’image demande une activation explicite. Annuler la sélection ne
+modifie ni l’image serveur ni les autres saisies. La création d’un cadeau ne
+comporte pas encore de téléversement.
+
+Les sources acceptées sont JPEG, PNG et WebP non animés, de 10 Mio maximum
+(10 485 760 octets) et 40 millions de pixels. Le frontend contrôle la signature,
+la taille et le décodage de l’aperçu, sans transformer le fichier. Le backend
+reste l’autorité pour le format réel, les animations et la normalisation en
+WebP (1 600 px maximum). Les URLs objet sont révoquées lorsqu’un aperçu est
+remplacé, annulé, enregistré ou détruit ; aucun fichier n’est persisté.
+
+Le client HTTP accepte `formData`, exclusif de `body`, sans définir lui-même
+le Content-Type multipart. `uploadImage(wishlistId, wishId, file, { etag, signal })`
+envoie exactement le fichier `image` par PUT sur la sous-ressource `/image`.
+`removeImage(wishlistId, wishId, { etag, signal })` envoie un DELETE sans corps.
+Ces opérations requièrent le JWT et l’ETag individuel du cadeau, sans CSRF
+supplémentaire. Les succès sont respectivement 200 avec WishResponse et 204
+vide, tous deux avec un ETag fort ; une image identique peut conserver son ETag.
+
+La suppression nécessite une modale native avec une lecture fraîche et une
+confirmation explicite. Elle retire seulement l’image, jamais le cadeau.
+Annuler préserve le brouillon, la sélection et la version d’édition antérieure.
+Un seul type de mutation peut être en cours dans l’éditeur à la fois.
+
+Après succès d’image, la liste et le cadeau sont relus. Les saisies textuelles
+non enregistrées sont conservées et comparées avec cette version avant leur
+prochain enregistrement explicite. Une relecture échouée conserve le succès
+acquis et bloque les nouvelles écritures ; seul le GET est repris. Les conflits
+et résultats réseau incertains imposent également une relecture et une nouvelle
+décision, sans rejeu automatique de la mutation.
+
+Les images privées partagent le même rendu dans les cartes et l’édition : source
+signée validée, absence de referrer, dimensions réservées et états Sans image ou
+Image indisponible. Les URLs signées ne sont ni journalisées ni persistées ;
+leur expiration demande une actualisation explicite, sans boucle de chargement.
+Un WISH_IMAGE_NOT_FOUND ne signifie pas que le cadeau est supprimé. Le nettoyage
+physique des anciennes images relève du backend et n’est pas promis immédiat.
+
 ## Périmètre actuel
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants

@@ -2,6 +2,7 @@ import { ApiError } from "../../api/apiError.js";
 import { isStrongEntityTag } from "../../api/entityTag.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { createWishPayload, safeHttpUrl } from "./wishValidation.js";
+import { validateWishImageFile } from "./wishImageValidation.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionResponse"]} WishCollectionResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"]} WishCollectionItemResponse */
@@ -18,16 +19,37 @@ import { createWishPayload, safeHttpUrl } from "./wishValidation.js";
 /** @typedef {(wishlistId: string, wishId: string, options: {etag: string, signal: AbortSignal}) => Promise<void>} RemoveWish */
 /** @typedef {Readonly<{wishes: ReadonlyArray<Readonly<{id: string, position: string, entityTag: string}>>, etag: string}>} WishOrder */
 /** @typedef {(wishlistId: string, wishIds: ReadonlyArray<string>, options: {etag: string, signal: AbortSignal}) => Promise<WishOrder>} ReorderWishes */
+/** @typedef {(wishlistId: string, wishId: string, file: Blob, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} UploadWishImage */
+/** @typedef {(wishlistId: string, wishId: string, options: {etag: string, signal: AbortSignal}) => Promise<Readonly<{etag: string}>>} RemoveWishImage */
 
 /** Reads the complete private collection; grants and versions belong to the caller's view.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{apiBaseUrl: string}} options Trusted API configuration.
- * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish, remove: RemoveWish, reorder: ReorderWishes}} Injectable owner operations.
+ * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish, remove: RemoveWish, reorder: ReorderWishes, uploadImage: UploadWishImage, removeImage: RemoveWishImage}} Injectable owner operations.
  */
 export function createWishesService(session, { apiBaseUrl }) {
   const base = safeHttpUrl(apiBaseUrl);
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
-  return { reorder: async (wishlistId, wishIds, { etag, signal }) => {
+  return { uploadImage: async (wishlistId, wishId, file, { etag, signal }) => {
+    const path = itemPath(wishlistId, wishId) + "/image";
+    if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+    const mediaType = await validateWishImageFile(file);
+    const formData = new FormData();
+    // OpenAPI represents the binary multipart member as a string, not a runtime model.
+    /** @type {keyof import("../../api/generated/openapi.js").paths["/api/v1/wishlists/{wishlistId}/wishes/{wishId}/image"]["put"]["requestBody"]["content"]["multipart/form-data"]} */
+    const imageField = "image";
+    formData.append(imageField, file, "image." + mediaType.split("/")[1]);
+    const response = await session.request(path, { method: "PUT", authentication: "required", formData, ifMatch: etag, signal });
+    const result = editable(response, wishlistId, wishId, base);
+    if (!result.wish.imageUrl) throw new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
+    return result;
+  }, removeImage: async (wishlistId, wishId, { etag, signal }) => {
+    const path = itemPath(wishlistId, wishId) + "/image";
+    if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+    const response = await session.request(path, { method: "DELETE", authentication: "required", ifMatch: etag, expectEmptyResponse: true, signal });
+    if (response.status !== 204 || response.data !== null || !isStrongEntityTag(response.metadata.etag)) throw new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
+    return Object.freeze({ etag: response.metadata.etag });
+  }, reorder: async (wishlistId, wishIds, { etag, signal }) => {
     if (!isWishlistId(wishlistId)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_NOT_FOUND" });
     if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
     if (!Array.isArray(wishIds) || wishIds.length > 1000 || wishIds.some(id => !isWishlistId(id)) || new Set(wishIds.map(id => id.toLowerCase())).size !== wishIds.length) {

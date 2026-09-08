@@ -11,6 +11,11 @@ const viewStyles = readStyleFile("../src/styles/views.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
+  it("bounds gift image previews and keeps the native file action touch accessible", () => {
+    expect(viewStyles).toContain('.wish-image-section__preview img { max-width: 100%;');
+    expect(viewStyles.match(/\.wish-image-section input::file-selector-button\s*\{([^}]+)\}/)?.[1]).toContain("min-height: 44px");
+    expect(viewStyles.match(/\.wish-image-section input\[type="file"\]\s*\{([^}]+)\}/)?.[1]).toContain("min-width: 0");
+  });
   it("loads each stylesheet in the declared cascade order", () => {
     // Arrange
     const expectedImports = [

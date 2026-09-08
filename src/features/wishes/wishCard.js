@@ -1,18 +1,11 @@
 import { RoutePaths } from "../../app/routeContracts.js";
-import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
+import { createWishImage } from "./wishImage.js";
 import { createActionLink } from "../../components/index.js";
 const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 /** @param {import("./wishesService.js").Wish} item Safe minimal model. @param {boolean} suspended Read-only parent. @param {{editable?: boolean}} [options] Card actions. @returns {HTMLLIElement} Gift card without reservation information. */
 export function createWishCard(item, suspended, { editable = true } = {}) {
   const card = element("li", ""); card.className = "wish-card";
-  const media = element("div", ""); media.className = "wish-card__media";
-  const fallback = element("span", item.imageUnavailable ? "Image indisponible" : "Sans image"); media.append(fallback);
-  if (item.imageUrl) {
-    const image = document.createElement("img"); image.alt = ""; image.width = 400; image.height = 300;
-    image.loading = "lazy"; image.decoding = "async"; image.referrerPolicy = "no-referrer"; fallback.hidden = true;
-    addComponentEventListener(card, image, "error", () => { image.removeAttribute("src"); image.remove(); fallback.textContent = "Image indisponible"; fallback.hidden = false; }, { once: true });
-    registerComponentCleanup(card, () => { image.removeAttribute("src"); }); image.src = item.imageUrl; media.append(image);
-  }
+  const media = createWishImage(item);
   const content = element("div", ""); content.className = "wish-card__content flow";
   content.append(element("h3", item.name));
   if (item.note) { const note = element("p", item.note); note.className = "wishlist-details-note"; content.append(note); }

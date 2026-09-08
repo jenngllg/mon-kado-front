@@ -43,6 +43,7 @@ const JsonContentType = "application/json";
  * @typedef {{
  *   method?: string,
  *   body?: unknown,
+ *   formData?: FormData,
  *   authentication?: AuthenticationMode,
  *   csrf?: boolean,
  *   ifMatch?: string,
@@ -112,6 +113,9 @@ export class ApiClient {
     const authentication = options.authentication ?? "none";
     const timeoutMs = validateTimeout(options.timeoutMs ?? this.#timeoutMs);
     validateAuthenticationMode(authentication);
+    if (options.formData !== undefined && (!(options.formData instanceof FormData) || options.body !== undefined)) {
+      throw new TypeError("Use either a JSON body or multipart form data.");
+    }
     throwIfCallerAborted(options.signal);
 
     const accessToken = this.#resolveAccessToken(authentication);
@@ -184,7 +188,7 @@ export class ApiClient {
     let requestBody;
 
     try {
-      requestBody = options.body === undefined ? undefined : JSON.stringify(options.body);
+      requestBody = options.formData ?? (options.body === undefined ? undefined : JSON.stringify(options.body));
     } catch {
       throw new TypeError("The API request body cannot be serialized as JSON.");
     }
