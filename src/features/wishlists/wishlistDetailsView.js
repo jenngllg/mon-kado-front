@@ -68,6 +68,8 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, sig
     if (item.message) { const message = element("p", item.message); message.className = "wishlist-details-note"; listContent.append(message); }
     if (item.isSuspended) listContent.append(createAlert({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" }));
     else {
+      const add = createActionLink({ label: "Ajouter un cadeau", href: RoutePaths.NewWish.replace(":listId", wishlistId) });
+      add.classList.add("home-hero__primary-action"); listContent.append(add);
       listContent.append(createActionLink({ label: "Modifier les informations", href: RoutePaths.EditList.replace(":listId", wishlistId) }));
       const danger = element("div", ""); danger.className = "wishlist-details-danger";
       danger.append(createActionLink({ label: "Supprimer cette liste", href: RoutePaths.DeleteList.replace(":listId", wishlistId), variant: "danger" })); listContent.append(danger);

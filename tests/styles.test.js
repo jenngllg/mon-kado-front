@@ -173,7 +173,7 @@ describe("graphic foundations", () => {
     expect(control).toContain("padding-inline: min(3vw, var(--space-4))");
   });
   it("shares the creation card with editing and wraps comparison content and actions", () => {
-    expect(viewStyles).toMatch(/\.wishlist-create-view,\s*\.wishlist-edit-view,\s*\.wishlist-delete-view\s*\{/);
+    expect(viewStyles).toMatch(/\.wishlist-create-view,\s*\.wish-create-view,\s*\.wishlist-edit-view,\s*\.wishlist-delete-view\s*\{/);
     const comparison = viewStyles.match(/\.wishlist-edit-view__comparison\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(comparison).toContain("overflow-wrap: anywhere");
     expect(comparison).toContain("var(--color-warning-soft)");

@@ -103,6 +103,7 @@
 .email-confirmation-view,
 .profile-view,
 .wishlist-create-view,
+.wish-create-view,
 .wishlist-edit-view,
 .wishlist-delete-view {
   --flow-space: var(--space-5);
@@ -126,6 +127,7 @@
 .email-confirmation-view h1,
 .profile-view h1,
 .wishlist-create-view h1,
+.wish-create-view h1,
 .wishlist-edit-view h1,
 .wishlist-delete-view h1 {
   font-size: var(--font-size-2xl);

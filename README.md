@@ -1086,7 +1086,8 @@ Les occasions et dates sont françaises (date calendaire en UTC) ; notes et mess
 conservent leurs retours à la ligne. Une liste suspendue reste consultable sans
 motif de suspension ni liens de modification/suppression. Aucune réservation,
 quantité restante, progression ou information sur les participants n’est exposée.
-Les futures actions cadeaux ne sont pas simulées.
+L’action « Ajouter un cadeau » de #885 est disponible sur les listes non
+suspendues, y compris vides. Les autres futures actions cadeaux ne sont pas simulées.
 
 `createWishesService(session, { apiBaseUrl }).load(wishlistId, { signal })` appelle
 `GET /api/v1/wishlists/{wishlistId}/wishes` avec JWT requis, sans corps, CSRF,
@@ -1120,6 +1121,60 @@ réponses tardives ; une nouvelle ouverture relit le serveur. Le routeur conserv
 le focus initial, les relectures explicites ciblent le titre ou l’alerte. Les
 gardes et le retrait immédiat des données lors d’un changement de session ne
 changent pas. Aucun cache inter-vues ni donnée de surprise n’est conservé.
+
+## Ajouter manuellement un cadeau (#885)
+
+Depuis le détail, « Ajouter un cadeau » ouvre `/lists/:listId/wishes/new`.
+Cette route est protégée, appartient à « Mes listes » et est autorisée comme
+destination `returnTo`. Elle relit la liste avant de présenter un formulaire :
+nom, note facultative, lien produit facultatif, prix facultatif en euros et
+quantité souhaitée initialisée à 1. Une liste suspendue reste en consultation
+uniquement ; une relecture valide est obligatoire pour réactiver le formulaire.
+
+Les validations partagées `validateWishField()` comptent les caractères Unicode
+avant toute normalisation NFC (réservée au serveur) : nom de 100 caractères,
+note de 500 et URL de 2 048. Les notes autorisent tabulations et retours à la ligne.
+Les URL doivent être absolues HTTP(S), sans identifiants ou syntaxe dangereuse ;
+aucun site marchand n’est contacté. Le prix accepte virgule ou point, de 0,01 à
+99 999 999,99 euros avec deux décimales maximum, sans exposant ni séparateur de
+milliers. Le calcul passe par des centimes entiers sans arrondi silencieux.
+La quantité est un entier de 1 à 100. Les erreurs sont françaises, au blur après
+modification, à la soumission puis pendant les corrections. Le résumé, le focus
+et la protection du clic après blur reprennent les formulaires existants.
+
+`createWishesService(session, { apiBaseUrl }).create(wishlistId, values, { signal })`
+construit exclusivement `{ name, note, url, price, quantity }` à partir des valeurs
+textuelles du formulaire. Les champs facultatifs blancs deviennent `null` ; prix
+et quantité sont des nombres JSON. Le corps JSON UTF-8 est limité à 4 096 octets,
+avant tout envoi, sans tronquer les données. Le POST utilise le JWT requis et
+les cookies du transport commun, sans `If-Match`, CSRF supplémentaire, position,
+identité de propriétaire, image ou clé d’idempotence.
+
+Le succès nécessite `201`, un `WishResponse` valide du bon parent et un ETag fort
+du cadeau ; `Location` n’est pas utilisé. La projection immuable `{ wish, etag }`
+préserve la position Int64 exacte. Le contrat de lecture de collection reste
+strict, notamment sa quantité numérique. Aucun retry automatique n’est ajouté.
+
+`createWishCreateView({ wishlistId, loadOne, create, onCreated, signal })` désactive
+les champs et annonce l’envoi, puis efface les valeurs et verrouille sa soumission
+après succès. L’application remplace la route par le détail et affiche une seule
+notification « Cadeau ajouté ». Le détail relit la liste, la collection et leurs
+versions distinctes, sans insertion optimiste, tri ni pagination. Une panne de
+navigation ou de relecture après succès ne permet pas de renvoyer le POST : seule
+l’ouverture ou la lecture du détail est à reprendre.
+
+Les erreurs `WISH_LIMIT_REACHED`, suspension, `404` et `413` ont une présentation
+sûre ; les validations inconnues restent globales. Une panne réseau, un timeout,
+une réponse invalide ou un échec serveur ne garantit pas l’absence de création :
+« L’ajout de ton cadeau ne peut pas être confirmé. Consulte ta liste avant de
+réessayer. » Une nouvelle tentative est toujours explicite. Le délai de `429` et
+la référence disponible sont présentés sans compte à rebours ou texte backend.
+
+Les saisies ne persistent que dans la vue montée après une erreur récupérable.
+Partir ou changer de session annule l’attente, efface les données et empêche une
+navigation/notification tardive, sans garantir l’annulation d’une création déjà
+reçue par le serveur. Aucun brouillon, aperçu, import, téléversement ou traitement
+de réservation n’est ajouté.
 
 ## Périmètre actuel
 

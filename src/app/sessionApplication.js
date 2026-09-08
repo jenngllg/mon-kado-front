@@ -34,6 +34,19 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   const router = createRouter({
     outlet: shell.outlet,
     routes: createApplicationRoutes({ session, google, apiBaseUrl,
+      onWishCreated: async (created, context) => {
+        const parentId = context.params.listId;
+        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.NewWish ||
+          window.location.pathname.replace(/\/+$/, "") !== RoutePaths.NewWish.replace(":listId", parentId) ||
+          created.wish.wishlistId.toLowerCase() !== parentId.toLowerCase() || session.getSnapshot().status !== "authenticated") return;
+        const epoch = protectedViewEpoch;
+        const destination = RoutePaths.ListDetails.replace(":listId", parentId);
+        const route = await router.replace(destination);
+        if (!disposed && epoch === protectedViewEpoch && route !== null && route === router.getCurrentRoute() &&
+          route.name === RouteNames.ListDetails && window.location.pathname === destination && session.getSnapshot().status === "authenticated") {
+          showNotification(shell.notificationRegion, { message: "Cadeau ajouté", variant: "success" });
+        }
+      },
       onWishlistCreated: async (created, context) => {
         if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.NewList ||
           window.location.pathname.replace(/\/+$/, "") !== RoutePaths.NewList || session.getSnapshot().status !== "authenticated") return;
