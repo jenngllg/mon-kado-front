@@ -21,6 +21,25 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("owner share section", () => {
+  it("names the list safely, shares modal exclusion, and allows creation only after confirmed deactivation", async () => {
+    const gate = barrier(); const revoke = vi.fn(async () => { await gate.promise; }); const renew = vi.fn(async () => link);
+    const ui = setup({ load: async () => link, revoke, renew, wishlistName: '<img src=x onerror=alert(1)>' }); await settle();
+    ui.button("Désactiver le partage").click(); ui.button("Renouveler le lien").click(); expect(ui.view.querySelectorAll("dialog")).toHaveLength(1);
+    expect(ui.view.querySelector("dialog h2")?.textContent).toContain('<img src=x onerror=alert(1)>'); expect(ui.view.querySelector("img")).toBeNull(); expect(revoke).not.toHaveBeenCalled();
+    ui.button("Annuler").click(); expect(ui.input.value).toBe(link.shareUrl); expect(document.activeElement).toBe(ui.button("Désactiver le partage"));
+    ui.button("Désactiver le partage").click(); /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Désactiver le partage")).click();
+    expect(ui.input.value).toBe(""); expect(ui.button("Créer le lien de partage").hidden).toBe(true); expect(ui.view.querySelector(':scope > [role=status]')?.textContent).not.toBe("Partage désactivé");
+    gate.resolve(); await settle(); expect(ui.view.querySelector("dialog")).toBeNull(); expect(ui.view.textContent).toContain("Partage désactivé"); expect(ui.create).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(ui.view.querySelector("h2")); ui.button("Créer le lien de partage").click(); await settle(); expect(ui.create).toHaveBeenCalledOnce();
+  });
+  it("keeps revocation blocked across closing and reread failure, without falsely attributing later absence", async () => {
+    const revoke = vi.fn(async () => { throw new ApiError({ kind: "timeout" }); }); const load = vi.fn(/** @type {import("../src/features/wishlists/wishlistShareService.js").LoadWishlistShare} */ (async () => link));
+    const ui = setup({ load, revoke, wishlistName: "Ma liste" }); await settle(); ui.button("Désactiver le partage").click();
+    /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Désactiver le partage")).click(); await settle(); ui.button("Annuler").click();
+    ui.button("Créer le lien de partage").click(); ui.button("Désactiver le partage").click(); expect(ui.create).not.toHaveBeenCalled(); expect(revoke).toHaveBeenCalledOnce();
+    load.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.button("Actualiser le lien").click(); await settle(); expect(ui.button("Créer le lien de partage").hidden).toBe(true);
+    load.mockResolvedValue(null); ui.button("Actualiser le lien").click(); await settle(); expect(ui.view.textContent).toContain("Aucun lien de partage actif"); expect(ui.view.textContent).not.toContain("Partage désactivé"); expect(ui.button("Créer le lien de partage").hidden).toBe(false);
+  });
   it("owns one renewal dialog, preserves the link on cancel and adopts only confirmed renewal", async () => {
     const renewed = { ...link, shareUrl: link.shareUrl.replace(/A/g, "E"), etag: '"new"' }; const renew = vi.fn(async () => renewed);
     const ui = setup({ load: async () => link, renew }); await settle();

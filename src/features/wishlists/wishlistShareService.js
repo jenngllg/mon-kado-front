@@ -7,11 +7,12 @@ import { isWishlistId } from "./wishlistValidation.js";
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishlistShareLink | null>} LoadWishlistShare */
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishlistShareLink>} CreateWishlistShare */
 /** @typedef {(wishlistId: string, options: {etag: string, signal: AbortSignal}) => Promise<WishlistShareLink>} RenewWishlistShare */
+/** @typedef {(wishlistId: string, options: {etag: string, signal: AbortSignal}) => Promise<void>} RevokeWishlistShare */
 
 /** Creates owner share operations without persisting their bearer links.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{frontendOrigin: string}} options Trusted frontend origin.
- * @returns {{load: LoadWishlistShare, create: CreateWishlistShare, renew: RenewWishlistShare}} Share operations.
+ * @returns {{load: LoadWishlistShare, create: CreateWishlistShare, renew: RenewWishlistShare, revoke: RevokeWishlistShare}} Share operations.
  */
 export function createWishlistShareService(session, { frontendOrigin }) {
   let origin;
@@ -19,6 +20,12 @@ export function createWishlistShareService(session, { frontendOrigin }) {
   catch { throw new ApiError({ kind: "invalidResponse" }); }
   if (!/^https?:$/.test(origin.protocol) || origin.origin !== frontendOrigin) throw new ApiError({ kind: "invalidResponse" });
   return {
+    revoke: async (id, { etag, signal }) => {
+      if (!isWishlistId(id)) throw new ApiError({ kind: "invalidResponse" });
+      if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+      const response = await session.request(`/api/v1/wishlists/${id}/share-link`, { method: "DELETE", authentication: "required", ifMatch: etag, expectEmptyResponse: true, signal });
+      if (response.status !== 204 || response.data !== null) throw new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
+    },
     load: async (id, options) => {
       try { return await request(id, "GET", 200, options.signal); }
       catch (error) {

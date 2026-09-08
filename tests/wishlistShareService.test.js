@@ -13,6 +13,24 @@ function setup(body = data, status = 200, etag = /** @type {string | null} */ ('
   return { request, ...service };
 }
 describe("wishlist share service", () => {
+  it("revokes with exact link ETag and accepts 204 without a response ETag", async () => {
+    const service = setup(null, 204, null); expect(await service.revoke(id, { etag: '"link-v2"', signal })).toBeUndefined();
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/share-link`, { method: "DELETE", authentication: "required", ifMatch: '"link-v2"', expectEmptyResponse: true, signal });
+  });
+  it.each(["", "*", 'W/"weak"', "bare"])("rejects revocation precondition %s before HTTP", async etag => {
+    const service = setup(); await expect(service.revoke(id, { etag, signal })).rejects.toMatchObject({ statusCode: 428 }); expect(service.request).not.toHaveBeenCalled();
+  });
+  it.each(["", "../unsafe", "00000000-0000-0000-0000-000000000000"])("rejects invalid revocation id %s before HTTP", async target => {
+    const service = setup(); await expect(service.revoke(target, { etag: '"link"', signal })).rejects.toBeInstanceOf(ApiError); expect(service.request).not.toHaveBeenCalled();
+  });
+  it.each([[200, null], [202, null], [204, {}], [204, "SECRET"]])("rejects revocation response %s and unexpected bodies", async (status, body) => {
+    const service = setup(body, Number(status)); const error = await service.revoke(id, { etag: '"link"', signal }).catch(value => value);
+    expect(error).toMatchObject({ kind: "invalidResponse" }); expect(JSON.stringify(error)).not.toContain("SECRET"); expect(service.request).toHaveBeenCalledOnce();
+  });
+  it.each([401, 403, 404, 412, 428, 429, 500])("does not retry revocation failure %s or treat 404 as success", async statusCode => {
+    const service = setup(); const error = new ApiError({ kind: "http", statusCode, errorCode: "WISHLIST_SHARE_LINK_NOT_FOUND" }); service.request.mockRejectedValue(error);
+    await expect(service.revoke(id, { etag: '"link"', signal })).rejects.toBe(error); expect(service.request).toHaveBeenCalledOnce();
+  });
   it("renews with the exact individual share ETag and no body or CSRF", async () => {
     const service = setup(); const result = await service.renew(id, { etag: '"link-v2"', signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/share-link`, { method: "PUT", authentication: "required", ifMatch: '"link-v2"', signal });

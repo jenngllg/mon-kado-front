@@ -3,14 +3,15 @@ import { createAlert, createButton, createFormField, createLoadingState, dispose
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishlistShareRenewDialog } from "./wishlistShareRenewDialog.js";
+import { createWishlistShareRevokeDialog } from "./wishlistShareRevokeDialog.js";
 
 /** Owner-only share section, independent of the gift collection.
- * @param {{wishlistId: string, load: import("./wishlistShareService.js").LoadWishlistShare,
+ * @param {{wishlistId: string, wishlistName?: string, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, load: import("./wishlistShareService.js").LoadWishlistShare,
  * create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, copyText: (text: string) => Promise<void>,
  * onUnavailable: (state: "wishlistMissing" | "suspended") => void, signal?: AbortSignal}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createWishlistShareSection({ wishlistId, load, create, renew, copyText, onUnavailable, signal }) {
+export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, signal }) {
   const section = document.createElement("section"); section.className = "wishlist-share flow";
   const title = document.createElement("h2"); title.textContent = "Partager ma liste"; title.tabIndex = -1;
   const help = document.createElement("p"); help.textContent = "Toute personne possédant ce lien peut consulter ta liste. Partage-le uniquement avec les personnes de ton choix.";
@@ -24,12 +25,13 @@ export function createWishlistShareSection({ wishlistId, load, create, renew, co
   const copy = createButton({ label: "Copier le lien", onClick: () => { void copyLink(); } });
   const refresh = createButton({ label: "Actualiser le lien", variant: "secondary", onClick: () => { void perform(false, true); } });
   const renewButton = createButton({ label: "Renouveler le lien", variant: "secondary", onClick: openRenewal });
-  actions.append(generate, copy, refresh, renewButton); section.append(title, help, feedback, status, empty, field, actions);
+  const revokeButton = createButton({ label: "Désactiver le partage", variant: "danger", onClick: openRevocation });
+  actions.append(generate, copy, refresh, renewButton, revokeButton); section.append(title, help, feedback, status, empty, field, actions);
   const lifetime = new AbortController();
   let disposed = false; let busy = false; let terminal = false; let absent = false;
   /** @type {import("./wishlistShareService.js").WishlistShareLink | null} */ let link = null;
   /** @type {HTMLDialogElement | null} */ let dialog = null;
-  registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); dialog = null; link = null; input.value = ""; clearFeedback(); status.textContent = ""; sync(); });
+  registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); wishlistName = undefined; dialog = null; link = null; input.value = ""; clearFeedback(); status.textContent = ""; sync(); });
   if (signal) {
     addComponentEventListener(section, signal, "abort", () => disposeComponent(section), { once: true });
     if (signal.aborted) disposeComponent(section);
@@ -43,7 +45,20 @@ export function createWishlistShareSection({ wishlistId, load, create, renew, co
     refresh.hidden = terminal || disposed; empty.hidden = !absent || terminal || disposed;
     field.hidden = !link || terminal || disposed;
     renewButton.hidden = !renew || !link || busy || terminal || disposed;
-    for (const button of [generate, copy, refresh, renewButton]) button.disabled = busy || terminal || disposed || dialog !== null;
+    revokeButton.hidden = !revoke || !wishlistName || !link || busy || terminal || disposed;
+    for (const button of [generate, copy, refresh, renewButton, revokeButton]) button.disabled = busy || terminal || disposed || dialog !== null;
+  }
+  function openRevocation() {
+    if (!revoke || !wishlistName || !link || disposed || terminal || busy || dialog) return;
+    clearFeedback(); status.textContent = "";
+    dialog = createWishlistShareRevokeDialog({ wishlistId, wishlistName, etag: link.etag, load, revoke, signal: lifetime.signal,
+      onInvalidate: () => { link = null; input.value = ""; absent = false; empty.textContent = "Aucun lien de partage actif"; status.textContent = "Relis le lien avant toute nouvelle opération de partage."; sync(); },
+      onRead: result => { if (disposed) return; link = result; input.value = result?.shareUrl ?? ""; absent = result === null; status.textContent = ""; sync(); },
+      onRevoked: () => { if (disposed) return; link = null; input.value = ""; absent = true; status.textContent = "Partage désactivé"; sync(); },
+      onUnavailable: state => { if (disposed) return; terminal = true; link = null; input.value = ""; sync(); onUnavailable(state); },
+      onClose: revoked => { dialog = null; if (disposed || !section.isConnected) return; sync(); if (!revoked && !revokeButton.hidden && !revokeButton.disabled) revokeButton.focus(); else title.focus(); },
+    });
+    section.append(dialog); sync(); dialog.showModal();
   }
   function openRenewal() {
     if (!renew || !link || disposed || terminal || busy || dialog) return;

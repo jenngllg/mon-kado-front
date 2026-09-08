@@ -1443,8 +1443,8 @@ utiliser cette même origine. Seul `WISHLIST_SHARE_LINK_NOT_FOUND` en lecture si
 qu’aucun lien n’existe. Après conflit de création ou résultat incertain, une
 relecture explicite est obligatoire avant une nouvelle création. Aucun POST
 n’est rejoué automatiquement ; quitter la page ne garantit pas son annulation
-côté serveur. Le renouvellement est décrit ci-dessous ; révocation et consultation
-publique restent dans leurs US respectives.
+côté serveur. Le renouvellement et la désactivation sont décrits ci-dessous ; la
+consultation publique reste dans son US dédiée.
 
 ## Renouvellement du lien (#896)
 
@@ -1463,6 +1463,27 @@ automatiquement, et une relecture ne constitue pas une preuve de réussite de la
 tentative précédente. Après succès, le nouveau lien est proposé sans copie automatique.
 Le presse-papiers existant n’est jamais effacé. Quitter la vue annule l’attente,
 sans garantir l’annulation d’une mutation déjà reçue par le serveur.
+
+## Désactivation du partage (#897)
+
+« Désactiver le partage » demande confirmation dans une modale native nommant
+la liste. Le DELETE utilise l’ETag individuel du lien, sans corps, puis exige
+un `204` vide ; aucun ETag de réponse n’est nécessaire. La liste et ses cadeaux
+restent conservés. Le lien est retiré de l’affichage pendant l’attente, mais le
+partage n’est annoncé désactivé qu’après un succès confirmé.
+
+Après succès, « Créer le lien de partage » permet une nouvelle création uniquement
+explicite. Aucun DELETE ni POST n’est rejoué automatiquement. Après un conflit,
+une précondition refusée ou tout échec, une relecture suivie d’une nouvelle décision
+est obligatoire, même après fermeture de la modale. Une absence constatée par GET
+affiche « Aucun lien de partage actif » sans affirmer que cette tentative de DELETE
+a réussi. Une lecture échouée maintient le blocage.
+
+La navigation, la réorganisation et les changements de session ferment la modale
+et nettoient les données, y compris pendant l’envoi. L’annulation de l’attente ne
+garantit pas celle d’une suppression déjà reçue par le serveur. Le presse-papiers
+n’est pas effacé. La désactivation ne garantit ni l’effacement du contenu déjà
+consulté ni son retrait instantané d’un navigateur distant sans nouvelle requête.
 
 ## Périmètre actuel
 

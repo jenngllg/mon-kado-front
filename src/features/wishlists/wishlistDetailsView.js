@@ -14,7 +14,7 @@ const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "lo
 /** Mounts owner-only list details and independently refreshable gifts.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
  * loadWishes: import("../wishes/wishesService.js").LoadWishes, reorder?: import("../wishes/wishesService.js").ReorderWishes,
- * share?: {load: import("./wishlistShareService.js").LoadWishlistShare, create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, copyText: (text: string) => Promise<void>}, signal?: AbortSignal}} options View dependencies.
+ * share?: {load: import("./wishlistShareService.js").LoadWishlistShare, create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, copyText: (text: string) => Promise<void>}, signal?: AbortSignal}} options View dependencies.
  * @returns {HTMLElement} Routed component, with explicit disposal.
  */
 export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reorder, share, signal }) {
@@ -100,7 +100,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
       listContent.append(createActionLink({ label: "Modifier les informations", href: RoutePaths.EditList.replace(":listId", wishlistId) }));
       const danger = element("div", ""); danger.className = "wishlist-details-danger";
       danger.append(createActionLink({ label: "Supprimer cette liste", href: RoutePaths.DeleteList.replace(":listId", wishlistId), variant: "danger" })); listContent.append(danger);
-      if (share) listContent.append(createWishlistShareSection({ ...share, wishlistId, signal: lifetime.signal, onUnavailable: shareUnavailable }));
+      if (share) listContent.append(createWishlistShareSection({ ...share, wishlistId, wishlistName: item.name, signal: lifetime.signal, onUnavailable: shareUnavailable }));
     }
   }
   /** @param {"wishlistMissing" | "suspended"} state Safe share access failure. */
