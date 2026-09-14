@@ -13,15 +13,21 @@ afterEach(() => { apps.splice(0).forEach(app => app.dispose()); document.body.re
 function setup(target = path + "#" + secret) {
   window.history.replaceState({}, "", target); const transport = createSessionTransport(), hub = createCoordinatorHub(), fallback = transport.fetch.getMockImplementation();
   const state = { status: 200, reads: 0, detailReads: 0, errorCode: "SHARED_WISHLIST_NOT_FOUND", beforeRead: async () => {},
-    reservationReads: 0, beforeReservation: async () => {},
+    reservationReads: 0, reservationWrites: 0, reserved: true, beforeReservation: async () => {}, beforeReserve: async () => {},
     participantReads: 0, joins: 0, participantStatus: 401, participantCode: "GUEST_SESSION_INVALID", joined: false, beforeJoin: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
     expect(window.location.hash).toBe("");
     const pathname = new URL(String(input)).pathname;
     if (pathname.endsWith("/reservations/current")) {
+      if (init?.method === "PUT") {
+        state.reservationWrites++; expect(JSON.parse(String(init.body))).toEqual({ quantity: 1 }); expect(new Headers(init.headers).get("X-CSRF-TOKEN")).not.toBeNull();
+        expect(new Headers(init.headers).get("If-Match")).toBeNull(); await state.beforeReserve(); state.reserved = true;
+        return Response.json({ id, wishId: wish.id, quantity: 1 }, { status: 201, headers: { ETag: '"created-reservation"' } });
+      }
       state.reservationReads++; const member = new Headers(init?.headers).has("Authorization"); await state.beforeReservation();
       expect(new Headers(init?.headers).get("X-MonKado-Share-Token")).toBe(secret);
       expect(init?.method).toBe("GET"); expect(init?.body).toBeUndefined();
+      if (!state.reserved) return Response.json({ statusCode: 404, errorCode: "GIFT_RESERVATION_NOT_FOUND", title: null, message: null, validationErrors: null }, { status: 404 });
       return member ? Response.json({ id, wishId: wish.id, quantity: 1 }, { headers: { ETag: '"reservation"' } }) :
         Response.json({ statusCode: 401, errorCode: "GUEST_SESSION_INVALID", title: null, message: null, validationErrors: null }, { status: 401 });
     }
@@ -39,7 +45,8 @@ function setup(target = path + "#" + secret) {
       state.reads++; await state.beforeRead(); const headers = new Headers(init?.headers);
       expect(headers.get("X-MonKado-Share-Token")).toBe(secret); expect(headers.get("Authorization")).toBe(app.session.getSnapshot().status === "authenticated" ? `Bearer ${transport.state.token.accessToken}` : null); expect(headers.get("X-CSRF-TOKEN")).toBeNull(); expect(headers.get("If-Match")).toBeNull(); expect(init?.method).toBe("GET"); expect(init?.body).toBeUndefined(); expect(init?.credentials).toBe("include"); expect(String(input)).not.toContain(secret);
       const isDetail = new URL(String(input)).pathname.endsWith(`/wishes/${wish.id}`); if (isDetail) state.detailReads++;
-      return state.status === 200 ? Response.json(isDetail ? wish : { ...data, wishes: [wish] }) : Response.json({ statusCode: state.status, title: "PRIVATE", message: "PRIVATE", errorCode: state.errorCode, validationErrors: null }, { status: state.status });
+      const presentedWish = state.reserved ? wish : { ...wish, reservedQuantity: 0, availableQuantity: 1, currentParticipantReservedQuantity: 0 };
+      return state.status === 200 ? Response.json(isDetail ? presentedWish : { ...data, wishes: [presentedWish] }) : Response.json({ statusCode: state.status, title: "PRIVATE", message: "PRIVATE", errorCode: state.errorCode, validationErrors: null }, { status: state.status });
     }
     return fallback?.(input, init) ?? new Response(null, { status: 500 });
   });
@@ -50,6 +57,18 @@ function setup(target = path + "#" + secret) {
 /** @param {() => boolean} predicate DOM milestone. */
 function observe(predicate) { if (predicate()) return Promise.resolve(); return new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(document.body, { childList: true, subtree: true, characterData: true }); }); }
 describe("public shared wishlist integration", () => {
+  it.each([false, true])("creates once and rejects late success after logout=%s", async logout => {
+    const { app, state } = setup(); state.reserved = false; await app.start(); await untilSession(app.session, value => value.status === "authenticated");
+    await observe(() => app.shell.outlet.textContent?.includes("Participer avec mon compte") === true); await app.router.navigate(detailPath);
+    await observe(() => app.shell.outlet.querySelector('form[aria-label="Réserver ce cadeau"]') !== null);
+    expect(state.reservationWrites).toBe(0); const gate = barrier(), started = barrier(); state.beforeReserve = async () => { started.resolve(); await gate.promise; };
+    const submit = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Réserver ce cadeau"); submit?.click(); submit?.click(); await started.promise;
+    expect(state.reservationWrites).toBe(1);
+    expect([...app.shell.outlet.querySelectorAll("button")].filter(button => button.textContent?.startsWith("Actualiser")).every(button => button.disabled)).toBe(true);
+    if (logout) await app.session.logout(); gate.resolve();
+    await observe(() => app.shell.outlet.textContent?.includes(logout ? "Aucune participation n’est reconnue" : "Tu as réservé 1") === true);
+    expect(state.reservationWrites).toBe(1); expect(app.shell.outlet.textContent?.includes("Réservation enregistrée")).toBe(!logout);
+  });
   it("removes a member reservation on logout and ignores its late response", async () => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => app.shell.outlet.textContent?.includes("Participer avec mon compte") === true);

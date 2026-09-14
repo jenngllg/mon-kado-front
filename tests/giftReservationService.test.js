@@ -12,6 +12,27 @@ function setup(authentication = "none") {
   return { ...service, request, context, options: { signal: new AbortController().signal } };
 }
 describe("current reservation service", () => {
+  it.each(["none", "required"])("creates explicitly with CSRF and no precondition for %s", async mode => {
+    const ui = setup(/** @type {"none" | "required"} */ (mode)); const response = await ui.request(); ui.request.mockClear(); ui.request.mockResolvedValue({ ...response, status: 201 });
+    expect(await ui.create(id, wishId, "2", ui.options)).toEqual({ ...data, etag: '"version"' });
+    expect(ui.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/wishes/${wishId}/reservations/current`, {
+      method: "PUT", authentication: mode, signal: expect.any(AbortSignal), shareToken: "A".repeat(43), csrf: true, body: { quantity: 2 },
+    });
+  });
+  it.each(["", "0", "101", "1.5", "1e1", "-1", "Infinity"])("rejects invalid creation quantity %s without HTTP", async value => {
+    const ui = setup(); await expect(ui.create(id, wishId, value, ui.options)).rejects.toMatchObject({ statusCode: 400 }); expect(ui.request).not.toHaveBeenCalled();
+  });
+  it("does not accept an update response as creation", async () => {
+    const ui = setup(); await expect(ui.create(id, wishId, "2", ui.options)).rejects.toMatchObject({ kind: "invalidResponse" }); expect(ui.request).toHaveBeenCalledOnce();
+  });
+  it("rejects a confirmed response with a different quantity", async () => {
+    const ui = setup(); const response = await ui.request(); ui.request.mockResolvedValue({ ...response, status: 201 });
+    await expect(ui.create(id, wishId, "1", ui.options)).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
+  it.each([401, 409, 412, 428, 429, 503])("does not retry failed creation %s", async statusCode => {
+    const ui = setup(); ui.request.mockRejectedValue(new ApiError({ kind: "http", statusCode }));
+    await expect(ui.create(id, wishId, "2", ui.options)).rejects.toMatchObject({ statusCode }); expect(ui.request).toHaveBeenCalledOnce();
+  });
   it.each(["none", "required"])("uses the bound identity %s without mutation or CSRF", async mode => {
     const ui = setup(/** @type {"none" | "required"} */ (mode)); const result = await ui.loadCurrent(id, wishId, ui.options);
     expect(result).toEqual({ state: "reserved", reservation: { ...data, etag: '"version"' } }); expect(Object.isFrozen(result)).toBe(true);

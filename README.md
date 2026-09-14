@@ -1680,6 +1680,21 @@ de compte, le départ et les pertes d’accès détruisent la lecture et ses don
 La reconnaissance invitée dépend du cookie de ce navigateur ; aucune récupération
 automatique ni mutation n’est promise par ce parcours.
 
+### Réserver un cadeau (#919)
+
+Après lecture de la réservation courante, une participation reconnue sans
+réservation peut choisir une quantité entière de 1 à 100 dans la disponibilité
+connue. La confirmation explicite crée avec `PUT`, CSRF et sans `If-Match` ;
+une réservation existante n’est jamais remplacée par ce parcours.
+
+Le succès `201` avec ETag individuel verrouille le formulaire, puis le détail
+est relu sans mise à jour optimiste. Les actualisations sont désactivées pendant
+l’opération. Conflits et résultats incertains imposent une vérification de la
+disponibilité et de la réservation avant une nouvelle confirmation explicite.
+Une réservation retrouvée n’est pas attribuée à la tentative incertaine.
+La saisie reste seulement en mémoire ; quitter la page ou changer de session
+annule l’attente sans garantir l’annulation d’une écriture déjà reçue.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US
