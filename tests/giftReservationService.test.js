@@ -12,6 +12,28 @@ function setup(authentication = "none") {
   return { ...service, request, context, options: { signal: new AbortController().signal } };
 }
 describe("current reservation service", () => {
+  it("cancels with the individual version, CSRF and empty response", async () => {
+    const ui = setup("required"); const response = await ui.request(); ui.request.mockReset();
+    ui.request.mockResolvedValue(/** @type {Awaited<ReturnType<typeof ui.request>>} */ (/** @type {unknown} */ ({ ...response, status: 204, data: null })));
+    await expect(ui.cancel(id, wishId, { ...ui.options, etag: '"reservation"' })).resolves.toBeUndefined();
+    expect(ui.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/wishes/${wishId}/reservations/current`, {
+      method: "DELETE", authentication: "required", signal: expect.any(AbortSignal), shareToken: "A".repeat(43), csrf: true, ifMatch: '"reservation"', expectEmptyResponse: true,
+    });
+  });
+  it.each(["", "*", 'W/"v"'])("rejects cancellation precondition %s", async etag => {
+    const ui = setup(); await expect(ui.cancel(id, wishId, { ...ui.options, etag })).rejects.toMatchObject({ statusCode: 428 }); expect(ui.request).not.toHaveBeenCalled();
+  });
+  it("rejects unexpected deletion success", async () => {
+    const ui = setup(); await expect(ui.cancel(id, wishId, { ...ui.options, etag: '"v"' })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
+  it.each([401, 412, 428, 429, 503])("does not replay a failed cancellation %s", async statusCode => {
+    const ui = setup(); ui.request.mockRejectedValue(new ApiError({ kind: "http", statusCode }));
+    await expect(ui.cancel(id, wishId, { ...ui.options, etag: '"v"' })).rejects.toMatchObject({ statusCode }); expect(ui.request).toHaveBeenCalledOnce();
+  });
+  it("does not invalidate sharing for an already missing reservation", async () => {
+    const ui = setup(); ui.request.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404, errorCode: "GIFT_RESERVATION_NOT_FOUND" }));
+    await expect(ui.cancel(id, wishId, { ...ui.options, etag: '"v"' })).rejects.toMatchObject({ statusCode: 404 }); expect(ui.context.observe(id)?.aborted).toBe(false);
+  });
   it("updates with the exact reservation ETag and absolute quantity", async () => {
     const ui = setup("required"); expect(await ui.update(id, wishId, "2", { ...ui.options, etag: '"reservation-version"' })).toEqual({ ...data, etag: '"version"' });
     expect(ui.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/wishes/${wishId}/reservations/current`, {

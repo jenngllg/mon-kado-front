@@ -501,6 +501,7 @@
 }
 
 .wish-delete-dialog,
+.reservation-cancel-dialog,
 .wishlist-share-revoke-dialog,
 .wishlist-share-renew-dialog {
   margin: auto;
@@ -518,12 +519,15 @@
 }
 
 .wish-delete-dialog::backdrop,
+.reservation-cancel-dialog::backdrop,
 .wishlist-share-revoke-dialog::backdrop,
 .wishlist-share-renew-dialog::backdrop {
   background: color-mix(in srgb, var(--color-text) 55%, transparent);
 }
 
 .wish-delete-dialog h2 { font-size: var(--font-size-xl); }
+.reservation-cancel-dialog h2 { font-size: var(--font-size-xl); }
+.reservation-edit-group { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
 .wishlist-share-renew-dialog h2 { font-size: var(--font-size-xl); }
 .wishlist-share-revoke-dialog h2 { font-size: var(--font-size-xl); }
 .wish-delete-dialog__details dt { font-weight: var(--font-weight-bold); }

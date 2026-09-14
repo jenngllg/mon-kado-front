@@ -55,6 +55,7 @@ export default [
       "tests/giftReservationSection.test.js",
       "tests/reservationCreateForm.test.js",
       "tests/reservationEditForm.test.js",
+      "tests/reservationCancelDialog.test.js",
       "tests/sharedSessionView.test.js",
       "tests/wishlistParticipationSection.test.js",
       "tests/memberWishlistParticipationSection.test.js",

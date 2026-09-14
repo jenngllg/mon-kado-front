@@ -1710,6 +1710,21 @@ la décision d’enregistrer la saisie ou de l’adopter par annulation locale.
 Une réservation disparue n’est jamais recréée automatiquement. Le succès est
 conservé si la relecture suivante échoue ; seule cette lecture peut être reprise.
 
+### Annuler ma réservation (#921)
+
+Une confirmation native relit le cadeau et la réservation avant d’afficher
+son nom et la quantité concernée. Fermer avant envoi conserve la saisie d’édition.
+Le DELETE explicite utilise l’ETag individuel et le CSRF, sans corps ni rejeu
+supplémentaire. Seul un `204` confirme l’annulation ; une absence ultérieure
+ne prouve pas le résultat d’une tentative incertaine.
+
+Les conflits et résultats incertains imposent une relecture et une nouvelle
+confirmation. Après une tentative, l’édition reste bloquée jusqu’à actualisation
+complète du cadeau. Pendant l’envoi, la fermeture locale est désactivée ; quitter
+la vue ou changer de session ferme néanmoins immédiatement la modale et ignore
+la réponse tardive. Cela ne garantit pas l’annulation du DELETE serveur.
+Après succès, le détail est relu et affiche « Réservation annulée ».
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US

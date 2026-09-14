@@ -13,12 +13,16 @@ afterEach(() => { apps.splice(0).forEach(app => app.dispose()); document.body.re
 function setup(target = path + "#" + secret) {
   window.history.replaceState({}, "", target); const transport = createSessionTransport(), hub = createCoordinatorHub(), fallback = transport.fetch.getMockImplementation();
   const state = { status: 200, reads: 0, detailReads: 0, errorCode: "SHARED_WISHLIST_NOT_FOUND", beforeRead: async () => {},
-    reservationReads: 0, reservationWrites: 0, reserved: true, beforeReservation: async () => {}, beforeReserve: async () => {},
+    reservationReads: 0, reservationWrites: 0, reservationDeletes: 0, reserved: true, beforeReservation: async () => {}, beforeReserve: async () => {}, beforeCancel: async () => {},
     participantReads: 0, joins: 0, participantStatus: 401, participantCode: "GUEST_SESSION_INVALID", joined: false, beforeJoin: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
     expect(window.location.hash).toBe("");
     const pathname = new URL(String(input)).pathname;
     if (pathname.endsWith("/reservations/current")) {
+      if (init?.method === "DELETE") {
+        state.reservationDeletes++; expect(init.body).toBeUndefined(); expect(new Headers(init.headers).get("X-CSRF-TOKEN")).not.toBeNull();
+        expect(new Headers(init.headers).get("If-Match")).toBe('"reservation"'); await state.beforeCancel(); state.reserved = false; return new Response(null, { status: 204 });
+      }
       if (init?.method === "PUT") {
         state.reservationWrites++; expect(JSON.parse(String(init.body))).toEqual({ quantity: 1 }); expect(new Headers(init.headers).get("X-CSRF-TOKEN")).not.toBeNull();
         expect(new Headers(init.headers).get("If-Match")).toBeNull(); await state.beforeReserve(); state.reserved = true;
@@ -57,6 +61,22 @@ function setup(target = path + "#" + secret) {
 /** @param {() => boolean} predicate DOM milestone. */
 function observe(predicate) { if (predicate()) return Promise.resolve(); return new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(document.body, { childList: true, subtree: true, characterData: true }); }); }
 describe("public shared wishlist integration", () => {
+  it.each([false, true])("cancels explicitly and ignores a late DELETE after logout=%s", async logout => {
+    const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated");
+    await observe(() => app.shell.outlet.textContent?.includes("Participer avec mon compte") === true); await app.router.navigate(detailPath);
+    await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Annuler ma réservation"));
+    const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector("input[name=quantity]")); input.value = "5";
+    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Annuler ma réservation")?.click();
+    await observe(() => app.shell.outlet.querySelector("dialog")?.textContent?.includes("Quantité réservée : 1") === true);
+    expect(state.reservationDeletes).toBe(0); app.shell.outlet.querySelector("dialog")?.dispatchEvent(new Event("cancel", { cancelable: true })); expect(input.value).toBe("5");
+    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Annuler ma réservation")?.click();
+    await observe(() => app.shell.outlet.querySelector("dialog")?.textContent?.includes("Quantité réservée : 1") === true);
+    const gate = barrier(), started = barrier(); state.beforeCancel = async () => { started.resolve(); await gate.promise; };
+    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Confirmer l’annulation")?.click(); await started.promise;
+    if (logout) await app.session.logout(); gate.resolve();
+    await observe(() => app.shell.outlet.textContent?.includes(logout ? "Tu n’as pas de réservation" : "Réservation annulée") === true);
+    expect(state.reservationDeletes).toBe(1); expect(app.shell.outlet.querySelector("dialog")).toBeNull(); expect(app.shell.outlet.textContent?.includes("Réservation annulée")).toBe(!logout);
+  });
   it.each([false, true])("creates once and rejects late success after logout=%s", async logout => {
     const { app, state } = setup(); state.reserved = false; await app.start(); await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => app.shell.outlet.textContent?.includes("Participer avec mon compte") === true); await app.router.navigate(detailPath);

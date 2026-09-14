@@ -9,11 +9,12 @@ import { validateReservationQuantity } from "./reservationValidation.js";
 /** @typedef {(shareLinkId: string, wishId: string, options: {signal: AbortSignal}) => Promise<ReservationLookup>} LoadReservation */
 /** @typedef {(shareLinkId: string, wishId: string, quantity: string, options: {signal: AbortSignal}) => Promise<CurrentReservation>} CreateReservation */
 /** @typedef {(shareLinkId: string, wishId: string, quantity: string, options: {etag: string, signal: AbortSignal}) => Promise<CurrentReservation>} UpdateReservation */
+/** @typedef {(shareLinkId: string, wishId: string, options: {etag: string, signal: AbortSignal}) => Promise<void>} CancelReservation */
 
 /** Reads only the current identity's reservation; no guest token is available to JavaScript.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Common transport.
  * @param {{context: import("./sharedWishlistContext.js").SharedWishlistContext, authentication?: "none" | "required"}} options Bound identity and access.
- * @returns {{loadCurrent: LoadReservation, create: CreateReservation, update: UpdateReservation}} Reservation operations.
+ * @returns {{loadCurrent: LoadReservation, create: CreateReservation, update: UpdateReservation, cancel: CancelReservation}} Reservation operations.
  */
 export function createGiftReservationService(session, { context, authentication = "none" }) {
   /** @param {string} id Share. @param {string} wishId Gift. @param {string} quantity Absolute quantity.
@@ -45,6 +46,26 @@ export function createGiftReservationService(session, { context, authentication 
     });
   }
   return {
+    cancel: async (id, wishId, { etag, signal }) => {
+      if (!isWishlistId(id) || !isWishlistId(wishId)) throw new ApiError({ kind: "http", statusCode: 404 });
+      if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+      return context.run(id, async (shareToken, contextSignal) => {
+        const combined = AbortSignal.any([signal, contextSignal]);
+        if (combined.aborted) throw createAbortError();
+        let response;
+        try {
+          response = await session.request(`/api/v1/shared-wishlists/${id}/wishes/${wishId}/reservations/current`, {
+            method: "DELETE", authentication, shareToken, signal: combined, csrf: true, ifMatch: etag, expectEmptyResponse: true,
+          });
+        } catch (error) {
+          if (combined.aborted) throw createAbortError();
+          if (error instanceof ApiError && error.statusCode === 404 && !["GIFT_RESERVATION_NOT_FOUND", "WISH_NOT_FOUND", "SHARED_WISH_NOT_FOUND", "WISHLIST_PARTICIPANT_NOT_FOUND"].includes(error.errorCode ?? "")) context.clear();
+          throw error;
+        }
+        if (combined.aborted) throw createAbortError();
+        if (response.status !== 204 || response.data !== null) throw new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
+      });
+    },
     create: (id, wishId, quantity, { signal }) => mutate(id, wishId, quantity, signal, null),
     update: async (id, wishId, quantity, { etag, signal }) => {
       if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });

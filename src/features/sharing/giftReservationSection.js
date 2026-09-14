@@ -7,16 +7,18 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
  * @param {{shareLinkId: string, wishId: string, loadCurrent: import("./giftReservationService.js").LoadReservation,
  * onUnavailable: () => void, createForm?: (onBusy: (busy: boolean) => void) => HTMLElement,
  * editForm?: (reservation: import("./giftReservationService.js").CurrentReservation, onBusy: (busy: boolean) => void) => HTMLElement,
+ * createCancel?: (onInvalidate: () => void, onClose: (confirmed: boolean) => void) => HTMLDialogElement,
+ * onCancelled?: () => void,
  * onBusy?: (busy: boolean) => void, signal?: AbortSignal}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, onBusy, signal }) {
+export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, createCancel, onCancelled, onBusy, signal }) {
   const section = document.createElement("section"); section.className = "flow";
   const title = document.createElement("h2"); title.textContent = "Ma réservation"; title.tabIndex = -1;
   const content = document.createElement("div"); content.className = "flow";
   section.append(title, content);
   const lifetime = new AbortController();
-  let disposed = false, busy = false, mutationBusy = false;
+  let disposed = false, busy = false, mutationBusy = false, needsGiftRead = false;
   registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); disposeComponent(content); content.replaceChildren(); });
   if (signal) {
     addComponentEventListener(section, signal, "abort", () => disposeComponent(section), { once: true });
@@ -27,7 +29,7 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
 
   /** @param {boolean} explicit User-initiated lookup. */
   async function read(explicit) {
-    if (disposed || busy || mutationBusy) return;
+    if (disposed || busy || mutationBusy || needsGiftRead) return;
     busy = true; disposeComponent(content); content.replaceChildren(createLoadingState({ label: "Vérification de ta réservation…" }));
     content.setAttribute("aria-busy", "true");
     try {
@@ -40,7 +42,32 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
       const refresh = createButton({ label: "Actualiser ma réservation", variant: "secondary", onClick: () => { void read(true); } });
       content.append(message, refresh);
       if (result.state === "absent" && createForm) content.append(createForm(value => { mutationBusy = value; refresh.disabled = value; onBusy?.(value); }));
-      if (result.state === "reserved" && editForm) content.append(editForm(result.reservation, value => { mutationBusy = value; refresh.disabled = value; onBusy?.(value); }));
+      if (result.state === "reserved") {
+        const group = document.createElement("fieldset"); group.className = "reservation-edit-group";
+        /** @type {HTMLButtonElement | null} */ let cancelButton = null;
+        if (editForm) group.append(editForm(result.reservation, value => { mutationBusy = value; refresh.disabled = value; if (cancelButton) cancelButton.disabled = value; onBusy?.(value); }));
+        content.append(group);
+        if (createCancel) {
+          let open = false;
+          const warning = document.createElement("p"); warning.hidden = true; content.append(warning);
+          cancelButton = createButton({ label: "Annuler ma réservation", variant: "danger", onClick: () => {
+            if (disposed || busy || mutationBusy || open) return;
+            open = true; mutationBusy = true; refresh.disabled = true; onBusy?.(true);
+            const dialog = createCancel(() => {
+              needsGiftRead = true;
+              group.disabled = true; group.inert = true; warning.hidden = false;
+              warning.textContent = "Une annulation a été tentée ou la réservation n’est plus reconnue. Actualise le cadeau avant de modifier sa quantité.";
+            }, confirmed => {
+              open = false; mutationBusy = false; refresh.disabled = needsGiftRead; onBusy?.(false);
+              if (disposed) return;
+              if (confirmed) onCancelled?.(); else if (cancelButton?.isConnected) cancelButton.focus(); else title.focus();
+            });
+            content.append(dialog); if (!dialog.isConnected || disposed) { disposeComponent(dialog); return; }
+            dialog.showModal(); dialog.querySelector("h2")?.focus();
+          } });
+          content.append(cancelButton);
+        }
+      }
       if (explicit) title.focus();
     } catch (error) {
       if (disposed || isAbortError(error)) return;
