@@ -6,7 +6,7 @@ import { createSharedWishView } from "../src/features/sharing/sharedWishView.js"
 import { barrier } from "./sessionTestHelpers.js";
 const shareLinkId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
 /** @type {import("../src/features/sharing/sharedWishlistService.js").SharedWishDetail} */
-const wish = { id: wishId, name: "Un cadeau", note: "  Une note\ncomplète <script>texte</script>  ", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false };
+const wish = { id: wishId, name: "Un cadeau", note: "  Une note\ncomplète <script>texte</script>  ", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false, reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity: 1 };
 /** @type {HTMLElement[]} */ const views = [];
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
 /** @param {Partial<Parameters<typeof createSharedWishView>[0]>} [options] Dependencies. */

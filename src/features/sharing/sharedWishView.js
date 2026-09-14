@@ -3,6 +3,7 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishImage } from "../wishes/wishImage.js";
+import { createSharedWishQuantities } from "./sharedWishQuantities.js";
 
 const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
@@ -56,6 +57,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
       }
       const price = element("p", wish.price === null ? "Prix non renseigné" : PriceFormat.format(wish.price)); price.className = "wish-card__price";
       information.append(price, element("p", `Quantité souhaitée : ${wish.quantity}`));
+      information.append(createSharedWishQuantities(wish));
       if (wish.url) {
         const product = createActionLink({ label: "Voir le produit", href: wish.url }); product.target = "_blank"; product.rel = "noopener noreferrer";
         product.setAttribute("aria-label", `Voir le produit « ${wish.name} » (nouvel onglet)`); information.append(product);

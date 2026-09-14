@@ -4,6 +4,7 @@ import { createActionLink, createAlert, createButton, createEmptyState, createLo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { WishlistOccasions } from "../wishlists/wishlistValidation.js";
 import { createWishCard } from "../wishes/wishCard.js";
+import { createSharedWishQuantities } from "./sharedWishQuantities.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 /** Public collection; only its transport retains access to a bearer context.
@@ -46,7 +47,16 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
       if (list.message) { const message = element("p", list.message); message.className = "wishlist-details-note"; details.append(message); }
       gifts.hidden = false;
       if (!list.wishes.length) results.append(createEmptyState({ title: "Cette liste ne contient pas encore de cadeau", message: "Les idées cadeaux apparaîtront ici." }));
-      else { const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list"); for (const wish of list.wishes) cards.append(createWishCard(wish, false, { editable: false, detailHref: `/shared-wishlists/${shareLinkId}/wishes/${wish.id}` })); results.append(cards); }
+      else {
+        const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
+        for (const wish of list.wishes) {
+          const card = createWishCard(wish, false, { editable: false, detailHref: `/shared-wishlists/${shareLinkId}/wishes/${wish.id}` });
+          const content = card.querySelector(".wish-card__content");
+          content?.insertBefore(createSharedWishQuantities(wish), content.querySelector("a"));
+          cards.append(card);
+        }
+        results.append(cards);
+      }
       refresh.hidden = false; if (explicit) title.focus();
       if (createParticipation) details.append(createParticipation({ onUnavailable: unavailable, signal: lifetime.signal }));
     } catch (error) {

@@ -40,6 +40,7 @@ import { createSharedWishlistContext } from "../features/sharing/sharedWishlistC
 import { createSharedWishlistService } from "../features/sharing/sharedWishlistService.js";
 import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
 import { createSharedWishView } from "../features/sharing/sharedWishView.js";
+import { createSharedSessionView } from "../features/sharing/sharedSessionView.js";
 import { createWishlistParticipationService } from "../features/sharing/wishlistParticipationService.js";
 import { createGuestParticipationHost } from "../features/sharing/guestParticipationHost.js";
 
@@ -210,15 +211,15 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const state = sharing.enter(context.params.shareLinkId, context.consumeFragment());
         if (state !== "ready") return createSharedWishlistEntryView(state);
         let resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId) ?? null;
-        return createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
+        return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
-          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).load,
+          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load,
           createParticipation: options => {
             const selected = resumeAccount; resumeAccount = null;
             return createGuestParticipationHost(session, { ...options, resumeAccount: selected, shareLinkId: context.params.shareLinkId,
               onSignIn: sharingSignIn.onSignIn ? () => sharingSignIn.onSignIn?.(context.params.shareLinkId) : undefined,
               ...createWishlistParticipationService(session, { context: sharing }) });
-          } });
+          } }), context.signal);
       },
     },
     {
@@ -228,9 +229,9 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         context.consumeFragment();
         const state = sharing.enter(context.params.shareLinkId, "");
         if (state !== "ready") return createSharedWishlistEntryView(state);
-        return createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
+        return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
-          loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).loadOne });
+          loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne }), context.signal);
       },
     },
   ]);
