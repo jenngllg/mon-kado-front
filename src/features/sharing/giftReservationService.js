@@ -8,14 +8,19 @@ import { validateReservationQuantity } from "./reservationValidation.js";
 /** @typedef {Readonly<{state: "reserved", reservation: CurrentReservation}> | Readonly<{state: "absent" | "unrecognized"}>} ReservationLookup */
 /** @typedef {(shareLinkId: string, wishId: string, options: {signal: AbortSignal}) => Promise<ReservationLookup>} LoadReservation */
 /** @typedef {(shareLinkId: string, wishId: string, quantity: string, options: {signal: AbortSignal}) => Promise<CurrentReservation>} CreateReservation */
+/** @typedef {(shareLinkId: string, wishId: string, quantity: string, options: {etag: string, signal: AbortSignal}) => Promise<CurrentReservation>} UpdateReservation */
 
 /** Reads only the current identity's reservation; no guest token is available to JavaScript.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Common transport.
  * @param {{context: import("./sharedWishlistContext.js").SharedWishlistContext, authentication?: "none" | "required"}} options Bound identity and access.
- * @returns {{loadCurrent: LoadReservation, create: CreateReservation}} Reservation operations.
+ * @returns {{loadCurrent: LoadReservation, create: CreateReservation, update: UpdateReservation}} Reservation operations.
  */
 export function createGiftReservationService(session, { context, authentication = "none" }) {
-  return { create: async (id, wishId, quantity, { signal }) => {
+  /** @param {string} id Share. @param {string} wishId Gift. @param {string} quantity Absolute quantity.
+   * @param {AbortSignal} signal Lifetime. @param {string | null} etag Existing reservation version, or creation.
+   * @returns {Promise<CurrentReservation>} Confirmed mutation.
+   */
+  async function mutate(id, wishId, quantity, signal, etag) {
     if (!isWishlistId(id) || !isWishlistId(wishId)) throw new ApiError({ kind: "http", statusCode: 404 });
     if (validateReservationQuantity(quantity, 100)) throw new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "quantity", errorMessage: null }] });
     return context.run(id, async (shareToken, contextSignal) => {
@@ -26,7 +31,7 @@ export function createGiftReservationService(session, { context, authentication 
       let response;
       try {
         response = await session.request(`/api/v1/shared-wishlists/${id}/wishes/${wishId}/reservations/current`, {
-          method: "PUT", authentication, shareToken, signal: combined, csrf: true, body,
+          method: "PUT", authentication, shareToken, signal: combined, csrf: true, body, ...(etag === null ? {} : { ifMatch: etag }),
         });
       } catch (error) {
         if (combined.aborted) throw createAbortError();
@@ -34,11 +39,18 @@ export function createGiftReservationService(session, { context, authentication 
         throw error;
       }
       if (combined.aborted) throw createAbortError();
-      const reservation = projectReservation(response, wishId, 201);
+      const reservation = projectReservation(response, wishId, etag === null ? 201 : 200);
       if (reservation.quantity !== body.quantity) throw new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
       return reservation;
     });
-  }, loadCurrent: async (id, wishId, { signal }) => {
+  }
+  return {
+    create: (id, wishId, quantity, { signal }) => mutate(id, wishId, quantity, signal, null),
+    update: async (id, wishId, quantity, { etag, signal }) => {
+      if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+      return mutate(id, wishId, quantity, signal, etag);
+    },
+    loadCurrent: async (id, wishId, { signal }) => {
     if (!isWishlistId(id)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "SHARED_WISHLIST_NOT_FOUND" });
     if (!isWishlistId(wishId)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "SHARED_WISH_NOT_FOUND" });
     return context.run(id, async (shareToken, contextSignal) => {

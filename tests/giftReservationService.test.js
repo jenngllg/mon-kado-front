@@ -12,6 +12,23 @@ function setup(authentication = "none") {
   return { ...service, request, context, options: { signal: new AbortController().signal } };
 }
 describe("current reservation service", () => {
+  it("updates with the exact reservation ETag and absolute quantity", async () => {
+    const ui = setup("required"); expect(await ui.update(id, wishId, "2", { ...ui.options, etag: '"reservation-version"' })).toEqual({ ...data, etag: '"version"' });
+    expect(ui.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/wishes/${wishId}/reservations/current`, {
+      method: "PUT", authentication: "required", signal: expect.any(AbortSignal), shareToken: "A".repeat(43), csrf: true, body: { quantity: 2 }, ifMatch: '"reservation-version"',
+    });
+  });
+  it.each(["", "*", 'W/"v"'])("rejects update precondition %s before HTTP", async etag => {
+    const ui = setup(); await expect(ui.update(id, wishId, "2", { ...ui.options, etag })).rejects.toMatchObject({ statusCode: 428 }); expect(ui.request).not.toHaveBeenCalled();
+  });
+  it("rejects a creation status for an update", async () => {
+    const ui = setup(); const response = await ui.request(); ui.request.mockResolvedValue({ ...response, status: 201 });
+    await expect(ui.update(id, wishId, "2", { ...ui.options, etag: '"v"' })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
+  it.each([401, 409, 412, 428, 429, 503])("does not retry an update after %s", async statusCode => {
+    const ui = setup("required"); ui.request.mockRejectedValue(new ApiError({ kind: "http", statusCode }));
+    await expect(ui.update(id, wishId, "2", { ...ui.options, etag: '"v"' })).rejects.toMatchObject({ statusCode }); expect(ui.request).toHaveBeenCalledOnce();
+  });
   it.each(["none", "required"])("creates explicitly with CSRF and no precondition for %s", async mode => {
     const ui = setup(/** @type {"none" | "required"} */ (mode)); const response = await ui.request(); ui.request.mockClear(); ui.request.mockResolvedValue({ ...response, status: 201 });
     expect(await ui.create(id, wishId, "2", ui.options)).toEqual({ ...data, etag: '"version"' });

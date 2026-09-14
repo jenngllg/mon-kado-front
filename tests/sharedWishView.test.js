@@ -19,6 +19,12 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("shared gift presentation", () => {
+  it("clears an earlier success when a new reservation operation starts", async () => {
+    let saved = (/** @type {string | undefined} */ message) => { void message; }, busy = (/** @type {boolean} */ value) => { void value; };
+    const ui = setup({ createReservation: (_missing, _wish, onSaved, onBusy) => { saved = onSaved; busy = onBusy; return document.createElement("section"); } });
+    await settle(); saved("Réservation modifiée"); await settle(); expect(ui.view.textContent).toContain("Réservation modifiée");
+    busy(true); expect(ui.view.textContent).not.toContain("Réservation modifiée"); expect(ui.button("Actualiser le cadeau").disabled).toBe(true);
+  });
   it("invalidates the mounted detail independently of its own pending request", async () => {
     const access = new AbortController(), gate = barrier(); let sent = /** @type {AbortSignal | null} */ (null); const ui = setup({ accessSignal: access.signal, loadOne: async (_id, _wish, { signal }) => { sent = signal; await gate.promise; return wish; } }); access.abort(); gate.resolve(); await settle(); expect(/** @type {AbortSignal | null} */ (sent)?.aborted).toBe(true); expect(ui.view.querySelector("h1")?.textContent).toBe("Lien de partage indisponible"); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.textContent).not.toContain(wish.note);
   });
