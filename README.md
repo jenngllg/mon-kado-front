@@ -1725,6 +1725,22 @@ la vue ou changer de session ferme néanmoins immédiatement la modale et ignore
 la réponse tardive. Cela ne garantit pas l’annulation du DELETE serveur.
 Après succès, le détail est relu et affiche « Réservation annulée ».
 
+### Cadeaux disponibles (#922)
+
+La liste partagée propose un filtre local à la vue, désactivé par défaut.
+Chaque activation ou désactivation relit la collection via le backend :
+`availableOnly=true` lorsqu’il est actif, aucun paramètre lorsqu’il est inactif.
+Le frontend ne retrie ni ne filtre les résultats et n’ajoute pas de pagination.
+Le backend conserve aussi les cadeaux déjà réservés par le participant courant,
+même lorsque leur disponibilité est nulle ; l’aide du filtre le précise.
+
+Un résultat filtré vide invite à désactiver le filtre, sans affirmer que la liste
+ne contient aucun cadeau. Le choix reste conservé pendant une actualisation ou
+un réessai de cette vue, mais n’est ni persisté ni transféré entre onglets.
+Un changement d’identité reconstruit la vue et repart sans filtre. Les lectures
+concurrentes sont bloquées ; un refus d’accès retire les résultats et invalide
+les réponses tardives. Aucun appel de réservation n’est déclenché par le filtre.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US

@@ -35,6 +35,20 @@ describe("public share context", () => {
   });
 });
 describe("shared wishlist service", () => {
+  it.each([false, true])("sends only the requested backend availability filter %s and preserves its complete order", async availableOnly => {
+    const own = { ...wish, id: listId, reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity: 1 };
+    const service = setup({ ...data, wishes: [own, wish] });
+    const result = await service.load(id, { ...service.options, availableOnly });
+    expect(service.request).toHaveBeenCalledOnce();
+    expect(service.request).toHaveBeenCalledWith(`/api/v1/shared-wishlists/${id}${availableOnly ? "?availableOnly=true" : ""}`, expect.objectContaining({ method: "GET", authentication: "none", shareToken: secret }));
+    expect(result.wishes.map(item => item.id)).toEqual([listId, wishId]);
+    expect(result.wishes[0].availableQuantity).toBe(0);
+  });
+  it("rejects a nonboolean filter before transport", async () => {
+    const service = setup();
+    await expect(service.load(id, { ...service.options, availableOnly: /** @type {boolean} */ (/** @type {unknown} */ ("true")) })).rejects.toThrow(TypeError);
+    expect(service.request).not.toHaveBeenCalled();
+  });
   it.each([
     { reservedQuantity: -1 }, { reservedQuantity: 1.5 }, { reservedQuantity: "1" },
     { reservedQuantity: 2147483648 }, { availableQuantity: -1 }, { availableQuantity: 2 },

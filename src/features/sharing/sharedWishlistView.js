@@ -20,33 +20,46 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
   const details = element("div", ""); details.className = "flow";
   const gifts = element("section", ""); gifts.className = "wishlist-details-gifts flow";
   const results = element("div", ""); results.className = "flow";
-  gifts.append(element("h2", "Les cadeaux de cette liste"), results); gifts.hidden = true;
+  const filter = document.createElement("input"); filter.type = "checkbox";
+  const filterLabel = element("label", ""); filterLabel.className = "shared-wishlist-filter cluster";
+  filterLabel.append(filter, element("span", "Afficher uniquement les cadeaux disponibles"));
+  const filterHelp = element("p", "Les cadeaux que tu as déjà réservés restent affichés, même si toute leur quantité est réservée.");
+  filterHelp.id = `availability-help-${crypto.randomUUID()}`; filter.setAttribute("aria-describedby", filterHelp.id);
+  const filterControls = element("div", ""); filterControls.className = "flow"; filterControls.hidden = true;
+  filterControls.append(filterLabel, filterHelp);
+  const resultStatus = element("p", ""); resultStatus.setAttribute("role", "status");
+  gifts.append(element("h2", "Les cadeaux de cette liste"), filterControls, resultStatus, results); gifts.hidden = true;
   const refresh = createButton({ label: "Actualiser la liste", variant: "secondary", onClick: () => { void read(true); } }); refresh.hidden = true;
   information.append(title, details, refresh); layout.append(information, gifts);
   view.append(createActionLink({ label: "Retour à l’accueil", href: "/" }), layout);
   let disposed = false, busy = false, terminal = false;
+  let availableOnly = false;
+  addComponentEventListener(view, filter, "change", () => {
+    if (disposed || busy || terminal) { filter.checked = availableOnly; return; }
+    availableOnly = filter.checked; void read(true, true);
+  });
   const lifetime = new AbortController();
-  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); clear(details); clear(results); title.textContent = ""; gifts.hidden = true; refresh.disabled = true; });
+  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); clear(details); clear(results); title.textContent = ""; gifts.hidden = true; refresh.disabled = true; filter.disabled = true; filter.checked = false; availableOnly = false; resultStatus.textContent = ""; });
   if (signal) { addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true }); if (signal.aborted) disposeComponent(view); }
   if (accessSignal && !disposed) { addComponentEventListener(view, accessSignal, "abort", unavailable, { once: true }); if (accessSignal.aborted) unavailable(); }
   if (!disposed) void read(false);
   return view;
 
-  /** @param {boolean} explicit User-initiated reread. */
-  async function read(explicit) {
+  /** @param {boolean} explicit User-initiated reread. @param {boolean} [filterChange] Keep focus on the filter after its activation. */
+  async function read(explicit, filterChange = false) {
     if (disposed || busy || terminal) return;
-    busy = true; clear(details); clear(results); gifts.hidden = true; refresh.hidden = true; refresh.disabled = true;
+    busy = true; clear(details); clear(results); gifts.hidden = filterControls.hidden; refresh.hidden = true; refresh.disabled = true; filter.disabled = true; resultStatus.textContent = "";
     title.textContent = "Liste de cadeaux partagée"; details.setAttribute("aria-busy", "true"); details.append(createLoadingState({ label: "Chargement de la liste…" }));
     try {
-      const list = await load(shareLinkId, { signal: lifetime.signal });
+      const list = await load(shareLinkId, { signal: lifetime.signal, availableOnly });
       if (disposed || terminal || lifetime.signal.aborted) return;
       clear(details); title.textContent = list.name;
       details.append(element("p", `Une liste de ${list.ownerDisplayName}`), element("p", WishlistOccasions[list.occasion]));
       if (list.eventDate === null) details.append(element("p", "Sans date"));
       else { const date = element("time", DateFormat.format(new Date(list.eventDate + "T00:00:00Z"))); date.dateTime = list.eventDate; details.append(date); }
       if (list.message) { const message = element("p", list.message); message.className = "wishlist-details-note"; details.append(message); }
-      gifts.hidden = false;
-      if (!list.wishes.length) results.append(createEmptyState({ title: "Cette liste ne contient pas encore de cadeau", message: "Les idées cadeaux apparaîtront ici." }));
+      gifts.hidden = false; filterControls.hidden = false;
+      if (!list.wishes.length) results.append(createEmptyState({ title: availableOnly ? "Aucun cadeau ne correspond à ce filtre" : "Cette liste ne contient pas encore de cadeau", message: availableOnly ? "Décoche le filtre pour consulter tous les cadeaux de cette liste." : "Les idées cadeaux apparaîtront ici." }));
       else {
         const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
         for (const wish of list.wishes) {
@@ -57,13 +70,15 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
         }
         results.append(cards);
       }
-      refresh.hidden = false; if (explicit) title.focus();
+      refresh.hidden = false;
+      if (explicit) resultStatus.textContent = `${list.wishes.length} cadeau${list.wishes.length > 1 ? "x" : ""} affiché${list.wishes.length > 1 ? "s" : ""}.`;
+      if (explicit && !filterChange) title.focus();
       if (createParticipation) details.append(createParticipation({ onUnavailable: unavailable, signal: lifetime.signal }));
     } catch (error) {
       if (disposed || terminal || isAbortError(error)) return;
       clear(details);
       if (error instanceof ApiError && error.statusCode === 404) {
-        terminal = true; lifetime.abort(); title.textContent = "Lien de partage indisponible";
+        terminal = true; lifetime.abort(); gifts.hidden = true; title.textContent = "Lien de partage indisponible";
         details.append(element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
         if (explicit) title.focus();
       } else {
@@ -74,7 +89,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
         const alert = createAlert({ ...translated, detail: extra.join(" ") || null, variant: "error" }); alert.tabIndex = -1;
         details.append(alert, createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } })); if (explicit) alert.focus();
       }
-    } finally { busy = false; if (!disposed) { details.setAttribute("aria-busy", "false"); refresh.disabled = false; } }
+    } finally { busy = false; if (!disposed) { details.setAttribute("aria-busy", "false"); refresh.disabled = terminal; filter.disabled = terminal; if (filterChange && !terminal && resultStatus.textContent) filter.focus(); } }
   }
   function unavailable() {
     if (disposed || terminal) return;
