@@ -26,7 +26,7 @@ export function createMemberWishlistParticipationSection({ displayName, shareLin
   const lifetime = new AbortController();
   let disposed = false, busy = false, mustRead = true, joined = false, owner = false;
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); feedback.hidden = true; }
-  function controls() { join.disabled = busy || mustRead || (joined && !continueAfterSignIn) || owner; join.hidden = (joined && !continueAfterSignIn) || owner; refresh.disabled = busy; section.setAttribute("aria-busy", String(busy)); }
+  function controls() { join.disabled = busy || mustRead || (joined && !continueAfterSignIn) || owner; join.hidden = (joined && !continueAfterSignIn) || owner; explanation.hidden = join.hidden; refresh.disabled = busy; section.setAttribute("aria-busy", String(busy)); }
   /** @param {string} label Safe action text. */
   function lookup(label) { const text = refresh.querySelector(".ui-button__label"); if (text) text.textContent = label; refresh.hidden = false; }
   registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); displayName = ""; identity.textContent = ""; status.textContent = ""; clearFeedback(); join.disabled = true; refresh.disabled = true; });

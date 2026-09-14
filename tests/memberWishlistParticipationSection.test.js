@@ -19,6 +19,25 @@ function setup(overrides = {}) {
   return { view, loadCurrentMember, joinMember, onUnavailable, button };
 }
 describe("member participation", () => {
+  it("hides the invitation after recognition and restores it when participation is absent", async () => {
+    const load = vi.fn(/** @type {import("../src/features/sharing/wishlistParticipationService.js").LoadCurrentParticipant} */ (async () => null)).mockResolvedValueOnce(participant);
+    const ui = setup({ loadCurrentMember: load }); await settle();
+    const explanation = [...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Tu participeras"));
+    expect(explanation?.hidden).toBe(true); ui.button("Actualiser ma participation").click(); await settle();
+    expect(explanation?.hidden).toBe(false); expect(ui.joinMember).not.toHaveBeenCalled();
+  });
+  it("keeps the attachment explanation until explicit continuation succeeds", async () => {
+    const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); await settle();
+    const explanation = [...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Tu participeras"));
+    expect(explanation?.hidden).toBe(false); ui.button("Poursuivre avec mon compte").click(); await settle();
+    expect(explanation?.hidden).toBe(true);
+  });
+  it("does not invite a refused owner to participate", async () => {
+    const ui = setup({ joinMember: async () => { throw new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_OWNER_CANNOT_JOIN" }); } }); await settle();
+    ui.button("Participer avec mon compte").click(); await settle();
+    expect([...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Tu participeras"))?.hidden).toBe(true);
+    expect(ui.view.textContent).toContain("Tu ne peux pas participer à ta propre liste.");
+  });
   it("explains that recognized membership grants no editing rights", async () => { const ui = setup({ loadCurrentMember: async () => participant }); await settle(); expect(ui.view.textContent).toContain("Tu peux consulter cette liste. Participer ne permet pas de modifier ses cadeaux."); expect(ui.view.querySelector('a[href*="/edit"]')).toBeNull(); });
   it("requires an explicit continuation even for a recognized member", async () => {
     const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); await settle(); expect(ui.joinMember).not.toHaveBeenCalled(); expect(ui.button("Poursuivre avec mon compte").disabled).toBe(false); ui.button("Poursuivre avec mon compte").click(); await settle(); expect(ui.joinMember).toHaveBeenCalledOnce(); expect(ui.button("Poursuivre avec mon compte").hidden).toBe(true);
