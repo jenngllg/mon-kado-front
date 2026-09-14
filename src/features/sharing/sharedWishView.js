@@ -9,7 +9,7 @@ const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency
 
 /** A fresh public detail, without participant information or owner actions.
  * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal,
- * createReservation?: (onUnavailable: () => void, wish: import("./sharedWishlistService.js").SharedWishDetail, onSaved: () => void, onBusy: (busy: boolean) => void) => HTMLElement}} options Dependencies.
+ * createReservation?: (onUnavailable: () => void, wish: import("./sharedWishlistService.js").SharedWishDetail, onSaved: (message?: string) => void, onBusy: (busy: boolean) => void) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
 export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal, createReservation }) {
@@ -69,10 +69,13 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
         if (disposed || terminal) return;
         terminal = true; lifetime.abort(); clear(); refresh.hidden = true;
         title.textContent = "Cadeau introuvable"; title.focus();
-      }, wish, () => {
+      }, wish, (message = "Réservation enregistrée") => {
         if (disposed || terminal) return;
-        notice.textContent = "Réservation enregistrée"; notice.hidden = false; void read(true);
-      }, value => { mutationBusy = value; refresh.disabled = disposed || terminal || busy || value; }));
+        notice.textContent = message; notice.hidden = false; void read(true);
+      }, value => {
+        mutationBusy = value; refresh.disabled = disposed || terminal || busy || value;
+        if (value) { notice.textContent = ""; notice.hidden = true; }
+      }));
       refresh.hidden = false; if (explicit) title.focus();
     } catch (error) {
       if (disposed || terminal || isAbortError(error)) return;

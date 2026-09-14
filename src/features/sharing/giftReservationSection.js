@@ -5,10 +5,12 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 
 /** Isolated reservation lookup: a technical failure never hides the public gift.
  * @param {{shareLinkId: string, wishId: string, loadCurrent: import("./giftReservationService.js").LoadReservation,
- * onUnavailable: () => void, createForm?: (onBusy: (busy: boolean) => void) => HTMLElement, onBusy?: (busy: boolean) => void, signal?: AbortSignal}} options Dependencies.
+ * onUnavailable: () => void, createForm?: (onBusy: (busy: boolean) => void) => HTMLElement,
+ * editForm?: (reservation: import("./giftReservationService.js").CurrentReservation, onBusy: (busy: boolean) => void) => HTMLElement,
+ * onBusy?: (busy: boolean) => void, signal?: AbortSignal}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, onBusy, signal }) {
+export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, onBusy, signal }) {
   const section = document.createElement("section"); section.className = "flow";
   const title = document.createElement("h2"); title.textContent = "Ma réservation"; title.tabIndex = -1;
   const content = document.createElement("div"); content.className = "flow";
@@ -38,6 +40,7 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
       const refresh = createButton({ label: "Actualiser ma réservation", variant: "secondary", onClick: () => { void read(true); } });
       content.append(message, refresh);
       if (result.state === "absent" && createForm) content.append(createForm(value => { mutationBusy = value; refresh.disabled = value; onBusy?.(value); }));
+      if (result.state === "reserved" && editForm) content.append(editForm(result.reservation, value => { mutationBusy = value; refresh.disabled = value; onBusy?.(value); }));
       if (explicit) title.focus();
     } catch (error) {
       if (disposed || isAbortError(error)) return;

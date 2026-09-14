@@ -1695,6 +1695,21 @@ Une réservation retrouvée n’est pas attribuée à la tentative incertaine.
 La saisie reste seulement en mémoire ; quitter la page ou changer de session
 annule l’attente sans garantir l’annulation d’une écriture déjà reçue.
 
+### Modifier la quantité réservée (#920)
+
+Une réservation reconnue propose une quantité préremplie et une annulation
+locale. L’enregistrement utilise son ETag individuel avec `If-Match`, jamais
+celui du cadeau ou de la collection. Une quantité inchangée n’est pas envoyée.
+Une diminution reste possible lorsque la disponibilité est nulle ; augmenter
+reste limité à la quantité actuelle plus la disponibilité connue, sous réserve
+de la décision du backend.
+
+Après conflit ou résultat incertain, la saisie reste conservée et une vérification
+explicite relit cadeau et réservation. La quantité serveur est présentée avant
+la décision d’enregistrer la saisie ou de l’adopter par annulation locale.
+Une réservation disparue n’est jamais recréée automatiquement. Le succès est
+conservé si la relecture suivante échoue ; seule cette lecture peut être reprise.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US
