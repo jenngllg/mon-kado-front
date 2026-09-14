@@ -45,6 +45,7 @@ import { createGiftReservationService } from "../features/sharing/giftReservatio
 import { createGiftReservationSection } from "../features/sharing/giftReservationSection.js";
 import { createReservationCreateForm } from "../features/sharing/reservationCreateForm.js";
 import { createReservationEditForm } from "../features/sharing/reservationEditForm.js";
+import { createReservationCancelDialog } from "../features/sharing/reservationCancelDialog.js";
 import { createWishlistParticipationService } from "../features/sharing/wishlistParticipationService.js";
 import { createGuestParticipationHost } from "../features/sharing/guestParticipationHost.js";
 
@@ -237,6 +238,15 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
           ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy) => createGiftReservationSection({
             shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy,
             loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
+            onCancelled: () => onSaved("Réservation annulée"),
+            createCancel: (onInvalidate, onClose) => createReservationCancelDialog({ signal: context.signal, onInvalidate, onClose, onUnavailable,
+              cancel: (etag, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).cancel(context.params.shareLinkId, wish.id, { etag, signal }),
+              load: async signal => {
+                const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
+                const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                return { name: fresh.name, lookup };
+              },
+            }),
             editForm: (reservation, onBusy) => createReservationEditForm({ reservation, available: wish.availableQuantity, signal: context.signal, onSaved: () => onSaved("Réservation modifiée"), onUnavailable, onBusy,
               update: (quantity, etag, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).update(context.params.shareLinkId, wish.id, quantity, { etag, signal }),
               verify: async signal => {
