@@ -10,7 +10,7 @@ import { safeHttpUrl } from "../wishes/wishValidation.js";
  * reservedQuantity: number, availableQuantity: number, currentParticipantReservedQuantity: number | null}>} SharedWish */
 /** @typedef {Readonly<{id: string, name: string, ownerDisplayName: string, occasion: import("../wishlists/wishlistValidation.js").WishlistOccasion,
  * eventDate: string | null, message: string | null, wishes: ReadonlyArray<SharedWish>}>} SharedWishlist */
-/** @typedef {(id: string, options: {signal: AbortSignal}) => Promise<SharedWishlist>} LoadSharedWishlist */
+/** @typedef {(id: string, options: {signal: AbortSignal, availableOnly?: boolean}) => Promise<SharedWishlist>} LoadSharedWishlist */
 /** @typedef {Readonly<SharedWish & {note: string | null}>} SharedWishDetail */
 /** @typedef {(shareLinkId: string, wishId: string, options: {signal: AbortSignal}) => Promise<SharedWishDetail>} LoadSharedWish */
 
@@ -23,12 +23,13 @@ import { safeHttpUrl } from "../wishes/wishValidation.js";
 export function createSharedWishlistService(session, { apiBaseUrl, context, authentication = "none", includeCurrent = true }) {
   const base = safeHttpUrl(apiBaseUrl);
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
-  return { load: async (id, { signal }) => {
+  return { load: async (id, { signal, availableOnly = false }) => {
     if (!isWishlistId(id)) throw new ApiError({ kind: "http", statusCode: 404 });
+    if (typeof availableOnly !== "boolean") throw new TypeError("A boolean availability filter is required.");
     return context.run(id, async (shareToken, contextSignal) => {
       let response;
       try {
-        response = await session.request(`/api/v1/shared-wishlists/${id}`, { method: "GET", authentication, shareToken, signal: AbortSignal.any([signal, contextSignal]) });
+        response = await session.request(`/api/v1/shared-wishlists/${id}${availableOnly ? "?availableOnly=true" : ""}`, { method: "GET", authentication, shareToken, signal: AbortSignal.any([signal, contextSignal]) });
       } catch (error) {
         if (signal.aborted || contextSignal.aborted) throw new DOMException("Read aborted.", "AbortError");
         if (error instanceof ApiError && error.statusCode === 404) context.clear();

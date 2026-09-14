@@ -11,6 +11,11 @@ const viewStyles = readStyleFile("../src/styles/views.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
+  it("keeps the availability filter target touch accessible and its long label wrappable", () => {
+    expect(viewStyles.match(/\.shared-wishlist-filter\s*\{([^}]+)\}/)?.[1]).toContain("min-block-size: var(--control-min-size)");
+    expect(viewStyles.match(/\.shared-wishlist-filter span\s*\{([^}]+)\}/)?.[1]).toContain("overflow-wrap: anywhere");
+    expect(viewStyles.match(/\.shared-wishlist-filter input\s*\{([^}]+)\}/)?.[1]).toContain("flex-shrink: 0");
+  });
   it("keeps private share URLs bounded and actions wrapping at narrow widths", () => {
     expect(viewStyles.match(/\.wishlist-share textarea\s*\{([^}]+)\}/)?.[1]).toContain("min-inline-size: 0");
     expect(viewStyles.match(/\.wishlist-share__actions\s*\{([^}]+)\}/)?.[1]).toContain("flex-wrap: wrap");
@@ -250,5 +255,5 @@ describe("graphic foundations", () => {
  * @returns {string} Stylesheet contents.
  */
 function readStyleFile(relativePath) {
-  return readFileSync(new URL(relativePath, import.meta.url), "utf8");
+  return readFileSync(new URL(relativePath, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 }
