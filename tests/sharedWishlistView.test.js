@@ -6,7 +6,7 @@ import { createSharedWishlistView, createSharedWishlistEntryView } from "../src/
 import { barrier } from "./sessionTestHelpers.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 /** @type {import("../src/features/sharing/sharedWishlistService.js").SharedWishlist} */
-const list = { id, name: "Une belle liste", ownerDisplayName: "Camille", occasion: "birthday", eventDate: "2024-02-29", message: "Message\nmultiligne", wishes: [{ id, name: "Un cadeau", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false }] };
+const list = { id, name: "Une belle liste", ownerDisplayName: "Camille", occasion: "birthday", eventDate: "2024-02-29", message: "Message\nmultiligne", wishes: [{ id, name: "Un cadeau", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: null }] };
 /** @type {HTMLElement[]} */ const views = [];
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
 /** @param {Partial<Parameters<typeof createSharedWishlistView>[0]>} [options] Injectable options. */

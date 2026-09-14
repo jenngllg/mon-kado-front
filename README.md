@@ -1646,6 +1646,25 @@ rattachement après connexion restent dans leurs US dédiées.
 
 ## Périmètre actuel
 
+### Quantités des cadeaux partagés — #917
+
+La liste partagée et le détail d’un cadeau affichent les quantités souhaitées,
+réservées et disponibles renvoyées par le backend. Une disponibilité nulle est
+signalée par « Entièrement réservé ». La quantité personnelle n’apparaît que
+lorsque l’identité de session est résolue et reconnue par le backend.
+
+Les lectures d’un membre utilisent son JWT ; celles d’un invité restent anonymes
+avec les cookies du transport. Le secret de partage reste requis dans son en-tête.
+Les changements de compte ou de session détruisent l’ancienne vue et relisent les
+données, sans conserver la quantité personnelle précédente. Un refus `401` d’une
+lecture authentifiée conserve le traitement de session habituel ; une erreur
+anonyme ne déconnecte pas un compte. L’actualisation reste explicite hors changement
+d’identité : aucune disponibilité en temps réel n’est promise.
+
+Les noms des autres participants sont écartés. Les cartes propriétaire restent
+sans information de réservation. Aucun filtre, pagination ni mutation de
+réservation n’est ajouté par cette US.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US

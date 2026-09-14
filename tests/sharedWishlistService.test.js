@@ -35,6 +35,29 @@ describe("public share context", () => {
   });
 });
 describe("shared wishlist service", () => {
+  it.each([
+    { reservedQuantity: -1 }, { reservedQuantity: 1.5 }, { reservedQuantity: "1" },
+    { reservedQuantity: 2147483648 }, { availableQuantity: -1 }, { availableQuantity: 2 },
+    { currentParticipantReservedQuantity: undefined }, { currentParticipantReservedQuantity: -1 },
+    { currentParticipantReservedQuantity: 2 }, { currentParticipantReservedQuantity: 0.5 },
+  ])("rejects inconsistent availability %o", async changes => {
+    const service = setup({ ...data, wishes: [{ ...wish, ...changes }] });
+    await expect(service.load(id, service.options)).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
+  it("preserves clamped availability when legacy reservations exceed desired quantity", async () => {
+    const service = setup({ ...data, wishes: [{ ...wish, reservedQuantity: 3, availableQuantity: 0 }] });
+    expect((await service.load(id, service.options)).wishes[0]).toMatchObject({ reservedQuantity: 3, availableQuantity: 0 });
+  });
+  it.each(["none", "required"])("uses the selected identity %s without publishing unresolved personal quantities", async authentication => {
+    const fixture = setup();
+    const service = createSharedWishlistService({ request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (fixture.request) }, {
+      apiBaseUrl: "https://api.example", context: fixture.context,
+      authentication: /** @type {"none" | "required"} */ (authentication), includeCurrent: false,
+    });
+    const result = await service.load(id, fixture.options);
+    expect(fixture.request).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ authentication }));
+    expect(result.wishes[0].currentParticipantReservedQuantity).toBeNull();
+  });
   it("does not truncate a large collection or require owner-only fields", async () => {
     const wishes = Array.from({ length: 1001 }, (_, index) => ({ ...wish, id: `019c52dd-56c1-7cc6-8a95-${String(index + 1).padStart(12, "0")}`, price: null, url: null, imageUrl: null }));
     const service = setup({ ...data, wishes }); const result = await service.load(id, service.options);
@@ -48,7 +71,8 @@ describe("shared wishlist service", () => {
     const service = setup(); const result = await service.load(id, service.options);
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}`, { method: "GET", authentication: "none", shareToken: secret, signal: expect.any(AbortSignal) });
     expect(result.id).toBe(listId); expect(result.wishes[0].imageUrl).toBe(image); expect(Object.isFrozen(result.wishes[0])).toBe(true); expect(Object.isFrozen(result.wishes)).toBe(true); expect(Object.isFrozen(result)).toBe(true);
-    expect(JSON.stringify(result)).not.toMatch(/reserved|availableQuantity|Participant|position|etag|PRIVATE|AAAA/i);
+    expect(result.wishes[0]).toMatchObject({ reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 });
+    expect(JSON.stringify(result)).not.toMatch(/"currentParticipant"|position|etag|PRIVATE|AAAA/i);
   });
   it("accepts empty and full server order without versions or pagination", async () => {
     const empty = setup({ ...data, wishes: [] }); expect((await empty.load(id, empty.options)).wishes).toEqual([]);
@@ -89,8 +113,8 @@ describe("shared gift detail service", () => {
   it("reads only the public detail with a combined signal, no ETag and an immutable safe projection", async () => {
     const service = setup(detail); const result = await service.loadOne(id, wishId, service.options);
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/wishes/${wishId}`, { method: "GET", authentication: "none", shareToken: secret, signal: expect.any(AbortSignal) });
-    expect(result).toEqual({ id: wishId, name: wish.name, note: detail.note, price: 12.34, quantity: 2, url: wish.url, imageUrl: image, imageUnavailable: false, productUnavailable: false });
-    expect(Object.isFrozen(result)).toBe(true); expect(JSON.stringify(result)).not.toMatch(/reserved|availableQuantity|Participant|position|etag|PRIVATE|AAAA/i);
+    expect(result).toEqual({ id: wishId, name: wish.name, note: detail.note, price: 12.34, quantity: 2, url: wish.url, imageUrl: image, imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 });
+    expect(Object.isFrozen(result)).toBe(true); expect(JSON.stringify(result)).not.toMatch(/"currentParticipant"|position|etag|PRIVATE|AAAA/i);
   });
   it.each([null, ""])("preserves absent or empty note %s", async note => {
     const service = setup({ ...detail, note }); expect((await service.loadOne(id, wishId, service.options)).note).toBe(note);
