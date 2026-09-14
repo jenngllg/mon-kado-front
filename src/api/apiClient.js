@@ -63,6 +63,8 @@ export class ApiClient {
   #baseUrl;
   #correlationIdProvider;
   #csrfTokenManager;
+  /** @type {{ accessToken: string, manager: CsrfTokenManager } | null} */
+  #authenticatedCsrf = null;
   #fetch;
   #onUnauthorized;
   #timeoutMs;
@@ -140,6 +142,8 @@ export class ApiClient {
    */
   invalidateCsrfToken() {
     this.#csrfTokenManager.invalidateToken();
+    this.#authenticatedCsrf?.manager.invalidateToken();
+    this.#authenticatedCsrf = null;
   }
 
   /**
@@ -168,9 +172,10 @@ export class ApiClient {
     tokenVersion,
   ) {
     throwIfCallerAborted(options.signal);
+    const csrfManager = options.csrf ? this.#selectCsrfManager(accessToken) : this.#csrfTokenManager;
     const csrfToken = options.csrf
       ? await waitForWithAbort(
-        this.#csrfTokenManager.getToken(),
+        csrfManager.getToken(),
         options.signal,
       )
       : null;
@@ -241,9 +246,9 @@ export class ApiClient {
       options.csrf &&
       allowCsrfRetry &&
       response.status === 400 &&
-      errorResponse === null
+      (errorResponse === null || errorResponse.errorCode === "SECURITY_CSRF_VALIDATION_FAILED")
     ) {
-      await waitForWithAbort(this.#csrfTokenManager.refreshToken(), options.signal);
+      await waitForWithAbort(csrfManager.refreshToken(), options.signal);
 
       return this.#sendRequest(
         url,
@@ -267,16 +272,35 @@ export class ApiClient {
   }
 
   /**
+   * Keeps anonymous and authenticated request tokens separate: ASP.NET binds
+   * antiforgery tokens to the identity used when requesting them.
+   * @param {string | null} accessToken Credential selected for the mutation.
+   * @returns {CsrfTokenManager} Identity-specific, memory-only token cache.
+   */
+  #selectCsrfManager(accessToken) {
+    if (accessToken === null) return this.#csrfTokenManager;
+    if (this.#authenticatedCsrf?.accessToken !== accessToken) {
+      this.#authenticatedCsrf?.manager.invalidateToken();
+      this.#authenticatedCsrf = {
+        accessToken,
+        manager: new CsrfTokenManager(() => this.#loadCsrfToken(accessToken)),
+      };
+    }
+    return this.#authenticatedCsrf.manager;
+  }
+
+  /**
+   * @param {string | null} [accessToken] Credential matching the mutation.
    * @returns {Promise<string>} Fresh CSRF request token.
    */
-  async #loadCsrfToken() {
+  async #loadCsrfToken(accessToken = null) {
     const url = createApiUrl(this.#baseUrl, "/security/csrf-token");
     const correlationId = this.#correlationIdProvider();
     const { response, metadata, decodedResponse } = await this.#fetchWithTimeout(
       url,
       {
         method: "GET",
-        headers: createRequestHeaders({ correlationId }),
+        headers: createRequestHeaders({ correlationId, accessToken }),
         credentials: "include",
       },
       undefined,

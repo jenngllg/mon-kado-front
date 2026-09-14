@@ -324,8 +324,13 @@ opaque : le hook `onUnauthorized` ignore les réponses d’un ancien JWT, sans
 exposer ce JWT au hook ni utiliser son expiration comme identité de requête.
 Le délai couvre aussi la lecture du corps de réponse. Les redirections HTTP
 sont refusées pour empêcher tout transfert des en-têtes de partage ou CSRF.
-Seule une erreur antiforgery `400` non structurée peut être rejouée une fois,
-après renouvellement du jeton CSRF.
+Seule une erreur antiforgery `400` non structurée ou portant le code
+`SECURITY_CSRF_VALIDATION_FAILED` peut être rejouée une fois, après renouvellement
+du jeton CSRF. Les autres erreurs structurées ne sont pas rejouées.
+Les jetons CSRF anonymes et authentifiés restent dans des caches mémoire
+distincts : leur lecture utilise exactement l’identité retenue pour la mutation.
+Un changement de JWT renouvelle le cache authentifié ; une invalidation de session
+efface les deux caches. Aucun JWT n’est ajouté aux demandes anonymes.
 
 `router.presentError()` ne réutilise comme traduction que les objets produits
 par `toUserFacingError()` ; un objet brut est toujours normalisé. Les liens
