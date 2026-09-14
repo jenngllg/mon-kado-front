@@ -153,7 +153,7 @@ describe("HTTP foundation regressions", () => {
     const release = deferred();
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(Response.json({ token: "old" }))
-      .mockResolvedValueOnce(new Response("", { status: 400 }))
+      .mockResolvedValueOnce(Response.json({statusCode:400,title:null,message:null,errorCode:"SECURITY_CSRF_VALIDATION_FAILED",validationErrors:null}, {status:400}))
       .mockImplementationOnce(async () => {
         refreshStarted.resolve();
         await release.promise;

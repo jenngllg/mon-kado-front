@@ -63,6 +63,8 @@ export class ApiClient {
   #baseUrl;
   #correlationIdProvider;
   #csrfTokenManager;
+  /** @type {{accessToken: string, version: number, manager: CsrfTokenManager} | null} */
+  #authenticatedCsrf = null;
   #fetch;
   #onUnauthorized;
   #timeoutMs;
@@ -140,10 +142,12 @@ export class ApiClient {
    */
   invalidateCsrfToken() {
     this.#csrfTokenManager.invalidateToken();
+    this.#authenticatedCsrf?.manager.invalidateToken();
+    this.#authenticatedCsrf = null;
   }
 
   /**
-   * Fetches and stores a fresh CSRF token.
+   * Fetches and stores a fresh anonymous CSRF token for cookie-only operations.
    *
    * @returns {Promise<void>} Completion signal.
    */
@@ -168,13 +172,17 @@ export class ApiClient {
     tokenVersion,
   ) {
     throwIfCallerAborted(options.signal);
+    const csrfManager = this.#getCsrfManager(accessToken, tokenVersion);
     const csrfToken = options.csrf
       ? await waitForWithAbort(
-        this.#csrfTokenManager.getToken(),
+        csrfManager.getToken(),
         options.signal,
       )
       : null;
     throwIfCallerAborted(options.signal);
+    if (options.csrf && !this.#isCurrentCredential(accessToken, tokenVersion)) {
+      throw createAbortError();
+    }
 
     const correlationId = this.#correlationIdProvider();
     const headers = createRequestHeaders({
@@ -241,9 +249,12 @@ export class ApiClient {
       options.csrf &&
       allowCsrfRetry &&
       response.status === 400 &&
-      errorResponse === null
+      errorResponse?.errorCode === "SECURITY_CSRF_VALIDATION_FAILED"
     ) {
-      await waitForWithAbort(this.#csrfTokenManager.refreshToken(), options.signal);
+      if (!this.#isCurrentCredential(accessToken, tokenVersion)) {
+        throw createAbortError();
+      }
+      await waitForWithAbort(csrfManager.refreshToken(), options.signal);
 
       return this.#sendRequest(
         url,
@@ -267,21 +278,66 @@ export class ApiClient {
   }
 
   /**
+   * Selects a bounded cache using the exact identity sent by the operation.
+   * @param {string | null} accessToken Selected Bearer, or anonymous context.
+   * @param {number} version Credential revision at dispatch.
+   * @returns {CsrfTokenManager} Identity-specific token cache.
+   */
+  #getCsrfManager(accessToken, version) {
+    if (accessToken === null) {
+      return this.#csrfTokenManager;
+    }
+
+    if (this.#authenticatedCsrf?.accessToken !== accessToken || this.#authenticatedCsrf.version !== version) {
+      this.#authenticatedCsrf?.manager.invalidateToken();
+      this.#authenticatedCsrf = {
+        accessToken,
+        version,
+        manager: new CsrfTokenManager(() => this.#loadCsrfToken(accessToken, version)),
+      };
+    }
+
+    return this.#authenticatedCsrf.manager;
+  }
+
+  /**
+   * Checks whether an asynchronous result still belongs to the selected session.
+   * @param {string | null} accessToken Selected Bearer, or anonymous context.
+   * @param {number} version Credential revision at dispatch.
+   * @returns {boolean} Whether it is safe to continue the original operation.
+   */
+  #isCurrentCredential(accessToken, version) {
+    return version === this.#accessTokenVersionProvider() &&
+      (accessToken === null || accessToken === this.#accessTokenProvider());
+  }
+
+  /**
+   * @param {string | null} [accessToken] Exact identity of the protected operation.
+   * @param {number} [version] Credential revision at dispatch.
    * @returns {Promise<string>} Fresh CSRF request token.
    */
-  async #loadCsrfToken() {
+  async #loadCsrfToken(accessToken = null, version = this.#accessTokenVersionProvider()) {
     const url = createApiUrl(this.#baseUrl, "/security/csrf-token");
     const correlationId = this.#correlationIdProvider();
     const { response, metadata, decodedResponse } = await this.#fetchWithTimeout(
       url,
       {
         method: "GET",
-        headers: createRequestHeaders({ correlationId }),
+        headers: createRequestHeaders({ correlationId, accessToken }),
         credentials: "include",
       },
       undefined,
       this.#timeoutMs,
       correlationId,
+      (response, metadata) => {
+        if (response.status === 401 && accessToken !== null && this.#isCurrentCredential(accessToken, version)) {
+          this.#notifyUnauthorized(new ApiError({
+            kind: "http",
+            statusCode: 401,
+            correlationId: metadata.correlationId,
+          }));
+        }
+      },
     );
 
     if (!response.ok) {

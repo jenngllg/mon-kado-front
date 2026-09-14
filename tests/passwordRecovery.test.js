@@ -132,10 +132,11 @@ describe("password recovery transport and coordinated sessions", () => {
     // Assert
     expect(await result).toMatchObject({ kind: "timeout" }); expect(f.resets()).toHaveLength(1); release.resolve();
   });
-  it("replays only one unstructured antiforgery rejection", async () => {
+  it("replays only one explicit antiforgery rejection", async () => {
     // Arrange
     const f = setup(); f.recoveryState.status = 400;
-    f.recoveryState.beforeReset = async () => { if (f.resets().length > 1) f.recoveryState.status = 204; };
+    f.recoveryState.body = {statusCode:400,title:null,message:null,errorCode:"SECURITY_CSRF_VALIDATION_FAILED",validationErrors:null};
+    f.recoveryState.beforeReset = async () => { if (f.resets().length > 1) { f.recoveryState.status = 204; f.recoveryState.body = null; } };
     // Act
     await f.service.resetPassword(Reset, options());
     // Assert
