@@ -19,6 +19,7 @@ function setup(overrides = {}) {
   return { view, loadCurrentMember, joinMember, onUnavailable, button };
 }
 describe("member participation", () => {
+  it("explains that recognized membership grants no editing rights", async () => { const ui = setup({ loadCurrentMember: async () => participant }); await settle(); expect(ui.view.textContent).toContain("Tu peux consulter cette liste. Participer ne permet pas de modifier ses cadeaux."); expect(ui.view.querySelector('a[href*="/edit"]')).toBeNull(); });
   it("requires an explicit continuation even for a recognized member", async () => {
     const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); await settle(); expect(ui.joinMember).not.toHaveBeenCalled(); expect(ui.button("Poursuivre avec mon compte").disabled).toBe(false); ui.button("Poursuivre avec mon compte").click(); await settle(); expect(ui.joinMember).toHaveBeenCalledOnce(); expect(ui.button("Poursuivre avec mon compte").hidden).toBe(true);
   });

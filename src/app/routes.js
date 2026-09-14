@@ -211,6 +211,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         if (state !== "ready") return createSharedWishlistEntryView(state);
         let resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId) ?? null;
         return createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
+          accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           load: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).load,
           createParticipation: options => {
             const selected = resumeAccount; resumeAccount = null;
@@ -228,6 +229,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const state = sharing.enter(context.params.shareLinkId, "");
         if (state !== "ready") return createSharedWishlistEntryView(state);
         return createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
+          accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).loadOne });
       },
     },

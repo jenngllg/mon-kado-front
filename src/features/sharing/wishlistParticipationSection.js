@@ -3,6 +3,7 @@ import { validateDisplayName, DisplayNameServerMessage } from "../../auth/displa
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createActionLink, createAlert, createButton, createFormField, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
+import { ParticipationRightsMessage } from "./participationMessages.js";
 
 /** @typedef {{shareLinkId: string, loadCurrent: import("./wishlistParticipationService.js").LoadCurrentParticipant,
  * joinGuest: import("./wishlistParticipationService.js").JoinGuest, onUnavailable: () => void, onSignIn?: () => void, signal?: AbortSignal}} ParticipationOptions */
@@ -23,7 +24,7 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   const field = createFormField({ label: "Nom d’affichage", control: input, required: true, description: "Le nom utilisé pour ta participation. 80 caractères maximum." });
   const submit = createButton({ label: "Participer à cette liste", type: "submit" });
   const reread = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { flushBlur(); void read(true); } }); reread.hidden = true;
-  form.append(field, submit); section.append(title, explanation, status, feedback, identity, form, reread);
+  form.append(field, submit); section.append(title, explanation, element("p", ParticipationRightsMessage), status, feedback, identity, form, reread);
   const lifetime = new AbortController();
   let disposed = false, busy = false, mustRead = true, joined = false, checked = false, dirty = false, summary = false;
   const signIn = onSignIn ? createActionLink({ label: "Se connecter pour poursuivre avec mon compte", href: "/login" }) : null;

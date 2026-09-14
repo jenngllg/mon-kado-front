@@ -7,10 +7,10 @@ import { createWishImage } from "../wishes/wishImage.js";
 const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
 /** A fresh public detail, without participant information or owner actions.
- * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal}} options Dependencies.
+ * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishView({ shareLinkId, wishId, loadOne, signal }) {
+export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal }) {
   const view = element("section", ""); view.className = "shared-wish-view flow";
   const back = createActionLink({ label: "Retour à la liste", href: `/shared-wishlists/${shareLinkId}` });
   const title = element("h1", "Cadeau partagé"); title.tabIndex = -1;
@@ -26,10 +26,19 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal }) {
     addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });
     if (signal.aborted) disposeComponent(view);
   }
+  if (accessSignal && !disposed) { addComponentEventListener(view, accessSignal, "abort", unavailable, { once: true }); if (accessSignal.aborted) unavailable(); }
   if (!disposed) void read(false);
   return view;
 
   function clear() { disposeComponent(results); results.replaceChildren(); }
+  function unavailable() {
+    if (disposed || terminal) return;
+    terminal = true; lifetime.abort(); clear(); back.hidden = true; refresh.hidden = true;
+    title.textContent = "Lien de partage indisponible";
+    const alert = element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."); alert.setAttribute("role", "alert");
+    results.append(alert);
+    results.setAttribute("aria-busy", "false"); title.focus();
+  }
 
   /** @param {boolean} explicit User-initiated reread. */
   async function read(explicit) {
@@ -38,7 +47,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal }) {
     results.setAttribute("aria-busy", "true"); results.append(createLoadingState({ label: "Chargement du cadeau…" }));
     try {
       const wish = await loadOne(shareLinkId, wishId, { signal: lifetime.signal });
-      if (disposed) return;
+      if (disposed || terminal || lifetime.signal.aborted) return;
       clear(); title.textContent = wish.name;
       const layout = element("div", ""); layout.className = "shared-wish-layout";
       const information = element("div", ""); information.className = "shared-wish-information flow";
@@ -54,10 +63,10 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal }) {
       layout.append(createWishImage(wish), information); results.append(layout);
       refresh.hidden = false; if (explicit) title.focus();
     } catch (error) {
-      if (disposed || isAbortError(error)) return;
+      if (disposed || terminal || isAbortError(error)) return;
       clear();
       if (error instanceof ApiError && error.statusCode === 404) {
-        terminal = true;
+        terminal = true; lifetime.abort();
         const missingWish = error.errorCode === "SHARED_WISH_NOT_FOUND";
         title.textContent = missingWish ? "Cadeau introuvable" : "Lien de partage indisponible";
         back.hidden = !missingWish;

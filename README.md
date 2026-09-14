@@ -2,6 +2,33 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Droits et disponibilité du partage — #903
+
+| Accès | Actions proposées |
+| --- | --- |
+| Route propriétaire autorisée | Gestion existante de la liste, des cadeaux et du partage |
+| Liste propriétaire suspendue | Consultation uniquement ; relecture nécessaire avant reprise |
+| Route partagée, même avec un compte propriétaire | Consultation publique, jamais de gestion propriétaire |
+| Visiteur anonyme ou participant invité | Participation explicite ou reconnaissance du navigateur |
+| Membre ou participant membre | Participation explicite avec compte ou état reconnu |
+| Session indéterminée ou indisponible | Consultation publique conservée, participation non interactive |
+
+Le rappel « Tu peux consulter cette liste. Participer ne permet pas de modifier
+ses cadeaux. » apparaît uniquement dans les sections de participation. Le backend
+reste l’autorité d’accès ; le frontend ne déduit pas la propriété depuis un nom.
+
+Un partage inaccessible invalide le contexte, ses opérations et la continuation
+de connexion : cartes, images et participation sont retirées. Un cadeau partagé
+introuvable ne retire que ce cadeau ; une participation absente conserve l’accès
+à la liste. Les erreurs techniques et les conflits ne constituent pas une révocation.
+Les listes propriétaires introuvables annulent aussi leurs lectures en cours.
+Une suspension connue bloque les mutations et efface le lien de partage, sans
+révéler de motif privé. Une lecture explicite valide est nécessaire avant reprise.
+
+Aucun polling ou secret inter-onglets n’est ajouté : une révocation distante est
+constatée lors d’une nouvelle requête, sans promesse de retrait instantané d’un
+contenu déjà consulté. Une réponse ancienne ne rétablit jamais un accès invalidé.
+
 ## Continuité du partage après connexion — #902
 
 Depuis une liste partagée, le lien dédié « Se connecter pour poursuivre avec mon

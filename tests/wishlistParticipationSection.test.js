@@ -20,6 +20,7 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 16; i++) await Promise.resolve(); }
 describe("guest participation presentation", () => {
+  it("explains that guest participation grants no editing rights", async () => { const ui = setup(); await settle(); expect(ui.view.textContent).toContain("Tu peux consulter cette liste. Participer ne permet pas de modifier ses cadeaux."); expect(ui.view.querySelector('a[href*="/edit"]')).toBeNull(); });
   it("offers dedicated sign-in after lookup failure but not while an operation runs", async () => {
     const onSignIn = vi.fn(), gate = barrier(); const ui = setup({ onSignIn, loadCurrent: async () => { await gate.promise; throw new ApiError({ kind: "network" }); } });
     const link = /** @type {HTMLAnchorElement} */ (ui.view.querySelector('a[href="/login"]')); expect(link.hidden).toBe(true); link.click(); expect(onSignIn).not.toHaveBeenCalled(); gate.resolve(); await settle(); expect(link.hidden).toBe(false); link.click(); expect(onSignIn).toHaveBeenCalledOnce(); expect(ui.joinGuest).not.toHaveBeenCalled();

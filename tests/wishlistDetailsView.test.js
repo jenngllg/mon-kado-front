@@ -26,6 +26,13 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
 describe("wishlist owner detail", () => {
+  it("blocks list actions when the gift collection reports suspension", async () => {
+    const ui = setup({ loadWishes: async () => { throw new ApiError({ kind: "http", statusCode: 403, errorCode: "WISHLIST_SUSPENDED" }); } }); await settle(); expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.view.querySelector(`a[href="/lists/${id}/edit"]`)).toBeNull(); expect(ui.view.querySelector(`a[href="/lists/${id}/wishes/new"]`)).toBeNull(); expect(ui.view.querySelector("textarea")).toBeNull();
+  });
+  it("aborts gifts when sharing loses access, including responses ignoring cancellation", async () => {
+    const giftGate = barrier(), shareGate = barrier(); let sent = /** @type {AbortSignal | null} */ (null);
+    const ui = setup({ loadWishes: async (_id, { signal }) => { sent = signal; await giftGate.promise; return collection; }, share: { load: async () => { await shareGate.promise; throw new ApiError({ kind: "http", statusCode: 404 }); }, create: async () => { throw Error("unexpected"); }, copyText: async () => {} } }); await settle(); shareGate.resolve(); await settle(); expect(/** @type {AbortSignal | null} */ (sent)?.aborted).toBe(true); giftGate.resolve(); await settle(); expect(ui.view.querySelector("h1")?.textContent).toBe("Liste introuvable"); expect(ui.view.querySelector("img,textarea,li")).toBeNull();
+  });
   function sharing() {
     return { load: vi.fn(async () => ({ id, shareUrl: "https://example.test/#test-secret", etag: '"share"' })),
       create: vi.fn(async () => ({ id, shareUrl: "https://example.test/#test-secret", etag: '"share"' })), copyText: vi.fn(async () => {}) };

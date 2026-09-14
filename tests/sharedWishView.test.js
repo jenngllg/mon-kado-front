@@ -19,6 +19,9 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("shared gift presentation", () => {
+  it("invalidates the mounted detail independently of its own pending request", async () => {
+    const access = new AbortController(), gate = barrier(); let sent = /** @type {AbortSignal | null} */ (null); const ui = setup({ accessSignal: access.signal, loadOne: async (_id, _wish, { signal }) => { sent = signal; await gate.promise; return wish; } }); access.abort(); gate.resolve(); await settle(); expect(/** @type {AbortSignal | null} */ (sent)?.aborted).toBe(true); expect(ui.view.querySelector("h1")?.textContent).toBe("Lien de partage indisponible"); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.textContent).not.toContain(wish.note);
+  });
   it("renders a fresh public detail with safe text, full note, image and separate product link", async () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Chargement du cadeau…"); expect(ui.view.querySelector('[aria-busy="true"]')).not.toBeNull(); await settle();
     expect(ui.loadOne).toHaveBeenCalledExactlyOnceWith(shareLinkId, wishId, { signal: expect.any(AbortSignal) });

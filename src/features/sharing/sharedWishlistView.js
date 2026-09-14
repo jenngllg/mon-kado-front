@@ -7,11 +7,11 @@ import { createWishCard } from "../wishes/wishCard.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 /** Public collection; only its transport retains access to a bearer context.
- * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal,
+ * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal, accessSignal?: AbortSignal,
  * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishlistView({ shareLinkId, load, signal, createParticipation }) {
+export function createSharedWishlistView({ shareLinkId, load, signal, accessSignal, createParticipation }) {
   const view = element("section", ""); view.className = "wishlist-details-view flow";
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
   const information = element("section", ""); information.className = "wishlist-details-info flow";
@@ -27,6 +27,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal, createPart
   const lifetime = new AbortController();
   registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); clear(details); clear(results); title.textContent = ""; gifts.hidden = true; refresh.disabled = true; });
   if (signal) { addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true }); if (signal.aborted) disposeComponent(view); }
+  if (accessSignal && !disposed) { addComponentEventListener(view, accessSignal, "abort", unavailable, { once: true }); if (accessSignal.aborted) unavailable(); }
   if (!disposed) void read(false);
   return view;
 
@@ -37,7 +38,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal, createPart
     title.textContent = "Liste de cadeaux partagée"; details.setAttribute("aria-busy", "true"); details.append(createLoadingState({ label: "Chargement de la liste…" }));
     try {
       const list = await load(shareLinkId, { signal: lifetime.signal });
-      if (disposed) return;
+      if (disposed || terminal || lifetime.signal.aborted) return;
       clear(details); title.textContent = list.name;
       details.append(element("p", `Une liste de ${list.ownerDisplayName}`), element("p", WishlistOccasions[list.occasion]));
       if (list.eventDate === null) details.append(element("p", "Sans date"));
@@ -49,10 +50,10 @@ export function createSharedWishlistView({ shareLinkId, load, signal, createPart
       refresh.hidden = false; if (explicit) title.focus();
       if (createParticipation) details.append(createParticipation({ onUnavailable: unavailable, signal: lifetime.signal }));
     } catch (error) {
-      if (disposed || isAbortError(error)) return;
+      if (disposed || terminal || isAbortError(error)) return;
       clear(details);
       if (error instanceof ApiError && error.statusCode === 404) {
-        terminal = true; title.textContent = "Lien de partage indisponible";
+        terminal = true; lifetime.abort(); title.textContent = "Lien de partage indisponible";
         details.append(element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
         if (explicit) title.focus();
       } else {
@@ -67,7 +68,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal, createPart
   }
   function unavailable() {
     if (disposed || terminal) return;
-    terminal = true; clear(details); clear(results); gifts.hidden = true; refresh.hidden = true;
+    terminal = true; lifetime.abort(); clear(details); clear(results); gifts.hidden = true; refresh.hidden = true;
     title.textContent = "Lien de partage indisponible";
     details.append(element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
     title.focus();

@@ -18,6 +18,14 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it.each([false, true])("clears revoked context and aborts an outstanding read, late rejection=%s", async reject => {
+    const access = new AbortController(), gate = barrier(); let sent = /** @type {AbortSignal | null} */ (null);
+    const ui = setup({ accessSignal: access.signal, load: async (_id, { signal }) => { sent = signal; await gate.promise; if (reject) throw new ApiError({ kind: "network" }); return list; } });
+    access.abort(); expect(/** @type {AbortSignal | null} */ (sent)?.aborted).toBe(true); gate.resolve(); await settle(); expect(ui.view.querySelector("h1")?.textContent).toBe("Lien de partage indisponible"); expect(ui.view.querySelector("img,li")).toBeNull(); expect(ui.view.textContent).not.toContain(list.name);
+  });
+  it("removes loaded cards and image sources immediately on context loss", async () => {
+    const access = new AbortController(), ui = setup({ accessSignal: access.signal }); await settle(); const image = ui.view.querySelector("img"); access.abort(); expect(image?.hasAttribute("src")).toBe(false); expect(ui.view.querySelector("li")).toBeNull(); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
+  });
   it("shows public information, safe card links and no management actions", async () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Chargement de la liste…"); await settle();
     expect(ui.view.querySelector("h1")?.textContent).toBe(list.name); expect(ui.view.textContent).toContain("Une liste de Camille"); expect(ui.view.textContent).toContain("29 février 2024"); expect(ui.view.querySelector("time")?.dateTime).toBe("2024-02-29");

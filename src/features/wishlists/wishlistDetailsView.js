@@ -34,11 +34,12 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
   const reorderHost = element("div", ""); reorderHost.hidden = true;
   gifts.append(heading, organize, results, refresh, reorderHost); layout.append(information, gifts); view.append(back, notice, layout);
   const lifetime = new AbortController();
+  /** @type {AbortController | null} */ let giftRead = null;
   let disposed = false; let busy = false; let terminal = false; let listLoaded = false; let reordering = false;
   /** @type {import("./wishlistsService.js").CreatedWishlist | null} */ let list = null;
   /** @type {import("../wishes/wishesService.js").WishCollection | null} */ let collection = null;
   registerComponentCleanup(view, () => {
-    disposed = true; lifetime.abort(); list = null; collection = null;
+    disposed = true; lifetime.abort(); giftRead?.abort(); giftRead = null; list = null; collection = null;
     clear(reorderHost); clear(notice); clear(listContent); clear(results); title.textContent = ""; gifts.hidden = true; refresh.disabled = true;
   });
   if (signal) {
@@ -108,12 +109,14 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
     if (disposed || terminal) return;
     if (state === "wishlistMissing") { notFound(); title.focus(); return; }
     if (!list) return;
+    giftRead?.abort(); giftRead = null; busy = false;
     list = { ...list, wishlist: Object.freeze({ ...list.wishlist, isSuspended: true }) };
     renderList(); organize.hidden = true;
     if (collection?.wishes.length) {
       clear(results); const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
       for (const item of collection.wishes) cards.append(createWishCard(item, true)); results.append(cards);
-    }
+    } else if (!collection) { clear(results); gifts.hidden = true; }
+    results.setAttribute("aria-busy", "false"); refresh.disabled = false;
     title.focus();
   }
   /** @param {boolean} explicit Explicit retry or refresh. */
@@ -122,9 +125,10 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
     busy = true; collection = null; organize.hidden = true; gifts.hidden = false; refresh.disabled = true;
     results.setAttribute("aria-busy", "true"); clear(results);
     results.append(createLoadingState({ label: "Chargement de tes cadeaux…" }));
+    const operation = new AbortController(); giftRead = operation;
     try {
-      const loaded = await loadWishes(wishlistId, { signal: lifetime.signal });
-      if (disposed || terminal || lifetime.signal.aborted) return;
+      const loaded = await loadWishes(wishlistId, { signal: AbortSignal.any([lifetime.signal, operation.signal]) });
+      if (disposed || terminal || operation.signal.aborted || lifetime.signal.aborted) return;
       collection = loaded; clear(results);
       if (collection.wishes.length === 0) results.append(createEmptyState({ title: "Cette liste ne contient pas encore de cadeau", message: "Tes idées cadeaux apparaîtront ici." }));
       else {
@@ -134,14 +138,16 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
       organize.hidden = !reorder || list?.wishlist.isSuspended === true || collection.wishes.length < 2;
       refresh.hidden = false; if (explicit) heading.focus();
     } catch (error) {
-      if (disposed || terminal || isAbortError(error)) return;
+      if (disposed || terminal || operation.signal.aborted || isAbortError(error)) return;
       refresh.hidden = true;
       if (error instanceof ApiError && error.statusCode === 404) { notFound(); if (explicit) title.focus(); }
+      else if (error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED") shareUnavailable("suspended");
       else showError(results, error, () => { void readGifts(true); }, explicit);
-    } finally { busy = false; if (!disposed) { results.setAttribute("aria-busy", "false"); refresh.disabled = false; } }
+    } finally { if (giftRead === operation) { giftRead = null; busy = false; if (!disposed) { results.setAttribute("aria-busy", "false"); refresh.disabled = false; } } }
   }
   function notFound() {
-    terminal = true; list = null; collection = null; listLoaded = false;
+    terminal = true; lifetime.abort(); giftRead?.abort(); giftRead = null; list = null; collection = null; listLoaded = false;
+    clear(reorderHost); clear(notice); organize.hidden = true; refresh.hidden = true;
     title.textContent = "Liste introuvable"; clear(listContent); clear(results); gifts.hidden = true;
     listContent.append(createAlert({ title: "Liste introuvable", message: "Cette liste n’est pas disponible. Tu peux revenir à Mes listes.", variant: "error" }));
   }

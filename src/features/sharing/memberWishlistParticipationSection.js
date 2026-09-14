@@ -2,6 +2,7 @@ import { ApiError, isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createAlert, createButton, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
+import { ParticipationRightsMessage } from "./participationMessages.js";
 
 /** @typedef {{displayName: string, shareLinkId: string,
  * loadCurrentMember: import("./wishlistParticipationService.js").LoadCurrentParticipant,
@@ -21,7 +22,7 @@ export function createMemberWishlistParticipationSection({ displayName, shareLin
   const feedback = node("div", ""); feedback.hidden = true;
   const join = createButton({ label: continueAfterSignIn ? "Poursuivre avec mon compte" : "Participer avec mon compte", onClick: () => { void run(true); } });
   const refresh = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void run(false, true); } });
-  section.append(title, identity, explanation, status, feedback, join, refresh);
+  section.append(title, identity, explanation, node("p", ParticipationRightsMessage), status, feedback, join, refresh);
   const lifetime = new AbortController();
   let disposed = false, busy = false, mustRead = true, joined = false, owner = false;
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); feedback.hidden = true; }
