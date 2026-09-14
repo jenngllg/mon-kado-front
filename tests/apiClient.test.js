@@ -322,11 +322,11 @@ describe("ApiClient", () => {
     );
   });
 
-  it("refreshes CSRF and replays one unstructured 400 response", async () => {
+  it("refreshes CSRF and replays one explicit CSRF rejection", async () => {
     // Arrange
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ token: "first-csrf" }))
-      .mockResolvedValueOnce(new Response(null, { status: 400 }))
+      .mockResolvedValueOnce(errorResponse(400, { errorCode: "SECURITY_CSRF_VALIDATION_FAILED" }))
       .mockResolvedValueOnce(jsonResponse({ token: "second-csrf" }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const client = createClient(fetchMock);
@@ -373,13 +373,13 @@ describe("ApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("never replays an unstructured CSRF failure more than once", async () => {
+  it("never replays an explicit CSRF failure more than once", async () => {
     // Arrange
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ token: "first-csrf" }))
-      .mockResolvedValueOnce(new Response(null, { status: 400 }))
+      .mockResolvedValueOnce(errorResponse(400, { errorCode: "SECURITY_CSRF_VALIDATION_FAILED" }))
       .mockResolvedValueOnce(jsonResponse({ token: "second-csrf" }))
-      .mockResolvedValueOnce(new Response(null, { status: 400 }));
+      .mockResolvedValueOnce(errorResponse(400, { errorCode: "SECURITY_CSRF_VALIDATION_FAILED" }));
     const client = createClient(fetchMock);
 
     // Act

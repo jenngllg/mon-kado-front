@@ -218,7 +218,7 @@ describe("private Google link continuation", () => {
     // Arrange
     const f = setup(); const link = await requireGoogleLink(f); const underlying = f.fetch.getMockImplementation(); let attempts = 0;
     f.fetch.mockImplementation(async (input, init) => {
-      if (String(input).endsWith("/google/link") && attempts++ === 0) return new Response("antiforgery", { status: 400 });
+      if (String(input).endsWith("/google/link") && attempts++ === 0) return Response.json({statusCode:400,title:null,message:null,errorCode:"SECURITY_CSRF_VALIDATION_FAILED",validationErrors:null}, {status:400});
       return /** @type {NonNullable<typeof underlying>} */ (underlying)(input, init);
     });
     // Act

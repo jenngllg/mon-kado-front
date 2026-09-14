@@ -94,6 +94,18 @@ pnpm install --frozen-lockfile
 
 ## Configuration locale
 
+### CSRF and authenticated requests
+
+The HTTP client keeps separate in-memory CSRF caches for anonymous operations and
+the exact current Bearer credentials. It obtains the token with the same identity
+as the protected request and discards pending protected work after a credential
+change. Explicit session invalidation clears both caches. Cookie-only login,
+refresh and logout continue to use an anonymous CSRF token.
+
+Only `400 SECURITY_CSRF_VALIDATION_FAILED` permits the existing single CSRF retry.
+Unstructured `400` responses are not replayed. Deploy the matching backend error
+contract with this change; no authentication protection is disabled.
+
 Copier `.env.example` vers `.env.local` :
 
 ```shell

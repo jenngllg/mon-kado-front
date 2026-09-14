@@ -64,7 +64,7 @@ describe("email confirmation service", () => {
   });
   it("allows only the existing single antiforgery replay", async () => {
     // Arrange
-    const { service, fetch } = setup(async () => new Response("antiforgery", { status: 400 }));
+    const { service, fetch } = setup(async () => Response.json({statusCode:400,title:null,message:null,errorCode:"SECURITY_CSRF_VALIDATION_FAILED",validationErrors:null}, {status:400}));
     // Act / Assert
     await expect(service.confirm(Credentials, { signal: new AbortController().signal })).rejects.toMatchObject({ kind: "http", statusCode: 400 });
     expect(fetch).toHaveBeenCalledTimes(4);
