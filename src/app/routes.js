@@ -70,8 +70,9 @@ const PlaceholderMessage =
  * @param {WishCreatedHandler} onWishCreated Local gift creation completion.
  * @param {WishlistDeletedHandler} onWishDeleted Local gift deletion completion.
  * @param {import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext} sharing Private tab context.
+ * @param {SharingSignInOptions} sharingSignIn Dedicated sign-in integration.
  */
-function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing) {
+function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn) {
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
     {
@@ -80,6 +81,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       title: "Se connecter · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createLoginView({ login: createLoginService(session), session, signal: context.signal,
+          sharedReturn: sharingSignIn.continuation?.bindLogin(context.signal),
           passwordChanged: consumePasswordChangeNotice(), startGoogle: google?.enabled ? google.start : undefined,
           returnTo: getLoginDestination(context.searchParams) }),
     },
@@ -207,10 +209,15 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         const state = sharing.enter(context.params.shareLinkId, context.consumeFragment());
         if (state !== "ready") return createSharedWishlistEntryView(state);
+        let resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId) ?? null;
         return createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
           load: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).load,
-          createParticipation: options => createGuestParticipationHost(session, { ...options, shareLinkId: context.params.shareLinkId,
-            ...createWishlistParticipationService(session, { context: sharing }) }) });
+          createParticipation: options => {
+            const selected = resumeAccount; resumeAccount = null;
+            return createGuestParticipationHost(session, { ...options, resumeAccount: selected, shareLinkId: context.params.shareLinkId,
+              onSignIn: sharingSignIn.onSignIn ? () => sharingSignIn.onSignIn?.(context.params.shareLinkId) : undefined,
+              ...createWishlistParticipationService(session, { context: sharing }) });
+          } });
       },
     },
     {
@@ -227,13 +234,14 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   ]);
 }
 
+/** @typedef {{continuation?: import("../features/sharing/sharedSignInContinuation.js").SharedSignInContinuation, onSignIn?: (id: string) => void}} SharingSignInOptions */
 /**
  * Creates the complete frontend route catalogue.
  *
- * @param {{session: import("../auth/sessionManager.js").SessionManager, apiBaseUrl: string, sharing?: import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext, consumePasswordChangeNotice?: () => boolean, onWishlistCreated?: WishlistCreatedHandler, onWishlistDeleted?: WishlistDeletedHandler, onWishCreated?: WishCreatedHandler, onWishDeleted?: WishlistDeletedHandler} & GoogleRouteOptions} options Session and local notice dependencies.
+ * @param {{session: import("../auth/sessionManager.js").SessionManager, apiBaseUrl: string, sharingSignIn?: SharingSignInOptions, sharing?: import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext, consumePasswordChangeNotice?: () => boolean, onWishlistCreated?: WishlistCreatedHandler, onWishlistDeleted?: WishlistDeletedHandler, onWishCreated?: WishCreatedHandler, onWishDeleted?: WishlistDeletedHandler} & GoogleRouteOptions} options Session and local notice dependencies.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
-export function createApplicationRoutes({ session, apiBaseUrl, sharing = createSharedWishlistContext(), consumePasswordChangeNotice = () => false, onWishlistCreated = () => {}, onWishlistDeleted = () => {}, onWishCreated = () => {}, onWishDeleted = () => {}, ...googleFlow }) {
+export function createApplicationRoutes({ session, apiBaseUrl, sharingSignIn = {}, sharing = createSharedWishlistContext(), consumePasswordChangeNotice = () => false, onWishlistCreated = () => {}, onWishlistDeleted = () => {}, onWishCreated = () => {}, onWishDeleted = () => {}, ...googleFlow }) {
   return [
     Object.freeze({
       name: RouteNames.Home,
@@ -241,7 +249,7 @@ export function createApplicationRoutes({ session, apiBaseUrl, sharing = createS
       title: "MonKado · Les cadeaux qui font vraiment plaisir",
       render: createHomeView,
     }),
-    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
+    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
   ];
 }
 

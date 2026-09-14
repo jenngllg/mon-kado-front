@@ -42,6 +42,24 @@ function setup(target = path + "#" + secret) {
 /** @param {() => boolean} predicate DOM milestone. */
 function observe(predicate) { if (predicate()) return Promise.resolve(); return new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(document.body, { childList: true, subtree: true, characterData: true }); }); }
 describe("public shared wishlist integration", () => {
+  it.each([false, true])("returns from dedicated sign-in without joining, existing=%s", async existing => {
+    const { app, state, transport } = setup(); transport.state.refreshStatus = 401; state.joined = existing; await app.start(); await observe(() => [...app.shell.outlet.querySelectorAll("a")].some(link => link.textContent === "Se connecter pour poursuivre avec mon compte" && !link.hidden));
+    [...app.shell.outlet.querySelectorAll("a")].find(link => link.textContent === "Se connecter pour poursuivre avec mon compte")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Après connexion, tu retrouveras cette liste partagée.") === true);
+    expect(window.location.pathname).toBe("/login"); expect(window.location.search).toBe(""); expect(app.shell.outlet.innerHTML).not.toContain(secret);
+    await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } }));
+    await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Poursuivre avec mon compte" && !button.disabled));
+    expect(window.location.pathname).toBe(path); expect(state.reads).toBe(2); expect(state.joins).toBe(0);
+    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Poursuivre avec mon compte")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Participation enregistrée") === true); expect(state.joins).toBe(1); expect(state.reads).toBe(2);
+  });
+  it.each(["/", "/forgot-password", "/register"])("cancels dedicated return after leaving for %s", async target => {
+    const { app, transport } = setup(); transport.state.refreshStatus = 401; await app.start(); await observe(() => [...app.shell.outlet.querySelectorAll("a")].some(link => link.textContent === "Se connecter pour poursuivre avec mon compte" && !link.hidden));
+    [...app.shell.outlet.querySelectorAll("a")].find(link => link.textContent === "Se connecter pour poursuivre avec mon compte")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Après connexion, tu retrouveras cette liste partagée.") === true); await app.router.navigate(target);
+    await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); expect(window.location.pathname).not.toBe(path);
+  });
+  it("keeps ordinary sign-in separate from the preserved context", async () => {
+    const { app, transport } = setup(); transport.state.refreshStatus = 401; await app.start(); await untilSession(app.session, value => value.status === "anonymous"); await app.router.navigate("/login"); expect(app.shell.outlet.textContent).not.toContain("Après connexion, tu retrouveras");
+    await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); await observe(() => window.location.pathname === "/lists");
+  });
   it("joins with JWT and CSRF without a body or another collection read", async () => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Participer avec mon compte" && !button.disabled));

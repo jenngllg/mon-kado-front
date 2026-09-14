@@ -2,6 +2,26 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Continuité du partage après connexion — #902
+
+Depuis une liste partagée, le lien dédié « Se connecter pour poursuivre avec mon
+compte » prépare un retour vers cette liste. La connexion générale du menu conserve
+sa destination habituelle. Le retour automatique relit la liste et la participation,
+mais ne crée ni ne rattache rien : « Poursuivre avec mon compte » déclenche seul le
+POST, même si une participation membre est déjà reconnue.
+
+Cette continuation est conservée uniquement dans l’application de cet onglet,
+distinctement de `returnTo`, sans copie du secret ni identité participante. Quitter
+la connexion annule le retour automatique ; le contexte partagé peut rester utilisable
+pour une navigation interne. Recharger perd cette continuité et impose de rouvrir
+le lien reçu pour accéder au partage. L’inscription, la récupération et un départ
+OAuth externe ne bénéficient pas de ce retour. Google reste désactivé.
+
+Une connexion dans un autre onglet ne termine ce retour que si l’onglet initiateur
+attend toujours sur sa connexion dédiée. Les changements de compte invalident la
+poursuite locale. Les cookies invités restent exclusivement gérés par le backend ;
+un résultat incertain impose une vérification, jamais une nouvelle soumission automatique.
+
 ## Participation avec compte — #901
 
 Dans une liste partagée, une session authentifiée et stable affiche une section

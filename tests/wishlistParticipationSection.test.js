@@ -20,6 +20,10 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 16; i++) await Promise.resolve(); }
 describe("guest participation presentation", () => {
+  it("offers dedicated sign-in after lookup failure but not while an operation runs", async () => {
+    const onSignIn = vi.fn(), gate = barrier(); const ui = setup({ onSignIn, loadCurrent: async () => { await gate.promise; throw new ApiError({ kind: "network" }); } });
+    const link = /** @type {HTMLAnchorElement} */ (ui.view.querySelector('a[href="/login"]')); expect(link.hidden).toBe(true); link.click(); expect(onSignIn).not.toHaveBeenCalled(); gate.resolve(); await settle(); expect(link.hidden).toBe(false); link.click(); expect(onSignIn).toHaveBeenCalledOnce(); expect(ui.joinGuest).not.toHaveBeenCalled();
+  });
   it("reads before showing an explicit native form with help and no automatic join", async () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Vérification de ta participation…"); expect(ui.input.disabled).toBe(true); expect(ui.view.querySelector("form")?.hidden).toBe(true); await settle();
     expect(ui.input.disabled).toBe(false); expect(ui.input.required).toBe(true); expect(ui.input.getAttribute("autocomplete")).toBe("nickname"); expect(ui.input.hasAttribute("maxlength")).toBe(false); expect(ui.view.querySelector("form")?.noValidate).toBe(true); expect(ui.input.getAttribute("aria-describedby")).toContain("description"); expect(ui.view.textContent).toContain("cookie expire"); ui.fill("Camille"); expect(ui.joinGuest).not.toHaveBeenCalled();

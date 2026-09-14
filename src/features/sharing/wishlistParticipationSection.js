@@ -1,17 +1,17 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { validateDisplayName, DisplayNameServerMessage } from "../../auth/displayNameValidation.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createAlert, createButton, createFormField, disposeComponent, setFormFieldValidation } from "../../components/index.js";
+import { createActionLink, createAlert, createButton, createFormField, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 
 /** @typedef {{shareLinkId: string, loadCurrent: import("./wishlistParticipationService.js").LoadCurrentParticipant,
- * joinGuest: import("./wishlistParticipationService.js").JoinGuest, onUnavailable: () => void, signal?: AbortSignal}} ParticipationOptions */
+ * joinGuest: import("./wishlistParticipationService.js").JoinGuest, onUnavailable: () => void, onSignIn?: () => void, signal?: AbortSignal}} ParticipationOptions */
 
 /** An explicit guest join, never a cookie reader or a reservation UI.
  * @param {ParticipationOptions} options Injectable operations.
  * @returns {HTMLElement} Disposable section.
  */
-export function createWishlistParticipationSection({ shareLinkId, loadCurrent, joinGuest, onUnavailable, signal }) {
+export function createWishlistParticipationSection({ shareLinkId, loadCurrent, joinGuest, onUnavailable, onSignIn, signal }) {
   const section = element("section", ""); section.className = "wishlist-participation flow";
   const title = element("h2", "Participer à cette liste"); title.tabIndex = -1;
   const explanation = element("p", "Tu peux participer sans créer de compte MonKado. Ce navigateur te reconnaîtra grâce à un cookie. Cette reconnaissance peut être perdue si le cookie expire ou si tu le supprimes.");
@@ -26,6 +26,11 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   form.append(field, submit); section.append(title, explanation, status, feedback, identity, form, reread);
   const lifetime = new AbortController();
   let disposed = false, busy = false, mustRead = true, joined = false, checked = false, dirty = false, summary = false;
+  const signIn = onSignIn ? createActionLink({ label: "Se connecter pour poursuivre avec mon compte", href: "/login" }) : null;
+  if (signIn) {
+    section.append(signIn);
+    addComponentEventListener(section, signIn, "click", event => { event.preventDefault(); if (!disposed && !busy) onSignIn?.(); });
+  }
   /** @type {HTMLButtonElement | null} */ let pressed = null;
   /** @type {(() => void) | null} */ let deferred = null;
   addComponentEventListener(section, input, "input", () => { dirty = true; if (checked) validate(); });
@@ -55,6 +60,7 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   /** @param {boolean} value In progress. @param {string} [label] Announcement. */
   function loading(value, label = "") {
     busy = value; input.disabled = value || joined || mustRead; submit.disabled = value || joined || mustRead; reread.disabled = value;
+    if (signIn) signIn.hidden = value;
     section.setAttribute("aria-busy", String(value)); status.textContent = label;
   }
   /** @param {string} label Lookup action label. */

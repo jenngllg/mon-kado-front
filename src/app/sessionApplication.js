@@ -11,6 +11,7 @@ import { toUserFacingError } from "../errors/errorMessages.js";
 import { RouteNames, RoutePaths } from "./routeContracts.js";
 import { createGoogleService } from "../features/google/googleService.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
+import { createSharedSignInContinuation } from "../features/sharing/sharedSignInContinuation.js";
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
@@ -21,6 +22,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
   let disposed = false;
   const sharing = createSharedWishlistContext();
+  const sharedSignIn = createSharedSignInContinuation(sharing);
   let routeErrorVisible = false;
   let passwordChangeNotice = false;
   let protectedViewEpoch = 0;
@@ -37,6 +39,12 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   const router = createRouter({
     outlet: shell.outlet,
     routes: createApplicationRoutes({ session, google, apiBaseUrl, sharing,
+      sharingSignIn: { continuation: sharedSignIn, onSignIn: id => {
+        const state = session.getSnapshot(), route = router.getCurrentRoute();
+        if (disposed || state.status !== "anonymous" || state.authenticationPending || state.logoutPending ||
+          route?.name !== RouteNames.SharedWishlist || route.params.shareLinkId !== id || !sharedSignIn.prepare(id)) return;
+        void router.navigate(RoutePaths.Login).then(result => { if (result?.name !== RouteNames.Login) sharedSignIn.cancel(); });
+      } },
       onWishDeleted: async context => {
         const editPath = RoutePaths.EditWish.replace(":listId", context.params.listId).replace(":wishId", context.params.wishId);
         if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.EditWish ||
@@ -124,6 +132,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   });
   let previous = session.getSnapshot();
   const unsubscribeRouter = router.subscribe(route => {
+    if (route?.name !== RouteNames.Login) sharedSignIn.cancel();
     if (route?.name !== RouteNames.Login) passwordChangeNotice = false;
     if (route?.name !== googleFlowRoute) { googleDestination = null; googleVerified = false; }
     if (route?.name !== RouteNames.GoogleReturn && route?.name !== RouteNames.LinkGoogle) google.discardLinkContinuation();
@@ -145,8 +154,9 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       // Clear credentials entered in this tab before the protected guard yields.
       disposeComponent(shell.outlet);
       shell.outlet.replaceChildren(createLoadingState({ label: "Vérification de la session…" }));
-      const destination = current.name === RouteNames.Login ? getLoginDestination(current.url.searchParams) : RoutePaths.Lists;
-      void router.replace(destination);
+      const destination = current.name === RouteNames.Login
+        ? (state.user && sharedSignIn.consume(state.user.id)) || getLoginDestination(current.url.searchParams) : RoutePaths.Lists;
+      void router.replace(destination).then(result => { if (result?.url.pathname !== destination) sharedSignIn.discardResume(); });
     }
     if (lostAccess && isProtectedRoute(current?.name)) {
       // Remove private content before an asynchronous guard can yield.
@@ -188,6 +198,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       unsubscribeSession();
       router.dispose();
       sharing.dispose();
+      sharedSignIn.dispose();
       google.dispose();
       session.dispose();
       disposeComponent(shell.element);

@@ -11,11 +11,11 @@ import { GoogleMessages } from "../google/googleMessages.js";
 /** Creates the public login view. Redirects belong exclusively to session/router integration.
  * @param {{login: import("./loginService.js").Login,
  *   session: Pick<import("../../auth/sessionManager.js").SessionManager, "restore" | "subscribe" | "getSnapshot">,
- *   signal?: AbortSignal, passwordChanged?: boolean,
+ *   signal?: AbortSignal, passwordChanged?: boolean, sharedReturn?: {href: string, signal: AbortSignal} | null,
  *   startGoogle?: import("../google/googleService.js").StartGoogle, returnTo?: string}} options View-owned operations and one local notice.
  * @returns {HTMLElement} Disposable routed form.
  */
-export function createLoginView({ login, session, signal, passwordChanged = false, startGoogle, returnTo = RoutePaths.Lists }) {
+export function createLoginView({ login, session, signal, passwordChanged = false, sharedReturn, startGoogle, returnTo = RoutePaths.Lists }) {
   const view = textElement("section", "");
   view.className = "login-view flow";
   const feedback = textElement("div", "");
@@ -90,6 +90,12 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
     createActionLink({ label: "Créer un compte", href: RoutePaths.Register }));
   view.append(textElement("h1", "Se connecter"), textElement("p", "Retrouve tes listes et les cadeaux que tu prépares pour tes proches."),
     status, feedback, form, links);
+  if (sharedReturn && !sharedReturn.signal.aborted) {
+    const continuation = textElement("div", ""); continuation.className = "flow";
+    continuation.append(textElement("p", "Après connexion, tu retrouveras cette liste partagée."), createActionLink({ label: "Retour à la liste sans se connecter", href: sharedReturn.href }));
+    view.insertBefore(continuation, status);
+    addComponentEventListener(view, sharedReturn.signal, "abort", () => { disposeComponent(continuation); continuation.remove(); }, { once: true });
+  }
   if (passwordChanged) view.insertBefore(createAlert({ variant: "success", title: "Mot de passe modifié",
     message: "Tu peux maintenant te connecter avec ton nouveau mot de passe." }), feedback);
 

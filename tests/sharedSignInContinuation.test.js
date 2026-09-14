@@ -1,0 +1,15 @@
+import { describe, expect, it } from "vitest";
+import { createSharedWishlistContext } from "../src/features/sharing/sharedWishlistContext.js";
+import { createSharedSignInContinuation } from "../src/features/sharing/sharedSignInContinuation.js";
+const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", secret = "A".repeat(43);
+function setup() { const context = createSharedWishlistContext(); context.enter(id, "#" + secret); return { context, continuation: createSharedSignInContinuation(context), login: new AbortController() }; }
+describe("private shared sign-in intent", () => {
+  it("observes without changing or exposing the bearer context", () => { const { context } = setup(); const lease = context.observe(id); expect(lease).toBeInstanceOf(AbortSignal); expect(context.observe("other")).toBeNull(); expect(context.observe(id)).toBe(lease); expect(JSON.stringify(lease)).not.toContain(secret); });
+  it("binds and consumes once, then takes the account-bound resume once", () => {
+    const { continuation, login } = setup(); expect(continuation.prepare(id)).toBe(true); expect(continuation.consume("account")).toBeNull(); continuation.prepare(id); expect(continuation.bindLogin(login.signal)?.href).toBe(`/shared-wishlists/${id}`); expect(continuation.consume("account")).toBe(`/shared-wishlists/${id}`); expect(continuation.consume("account")).toBeNull(); expect(continuation.takeResume(id)).toBe("account"); expect(continuation.takeResume(id)).toBeNull();
+  });
+  it.each(["context", "login", "cancel", "dispose"])("invalidates %s without a stale destination", reason => { const { context, continuation, login } = setup(); continuation.prepare(id); continuation.bindLogin(login.signal); if (reason === "context") context.enter(id, "#bad"); if (reason === "login") login.abort(); if (reason === "cancel") continuation.cancel(); if (reason === "dispose") continuation.dispose(); expect(continuation.consume("account")).toBeNull(); if (reason !== "context") expect(context.observe(id)?.aborted).toBe(false); });
+  it("never rebinds a departed login or resumes a replaced context", () => { const { context, continuation, login } = setup(); continuation.prepare(id); continuation.bindLogin(login.signal); login.abort(); expect(continuation.bindLogin(new AbortController().signal)).toBeNull(); continuation.prepare(id); continuation.bindLogin(new AbortController().signal); continuation.consume("account"); context.enter(id, "#" + secret); expect(continuation.takeResume(id)).toBeNull(); });
+  it("cannot reconstruct a continuation after reload", () => { const { context } = setup(); const next = createSharedSignInContinuation(context); expect(next.bindLogin(new AbortController().signal)).toBeNull(); expect(next.consume("account")).toBeNull(); });
+  it("discards the resume ticket when navigation fails", () => { const { continuation, login } = setup(); continuation.prepare(id); continuation.bindLogin(login.signal); continuation.consume("account"); continuation.discardResume(); expect(continuation.takeResume(id)).toBeNull(); });
+});

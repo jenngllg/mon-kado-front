@@ -19,6 +19,12 @@ function setup(overrides = {}) {
   return { view, loadCurrentMember, joinMember, onUnavailable, button };
 }
 describe("member participation", () => {
+  it("requires an explicit continuation even for a recognized member", async () => {
+    const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); await settle(); expect(ui.joinMember).not.toHaveBeenCalled(); expect(ui.button("Poursuivre avec mon compte").disabled).toBe(false); ui.button("Poursuivre avec mon compte").click(); await settle(); expect(ui.joinMember).toHaveBeenCalledOnce(); expect(ui.button("Poursuivre avec mon compte").hidden).toBe(true);
+  });
+  it("keeps explicit attachment available after an uncertain result and lookup", async () => {
+    const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); ui.joinMember.mockRejectedValueOnce(new ApiError({ kind: "network" })); await settle(); ui.button("Poursuivre avec mon compte").click(); await settle(); expect(ui.button("Poursuivre avec mon compte").disabled).toBe(true); ui.button("Vérifier ma participation").click(); await settle(); expect(ui.button("Poursuivre avec mon compte").disabled).toBe(false); expect(ui.joinMember).toHaveBeenCalledOnce();
+  });
   it("reads first, shows the current identity without an input and never joins automatically", async () => {
     const ui = setup(); expect(ui.button("Participer avec mon compte").disabled).toBe(true); expect(ui.view.textContent).toContain("Vérification"); await settle(); expect(ui.view.querySelector("input")).toBeNull(); expect(ui.view.textContent).toContain("Compte actuel"); expect(ui.button("Participer avec mon compte").disabled).toBe(false); expect(ui.joinMember).not.toHaveBeenCalled();
   });

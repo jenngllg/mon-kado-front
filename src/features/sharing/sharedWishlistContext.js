@@ -8,6 +8,8 @@ export function createSharedWishlistContext() {
   /** @type {{id: string, secret: string, controller: AbortController} | null} */ let current = null;
   function clear() { if (current) { current.secret = ""; current.controller.abort(); current = null; } }
   return Object.freeze({
+    /** @param {string} id Link ID. @returns {AbortSignal | null} Non-secret lifetime of this exact context. */
+    observe(id) { return !disposed && current?.id === id.toLowerCase() ? current.controller.signal : null; },
     /** @param {string} id Link identifier. @param {string} fragment Consumed raw fragment. @returns {"ready" | "missing" | "invalid"} Safe entry state. */
     enter(id, fragment) {
       if (disposed) return "missing";
@@ -32,6 +34,6 @@ export function createSharedWishlistContext() {
   });
 }
 
-/** @typedef {{enter: (id: string, fragment: string) => "ready" | "missing" | "invalid",
+/** @typedef {{observe: (id: string) => AbortSignal | null, enter: (id: string, fragment: string) => "ready" | "missing" | "invalid",
  * run: <T>(id: string, operation: (secret: string, signal: AbortSignal) => Promise<T>) => Promise<T>,
  * clear: () => void, dispose: () => void}} SharedWishlistContext */
