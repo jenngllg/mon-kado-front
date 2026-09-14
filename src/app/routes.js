@@ -43,6 +43,7 @@ import { createSharedWishView } from "../features/sharing/sharedWishView.js";
 import { createSharedSessionView } from "../features/sharing/sharedSessionView.js";
 import { createGiftReservationService } from "../features/sharing/giftReservationService.js";
 import { createGiftReservationSection } from "../features/sharing/giftReservationSection.js";
+import { createReservationCreateForm } from "../features/sharing/reservationCreateForm.js";
 import { createWishlistParticipationService } from "../features/sharing/wishlistParticipationService.js";
 import { createGuestParticipationHost } from "../features/sharing/guestParticipationHost.js";
 
@@ -232,9 +233,17 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const state = sharing.enter(context.params.shareLinkId, "");
         if (state !== "ready") return createSharedWishlistEntryView(state);
         return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
-          ...(identity.includeCurrent ? { createReservation: (onUnavailable) => createGiftReservationSection({
-            shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable,
+          ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy) => createGiftReservationSection({
+            shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy,
             loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
+            createForm: onBusy => createReservationCreateForm({ available: wish.availableQuantity, signal: context.signal, onSaved, onUnavailable, onBusy,
+              create: (quantity, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).create(context.params.shareLinkId, wish.id, quantity, { signal }),
+              verify: async signal => {
+                const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
+                const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                return { available: fresh.availableQuantity, lookup };
+              },
+            }),
           }) } : {}),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne }), context.signal);
