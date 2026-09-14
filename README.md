@@ -1665,6 +1665,21 @@ Les noms des autres participants sont écartés. Les cartes propriétaire resten
 sans information de réservation. Aucun filtre, pagination ni mutation de
 réservation n’est ajouté par cette US.
 
+### Réservation courante (#918)
+
+Le détail partagé lit « Ma réservation » après résolution de la session : JWT
+pour le membre, cookie HttpOnly du transport pour l’invité, et secret de partage
+dans l’en-tête dédié. Cette lecture ne crée ni participation ni réservation.
+L’ETag individuel validé n’est jamais affiché. La projection écarte les données
+inutilisées et toute identité d’un autre participant.
+
+Une réservation absente se distingue d’une participation non reconnue. Une panne
+technique reste locale à la section ; l’actualisation est explicite et conserve
+les règles communes de corrélation et de limitation de débit. Les changements
+de compte, le départ et les pertes d’accès détruisent la lecture et ses données.
+La reconnaissance invitée dépend du cookie de ce navigateur ; aucune récupération
+automatique ni mutation n’est promise par ce parcours.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US

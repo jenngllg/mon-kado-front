@@ -13,10 +13,18 @@ afterEach(() => { apps.splice(0).forEach(app => app.dispose()); document.body.re
 function setup(target = path + "#" + secret) {
   window.history.replaceState({}, "", target); const transport = createSessionTransport(), hub = createCoordinatorHub(), fallback = transport.fetch.getMockImplementation();
   const state = { status: 200, reads: 0, detailReads: 0, errorCode: "SHARED_WISHLIST_NOT_FOUND", beforeRead: async () => {},
+    reservationReads: 0, beforeReservation: async () => {},
     participantReads: 0, joins: 0, participantStatus: 401, participantCode: "GUEST_SESSION_INVALID", joined: false, beforeJoin: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
     expect(window.location.hash).toBe("");
     const pathname = new URL(String(input)).pathname;
+    if (pathname.endsWith("/reservations/current")) {
+      state.reservationReads++; const member = new Headers(init?.headers).has("Authorization"); await state.beforeReservation();
+      expect(new Headers(init?.headers).get("X-MonKado-Share-Token")).toBe(secret);
+      expect(init?.method).toBe("GET"); expect(init?.body).toBeUndefined();
+      return member ? Response.json({ id, wishId: wish.id, quantity: 1 }, { headers: { ETag: '"reservation"' } }) :
+        Response.json({ statusCode: 401, errorCode: "GUEST_SESSION_INVALID", title: null, message: null, validationErrors: null }, { status: 401 });
+    }
     if (pathname.includes("/participants")) {
       const headers = new Headers(init?.headers); const member = headers.has("Authorization"); expect(headers.get("X-MonKado-Share-Token")).toBe(secret); expect(init?.credentials).toBe("include");
       if (init?.method === "POST") {
@@ -42,6 +50,16 @@ function setup(target = path + "#" + secret) {
 /** @param {() => boolean} predicate DOM milestone. */
 function observe(predicate) { if (predicate()) return Promise.resolve(); return new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(document.body, { childList: true, subtree: true, characterData: true }); }); }
 describe("public shared wishlist integration", () => {
+  it("removes a member reservation on logout and ignores its late response", async () => {
+    const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated");
+    await observe(() => app.shell.outlet.textContent?.includes("Participer avec mon compte") === true);
+    await app.router.navigate(detailPath); await observe(() => app.shell.outlet.textContent?.includes("Tu as réservé 1") === true);
+    const gate = barrier(); state.beforeReservation = () => gate.promise;
+    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Actualiser ma réservation")?.click();
+    const logout = app.session.logout(); gate.resolve(); await logout;
+    await observe(() => app.shell.outlet.textContent?.includes("Aucune participation n’est reconnue") === true);
+    expect(app.shell.outlet.textContent).not.toContain("Tu as réservé 1"); expect(app.router.getCurrentRoute()?.url.pathname).toBe(detailPath);
+  });
   it("expires a rejected member credential and removes its personal quantities without losing the public route", async () => {
     const { app, state } = setup(); await app.start();
     await untilSession(app.session, value => value.status === "authenticated");
