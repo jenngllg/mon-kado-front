@@ -8,10 +8,11 @@ import { createSharedWishQuantities } from "./sharedWishQuantities.js";
 const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
 /** A fresh public detail, without participant information or owner actions.
- * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal}} options Dependencies.
+ * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal,
+ * createReservation?: (onUnavailable: () => void) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal }) {
+export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal, createReservation }) {
   const view = element("section", ""); view.className = "shared-wish-view flow";
   const back = createActionLink({ label: "Retour à la liste", href: `/shared-wishlists/${shareLinkId}` });
   const title = element("h1", "Cadeau partagé"); title.tabIndex = -1;
@@ -63,6 +64,11 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
         product.setAttribute("aria-label", `Voir le produit « ${wish.name} » (nouvel onglet)`); information.append(product);
       } else if (wish.productUnavailable) information.append(element("p", "Lien produit indisponible"));
       layout.append(createWishImage(wish), information); results.append(layout);
+      if (createReservation) results.append(createReservation(() => {
+        if (disposed || terminal) return;
+        terminal = true; lifetime.abort(); clear(); refresh.hidden = true;
+        title.textContent = "Cadeau introuvable"; title.focus();
+      }));
       refresh.hidden = false; if (explicit) title.focus();
     } catch (error) {
       if (disposed || terminal || isAbortError(error)) return;

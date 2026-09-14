@@ -41,6 +41,8 @@ import { createSharedWishlistService } from "../features/sharing/sharedWishlistS
 import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
 import { createSharedWishView } from "../features/sharing/sharedWishView.js";
 import { createSharedSessionView } from "../features/sharing/sharedSessionView.js";
+import { createGiftReservationService } from "../features/sharing/giftReservationService.js";
+import { createGiftReservationSection } from "../features/sharing/giftReservationSection.js";
 import { createWishlistParticipationService } from "../features/sharing/wishlistParticipationService.js";
 import { createGuestParticipationHost } from "../features/sharing/guestParticipationHost.js";
 
@@ -230,6 +232,10 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const state = sharing.enter(context.params.shareLinkId, "");
         if (state !== "ready") return createSharedWishlistEntryView(state);
         return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
+          ...(identity.includeCurrent ? { createReservation: (onUnavailable) => createGiftReservationSection({
+            shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable,
+            loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
+          }) } : {}),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne }), context.signal);
       },
