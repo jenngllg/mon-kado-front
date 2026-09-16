@@ -26,6 +26,31 @@ function mount(path = "/", transport = createSessionTransport(), hub = createCoo
 }
 
 describe("session routes and shell", () => {
+  it("loads private reservation history freshly and removes it on coordinated logout during a read", async () => {
+    const transport = createSessionTransport(), hub = createCoordinatorHub(), fallback = transport.fetch.getMockImplementation();
+    const gate = barrier(), started = barrier(); let delay = false, reads = 0;
+    transport.fetch.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/v1/members/current/reservations") {
+        reads++; expect(init?.method).toBe("GET"); expect(init?.body).toBeUndefined(); expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer jwt-fixture-1");
+        expect(new Headers(init?.headers).has("X-CSRF-TOKEN")).toBe(false); expect(new Headers(init?.headers).has("X-MonKado-Share-Token")).toBe(false);
+        if (delay) { started.resolve(); await gate.promise; }
+        const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
+        return Response.json({ currentPage: 1, pageSize: 20, totalCount: 1, items: [{ id, wishlistId: id, wishId: id, shareLinkId: id, wishlistName: "Private list", wishName: "Private gift", quantity: 2, status: "active", createdAt: "2026-09-01T00:00:00Z", lastActivityAt: "2026-09-01T00:00:00Z", endedAt: null }] });
+      }
+      if (!fallback) throw new Error("Missing transport"); return fallback(input, init);
+    });
+    const app = mount("/reservations", transport, hub), other = createSessionManager({ apiBaseUrl: "http://localhost:7000", coordinator: hub.create(), fetchImplementation: createSessionTransport().fetch });
+    /** @param {() => boolean} predicate DOM milestone. */
+    const observe = predicate => predicate() ? Promise.resolve() : new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(app.shell.outlet, { childList: true, subtree: true, characterData: true }); });
+    try {
+      await app.start(); await observe(() => app.shell.outlet.textContent?.includes("Private gift") === true);
+      expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes réservations");
+      await app.router.navigate("/"); await app.router.navigate("/reservations"); await observe(() => app.shell.outlet.textContent?.includes("Private gift") === true); expect(reads).toBe(2);
+      await other.start(); delay = true; app.shell.outlet.querySelector("button")?.click(); await started.promise;
+      await other.logout(); gate.resolve(); await observe(() => app.shell.outlet.textContent?.includes("Chargement de tes réservations") === false);
+      expect(app.shell.outlet.textContent).not.toMatch(/Private gift|Private list/); expect(app.session.getSnapshot().user).toBeNull(); expect(JSON.stringify(hub.messages)).not.toContain("Private");
+    } finally { gate.resolve(); other.dispose(); }
+  });
   it("updates a routed profile and identity, then clears a pending edit when another tab logs out", async () => {
     // Arrange
     const hub = createCoordinatorHub();

@@ -91,28 +91,13 @@ describe("application routes", () => {
     expect(view.querySelector("form")).toBeNull();
   });
 
-  it.each(ExpectedRoutes.slice(1).filter(([name]) => ![RouteNames.SharedWish, RouteNames.SharedWishlist, RouteNames.EditWish, RouteNames.NewWish, RouteNames.ListDetails, RouteNames.DeleteList, RouteNames.EditList, RouteNames.NewList, RouteNames.Lists, RouteNames.LinkGoogle, RouteNames.GoogleReturn, RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.ConfirmEmailChange, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.ForgotPassword, RouteNames.ResetPassword].some(candidate => candidate === name)))(
-    "renders an explicit placeholder for %s",
-    async (routeName, routePath) => {
-      // Arrange
-      const route = getRoute(routeName);
-      const concretePath = routePath
-        .replace(":listId", "list-123")
-        .replace(":shareLinkId", "share-123");
-
-      // Act
-      const view = await route.render(createRouteContext(concretePath));
-
-      // Assert
-      expect(view.querySelector("h1")?.textContent?.length).toBeGreaterThan(0);
-      expect(view.textContent).toContain(
-        "Cette fonctionnalité sera disponible dans un prochain lot.",
-      );
-      expect(view.querySelector('a[href="/"]')?.textContent)
-        .toBe("Retour à l’accueil");
-      expect(view.querySelector("form")).toBeNull();
-    },
-  );
+  it("renders the member reservation history instead of a placeholder", async () => {
+    const view = await getRoute(RouteNames.Reservations).render(createRouteContext("/reservations"));
+    expect(view.querySelector("h1")?.textContent).toBe("Mes réservations");
+    expect(view.textContent).toContain("Retrouve les réservations liées à ton compte");
+    expect(view.textContent).not.toContain("Cette fonctionnalité sera disponible dans un prochain lot.");
+    expect(view.querySelector("form")).toBeNull();
+  });
 
   it("renders the registration form without making an API call", async () => {
     // Arrange / Act
