@@ -1707,6 +1707,10 @@ de la décision du backend.
 Après conflit ou résultat incertain, la saisie reste conservée et une vérification
 explicite relit cadeau et réservation. La quantité serveur est présentée avant
 la décision d’enregistrer la saisie ou de l’adopter par annulation locale.
+Cette vérification actualise aussi les quantités souhaitée, réservée et disponible
+du détail, ainsi que l’état de reconnaissance de la réservation, sans remplacer
+le formulaire ni sa saisie. Une réponse liée à une vue détruite ou remplacée
+ne réaffiche pas ces informations.
 Une réservation disparue n’est jamais recréée automatiquement. Le succès est
 conservé si la relecture suivante échoue ; seule cette lecture peut être reprise.
 

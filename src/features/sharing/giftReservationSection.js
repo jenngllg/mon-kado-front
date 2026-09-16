@@ -5,8 +5,8 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 
 /** Isolated reservation lookup: a technical failure never hides the public gift.
  * @param {{shareLinkId: string, wishId: string, loadCurrent: import("./giftReservationService.js").LoadReservation,
- * onUnavailable: () => void, createForm?: (onBusy: (busy: boolean) => void) => HTMLElement,
- * editForm?: (reservation: import("./giftReservationService.js").CurrentReservation, onBusy: (busy: boolean) => void) => HTMLElement,
+ * onUnavailable: () => void, createForm?: (onBusy: (busy: boolean) => void, onVerified: (lookup: import("./giftReservationService.js").ReservationLookup) => void) => HTMLElement,
+ * editForm?: (reservation: import("./giftReservationService.js").CurrentReservation, onBusy: (busy: boolean) => void, onVerified: (lookup: import("./giftReservationService.js").ReservationLookup) => void) => HTMLElement,
  * createCancel?: (onInvalidate: () => void, onClose: (confirmed: boolean) => void) => HTMLDialogElement,
  * onCancelled?: () => void, onUnrecognized?: () => void,
  * onBusy?: (busy: boolean) => void, signal?: AbortSignal}} options Dependencies.
@@ -38,15 +38,20 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
       if (result.state === "unrecognized") onUnrecognized?.();
       disposeComponent(content); content.replaceChildren();
       const message = document.createElement("p"); message.setAttribute("role", "status");
-      message.textContent = result.state === "reserved" ? `Tu as réservé ${result.reservation.quantity} exemplaire(s) de ce cadeau.` :
-        result.state === "absent" ? "Tu n’as pas de réservation sur ce cadeau." : "Aucune participation n’est reconnue pour toi sur cette liste. Retourne à la liste pour participer.";
+      /** @param {import("./giftReservationService.js").ReservationLookup} lookup Fresh recognition. */
+      function showLookup(lookup) {
+        if (disposed || !content.contains(message)) return;
+        message.textContent = lookup.state === "reserved" ? `Tu as réservé ${lookup.reservation.quantity} exemplaire(s) de ce cadeau.` :
+          lookup.state === "absent" ? "Tu n’as pas de réservation sur ce cadeau." : "Aucune participation n’est reconnue pour toi sur cette liste. Retourne à la liste pour participer.";
+      }
       const refresh = createButton({ label: "Actualiser ma réservation", variant: "secondary", onClick: () => { void read(true); } });
       content.append(message, refresh);
-      if (result.state === "absent" && createForm) content.append(createForm(value => { mutationBusy = value; refresh.disabled = value; onBusy?.(value); }));
+      showLookup(result);
+      if (result.state === "absent" && createForm) content.append(createForm(value => { mutationBusy = value; refresh.disabled = value; onBusy?.(value); }, showLookup));
       if (result.state === "reserved") {
         const group = document.createElement("fieldset"); group.className = "reservation-edit-group";
         /** @type {HTMLButtonElement | null} */ let cancelButton = null;
-        if (editForm) group.append(editForm(result.reservation, value => { mutationBusy = value; refresh.disabled = value; if (cancelButton) cancelButton.disabled = value; onBusy?.(value); }));
+        if (editForm) group.append(editForm(result.reservation, value => { mutationBusy = value; refresh.disabled = value; if (cancelButton) cancelButton.disabled = value; onBusy?.(value); }, showLookup));
         content.append(group);
         if (createCancel) {
           let open = false;

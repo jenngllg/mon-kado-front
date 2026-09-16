@@ -233,7 +233,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const state = sharing.enter(context.params.shareLinkId, "");
         if (state !== "ready") return createSharedWishlistEntryView(state);
         return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
-          ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized) => createGiftReservationSection({
+          ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized, onVerified) => createGiftReservationSection({
             shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized,
             loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
             onCancelled: () => onSaved("Réservation annulée"),
@@ -246,20 +246,22 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
                 return { name: fresh.name, lookup };
               },
             }),
-            editForm: (reservation, onBusy) => createReservationEditForm({ reservation, available: wish.availableQuantity, signal: context.signal, onSaved: () => onSaved("Réservation modifiée"), onUnavailable, onBusy,
+            editForm: (reservation, onBusy, showLookup) => createReservationEditForm({ reservation, available: wish.availableQuantity, signal: context.signal, onSaved: () => onSaved("Réservation modifiée"), onUnavailable, onBusy,
               update: (quantity, etag, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).update(context.params.shareLinkId, wish.id, quantity, { etag, signal }),
               verify: async signal => {
                 const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
                 const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                onVerified(fresh); showLookup(lookup);
                 if (lookup.state === "unrecognized") onUnrecognized();
                 return { available: fresh.availableQuantity, lookup };
               },
             }),
-            createForm: onBusy => createReservationCreateForm({ available: wish.availableQuantity, signal: context.signal, onSaved, onUnavailable, onBusy,
+            createForm: (onBusy, showLookup) => createReservationCreateForm({ available: wish.availableQuantity, signal: context.signal, onSaved, onUnavailable, onBusy,
               create: (quantity, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).create(context.params.shareLinkId, wish.id, quantity, { signal }),
               verify: async signal => {
                 const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
                 const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                onVerified(fresh); showLookup(lookup);
                 if (lookup.state === "unrecognized") onUnrecognized();
                 return { available: fresh.availableQuantity, lookup };
               },
