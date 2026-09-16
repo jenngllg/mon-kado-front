@@ -87,7 +87,7 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
       const heading = /** @type {HTMLElement} */ (card.querySelector("h3")); heading.tabIndex = -1;
       const rank = node("p", ""); rank.className = "wish-reorder-rank";
       const handle = createButton({ label: "Déplacer la carte", variant: "secondary" }); handle.dataset.reorderHandle = ""; handle.classList.add("wish-reorder-handle");
-      handle.setAttribute("aria-label", `Déplacer le cadeau « ${item.name} »`);
+      handle.setAttribute("aria-label", `Déplacer la carte « ${item.name} »`);
       const up = createButton({ label: "Monter", variant: "secondary", onClick: () => move(id, draft.indexOf(id) - 1, up) });
       const down = createButton({ label: "Descendre", variant: "secondary", onClick: () => move(id, draft.indexOf(id) + 1, down) });
       up.setAttribute("aria-label", `Monter « ${item.name} »`); down.setAttribute("aria-label", `Descendre « ${item.name} »`);

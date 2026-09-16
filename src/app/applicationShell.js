@@ -72,6 +72,8 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   const notificationRegion = createNotificationRegion();
   const sessionFeedback = document.createElement("div");
   sessionFeedback.className = "app-session-feedback container container--regular";
+  sessionFeedback.setAttribute("role", "region");
+  sessionFeedback.setAttribute("aria-label", "État de la session");
   sessionFeedback.hidden = true;
   element.append(skipLink, header, sessionFeedback, outlet, notificationRegion);
   // Native focus scrolling can leave a field behind the sticky header.
