@@ -17,6 +17,11 @@ function setup(options = {}) {
   return { view, loadCurrent, onUnavailable };
 }
 describe("current reservation section", () => {
+  it("signals lost guest recognition without claiming cancellation or starting a new reservation", async () => {
+    const lost = vi.fn(), create = vi.fn(() => document.createElement("form")), ui = setup({ onUnrecognized: lost, createForm: create }); await settle();
+    ui.loadCurrent.mockResolvedValue({ state: "unrecognized" }); ui.view.querySelector("button")?.click(); await settle();
+    expect(lost).toHaveBeenCalledOnce(); expect(create).not.toHaveBeenCalled(); expect(ui.onUnavailable).not.toHaveBeenCalled(); expect(ui.view.textContent).not.toMatch(/Tu as réservé|annulée/);
+  });
   it("loads once, exposes only quantity and refreshes explicitly with focus", async () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Vérification"); await settle();
     expect(ui.view.textContent).toContain("Tu as réservé 2"); expect(ui.view.innerHTML).not.toContain("private-version");

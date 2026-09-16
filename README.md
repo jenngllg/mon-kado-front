@@ -1773,6 +1773,25 @@ automatique en boucle. Le choix reste uniquement dans la vue montée et est
 réinitialisé après départ ou changement de compte. Un filtre sans résultat est
 distingué d’un historique entièrement vide ; aucune mutation n’est déclenchée.
 
+### Changements d’accès et de session des réservations (#925)
+
+Une perte d’accès n’annule pas une réservation : le frontend ne lance aucune
+mutation pour « nettoyer » un changement de compte, une déconnexion, un cookie
+invité non reconnu ou un partage révoqué. Les données personnelles et brouillons
+restent liés à la vue et à l’identité résolue ; les réponses anciennes sont
+ignorées après destruction ou remplacement du contexte. Le cookie invité reste
+géré par le backend, sans accès JavaScript ni promesse de récupération.
+
+Un cadeau introuvable retire uniquement son détail et conserve le contexte de
+liste ; un partage inaccessible retire aussi le contexte. Une participation
+non reconnue retire la quantité personnelle devenue obsolète, sans retirer les
+informations publiques encore accessibles. Une confirmation précédente n’est
+plus affichée après un refus terminal. Les résultats incertains restent soumis
+à relecture explicite, sans annulation, recréation ou rattachement automatique.
+Le renouvellement ou la révocation à distance se constate à la prochaine requête, sans
+polling ni promesse de propagation instantanée. L’historique membre est retiré
+à la déconnexion et relu pour le compte suivant, sans repli invité.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US

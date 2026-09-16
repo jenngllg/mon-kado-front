@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../src/api/apiError.js";
 import { createGiftReservationService } from "../src/features/sharing/giftReservationService.js";
 import { createSharedWishlistContext } from "../src/features/sharing/sharedWishlistContext.js";
+import { barrier } from "./sessionTestHelpers.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
 const data = { id, wishId, quantity: 2 };
 /** @param {"none" | "required"} [authentication] Identity. */
@@ -12,6 +13,18 @@ function setup(authentication = "none") {
   return { ...service, request, context, options: { signal: new AbortController().signal } };
 }
 describe("current reservation service", () => {
+  it.each(["load", "create", "update", "cancel"])("rejects a late %s result after the sharing context is replaced without replay", async operation => {
+    const ui = setup(), gate = barrier(); let sent = /** @type {AbortSignal | null} */ (null);
+    ui.request.mockImplementation(/** @type {typeof ui.request} */ (/** @type {unknown} */ (async (/** @type {string} */ _path, /** @type {{signal: AbortSignal}} */ options) => { sent = options.signal; await gate.promise; return { data, status: 200, metadata: { etag: '"version"', correlationId: "ref", location: null, retryAfterSeconds: null } }; })));
+    const pending = operation === "load" ? ui.loadCurrent(id, wishId, ui.options) : operation === "create" ? ui.create(id, wishId, "2", ui.options) : operation === "update" ? ui.update(id, wishId, "2", { ...ui.options, etag: '"v"' }) : ui.cancel(id, wishId, { ...ui.options, etag: '"v"' });
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    ui.context.enter(id, "#" + "B".repeat(42) + "A"); gate.resolve(); await rejected;
+    expect(/** @type {AbortSignal | null} */ (sent)?.aborted).toBe(true); expect(ui.request).toHaveBeenCalledOnce(); expect(ui.context.observe(id)?.aborted).toBe(false);
+  });
+  it.each(["SHARED_WISH_NOT_FOUND", "WISH_NOT_FOUND"])("keeps the sharing context when only the gift is missing: %s", async errorCode => {
+    const ui = setup(); ui.request.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404, errorCode }));
+    await expect(ui.loadCurrent(id, wishId, ui.options)).rejects.toMatchObject({ errorCode }); expect(ui.context.observe(id)?.aborted).toBe(false); expect(ui.request).toHaveBeenCalledOnce();
+  });
   it("cancels with the individual version, CSRF and empty response", async () => {
     const ui = setup("required"); const response = await ui.request(); ui.request.mockReset();
     ui.request.mockResolvedValue(/** @type {Awaited<ReturnType<typeof ui.request>>} */ (/** @type {unknown} */ ({ ...response, status: 204, data: null })));
