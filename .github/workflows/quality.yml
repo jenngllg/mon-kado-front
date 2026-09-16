@@ -33,6 +33,15 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:coverage
       - run: pnpm build
+      - name: Validate deployed Caddy configuration
+        run: >-
+          docker run --rm --network none
+          --mount type=bind,src=${{ github.workspace }}/deployments/caddy/Caddyfile,dst=/etc/caddy/Caddyfile,readonly
+          --mount type=bind,src=${{ github.workspace }}/dist,dst=/srv/frontend,readonly
+          -e FRONTEND_HOST=http://:8080 -e FRONTEND_ROOT=/srv/frontend
+          -e FRONTEND_API_ORIGIN=https://api.example.test
+          caddy@sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648
+          caddy validate --config /etc/caddy/Caddyfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - name: Keep synthetic browser diagnostics on failure

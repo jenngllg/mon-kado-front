@@ -22,8 +22,13 @@ de déploiement. Les anciennes exécutions de la même référence sont annulée
 Les traces et captures de navigateur ne contiennent que les fixtures synthétiques
 et sont conservées trois jours après échec. Aucun log backend brut n'est publié.
 
-Le contrôle agrégé `Frontend quality gate` exige la réussite des deux jobs ;
-il doit être requis par les protections des branches. La CI ne déploie rien.
+Le contrôle agrégé `Frontend quality gate` exige la réussite des deux jobs.
+Il est requis sur `develop`, à jour de sa base, avec passage par MR, historique
+linéaire, conversations résolues et interdiction du push forcé, y compris pour
+les administrateurs. Aucun second approbateur n'est imposé sur ce dépôt individuel.
+La branche `main` n'existe pas encore : appliquer la même protection à sa création.
+La configuration Caddy est également validée dans un conteneur sans réseau ni port
+publié. La CI ne déploie rien.
 
 ## Politique HTTP du frontend déployé — #932
 
