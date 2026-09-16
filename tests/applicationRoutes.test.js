@@ -96,7 +96,8 @@ describe("application routes", () => {
     expect(view.querySelector("h1")?.textContent).toBe("Mes réservations");
     expect(view.textContent).toContain("Retrouve les réservations liées à ton compte");
     expect(view.textContent).not.toContain("Cette fonctionnalité sera disponible dans un prochain lot.");
-    expect(view.querySelector("form")).toBeNull();
+    expect(view.querySelector("form select")?.children).toHaveLength(4);
+    expect(view.textContent).toContain("Appliquer le filtre");
   });
 
   it("renders the registration form without making an API call", async () => {

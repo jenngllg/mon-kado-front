@@ -1743,11 +1743,10 @@ les réponses tardives. Aucun appel de réservation n’est déclenché par le f
 
 ### Historique personnel des réservations (#923)
 
-`/reservations` lit une première page de 20 entrées depuis le compte connecté,
+`/reservations` lit des pages de 20 entrées depuis le compte connecté,
 sans contexte partagé ni cookie invité exploité par JavaScript. Les entrées
 suivent l’ordre serveur (activité la plus récente), sans tri local. Le total
-et la portée de cette première page sont explicités ; filtres et navigation
-entre pages sont traités dans #924, sans pagination des cadeaux.
+et la page courante sont explicités. Cette pagination ne concerne pas les cadeaux.
 
 Une entrée décrit un cycle de réservation : dernière quantité, état actif,
 annulé ou indisponible, dates de création, dernière activité et fin éventuelle.
@@ -1757,6 +1756,22 @@ L’historique n’expose ni autres participants, ni secrets, ni commandes de ge
 Un identifiant de partage ne suffit pas à reconstruire l’accès : il faut rouvrir
 le lien reçu. L’affichage est relu à chaque ouverture/actualisation, sans cache
 persistant, et retiré au départ ou au changement de session.
+
+### Filtrer et parcourir l’historique (#924)
+
+Le filtre natif propose toutes les réservations, les actives, les annulées ou
+les indisponibles. Son application est explicite et revient à la première page.
+Les commandes précédent/suivant sont présentes au-dessus et sous les résultats,
+désactivées aux extrémités ; chaque action effectue une nouvelle lecture serveur.
+Le service contrôle les bornes de page et de taille (1 à 100), les métadonnées
+et le statut des résultats, sans filtrage local, préchargement ou retry ajouté.
+
+L’actualisation et les réessais conservent la page et le filtre appliqués. Si
+la page demandée a disparu, une action explicite permet de rejoindre la dernière
+page disponible, ou la première lorsque l’historique est vide. Aucun rattrapage
+automatique en boucle. Le choix reste uniquement dans la vue montée et est
+réinitialisé après départ ou changement de compte. Un filtre sans résultat est
+distingué d’un historique entièrement vide ; aucune mutation n’est déclenchée.
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
