@@ -2,6 +2,34 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Contrôles des merge requests — #934
+
+Le workflow `Frontend quality` s'exécute sur chaque MR et push vers `develop` ou
+`main`, ainsi que manuellement. Node 24 et la version pnpm du dépôt sont utilisés
+avec installation figée, lint, checkJs, tests/couverture, build et Chromium.
+Il n'y a aucun retry de test ni étape autorisée à échouer silencieusement.
+
+Un job séparé extrait le backend public `develop` dans une copie propre, affiche
+sa révision, construit et démarre API, migrations, PostgreSQL et Caddy jetables.
+Il vérifie les types contre ce contrat réel sur le port 7000, sans Worker,
+Google, compte réel ou secret existant. Une dérive fait échouer la MR : examiner
+le changement avant toute régénération, ne jamais modifier les types à la main.
+L'attente bornée de démarrage n'est pas un retry des contrôles contractuels.
+
+Les actions sont épinglées par SHA, les permissions sont en lecture seule,
+les credentials Git ne sont pas persistés et les PR ne reçoivent aucun secret
+de déploiement. Les anciennes exécutions de la même référence sont annulées.
+Les traces et captures de navigateur ne contiennent que les fixtures synthétiques
+et sont conservées trois jours après échec. Aucun log backend brut n'est publié.
+
+Le contrôle agrégé `Frontend quality gate` exige la réussite des deux jobs.
+Il est requis sur `develop`, à jour de sa base, avec passage par MR, historique
+linéaire, conversations résolues et interdiction du push forcé, y compris pour
+les administrateurs. Aucun second approbateur n'est imposé sur ce dépôt individuel.
+La branche `main` n'existe pas encore : appliquer la même protection à sa création.
+La configuration Caddy est également validée dans un conteneur sans réseau ni port
+publié. La CI ne déploie rien.
+
 ## Politique HTTP du frontend déployé — #932
 
 `deployments/caddy/Caddyfile` définit un site frontend à importer dans Caddy sur
