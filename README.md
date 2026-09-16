@@ -2,6 +2,28 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Sécurité dans le navigateur — #931
+
+Le transport commun refuse les redirections, utilise `cache: "no-store"` pour
+ne pas lire ni alimenter le cache HTTP et `referrerPolicy: "no-referrer"` pour
+ne pas transmettre la route courante à l'API, y compris lors de l'antiforgery.
+Ces mesures ne remplacent pas les en-têtes serveur ni HTTPS (#932/#935).
+
+Les titres, messages et textes de validation bruts du backend ne sont pas
+conservés dans les erreurs normalisées : seuls les chemins de validation servent
+aux messages français locaux. Les contenus métier sont insérés comme texte ;
+les URL produit sont limitées à HTTP(S) sans identifiants, et les images privées
+à leur origine et chemin API attendus. Les liens produit ouverts ailleurs
+conservent `noopener noreferrer`.
+
+Les secrets de partage et JWT restent en mémoire ; la coordination de session
+ne persiste que ses métadonnées techniques. Le cookie invité reste HttpOnly,
+géré par le backend. Les sources d'images et aperçus locaux sont nettoyés au
+départ. Un scénario Chromium vérifie du HTML hostile, une URL JavaScript et
+l'absence du secret de partage dans le DOM, l'URL nettoyée et les stockages.
+Ces contrôles ne constituent pas un test d'intrusion ni une garantie contre
+une extension malveillante, un appareil compromis ou une capture par le visiteur.
+
 ## Parcours navigateur permanents — #930
 
 Après `pnpm install --frozen-lockfile`, installer Chromium avec
