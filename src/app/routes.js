@@ -233,8 +233,8 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const state = sharing.enter(context.params.shareLinkId, "");
         if (state !== "ready") return createSharedWishlistEntryView(state);
         return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
-          ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy) => createGiftReservationSection({
-            shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy,
+          ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized) => createGiftReservationSection({
+            shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized,
             loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
             onCancelled: () => onSaved("Réservation annulée"),
             createCancel: (onInvalidate, onClose) => createReservationCancelDialog({ signal: context.signal, onInvalidate, onClose, onUnavailable,
@@ -242,6 +242,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
               load: async signal => {
                 const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
                 const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                if (lookup.state === "unrecognized") onUnrecognized();
                 return { name: fresh.name, lookup };
               },
             }),
@@ -250,6 +251,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
               verify: async signal => {
                 const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
                 const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                if (lookup.state === "unrecognized") onUnrecognized();
                 return { available: fresh.availableQuantity, lookup };
               },
             }),
@@ -258,6 +260,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
               verify: async signal => {
                 const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
                 const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                if (lookup.state === "unrecognized") onUnrecognized();
                 return { available: fresh.availableQuantity, lookup };
               },
             }),

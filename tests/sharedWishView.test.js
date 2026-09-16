@@ -19,6 +19,20 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("shared gift presentation", () => {
+  it.each(["context", "gift"])("removes an earlier reservation confirmation after terminal %s loss", async kind => {
+    const access = new AbortController(); let saved = () => {}, missing = () => {};
+    const ui = setup({ accessSignal: access.signal, createReservation: (onMissing, _wish, onSaved) => { saved = onSaved; missing = onMissing; return document.createElement("section"); } });
+    await settle(); saved(); await settle(); expect(ui.view.textContent).toContain("Réservation enregistrée");
+    if (kind === "context") access.abort(); else missing();
+    expect(ui.view.textContent).not.toContain("Réservation enregistrée"); expect(ui.view.querySelector("img, .shared-wish-quantities")).toBeNull();
+    saved(); await settle(); expect(ui.view.textContent).not.toContain("Réservation enregistrée");
+  });
+  it("removes obsolete personal quantities without hiding public information when guest recognition is lost", async () => {
+    let unrecognized = () => {};
+    const ui = setup({ createReservation: (_missing, _wish, _saved, _busy, lost) => { unrecognized = lost; return document.createElement("section"); } });
+    await settle(); const personal = ui.view.querySelector(".shared-wish-quantities__personal"); expect(personal?.textContent).toContain("1");
+    unrecognized(); expect(personal?.textContent).toBe(""); expect(ui.view.textContent).not.toContain("Ma quantité réservée"); expect(ui.view.textContent).toContain("Quantité disponible : 0"); expect(ui.view.querySelector("h1")?.textContent).toBe(wish.name);
+  });
   it("clears an earlier success when a new reservation operation starts", async () => {
     let saved = (/** @type {string | undefined} */ message) => { void message; }, busy = (/** @type {boolean} */ value) => { void value; };
     const ui = setup({ createReservation: (_missing, _wish, onSaved, onBusy) => { saved = onSaved; busy = onBusy; return document.createElement("section"); } });

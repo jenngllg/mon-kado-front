@@ -14,6 +14,7 @@ export function createSharedWishQuantities(wish) {
   for (const text of lines) {
     const paragraph = document.createElement("p");
     paragraph.textContent = text;
+    if (text.startsWith("Ma quantité réservée :")) paragraph.className = "shared-wish-quantities__personal";
     group.append(paragraph);
   }
   return group;

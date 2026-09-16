@@ -8,11 +8,11 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
  * onUnavailable: () => void, createForm?: (onBusy: (busy: boolean) => void) => HTMLElement,
  * editForm?: (reservation: import("./giftReservationService.js").CurrentReservation, onBusy: (busy: boolean) => void) => HTMLElement,
  * createCancel?: (onInvalidate: () => void, onClose: (confirmed: boolean) => void) => HTMLDialogElement,
- * onCancelled?: () => void,
+ * onCancelled?: () => void, onUnrecognized?: () => void,
  * onBusy?: (busy: boolean) => void, signal?: AbortSignal}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, createCancel, onCancelled, onBusy, signal }) {
+export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, createCancel, onCancelled, onBusy, onUnrecognized, signal }) {
   const section = document.createElement("section"); section.className = "flow";
   const title = document.createElement("h2"); title.textContent = "Ma réservation"; title.tabIndex = -1;
   const content = document.createElement("div"); content.className = "flow";
@@ -35,6 +35,7 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
     try {
       const result = await loadCurrent(shareLinkId, wishId, { signal: lifetime.signal });
       if (disposed) return;
+      if (result.state === "unrecognized") onUnrecognized?.();
       disposeComponent(content); content.replaceChildren();
       const message = document.createElement("p"); message.setAttribute("role", "status");
       message.textContent = result.state === "reserved" ? `Tu as réservé ${result.reservation.quantity} exemplaire(s) de ce cadeau.` :

@@ -88,7 +88,7 @@ export function createGiftReservationService(session, { context, authentication 
           if (error.statusCode === 404 && error.errorCode === "GIFT_RESERVATION_NOT_FOUND") return Object.freeze({ state: "absent" });
           if ((error.statusCode === 404 && error.errorCode === "WISHLIST_PARTICIPANT_NOT_FOUND") ||
             (authentication === "none" && error.statusCode === 401 && error.errorCode === "GUEST_SESSION_INVALID")) return Object.freeze({ state: "unrecognized" });
-          if (error.statusCode === 404 && error.errorCode !== "SHARED_WISH_NOT_FOUND") context.clear();
+          if (error.statusCode === 404 && !["SHARED_WISH_NOT_FOUND", "WISH_NOT_FOUND"].includes(error.errorCode ?? "")) context.clear();
         }
         throw error;
       }
