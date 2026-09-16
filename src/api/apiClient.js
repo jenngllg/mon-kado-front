@@ -372,6 +372,8 @@ export class ApiClient {
         ...request,
         // Custom CSRF/share headers must never follow a redirect to another origin.
         redirect: "error",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
         signal: controller.signal,
       }), controller.signal);
       const metadata = createResponseMetadata(response, correlationId);
@@ -723,7 +725,8 @@ function parseErrorResponse(value, responseStatus) {
       ? []
       : value.validationErrors.map((validationError) => ({
         propertyName: validationError.propertyName,
-        errorMessage: validationError.errorMessage,
+        // Server validation prose can echo user input; local messages use only the path.
+        errorMessage: null,
       })),
   };
 }

@@ -25,6 +25,7 @@ export async function controlledApi(context) {
     }
     const path = url.pathname;
     const method = request.method();
+    expect(request.headers().referer).toBeUndefined();
     const headers = { "Access-Control-Allow-Origin": "http://localhost:5173", "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag,X-Correlation-ID", "Content-Type": "application/json" };
     /** @param {number} status @param {unknown} data @param {string} [etag] */
     const send = (status, data, etag) => route.fulfill({ status, headers: { ...headers, ...(etag ? { ETag: etag } : {}) }, body: status === 204 ? "" : JSON.stringify(data) });
@@ -122,5 +123,5 @@ export async function controlledApi(context) {
     unexpected.push(`${method} ${path}`);
     return error(500, null);
   });
-  return { state, unexpected };
+  return { state, unexpected, wishlist, wish };
 }

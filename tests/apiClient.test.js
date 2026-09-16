@@ -335,7 +335,7 @@ describe("ApiClient", () => {
       validationErrors: [
         {
           propertyName: "wishes[2].name",
-          errorMessage: "The name is required.",
+          errorMessage: null,
         },
       ],
     });
