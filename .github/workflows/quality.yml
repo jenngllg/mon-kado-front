@@ -1,0 +1,126 @@
+name: Frontend quality
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality and Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test:coverage
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - name: Keep synthetic browser diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chromium-failure
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 3
+          if-no-files-found: ignore
+
+  contract:
+    name: Backend OpenAPI compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      COMPOSE_PROJECT_NAME: monkado-front-contract
+      API_HOST: http://localhost
+      HTTP_PORT: '7000'
+      HTTPS_PORT: '7443'
+      FRONTEND_ORIGIN: http://localhost:5173
+      API_ALLOWED_HOST: localhost
+      POSTGRES_DB: contract_test
+      POSTGRES_USER: contract_test
+      POSTGRES_PASSWORD: disposable-ci-only
+      POSTGRES_PORT: '5432'
+      GOOGLE_AUTHENTICATION_ENABLED: 'false'
+      IMAGE_TAG: frontend-contract
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+      - run: pnpm install --frozen-lockfile
+      - name: Check out current backend contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: jenngllg/mon-kado
+          ref: develop
+          path: .backend
+          persist-credentials: false
+      - name: Record backend revision and generate disposable key
+        shell: bash
+        run: |
+          git -C .backend rev-parse HEAD
+          key=$(openssl rand -base64 32)
+          echo "::add-mask::$key"
+          echo "JWT_SIGNING_KEY=$key" >> "$GITHUB_ENV"
+      - name: Build isolated API
+        working-directory: .backend
+        run: docker compose -f compose.yaml -f compose.local.yaml build api
+      - name: Start API, migrations and database without Worker
+        working-directory: .backend
+        run: docker compose -f compose.yaml -f compose.local.yaml up --detach caddy
+      - name: Wait for the contract endpoint
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:7000/openapi/v1.json --output "$RUNNER_TEMP/contract.json"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'The isolated contract endpoint did not start.' >&2
+          exit 1
+      - run: pnpm api:types:check
+        env:
+          MONKADO_OPENAPI_URL: http://localhost:7000/openapi/v1.json
+      - name: Remove disposable backend resources
+        if: always()
+        working-directory: .backend
+        run: docker compose -f compose.yaml -f compose.local.yaml down --volumes --remove-orphans
+
+  gate:
+    name: Frontend quality gate
+    if: always()
+    needs: [quality, contract]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every check
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          CONTRACT_RESULT: ${{ needs.contract.result }}
+        run: test "$QUALITY_RESULT" = success && test "$CONTRACT_RESULT" = success
