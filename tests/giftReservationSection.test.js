@@ -17,6 +17,38 @@ function setup(options = {}) {
   return { view, loadCurrent, onUnavailable };
 }
 describe("current reservation section", () => {
+  it("updates creation recognition but ignores verification from a replaced form", async () => {
+    // Arrange
+    /** @type {Array<(value: import("../src/features/sharing/giftReservationService.js").ReservationLookup) => void>} */
+    const callbacks = [];
+    const ui = setup({ loadCurrent: async () => ({ state: "absent" }), createForm: (_busy, verified) => {
+      callbacks.push(verified);
+      return document.createElement("form");
+    } });
+    await settle();
+    callbacks[0]({ state: "reserved", reservation: { id, wishId: id, quantity: 3, etag: '"fresh"' } });
+    expect(ui.view.textContent).toContain("Tu as réservé 3");
+
+    // Act
+    ui.view.querySelector("button")?.click();
+    await settle();
+    callbacks[0]({ state: "unrecognized" });
+
+    // Assert
+    expect(callbacks).toHaveLength(2);
+    expect(ui.view.textContent).toContain("Tu n’as pas de réservation sur ce cadeau.");
+    expect(ui.view.textContent).not.toContain("Aucune participation");
+  });
+
+  it("updates recognition after verification without replacing the editor or accepting detached callbacks", async () => {
+    let verified = (/** @type {import("../src/features/sharing/giftReservationService.js").ReservationLookup} */ value) => { void value; };
+    const input = document.createElement("input"); input.value = "1";
+    const ui = setup({ editForm: (_reservation, _busy, fresh) => { verified = fresh; return input; } }); await settle();
+    verified({ state: "reserved", reservation: { id, wishId: id, quantity: 3, etag: '"new"' } });
+    expect(ui.view.textContent).toContain("Tu as réservé 3"); expect(ui.view.textContent).not.toContain("Tu as réservé 2"); expect(input.value).toBe("1"); expect(ui.view.querySelector("input")).toBe(input);
+    verified({ state: "unrecognized" }); expect(ui.view.textContent).not.toContain("Tu as réservé");
+    disposeComponent(ui.view); verified({ state: "absent" }); expect(ui.view.textContent).toBe("Ma réservation");
+  });
   it("signals lost guest recognition without claiming cancellation or starting a new reservation", async () => {
     const lost = vi.fn(), create = vi.fn(() => document.createElement("form")), ui = setup({ onUnrecognized: lost, createForm: create }); await settle();
     ui.loadCurrent.mockResolvedValue({ state: "unrecognized" }); ui.view.querySelector("button")?.click(); await settle();

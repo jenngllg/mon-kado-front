@@ -9,7 +9,7 @@ const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency
 
 /** A fresh public detail, without participant information or owner actions.
  * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal,
- * createReservation?: (onUnavailable: () => void, wish: import("./sharedWishlistService.js").SharedWishDetail, onSaved: (message?: string) => void, onBusy: (busy: boolean) => void, onUnrecognized: () => void) => HTMLElement}} options Dependencies.
+ * createReservation?: (onUnavailable: () => void, wish: import("./sharedWishlistService.js").SharedWishDetail, onSaved: (message?: string) => void, onBusy: (busy: boolean) => void, onUnrecognized: () => void, onVerified: (wish: import("./sharedWishlistService.js").SharedWishDetail) => void) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
 export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal, createReservation }) {
@@ -59,8 +59,9 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
         const note = element("p", wish.note); note.className = "wishlist-details-note"; information.append(note);
       }
       const price = element("p", wish.price === null ? "Prix non renseigné" : PriceFormat.format(wish.price)); price.className = "wish-card__price";
-      information.append(price, element("p", `Quantité souhaitée : ${wish.quantity}`));
-      information.append(createSharedWishQuantities(wish));
+      const desired = element("p", `Quantité souhaitée : ${wish.quantity}`);
+      let quantities = createSharedWishQuantities(wish);
+      information.append(price, desired, quantities);
       if (wish.url) {
         const product = createActionLink({ label: "Voir le produit", href: wish.url }); product.target = "_blank"; product.rel = "noopener noreferrer";
         product.setAttribute("aria-label", `Voir le produit « ${wish.name} » (nouvel onglet)`); information.append(product);
@@ -79,6 +80,11 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
       }, () => {
         if (disposed || terminal) return;
         clearNotice(); results.querySelectorAll(".shared-wish-quantities__personal").forEach(line => { line.textContent = ""; line.remove(); });
+      }, fresh => {
+        if (disposed || terminal || !results.contains(layout)) return;
+        desired.textContent = `Quantité souhaitée : ${fresh.quantity}`;
+        const next = createSharedWishQuantities(fresh);
+        disposeComponent(quantities); quantities.replaceWith(next); quantities = next;
       }));
       refresh.hidden = false; if (explicit) title.focus();
     } catch (error) {
