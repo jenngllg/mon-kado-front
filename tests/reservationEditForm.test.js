@@ -19,6 +19,12 @@ function setup() {
   return { view, input, update, verify, onSaved, edit, submit, click };
 }
 describe("reservation quantity editing", () => {
+  it("groups save and local cancellation in the shared wrapping action layout", () => {
+    const ui = setup();
+    const actions = ui.view.querySelector("form > .cluster.wishlist-form__actions");
+    expect([...actions?.querySelectorAll("button") ?? []].map(button => button.textContent)).toEqual(["Enregistrer la quantité", "Annuler les modifications"]);
+    expect(actions?.querySelector("button")?.type).toBe("submit");
+  });
   it("ignores a late update after disposal and clears its draft", async () => {
     const ui = setup(), gate = barrier(); ui.update.mockImplementation(async () => { await gate.promise; return {}; }); ui.edit("2"); ui.submit();
     disposeComponent(ui.view); gate.resolve(); await settle(); expect(ui.input.value).toBe(""); expect(ui.onSaved).not.toHaveBeenCalled(); expect(ui.view.textContent).not.toContain("Réservation modifiée");

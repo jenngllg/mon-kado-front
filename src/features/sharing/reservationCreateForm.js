@@ -27,7 +27,9 @@ export function createReservationCreateForm({ available, create, verify, onSaved
     input.value = String(reference.quantity); comparison.hidden = true; comparison.textContent = ""; clearFeedback(); setFormFieldValidation(field, null); controls(); input.focus();
   } }); cancel.hidden = !editing;
   const reread = createButton({ label: "Vérifier ma réservation", variant: "secondary", onClick: () => { void check(); } }); reread.hidden = true;
-  form.append(comparison, field, submit, cancel); root.append(status, feedback, form, reread);
+  const actions = document.createElement("div"); actions.className = "cluster wishlist-form__actions";
+  actions.append(submit, cancel);
+  form.append(comparison, field, actions); root.append(status, feedback, form, reread);
   const lifetime = new AbortController();
   let disposed = false, busy = false, blocked = available === 0, done = false, touched = false, dirty = false;
   /** @type {HTMLButtonElement | null} */ let pressed = null;

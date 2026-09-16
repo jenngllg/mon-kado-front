@@ -11,6 +11,18 @@ const viewStyles = readStyleFile("../src/styles/views.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
+  it("keeps reservation confirmation gutters bounded by the viewport with enlarged text", () => {
+    const dialog = viewStyles.match(/(?:^|\n)\.reservation-cancel-dialog\s*\{([^}]+)\}/)?.[1];
+    expect(dialog).toContain("width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)))");
+    expect(dialog).toContain("padding-inline: min(var(--space-6), 4vw)");
+  });
+  it("preserves the flow spacing above the reservation editor and wraps its actions", () => {
+    const editor = viewStyles.match(/\.reservation-edit-group\s*\{([^}]+)\}/)?.[1];
+    expect(editor).toContain("margin-inline: 0");
+    expect(editor).not.toMatch(/margin\s*:|margin-block-start\s*:/);
+    expect(layoutStyles.match(/\.cluster\s*\{([^}]+)\}/)?.[1]).toContain("flex-wrap: wrap");
+    expect(viewStyles.match(/\.wishlist-form__actions\s*\{([^}]+)\}/)?.[1]).toContain("--cluster-space: var(--space-3)");
+  });
   it("keeps the availability filter target touch accessible and its long label wrappable", () => {
     expect(viewStyles.match(/\.shared-wishlist-filter\s*\{([^}]+)\}/)?.[1]).toContain("min-block-size: var(--control-min-size)");
     expect(viewStyles.match(/\.shared-wishlist-filter span\s*\{([^}]+)\}/)?.[1]).toContain("overflow-wrap: anywhere");
