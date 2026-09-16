@@ -7,6 +7,8 @@ import {
   RoutePaths,
 } from "./routeContracts.js";
 import { createSessionGuard } from "../auth/sessionGuards.js";
+import { createReservationHistoryService } from "../features/reservations/reservationHistoryService.js";
+import { createReservationHistoryView } from "../features/reservations/reservationHistoryView.js";
 import { createRegistrationService } from "../features/registration/registrationService.js";
 import { createRegistrationView } from "../features/registration/registrationView.js";
 import { createEmailConfirmationService } from "../features/emailConfirmation/emailConfirmationService.js";
@@ -63,9 +65,6 @@ export {
   RouteNames,
   RoutePaths,
 } from "./routeContracts.js";
-
-const PlaceholderMessage =
-  "Cette fonctionnalité sera disponible dans un prochain lot.";
 
 /** @param {import("../auth/sessionManager.js").SessionManager} session Session facade.
  * @param {() => boolean} consumePasswordChangeNotice Local, single-use login notice.
@@ -204,12 +203,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
           share: { ...createWishlistShareService(session, { frontendOrigin: window.location.origin }),
             copyText: text => navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : Promise.reject(new Error("Clipboard unavailable")) } }),
     },
-    createPlaceholderRoute(
-      RouteNames.Reservations,
-      RoutePaths.Reservations,
-      "Mes réservations",
-      "Cadeaux réservés",
-    ),
+    {
+      name: RouteNames.Reservations, path: RoutePaths.Reservations, title: "Mes réservations · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createReservationHistoryView({ ...createReservationHistoryService(session), signal: context.signal }),
+    },
     {
       name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de cadeaux partagée · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
@@ -288,24 +286,4 @@ export function createApplicationRoutes({ session, apiBaseUrl, sharingSignIn = {
     }),
     ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
   ];
-}
-
-/**
- * @param {string} name Route name.
- * @param {string} path Route path.
- * @param {string} title View title.
- * @param {string} eyebrow View eyebrow.
- * @returns {import("../router/router.js").RouteDefinition} Placeholder route.
- */
-function createPlaceholderRoute(name, path, title, eyebrow) {
-  return Object.freeze({
-    name,
-    path,
-    title: `${title} · MonKado`,
-    render: () => createPlaceholderView({
-      eyebrow,
-      title,
-      message: PlaceholderMessage,
-    }),
-  });
 }

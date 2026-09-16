@@ -1741,6 +1741,23 @@ Un changement d’identité reconstruit la vue et repart sans filtre. Les lectur
 concurrentes sont bloquées ; un refus d’accès retire les résultats et invalide
 les réponses tardives. Aucun appel de réservation n’est déclenché par le filtre.
 
+### Historique personnel des réservations (#923)
+
+`/reservations` lit une première page de 20 entrées depuis le compte connecté,
+sans contexte partagé ni cookie invité exploité par JavaScript. Les entrées
+suivent l’ordre serveur (activité la plus récente), sans tri local. Le total
+et la portée de cette première page sont explicités ; filtres et navigation
+entre pages sont traités dans #924, sans pagination des cadeaux.
+
+Une entrée décrit un cycle de réservation : dernière quantité, état actif,
+annulé ou indisponible, dates de création, dernière activité et fin éventuelle.
+Ce n’est pas un journal de chaque changement. Les dates sont affichées en UTC.
+Les noms peuvent être ceux conservés par le backend après disparition du cadeau.
+L’historique n’expose ni autres participants, ni secrets, ni commandes de gestion.
+Un identifiant de partage ne suffit pas à reconstruire l’accès : il faut rouvrir
+le lien reçu. L’affichage est relu à chaque ouverture/actualisation, sans cache
+persistant, et retiré au départ ou au changement de session.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US
