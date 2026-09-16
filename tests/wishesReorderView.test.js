@@ -23,6 +23,22 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 24; i++) await Promise.resolve(); }
 describe("complete card reorder editor", () => {
+  it("includes each handle's visible label and gift name in its accessible name", async () => {
+    // Arrange
+    const ui = setup();
+
+    // Act
+    await settle();
+
+    // Assert
+    const handles = ui.buttons("Déplacer la carte");
+    expect(handles).toHaveLength(3);
+    handles.forEach((handle, index) => {
+      expect(handle.getAttribute("aria-label")).toBe(`Déplacer la carte « Cadeau ${index + 1} »`);
+      expect(handle.getAttribute("aria-label")).toContain(handle.textContent);
+    });
+  });
+
   it("reads parent then collection before enabling, with safe full cards and no initial PATCH", async () => {
     const gate = barrier(); const ui = setup({ loadWishlist: async () => { await gate.promise; return { wishlist: { id: parent, name: "Liste", occasion: "other", eventDate: null, message: null, isSuspended: false }, etag: '"list"' }; } });
     expect(ui.loadWishes).not.toHaveBeenCalled(); expect(ui.buttons("Enregistrer l’ordre")[0].disabled).toBe(true); gate.resolve(); await settle();
