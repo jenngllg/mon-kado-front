@@ -12,6 +12,7 @@ export default defineConfig({
     strictPort: true,
   },
   test: {
+    include: ["tests/**/*.test.js", "tools/**/*.test.js"],
     environment: "node",
     coverage: {
       provider: "v8",

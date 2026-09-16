@@ -2,6 +2,34 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Parcours navigateur permanents — #930
+
+Après `pnpm install --frozen-lockfile`, installer Chromium avec
+`pnpm test:e2e:install`, puis lancer `pnpm test:e2e`. Le port 5173 doit être
+libre : le runner refuse de réutiliser un serveur existant et ne change pas de
+port. Il construit une application dédiée dans `.e2e-dist/`, démarre son propre
+serveur de prévisualisation et l'arrête à la fin.
+
+Les scénarios traversent le vrai frontend dans Chromium avec une API contrôlée
+isolée par contexte navigateur : connexion et déconnexion inter-onglets,
+création/suppression de liste, ajout/édition/suppression de cadeau, lien partagé
+et perte du contexte après rechargement, révocation, validation et résultat
+incertain de participation, réservation avec conflit puis annulation, menu mobile.
+Les mutations sont vérifiées par leurs requêtes et les états visibles ; les
+tests n'utilisent ni délais arbitraires ni retry automatique.
+
+Toutes les requêtes vers l'API sont interceptées, les destinations externes
+bloquées et les appels non prévus font échouer les assertions. Aucun backend ni
+compte réel n'est nécessaire. Ces contrôles ne prouvent pas la persistance réelle,
+le fonctionnement des cookies serveur, HTTPS, les fournisseurs externes ni la
+compatibilité Firefox/Safari. Ils complètent les tests unitaires et les audits.
+
+`playwright-report/`, `test-results/` et `.e2e-dist/` sont ignorés par Git.
+Une trace et des captures sont conservées seulement après échec, avec des données
+synthétiques exclusivement. Ne pas réutiliser ce runner avec des secrets réels.
+Les fichiers E2E et leur configuration sont vérifiés par `pnpm typecheck` et ESLint.
+L'exécution automatique dans les merge requests est traitée par #934.
+
 ## Tests et couverture — #929
 
 `pnpm test` exécute les tests unitaires et les intégrations Happy DOM.

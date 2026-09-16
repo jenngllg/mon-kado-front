@@ -16,11 +16,14 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit -p jsconfig.json && tsc --noEmit -p jsconfig.node.json"
+    "typecheck": "tsc --noEmit -p jsconfig.json && tsc --noEmit -p jsconfig.node.json && tsc --noEmit -p jsconfig.e2e.json"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@types/node": "24.13.3",
     "@vitest/coverage-v8": "5.0.0",
     "eslint": "10.9.1",
