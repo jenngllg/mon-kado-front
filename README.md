@@ -2,6 +2,34 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Tests et couverture — #929
+
+`pnpm test` exécute les tests unitaires et les intégrations Happy DOM.
+`pnpm test:coverage` exécute la même suite avec le fournisseur V8, de même version
+que Vitest. Il mesure explicitement **tous** les fichiers JavaScript de `src/`
+et `tools/`, y compris les fichiers non importés par les tests. Aucun fichier
+applicatif n'est exclu pour améliorer le résultat ; les déclarations OpenAPI
+générées (`.d.ts`) ne contiennent pas de code exécutable.
+
+Les rapports HTML, LCOV et JSON sont produits dans `coverage/`, ignoré par Git.
+Le rapport HTML permet d'identifier les branches manquantes avant d'écrire des
+tests ciblés. Les rapports sont des artefacts locaux/CI, pas des fichiers à commiter.
+
+Le socle mesuré après consolidation contient 3 002 tests : 97,70 % des lignes,
+94,28 % des instructions, 94,45 % des fonctions et 89,76 % des branches. Ces valeurs
+sont les seuils globaux bloquants, sans réduction automatique. Les attentes de
+session indépendantes et le moteur de correspondance des routes sont contrôlés
+à 100 % pour les quatre métriques. L'objectif reste de compléter la couverture :
+le socle existant n'atteint pas encore 100 %, notamment dans le câblage des routes,
+les chemins de secours du routeur et l'outillage OpenAPI. Ces lacunes restent
+visibles dans le rapport ; aucun seuil à 100 % global ni couverture exhaustive
+n'est revendiqué.
+
+Un échec doit être corrigé, jamais masqué par un retry, un test désactivé ou une
+exclusion. Utiliser des promesses contrôlées et horloges simulées pour les courses
+et délais. Happy DOM ne prouve pas le rendu, les cookies réels ou le focus natif :
+les parcours navigateur permanents relèvent de #930, leur exécution CI de #934.
+
 ## Droits et disponibilité du partage — #903
 
 | Accès | Actions proposées |
