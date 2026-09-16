@@ -2,6 +2,45 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Politique HTTP du frontend déployé — #932
+
+`deployments/caddy/Caddyfile` définit un site frontend à importer dans Caddy sur
+le VPS, en conservant le site API existant. Servir exclusivement le répertoire
+`dist/` du build, jamais le dépôt. Variables d'environnement du serveur :
+
+- `FRONTEND_HOST` : nom HTTPS du frontend, par exemple `app.example.fr`.
+- `FRONTEND_ROOT` : chemin absolu du build monté en lecture seule.
+- `FRONTEND_API_ORIGIN` : origine HTTPS exacte de l'API, sans chemin ni slash
+  final, correspondant à `VITE_API_BASE_URL` utilisé lors du build.
+
+Frontend et API doivent partager le même domaine enregistrable pour les cookies
+SameSite du backend. Ces valeurs sont des exemples, pas des domaines déployés.
+Valider la configuration avec `caddy validate --config <Caddyfile>` avant reload.
+
+La CSP refuse les scripts externes, inline et eval, les frames, objets et bases
+HTML ; seules les ressources locales, l'origine API et les aperçus d'image
+`blob:`/`data:` sont autorisés. Les attributs de style restent autorisés pour
+les interactions existantes, sans autoriser les blocs de style inline.
+Google reste désactivé. Aucun collecteur de rapports CSP n'est configuré afin
+de ne pas transmettre des URL privées. Aucun journal d'accès n'est activé ici.
+
+Les documents, routes SPA, erreurs et fichiers non fingerprintés sont `no-store`.
+Seuls les fichiers existants sous `/assets/`, avec empreinte et extension admise,
+sont immuables pendant un an. Les assets absents, sources, fichiers cachés,
+source maps et chemins API ne reçoivent pas le document SPA de remplacement.
+Les seules méthodes servies sont GET et HEAD.
+
+Toutes les réponses portent nosniff, anti-embedding, no-referrer et une politique
+restrictive des permissions, tout en autorisant la copie explicite. L'indexation
+est désactivée pour tout ce frontend applicatif, y compris les liens partagés ;
+ce n'est pas une protection d'accès. HSTS est limité au nom servi, sans
+`includeSubDomains` ni preload ; ne l'activer sur un domaine réel qu'avec HTTPS
+opérationnel. Les contrôles HTTP locaux ne valident pas les certificats publics.
+
+Les tests Chromium réutilisent la CSP du fichier avec l'origine API contrôlée.
+Les tests de contrat de configuration complètent, sans remplacer, les vérifications
+HTTP sur Caddy. Le déploiement réel et ses contrôles HTTPS relèvent de #935.
+
 ## Sécurité dans le navigateur — #931
 
 Le transport commun refuse les redirections, utilise `cache: "no-store"` pour
