@@ -13,6 +13,23 @@ function setup(data = page, status = 200) {
   return { ...service, request, signal: new AbortController().signal };
 }
 describe("member reservation history contract", () => {
+  it("sends the selected page, size and filter without sorting or extra requests", async () => {
+    const service = setup({ ...page, currentPage: 2, pageSize: 1, totalCount: 3, totalPages: 3, hasPreviousPage: true, hasNextPage: true });
+    const result = await service.load({ signal: service.signal, page: 2, pageSize: 1, status: "active" });
+    expect(service.request).toHaveBeenCalledExactlyOnceWith("/api/v1/members/current/reservations?page=2&pageSize=1&status=active", { method: "GET", authentication: "required", signal: service.signal });
+    expect(result.currentPage).toBe(2); expect(result.items[0].id).toBe(id);
+  });
+  it("accepts an empty page beyond the current end without fetching another page", async () => {
+    const service = setup({ ...page, currentPage: 3, items: [], hasPreviousPage: true });
+    expect((await service.load({ signal: service.signal, page: 3 })).items).toEqual([]); expect(service.request).toHaveBeenCalledOnce();
+  });
+  it.each([{ page: 0 }, { page: 1.5 }, { page: 2147483648 }, { pageSize: 0 }, { pageSize: 101 }, { pageSize: 2.5 }])("rejects invalid query before HTTP %o", async options => {
+    const service = setup(); await expect(service.load({ signal: service.signal, ...options })).rejects.toThrow(TypeError); expect(service.request).not.toHaveBeenCalled();
+  });
+  it("rejects unknown status locally and a server item outside the requested status", async () => {
+    const service = setup(); await expect(service.load({ signal: service.signal, status: /** @type {"active"} */ ("bad") })).rejects.toThrow(TypeError); expect(service.request).not.toHaveBeenCalled();
+    await expect(service.load({ signal: service.signal, status: "cancelled" })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("reads with JWT and the original signal only, projects immutably without sharing access or other identities", async () => {
     const service = setup(); const result = await service.load({ signal: service.signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith("/api/v1/members/current/reservations", { method: "GET", authentication: "required", signal: service.signal });
