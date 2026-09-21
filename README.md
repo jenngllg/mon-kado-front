@@ -2,6 +2,31 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Publication approuvée sur le VPS — #811
+
+La cible retenue est le VPS existant, et non GitHub Pages. Le site canonique est
+`https://www.monkado.fr`, avec redirection de l'apex, et l'API reste
+`https://api.monkado.fr`. Aucun abonnement supplémentaire ni serveur Node permanent.
+
+Le workflow manuel `Publish approved frontend` publie uniquement un commit de
+`develop` dont la quality gate est verte, après approbation de l'environnement
+`production`. Un merge seul ne déploie rien. Il construit avec l'API de production
+et Google désactivé, vérifie le contrat OpenAPI public, puis publie une archive
+statique et son manifeste sous une release immuable liée au commit.
+
+Le pointeur `frontend-production` n'est mis à jour qu'après publication complète.
+Le VPS le récupère avec son propre service, vérifie checksum, configuration et
+révision backend, puis bascule atomiquement le répertoire servi par Caddy. Aucun
+secret backend, PAT ou clé SSH de déploiement n'est transmis à ce workflow.
+
+Prérequis : installer et publier les changements backend #811 avant la première
+publication frontend ; configurer explicitement l'approbation de l'environnement
+`production`. La procédure opérateur, les verrous #813, les limites d'archives,
+le retour arrière et les tests HTTPS sont documentés dans le dépôt backend,
+`deployments/frontend/README.md`. Aucun DNS, merge ou déploiement n'est autorisé
+automatiquement par la présence de ces fichiers. La mise en ligne technique ne
+remplace pas les pages juridiques validées ni le smoke test Google séparé.
+
 ## Contrôles des merge requests — #934
 
 Le workflow `Frontend quality` s'exécute sur chaque MR et push vers `develop` ou
