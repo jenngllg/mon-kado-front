@@ -2,6 +2,7 @@ import { isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createAlert, createButton, createFormField, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { createWishImage } from "./wishImage.js";
+import { createPrivacyNotice } from "../../components/legalLinks.js";
 import { decodeWishImage, validateWishImageFile, WishImageValidationError } from "./wishImageValidation.js";
 
 /** Local selection UI; the parent owns mutations and their reference versions.
@@ -26,7 +27,7 @@ export function createWishImageSection({ onUpload, onRemove, onRefresh, decode =
   const cancel = createButton({ label: "Annuler la sélection", variant: "secondary", onClick: () => { if (!inactive) { clearSelection(); input.focus(); } } });
   const remove = createButton({ label: "Supprimer l’image", variant: "danger", onClick: () => { if (!inactive) onRemove(); } });
   const actions = document.createElement("div"); actions.className = "cluster wishlist-form__actions"; actions.append(upload, cancel, remove);
-  controls.append(field, feedback, status, preview, actions); element.append(title, current, refresh, controls);
+  controls.append(field, createPrivacyNotice("L’image sera associée au cadeau et visible aux personnes ayant accès à la liste. Évite les documents personnels et les photos de tiers sans leur accord. Le serveur conserve une version normalisée, pas le fichier original."), feedback, status, preview, actions); element.append(title, current, refresh, controls);
   addComponentEventListener(element, input, "change", () => { void select(); });
   registerComponentCleanup(element, () => { disposed = true; clearSelection(); currentWish = null; disposeComponent(current); current.replaceChildren(); });
   sync();

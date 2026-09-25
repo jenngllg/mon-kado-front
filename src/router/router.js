@@ -664,6 +664,7 @@ function getNavigableAnchor(event, browserWindow) {
 
   if (
     link.hasAttribute("download") ||
+    link.dataset.nativeNavigation === "true" ||
     link.getAttribute("aria-disabled") === "true" ||
     (targetAttribute !== null && targetAttribute.toLowerCase() !== "_self")
   ) {

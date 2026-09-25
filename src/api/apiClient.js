@@ -4,6 +4,7 @@ import {
   createAbortError,
 } from "./apiError.js";
 import { CsrfTokenManager } from "./csrfTokenManager.js";
+import { readArchiveResponse } from "./archiveResponse.js";
 
 const AuthenticationModes = new Set(["none", "optional", "required"]);
 const DefaultTimeoutMilliseconds = 15_000;
@@ -51,6 +52,7 @@ const JsonContentType = "application/json";
  *   signal?: AbortSignal,
  *   timeoutMs?: number,
  *   expectEmptyResponse?: boolean
+ *   archiveBytes?: number
  * }} ApiRequestOptions
  */
 
@@ -115,6 +117,10 @@ export class ApiClient {
     const authentication = options.authentication ?? "none";
     const timeoutMs = validateTimeout(options.timeoutMs ?? this.#timeoutMs);
     validateAuthenticationMode(authentication);
+    if (options.archiveBytes !== undefined && (method !== "GET" || authentication !== "required" ||
+      !Number.isSafeInteger(options.archiveBytes) || options.archiveBytes <= 0 || options.archiveBytes > 1024 ** 3)) {
+      throw new TypeError("Invalid authenticated archive request.");
+    }
     if (options.formData !== undefined && (!(options.formData instanceof FormData) || options.body !== undefined)) {
       throw new TypeError("Use either a JSON body or multipart form data.");
     }
@@ -181,6 +187,10 @@ export class ApiClient {
       : null;
     throwIfCallerAborted(options.signal);
 
+    // Preparing antiforgery may outlive the selected session. Never submit its
+    // sensitive payload after a logout or credential-generation replacement.
+    if (accessToken !== null && tokenVersion !== this.#accessTokenVersionProvider()) throw createAbortError();
+
     const correlationId = this.#correlationIdProvider();
     const headers = createRequestHeaders({
       correlationId,
@@ -219,6 +229,7 @@ export class ApiClient {
           }));
         }
       },
+      options.archiveBytes,
     );
 
     if (response.ok) {
@@ -347,6 +358,7 @@ export class ApiClient {
    * @param {number} timeoutMs Timeout in milliseconds.
    * @param {string} correlationId Request correlation identifier.
    * @param {(response: Response, metadata: ApiResponseMetadata) => void} [onHeaders] Receives headers before body consumption.
+   * @param {number} [archiveBytes] Exact size for an authenticated archive read.
    * @returns {Promise<{response: Response, metadata: ApiResponseMetadata, decodedResponse: {data: unknown, isValid: boolean, isEmpty: boolean}}>} Response read within the deadline.
    */
   async #fetchWithTimeout(
@@ -356,6 +368,7 @@ export class ApiClient {
     timeoutMs,
     correlationId,
     onHeaders = () => {},
+    archiveBytes,
   ) {
     const controller = new AbortController();
     let timedOut = false;
@@ -380,7 +393,7 @@ export class ApiClient {
       correlationId = metadata.correlationId;
       onHeaders(response, metadata);
       const decodedResponse = await waitForWithAbort(
-        decodeResponse(response),
+        response.ok && archiveBytes !== undefined ? readArchiveResponse(response, archiveBytes) : decodeResponse(response),
         controller.signal,
       );
 

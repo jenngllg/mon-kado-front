@@ -5,6 +5,7 @@ import { createActionLink, createAlert, createButton, createFormField, createLoa
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { RoutePaths } from "../../app/routeContracts.js";
+import { createPrivacyNotice } from "../../components/legalLinks.js";
 
 /** Creates the protected profile editor with view-owned drafts and cancellation.
  * @param {{load: import("./profileService.js").LoadProfile, save: import("./profileService.js").SaveProfile, signal?: AbortSignal}} options Operations.
@@ -45,11 +46,13 @@ export function createProfileView({ load, save, signal }) {
   const actions = textElement("div", "");
   actions.className = "cluster";
   actions.append(submit, cancel);
-  form.append(field, comparison, actions);
+  form.append(field, comparison, createPrivacyNotice("Ton nom d’affichage sert à t’identifier dans les listes et participations. Choisis un pseudonyme si tu ne souhaites pas afficher ton nom civil."), actions);
   view.append(title, textElement("p", "Consulte tes informations et choisis le nom que tes proches verront."),
     feedback, loading, information, form,
     createActionLink({ label: "Changer mon mot de passe", href: RoutePaths.PasswordChange }),
-    createActionLink({ label: "Changer mon adresse e-mail", href: RoutePaths.EmailChange }));
+    createActionLink({ label: "Changer mon adresse e-mail", href: RoutePaths.EmailChange }),
+    createActionLink({ label: "Gérer mon authentificateur", href: RoutePaths.Authenticator }),
+    createActionLink({ label: "Mes données personnelles", href: RoutePaths.PersonalData }));
 
   const lifetime = new AbortController();
   /** @type {import("./profileService.js").Profile | null} */

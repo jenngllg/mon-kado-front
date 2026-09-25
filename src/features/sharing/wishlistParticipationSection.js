@@ -4,6 +4,7 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { createActionLink, createAlert, createButton, createFormField, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { ParticipationRightsMessage } from "./participationMessages.js";
+import { createPrivacyNotice } from "../../components/legalLinks.js";
 
 /** @typedef {{shareLinkId: string, loadCurrent: import("./wishlistParticipationService.js").LoadCurrentParticipant,
  * joinGuest: import("./wishlistParticipationService.js").JoinGuest, onUnavailable: () => void, onSignIn?: () => void, signal?: AbortSignal}} ParticipationOptions */
@@ -24,7 +25,7 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   const field = createFormField({ label: "Nom d’affichage", control: input, required: true, description: "Le nom utilisé pour ta participation. 80 caractères maximum." });
   const submit = createButton({ label: "Participer à cette liste", type: "submit" });
   const reread = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { flushBlur(); void read(true); } }); reread.hidden = true;
-  form.append(field, submit); section.append(title, explanation, element("p", ParticipationRightsMessage), status, feedback, identity, form, reread);
+  form.append(field, createPrivacyNotice("Ton nom d’affichage est associé à ta participation et à tes réservations. Un pseudonyme suffit. Sans compte, conserve l’accès à ce navigateur pour gérer ta participation ; tu peux aussi contacter le service pour une demande sur tes données."), submit); section.append(title, explanation, element("p", ParticipationRightsMessage), status, feedback, identity, form, reread);
   const lifetime = new AbortController();
   let disposed = false, busy = false, mustRead = true, joined = false, checked = false, dirty = false, summary = false;
   const signIn = onSignIn ? createActionLink({ label: "Se connecter pour poursuivre avec mon compte", href: "/login" }) : null;

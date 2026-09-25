@@ -15,6 +15,12 @@ import { createEmailConfirmationService } from "../features/emailConfirmation/em
 import { createEmailConfirmationView } from "../features/emailConfirmation/emailConfirmationView.js";
 import { createProfileService } from "../features/profile/profileService.js";
 import { createProfileView } from "../features/profile/profileView.js";
+import { createPersonalDataService } from "../features/privacy/personalDataService.js";
+import { createPersonalDataView } from "../features/privacy/personalDataView.js";
+import { createAccountDeletionView } from "../features/privacy/accountDeletionView.js";
+import { createAccountDeletionService } from "../features/privacy/accountDeletionService.js";
+import { createAuthenticatorService } from "../features/twoFactor/authenticatorService.js";
+import { createAuthenticatorView } from "../features/twoFactor/authenticatorView.js";
 import { createLoginService } from "../features/login/loginService.js";
 import { createLoginView } from "../features/login/loginView.js";
 import { createPasswordRecoveryService } from "../features/passwordRecovery/passwordRecoveryService.js";
@@ -151,6 +157,22 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.PasswordChange, path: RoutePaths.PasswordChange, title: "Changer mon mot de passe · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createPasswordChangeView({ ...createPasswordChangeService(session), signal: context.signal }),
+    },
+    {
+      name: RouteNames.PersonalData, path: RoutePaths.PersonalData, title: "Mes données personnelles · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createPersonalDataView({ service: createPersonalDataService(session), signal: context.signal }),
+    },
+    {
+      name: RouteNames.Authenticator, path: RoutePaths.Authenticator, title: "Mon authentificateur · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createAuthenticatorView({ service: createAuthenticatorService(session), session, signal: context.signal,
+          onFinished: () => { void context.navigate(RoutePaths.Login); } }),
+    },
+    {
+      name: RouteNames.ConfirmAccountDeletion, path: RoutePaths.ConfirmAccountDeletion, title: "Supprimer mon compte · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createAccountDeletionView({ session, service: createAccountDeletionService(session), consumeFragment: context.consumeFragment, signal: context.signal }),
     },
     {
       name: RouteNames.EmailChange, path: RoutePaths.EmailChange, title: "Changer mon adresse e-mail · MonKado",

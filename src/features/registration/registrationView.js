@@ -7,6 +7,7 @@ import { RoutePaths } from "../../app/routeContracts.js";
 import { RegistrationServerMessages, validateRegistrationConfirmation, validateRegistrationField } from "./registrationValidation.js";
 import { createGoogleButton } from "../google/googleButton.js";
 import { GoogleMessages } from "../google/googleMessages.js";
+import { createPrivacyNotice } from "../../components/legalLinks.js";
 
 /** @typedef {import("./registrationValidation.js").RegistrationField} RegistrationField */
 /** @typedef {RegistrationField | "confirmation"} RegistrationFormField */
@@ -96,7 +97,7 @@ export function createRegistrationView({ register, signal, startGoogle }) {
   if (googleButton) form.append(textElement("p", "ou"), googleButton);
   const login = textElement("p", "Déjà un compte ? ");
   login.append(createActionLink({ label: "Se connecter", href: RoutePaths.Login }));
-  view.append(heading, introduction, feedback, status, form, login);
+  view.append(heading, introduction, feedback, status, form, login, createPrivacyNotice());
   addComponentEventListener(form, form, "pointerdown", event => {
     const target = event.target instanceof Element ? event.target.closest("button") : null;
     pressedAction = target instanceof HTMLButtonElement ? target : null;
