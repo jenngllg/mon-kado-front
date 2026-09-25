@@ -14,7 +14,8 @@ const archive = Buffer.from("504b0506000000000000000000000000000000000000", "hex
  * @param {"enroll" | "verify" | null} [challenge]
  */
 async function privateApi(context, api, challenge = null) {
-  const state = { completions: 0, confirmations: 0, exports: 0, deletions: 0 };
+  const state = { completions: 0, confirmations: 0, exports: 0, deletions: 0,
+    management: /** @type {string | null} */ (null), rotations: 0 };
   await context.route("http://localhost:7000/api/v1/**", async route => {
     const request = route.request(), path = new URL(request.url()).pathname, method = request.method();
     if (method === "OPTIONS") return route.fallback();
@@ -25,11 +26,28 @@ async function privateApi(context, api, challenge = null) {
       expect(request.headers()["x-csrf-token"]).toBe("csrf-test-only");
       return send(202, { flow, requiredAction: challenge, expiresAt: new Date(Date.now() + 300_000).toISOString() });
     }
+    if (path === "/api/v1/members/current/two-factor") {
+      expect(request.headers().authorization).toBe("Bearer access-test-only");
+      return send(200, { isEnabled: true, remainingRecoveryCodes: 8 });
+    }
+    if (path === "/api/v1/members/current/two-factor/reauthentications") {
+      expect(request.headers().authorization).toBe("Bearer access-test-only");
+      expect(request.headers()["x-csrf-token"]).toBeUndefined();
+      expect(request.postDataJSON().code).toBe("123456");
+      state.management = request.postDataJSON().purpose;
+      return send(200, { flow, requiredAction: state.management === "replaceAuthenticator" ? "replace" : "complete",
+        expiresAt: new Date(Date.now() + 300_000).toISOString() });
+    }
     if (path.startsWith("/api/v1/auth/two-factor/")) {
-      expect(request.headers()["x-csrf-token"]).toBe("csrf-test-only");
-      expect(request.headers().authorization).toBeUndefined();
+      expect(request.headers()["x-csrf-token"]).toBe(path.endsWith("/recovery-codes/regenerations") ? undefined : "csrf-test-only");
+      expect(request.headers().authorization).toBe(state.management ? "Bearer access-test-only" : undefined);
       expect(request.postDataJSON().flow).toBe(flow);
       if (path.endsWith("/setup")) return send(200, { manualKey, otpAuthUri: `otpauth://totp/MonKado:fixture?secret=${manualKey}&issuer=MonKado&algorithm=SHA1&digits=6&period=30` });
+      if (state.management && (path.endsWith("/setup/confirmations") || path.endsWith("/recovery-codes/regenerations"))) {
+        expect(request.postDataJSON()).toEqual(state.management === "replaceAuthenticator" ? { flow, code: "654321" } : { flow });
+        state.rotations++; api.state.authenticated = false;
+        return send(200, { recoveryCodes });
+      }
       if (path.endsWith("/setup/confirmations")) {
         state.confirmations++; expect(request.postDataJSON().code).toBe("123456");
         return send(200, { recoveryCodes });
@@ -88,6 +106,38 @@ for (const action of /** @type {const} */ (["verify", "enroll"])) {
     await expect(page.getByText(manualKey, { exact: true })).toHaveCount(0);
     expect(state.completions).toBe(1); expect(state.confirmations).toBe(action === "enroll" ? 1 : 0);
     expect(api.unexpected).toEqual([]);
+  });
+}
+
+for (const action of ["replaceAuthenticator", "regenerateRecoveryCodes"]) {
+  test(`MFA management ${action} retains one-time codes while closing the other tab`, async ({ page, context }) => {
+    const api = await controlledApi(context); api.state.authenticated = true;
+    const state = await privateApi(context, api);
+    const other = await context.newPage(); await other.goto("/lists");
+    await expect(other.getByRole("heading", { name: "Mes listes", exact: true })).toBeVisible();
+    await page.goto("/profile/authenticator");
+    await page.getByRole("button", { name: action === "replaceAuthenticator" ? "Remplacer mon authentificateur" : "Régénérer mes codes de récupération" }).click();
+    await page.getByLabel("Code de l’authentificateur actuel").fill("123456");
+    await page.getByRole("button", { name: "Vérifier mon identité" }).click();
+    if (action === "replaceAuthenticator") {
+      await expect(page.getByText(manualKey, { exact: true })).toBeVisible();
+      await page.getByLabel("Code du nouvel authentificateur").fill("654321");
+      await page.getByRole("button", { name: "Confirmer le remplacement et fermer mes sessions" }).click();
+    } else {
+      await page.getByRole("button", { name: "Remplacer les codes et fermer mes sessions" }).click();
+    }
+    await expect(page.getByText(recoveryCodes[0], { exact: true })).toBeVisible();
+    await expect(page).toHaveURL("/profile/authenticator");
+    await expect(other.getByRole("heading", { name: "Se connecter", exact: true })).toBeVisible();
+    const stored = await page.evaluate(() => JSON.stringify([localStorage, sessionStorage]));
+    for (const value of [flow, manualKey, ...recoveryCodes]) expect(stored).not.toContain(value);
+    await expect(page.getByText(manualKey, { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Fermer les codes et me reconnecter" })).toBeDisabled();
+    await page.getByRole("checkbox", { name: "J’ai enregistré mes codes de récupération" }).check();
+    await page.getByRole("button", { name: "Fermer les codes et me reconnecter" }).click();
+    await expect(page.getByRole("heading", { name: "Se connecter", exact: true })).toBeVisible();
+    await expect(page.getByText(recoveryCodes[0], { exact: true })).toHaveCount(0);
+    expect(state.rotations).toBe(1); expect(api.unexpected).toEqual([]);
   });
 }
 
