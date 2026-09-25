@@ -4,10 +4,11 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { GoogleMessages } from "./googleMessages.js";
+import { createTwoFactorView } from "../twoFactor/twoFactorView.js";
 
 /** Public callback view. Navigation is owned by application integration, not by a disposed promise.
  * @param {{google: import("./googleService.js").GoogleService,
- * session: Pick<import("../../auth/sessionManager.js").SessionManager, "restore" | "getSnapshot">,
+ * session: import("../twoFactor/twoFactorView.js").TwoFactorSession,
  * consumeFragment: () => string, signal?: AbortSignal, onDestination: (path: string) => void,
  * onAuthenticated: () => void, onLinkRequired: () => void}} options Dependencies.
  */
@@ -38,6 +39,7 @@ export function createGoogleReturnView({ google, session, consumeFragment, signa
       const state = await operation;
       if (disposed) return;
       if (state.status === "authenticated") onAuthenticated();
+      else if (state.twoFactor) view.replaceChildren(createTwoFactorView({ session, signal: lifetime.signal, onAuthenticated }));
       else failure(new ApiError({ kind: "http", errorCode: "CLIENT_LOGIN_COMPLETION_REQUIRED" }));
     } catch (error) {
       if (!disposed) {

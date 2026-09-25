@@ -12,6 +12,14 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  CLIENT_TWO_FACTOR_MANAGEMENT_REQUIRED: {
+    title: "Vérification nécessaire",
+    message: "Recommence la vérification de ton authentificateur avant cette opération.",
+  },
+  CLIENT_TWO_FACTOR_EXPIRED: {
+    title: "Vérification expirée",
+    message: "Le délai de vérification est dépassé. Recommence la connexion.",
+  },
   CLIENT_LOGIN_COMPLETION_REQUIRED: {
     title: "Connexion à recommencer",
     message: "La session n’a pas pu être vérifiée. Connecte-toi à nouveau.",

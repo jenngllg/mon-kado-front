@@ -7,12 +7,20 @@ import {
   RoutePaths,
 } from "./routeContracts.js";
 import { createSessionGuard } from "../auth/sessionGuards.js";
+import { createReservationHistoryService } from "../features/reservations/reservationHistoryService.js";
+import { createReservationHistoryView } from "../features/reservations/reservationHistoryView.js";
 import { createRegistrationService } from "../features/registration/registrationService.js";
 import { createRegistrationView } from "../features/registration/registrationView.js";
 import { createEmailConfirmationService } from "../features/emailConfirmation/emailConfirmationService.js";
 import { createEmailConfirmationView } from "../features/emailConfirmation/emailConfirmationView.js";
 import { createProfileService } from "../features/profile/profileService.js";
 import { createProfileView } from "../features/profile/profileView.js";
+import { createPersonalDataService } from "../features/privacy/personalDataService.js";
+import { createPersonalDataView } from "../features/privacy/personalDataView.js";
+import { createAccountDeletionView } from "../features/privacy/accountDeletionView.js";
+import { createAccountDeletionService } from "../features/privacy/accountDeletionService.js";
+import { createAuthenticatorService } from "../features/twoFactor/authenticatorService.js";
+import { createAuthenticatorView } from "../features/twoFactor/authenticatorView.js";
 import { createLoginService } from "../features/login/loginService.js";
 import { createLoginView } from "../features/login/loginView.js";
 import { createPasswordRecoveryService } from "../features/passwordRecovery/passwordRecoveryService.js";
@@ -40,6 +48,12 @@ import { createSharedWishlistContext } from "../features/sharing/sharedWishlistC
 import { createSharedWishlistService } from "../features/sharing/sharedWishlistService.js";
 import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
 import { createSharedWishView } from "../features/sharing/sharedWishView.js";
+import { createSharedSessionView } from "../features/sharing/sharedSessionView.js";
+import { createGiftReservationService } from "../features/sharing/giftReservationService.js";
+import { createGiftReservationSection } from "../features/sharing/giftReservationSection.js";
+import { createReservationCreateForm } from "../features/sharing/reservationCreateForm.js";
+import { createReservationEditForm } from "../features/sharing/reservationEditForm.js";
+import { createReservationCancelDialog } from "../features/sharing/reservationCancelDialog.js";
 import { createWishlistParticipationService } from "../features/sharing/wishlistParticipationService.js";
 import { createGuestParticipationHost } from "../features/sharing/guestParticipationHost.js";
 
@@ -57,9 +71,6 @@ export {
   RouteNames,
   RoutePaths,
 } from "./routeContracts.js";
-
-const PlaceholderMessage =
-  "Cette fonctionnalité sera disponible dans un prochain lot.";
 
 /** @param {import("../auth/sessionManager.js").SessionManager} session Session facade.
  * @param {() => boolean} consumePasswordChangeNotice Local, single-use login notice.
@@ -148,6 +159,22 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         createPasswordChangeView({ ...createPasswordChangeService(session), signal: context.signal }),
     },
     {
+      name: RouteNames.PersonalData, path: RoutePaths.PersonalData, title: "Mes données personnelles · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createPersonalDataView({ service: createPersonalDataService(session), signal: context.signal }),
+    },
+    {
+      name: RouteNames.Authenticator, path: RoutePaths.Authenticator, title: "Mon authentificateur · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createAuthenticatorView({ service: createAuthenticatorService(session), session, signal: context.signal,
+          onFinished: () => { void context.navigate(RoutePaths.Login); } }),
+    },
+    {
+      name: RouteNames.ConfirmAccountDeletion, path: RoutePaths.ConfirmAccountDeletion, title: "Supprimer mon compte · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createAccountDeletionView({ session, service: createAccountDeletionService(session), consumeFragment: context.consumeFragment, signal: context.signal }),
+    },
+    {
       name: RouteNames.EmailChange, path: RoutePaths.EmailChange, title: "Changer mon adresse e-mail · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createEmailChangeView({ load: createProfileService(session).load, ...createEmailChangeService(session), signal: context.signal }),
@@ -198,27 +225,26 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
           share: { ...createWishlistShareService(session, { frontendOrigin: window.location.origin }),
             copyText: text => navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : Promise.reject(new Error("Clipboard unavailable")) } }),
     },
-    createPlaceholderRoute(
-      RouteNames.Reservations,
-      RoutePaths.Reservations,
-      "Mes réservations",
-      "Cadeaux réservés",
-    ),
+    {
+      name: RouteNames.Reservations, path: RoutePaths.Reservations, title: "Mes réservations · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createReservationHistoryView({ ...createReservationHistoryService(session), signal: context.signal }),
+    },
     {
       name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de cadeaux partagée · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         const state = sharing.enter(context.params.shareLinkId, context.consumeFragment());
         if (state !== "ready") return createSharedWishlistEntryView(state);
         let resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId) ?? null;
-        return createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
+        return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
-          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).load,
+          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load,
           createParticipation: options => {
             const selected = resumeAccount; resumeAccount = null;
             return createGuestParticipationHost(session, { ...options, resumeAccount: selected, shareLinkId: context.params.shareLinkId,
               onSignIn: sharingSignIn.onSignIn ? () => sharingSignIn.onSignIn?.(context.params.shareLinkId) : undefined,
               ...createWishlistParticipationService(session, { context: sharing }) });
-          } });
+          } }), context.signal);
       },
     },
     {
@@ -228,9 +254,43 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         context.consumeFragment();
         const state = sharing.enter(context.params.shareLinkId, "");
         if (state !== "ready") return createSharedWishlistEntryView(state);
-        return createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
+        return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
+          ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized, onVerified) => createGiftReservationSection({
+            shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized,
+            loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
+            onCancelled: () => onSaved("Réservation annulée"),
+            createCancel: (onInvalidate, onClose) => createReservationCancelDialog({ signal: context.signal, onInvalidate, onClose, onUnavailable,
+              cancel: (etag, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).cancel(context.params.shareLinkId, wish.id, { etag, signal }),
+              load: async signal => {
+                const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
+                const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                if (lookup.state === "unrecognized") onUnrecognized();
+                return { name: fresh.name, lookup };
+              },
+            }),
+            editForm: (reservation, onBusy, showLookup) => createReservationEditForm({ reservation, available: wish.availableQuantity, signal: context.signal, onSaved: () => onSaved("Réservation modifiée"), onUnavailable, onBusy,
+              update: (quantity, etag, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).update(context.params.shareLinkId, wish.id, quantity, { etag, signal }),
+              verify: async signal => {
+                const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
+                const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                onVerified(fresh); showLookup(lookup);
+                if (lookup.state === "unrecognized") onUnrecognized();
+                return { available: fresh.availableQuantity, lookup };
+              },
+            }),
+            createForm: (onBusy, showLookup) => createReservationCreateForm({ available: wish.availableQuantity, signal: context.signal, onSaved, onUnavailable, onBusy,
+              create: (quantity, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).create(context.params.shareLinkId, wish.id, quantity, { signal }),
+              verify: async signal => {
+                const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
+                const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
+                onVerified(fresh); showLookup(lookup);
+                if (lookup.state === "unrecognized") onUnrecognized();
+                return { available: fresh.availableQuantity, lookup };
+              },
+            }),
+          }) } : {}),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
-          loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing }).loadOne });
+          loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne }), context.signal);
       },
     },
   ]);
@@ -253,24 +313,4 @@ export function createApplicationRoutes({ session, apiBaseUrl, sharingSignIn = {
     }),
     ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
   ];
-}
-
-/**
- * @param {string} name Route name.
- * @param {string} path Route path.
- * @param {string} title View title.
- * @param {string} eyebrow View eyebrow.
- * @returns {import("../router/router.js").RouteDefinition} Placeholder route.
- */
-function createPlaceholderRoute(name, path, title, eyebrow) {
-  return Object.freeze({
-    name,
-    path,
-    title: `${title} · MonKado`,
-    render: () => createPlaceholderView({
-      eyebrow,
-      title,
-      message: PlaceholderMessage,
-    }),
-  });
 }

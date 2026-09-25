@@ -1,0 +1,102 @@
+name: Publish approved frontend
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-production-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require approval protection and green checks for this revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'jenngllg/mon-kado-front'
+          gh api "repos/$GITHUB_REPOSITORY/environments/production" \
+            --jq '.protection_rules | any(.type == "required_reviewers" and (.reviewers | length > 0))' | grep -x true
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/quality.yml/runs?head_sha=$GITHUB_SHA&branch=develop&per_page=100" \
+            --jq '[.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch")] | sort_by(.run_number) | last | .conclusion' \
+            | grep -x success
+      - name: Resolve the explicitly published backend
+        id: backend
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api repos/jenngllg/mon-kado/releases/tags/backend-production > "$RUNNER_TEMP/backend-release.json"
+          revision=$(jq -er '.body | fromjson | .revision | select(type == "string" and length == 40 and test("^[0-9a-f]{40}$"))' "$RUNNER_TEMP/backend-release.json")
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: jenngllg/mon-kado
+          ref: ${{ steps.backend.outputs.revision }}
+          path: .backend
+          persist-credentials: false
+      - name: Validate reviewed deployment configuration
+        run: python3 .backend/deployments/production/release_manifest.py release "$RUNNER_TEMP/backend-release.json" > "$RUNNER_TEMP/backend-images.env"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+      - run: pnpm install --frozen-lockfile
+      - name: Verify the deployed public API contract without authentication
+        run: pnpm api:types:check
+        env:
+          MONKADO_OPENAPI_URL: https://api.monkado.fr/openapi/v1.json
+      - name: Build the approved public configuration
+        run: pnpm build
+      - name: Require approved legal documents and revision-bound Google setting
+        id: publication
+        run: node tools/publication/checkPublication.js >> "$GITHUB_OUTPUT"
+      - name: Package only static build files
+        env:
+          BACKEND_REVISION: ${{ steps.backend.outputs.revision }}
+          GOOGLE_ENABLED: ${{ steps.publication.outputs.googleEnabled }}
+        run: |
+          set -euo pipefail
+          configuration_hash=$(python3 .backend/deployments/production/release_manifest.py hash)
+          python3 .backend/src/Operations.Frontend/frontend_cli.py package \
+            --dist dist --output "$RUNNER_TEMP/frontend-package" --revision "$GITHUB_SHA" \
+            --backend-revision "$BACKEND_REVISION" --configuration-hash "$configuration_hash" \
+            --google-enabled "$GOOGLE_ENABLED"
+      - name: Publish immutable build before changing the production pointer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Existing immutable versions are never overwritten; rollback selects their manifest.
+          if gh release view "frontend-$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download "frontend-$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" \
+              --pattern frontend.tar.gz --pattern manifest.json --dir "$RUNNER_TEMP/existing-frontend"
+            cmp "$RUNNER_TEMP/existing-frontend/manifest.json" "$RUNNER_TEMP/frontend-package/manifest.json"
+            cmp "$RUNNER_TEMP/existing-frontend/frontend.tar.gz" "$RUNNER_TEMP/frontend-package/frontend.tar.gz"
+          else
+            gh release create "frontend-$GITHUB_SHA" "$RUNNER_TEMP/frontend-package/frontend.tar.gz" \
+              "$RUNNER_TEMP/frontend-package/manifest.json" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "Frontend $GITHUB_SHA" --notes 'Approved static frontend build.' --latest=false
+          fi
+          if gh release view frontend-production --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit frontend-production --repo "$GITHUB_REPOSITORY" \
+              --notes-file "$RUNNER_TEMP/frontend-package/manifest.json" --latest=false
+          else
+            gh release create frontend-production --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title 'Approved frontend production build' --notes-file "$RUNNER_TEMP/frontend-package/manifest.json" --latest=false
+          fi

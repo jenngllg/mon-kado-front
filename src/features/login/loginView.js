@@ -7,10 +7,12 @@ import { RoutePaths } from "../../app/routeContracts.js";
 import { LoginErrorMessages, LoginServerMessages, validateLoginField } from "./loginValidation.js";
 import { createGoogleButton } from "../google/googleButton.js";
 import { GoogleMessages } from "../google/googleMessages.js";
+import { createPrivacyNotice } from "../../components/legalLinks.js";
+import { createTwoFactorView } from "../twoFactor/twoFactorView.js";
 
 /** Creates the public login view. Redirects belong exclusively to session/router integration.
  * @param {{login: import("./loginService.js").Login,
- *   session: Pick<import("../../auth/sessionManager.js").SessionManager, "restore" | "subscribe" | "getSnapshot">,
+ *   session: Pick<import("../../auth/sessionManager.js").SessionManager, "restore" | "subscribe" | "getSnapshot" | "secondFactor">,
  *   signal?: AbortSignal, passwordChanged?: boolean, sharedReturn?: {href: string, signal: AbortSignal} | null,
  *   startGoogle?: import("../google/googleService.js").StartGoogle, returnTo?: string}} options View-owned operations and one local notice.
  * @returns {HTMLElement} Disposable routed form.
@@ -34,6 +36,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   let googleBusy = false;
   let pending = false;
   let accepted = false;
+  let twoFactorStarted = false;
   let summary = false;
   /** @type {HTMLElement | null} */
   let pressedAction = null;
@@ -89,7 +92,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   links.append(createActionLink({ label: "Mot de passe oublié ?", href: RoutePaths.ForgotPassword }),
     createActionLink({ label: "Créer un compte", href: RoutePaths.Register }));
   view.append(textElement("h1", "Se connecter"), textElement("p", "Retrouve tes listes et les cadeaux que tu prépares pour tes proches."),
-    status, feedback, form, links);
+    status, feedback, form, links, createPrivacyNotice());
   if (sharedReturn && !sharedReturn.signal.aborted) {
     const continuation = textElement("div", ""); continuation.className = "flow";
     continuation.append(textElement("p", "Après connexion, tu retrouveras cette liste partagée."), createActionLink({ label: "Retour à la liste sans se connecter", href: sharedReturn.href }));
@@ -112,6 +115,11 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   addComponentEventListener(view, form, "submit", event => { event.preventDefault(); void submitLogin(); });
   const unsubscribe = session.subscribe(state => {
     if (disposed) return;
+    if (state.twoFactor && !twoFactorStarted) {
+      twoFactorStarted = true;
+      clearPassword(); fields[0].control.value = "";
+      view.replaceChildren(createTwoFactorView({ session, signal: lifetime.signal }));
+    }
     pending = state.authenticationPending === true;
     if (pending) accepted = true;
     if (pending || state.status === "authenticated") clearPassword();

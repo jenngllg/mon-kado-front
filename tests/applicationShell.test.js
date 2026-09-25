@@ -31,6 +31,24 @@ afterEach(() => {
 });
 
 describe("application shell", () => {
+  it("groups session recovery feedback in a named landmark without a duplicate live region", () => {
+    // Arrange
+    const shell = createTestShell();
+    const retry = document.createElement("button");
+    retry.textContent = "Réessayer";
+
+    // Act
+    shell.sessionFeedback.append(retry);
+    shell.sessionFeedback.hidden = false;
+    document.body.append(shell.element);
+
+    // Assert
+    expect(retry.closest('[role="region"]')).toBe(shell.sessionFeedback);
+    expect(shell.sessionFeedback.getAttribute("aria-label")).toBe("État de la session");
+    expect(shell.sessionFeedback.hasAttribute("aria-live")).toBe(false);
+    expect(shell.outlet.contains(shell.sessionFeedback)).toBe(false);
+  });
+
   it("creates the semantic shell and complete primary navigation", () => {
     // Arrange
     const shell = createTestShell();
@@ -52,7 +70,7 @@ describe("application shell", () => {
     expect(shell.notificationRegion.classList.contains("notification-region"))
       .toBe(true);
 
-    const links = [...shell.element.querySelectorAll("nav a")];
+    const links = [...shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')];
     expect(links.map((link) => link.textContent)).toEqual([
       "Accueil",
       "Connexion",
@@ -63,6 +81,8 @@ describe("application shell", () => {
       "/login",
       "/register",
     ]);
+    expect([...shell.element.querySelectorAll("footer a")].map(link => link.getAttribute("href")))
+      .toEqual(["/legal-notice", "/privacy-policy", "/terms-of-use"]);
   });
 
   it("opens and closes the mobile navigation with accessible state", () => {

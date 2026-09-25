@@ -1,0 +1,8 @@
+:root { font-family: system-ui, sans-serif; color: #172133; background: #f8fafc; line-height: 1.65; }
+body { max-width: 52rem; margin: auto; padding: 1.25rem; overflow-wrap: anywhere; }
+main { padding-block: 1rem 3rem; }
+h1, h2 { line-height: 1.25; }
+a { color: #173f91; text-underline-offset: .2em; }
+a:focus-visible { outline: 3px solid #173f91; outline-offset: 4px; }
+nav { display: flex; flex-wrap: wrap; gap: 1rem; }
+[data-publication-draft] { border: 2px solid #8b3200; padding: 1rem; color: #712800; }

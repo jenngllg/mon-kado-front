@@ -36,6 +36,20 @@ function mount() {
 }
 
 describe("login form", () => {
+  it("replaces credentials once when the session starts a second-factor continuation", () => {
+    // Arrange
+    const app = mount(); app.fill();
+    const twoFactor = { requiredAction: /** @type {const} */ ("verify"), expiresAt: "2026-09-25T12:00:00Z" };
+    // Act
+    app.emit({ twoFactor });
+    const continuation = app.view.firstElementChild;
+    app.emit({ twoFactor });
+    // Assert
+    expect(app.fields[0].value).toBe(""); expect(app.fields[1].value).toBe("");
+    expect(app.view.firstElementChild).toBe(continuation);
+    expect(app.view.textContent).toContain("Vérification en deux étapes");
+    expect(app.view.contains(app.form)).toBe(false);
+  });
   it("uses semantic required controls and password-manager hints without UTF-16 limits", () => {
     // Arrange / Act
     const app = mount();

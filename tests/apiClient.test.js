@@ -8,6 +8,102 @@ const BaseUrl = "http://localhost:7000";
 const CorrelationId = "0199-0000-7000-8000-000000000001";
 
 describe("ApiClient", () => {
+  it("never dispatches a protected mutation after its credential generation changes during CSRF preparation", async () => {
+    // Arrange
+    let version = 0;
+    const pending = createDeferred();
+    const fetchMock = vi.fn(/** @type {typeof fetch} */ (async () => pending.promise));
+    const client = createApiClient({ baseUrl: BaseUrl, fetchImplementation: fetchMock,
+      accessTokenProvider: () => "synthetic-bearer", accessTokenVersionProvider: () => version });
+    // Act
+    const result = client.request("/api/v1/auth/two-factor/setup/confirmations", {
+      method: "POST", csrf: true, authentication: "required", body: { flow: "synthetic-flow", code: "123456" },
+    });
+    const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
+    version++;
+    pending.resolve(jsonResponse({ token: "synthetic-csrf" }));
+    await rejected;
+    // Assert
+    expect(fetchMock.mock.calls.filter(([, request]) => request?.method === "POST")).toHaveLength(0);
+  });
+  it("does not reuse a late CSRF response after a credential change", async () => {
+    // Arrange
+    let accessToken = "old-account";
+    const pending = createDeferred();
+    const fetchMock = vi.fn(async (url, options) => {
+      if (!String(url).endsWith("/security/csrf-token")) return new Response(null, { status: 204 });
+      if (options.headers.get("Authorization") === "Bearer old-account") return pending.promise;
+      return jsonResponse({ token: "new-csrf" });
+    });
+    const client = createClient(fetchMock, { accessTokenProvider: () => accessToken });
+    const controller = new AbortController();
+
+    // Act
+    const old = client.request("/participants", { method: "POST", csrf: true, authentication: "required", signal: controller.signal });
+    const aborted = expect(old).rejects.toMatchObject({ name: "AbortError" });
+    controller.abort();
+    accessToken = "new-account";
+    client.invalidateCsrfToken();
+    await client.request("/participants", { method: "POST", csrf: true, authentication: "required" });
+    pending.resolve(jsonResponse({ token: "old-csrf" }));
+    await aborted;
+    await client.request("/participants", { method: "POST", csrf: true, authentication: "required" });
+
+    // Assert
+    const writes = fetchMock.mock.calls.filter(([, options]) => options.method === "POST");
+    expect(writes).toHaveLength(2);
+    expect(writes.every(([, options]) => options.headers.get("Authorization") === "Bearer new-account" && options.headers.get("X-CSRF-TOKEN") === "new-csrf")).toBe(true);
+  });
+
+  it("binds CSRF to the selected identity without leaking bearer credentials to anonymous calls", async () => {
+    // Arrange
+    let accessToken = "account-one";
+    const fetchMock = vi.fn(async (url, options) => String(url).endsWith("/security/csrf-token")
+      ? jsonResponse({ token: options.headers.get("Authorization") ?? "anonymous" })
+      : new Response(null, { status: 204 }));
+    const client = createClient(fetchMock, { accessTokenProvider: () => accessToken });
+
+    // Act
+    await client.request("/participants", { method: "POST", csrf: true });
+    await client.request("/participants", { method: "POST", csrf: true, authentication: "required" });
+    await client.request("/participants", { method: "POST", csrf: true });
+    accessToken = "account-two";
+    await client.request("/participants", { method: "POST", csrf: true, authentication: "required" });
+    client.invalidateCsrfToken();
+    await client.request("/participants", { method: "POST", csrf: true, authentication: "required" });
+
+    // Assert
+    const tokenReads = fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/security/csrf-token"));
+    expect(tokenReads.map(([, options]) => options.headers.get("Authorization"))).toEqual([
+      null, "Bearer account-one", "Bearer account-two", "Bearer account-two",
+    ]);
+    const writes = fetchMock.mock.calls.filter(([, options]) => options.method === "POST");
+    expect(writes.map(([, options]) => options.headers.get("X-CSRF-TOKEN"))).toEqual([
+      "anonymous", "Bearer account-one", "anonymous", "Bearer account-two", "Bearer account-two",
+    ]);
+  });
+
+  it.each([204, 400])("replays a coded antiforgery failure at most once, ending with %s", async (status) => {
+    // Arrange
+    const failure = () => errorResponse(400, { errorCode: "SECURITY_CSRF_VALIDATION_FAILED" });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ token: "old" }))
+      .mockResolvedValueOnce(failure())
+      .mockResolvedValueOnce(jsonResponse({ token: "fresh" }))
+      .mockResolvedValueOnce(status === 204 ? new Response(null, { status }) : failure());
+    const client = createClient(fetchMock, { accessTokenProvider: () => "member" });
+
+    // Act
+    const result = client.request("/participants", { method: "POST", csrf: true, authentication: "required" });
+
+    // Assert
+    if (status === 204) await expect(result).resolves.toMatchObject({ status });
+    else await expect(result).rejects.toMatchObject({ errorCode: "SECURITY_CSRF_VALIDATION_FAILED" });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock.mock.calls.every(([, options]) => options.headers.get("Authorization") === "Bearer member")).toBe(true);
+    expect(fetchMock.mock.calls[3][1].headers.get("X-CSRF-TOKEN")).toBe("fresh");
+  });
+
   it("sends a normalized JSON request with credentials", async () => {
     // Arrange
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: "gift-1" }));
@@ -257,7 +353,7 @@ describe("ApiClient", () => {
       validationErrors: [
         {
           propertyName: "wishes[2].name",
-          errorMessage: "The name is required.",
+          errorMessage: null,
         },
       ],
     });

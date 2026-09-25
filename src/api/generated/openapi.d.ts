@@ -117,6 +117,34 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -317,13 +345,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -478,13 +525,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -660,13 +726,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -821,13 +906,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -1022,13 +1126,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -1221,13 +1344,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -1379,13 +1521,32 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -1540,13 +1701,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -1710,13 +1890,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -1873,6 +2072,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -2061,6 +2288,34 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -2219,6 +2474,34 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -2373,13 +2656,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -2534,6 +2836,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -2720,6 +3050,34 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -2876,6 +3234,34 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -3001,13 +3387,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -3117,13 +3522,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -3233,13 +3657,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -3332,13 +3775,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -3439,13 +3901,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -3528,6 +4009,17 @@ export interface paths {
                         readonly "application/json": components["schemas"]["AccessTokenResponse"];
                     };
                 };
+                /** @description Accepted */
+                readonly 202: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["TwoFactorChallengeResponse"];
+                    };
+                };
                 /** @description Bad Request */
                 readonly 400: {
                     headers: {
@@ -3573,13 +4065,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -3671,6 +4182,17 @@ export interface paths {
                         readonly "application/json": components["schemas"]["AccessTokenResponse"];
                     };
                 };
+                /** @description Accepted */
+                readonly 202: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["TwoFactorChallengeResponse"];
+                    };
+                };
                 /** @description Bad Request */
                 readonly 400: {
                     headers: {
@@ -3716,13 +4238,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -3834,13 +4375,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -3954,13 +4514,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -4070,13 +4649,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -4168,6 +4766,17 @@ export interface paths {
                         readonly "application/json": components["schemas"]["AccessTokenResponse"];
                     };
                 };
+                /** @description Accepted */
+                readonly 202: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["TwoFactorChallengeResponse"];
+                    };
+                };
                 /** @description Bad Request */
                 readonly 400: {
                     headers: {
@@ -4204,13 +4813,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -4342,6 +4970,34 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -4419,13 +5075,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -4528,13 +5203,717 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/auth/two-factor/completions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Verifies a TOTP, starts forced recovery replacement or finishes a previously confirmed enrollment. */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header: {
+                    /** @description Request token obtained from GET /security/csrf-token. */
+                    readonly "X-CSRF-TOKEN": string;
+                };
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            /** @description The request cancellation token. */
+            readonly requestBody: {
+                readonly content: {
+                    readonly "application/*+json": components["schemas"]["TwoFactorCompletionRequest"];
+                    readonly "application/json": components["schemas"]["TwoFactorCompletionRequest"];
+                };
+            };
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description Rotating refresh token cookie. It is HttpOnly, SameSite=Strict, host-only, and uses Path=/. Production uses the Secure __Host-MonKado.Refresh name; local development uses MonKado.Refresh. It is a browser-session cookie unless rememberMe requests the fixed 30-day expiration. */
+                        readonly "Set-Cookie"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["AccessTokenResponse"];
+                    };
+                };
+                /** @description Accepted */
+                readonly 202: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["TwoFactorChallengeResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                readonly 409: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                readonly 413: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                readonly 415: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/auth/two-factor/recovery-codes/regenerations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Consumes a dedicated reauthentication grant to replace all recovery codes and require a new full sign-in. */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            /** @description The request cancellation token. */
+            readonly requestBody: {
+                readonly content: {
+                    readonly "application/*+json": components["schemas"]["TwoFactorFlowRequest"];
+                    readonly "application/json": components["schemas"]["TwoFactorFlowRequest"];
+                };
+            };
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["TwoFactorRecoveryCodesResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Conflict */
+                readonly 409: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                readonly 413: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                readonly 415: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/auth/two-factor/setup": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Returns candidate authenticator material only for an authorized enrollment or replacement grant. */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header: {
+                    /** @description Request token obtained from GET /security/csrf-token. */
+                    readonly "X-CSRF-TOKEN": string;
+                };
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            /** @description The request cancellation token. */
+            readonly requestBody: {
+                readonly content: {
+                    readonly "application/*+json": components["schemas"]["TwoFactorFlowRequest"];
+                    readonly "application/json": components["schemas"]["TwoFactorFlowRequest"];
+                };
+            };
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["TwoFactorSetupResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                readonly 409: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                readonly 413: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                readonly 415: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/auth/two-factor/setup/confirmations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Confirms a candidate authenticator, revokes older credentials and returns new recovery codes once. */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header: {
+                    /** @description Request token obtained from GET /security/csrf-token. */
+                    readonly "X-CSRF-TOKEN": string;
+                };
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            /** @description The request cancellation token. */
+            readonly requestBody: {
+                readonly content: {
+                    readonly "application/*+json": components["schemas"]["TwoFactorSetupConfirmationRequest"];
+                    readonly "application/json": components["schemas"]["TwoFactorSetupConfirmationRequest"];
+                };
+            };
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["TwoFactorRecoveryCodesResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unauthorized */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                readonly 409: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                readonly 413: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                readonly 415: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -4626,13 +6005,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -4734,13 +6132,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -4907,13 +6324,32 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -5069,13 +6505,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -5249,13 +6704,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -5398,13 +6872,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -5538,13 +7031,32 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -5709,13 +7221,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -5909,13 +7440,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -6082,13 +7632,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -6274,6 +7843,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -6467,13 +8064,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -6632,13 +8248,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -6785,6 +8420,34 @@ export interface paths {
                         };
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -6826,6 +8489,366 @@ export interface paths {
         };
         readonly put?: never;
         readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/members/current/two-factor": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Retrieves current authenticator enrollment and the remaining recovery-code count without secrets. */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["TwoFactorStatusResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/members/current/two-factor/reauthentications": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Verifies the current factor to authorize either authenticator replacement or recovery-code regeneration. */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            /** @description The request cancellation token. */
+            readonly requestBody: {
+                readonly content: {
+                    readonly "application/*+json": components["schemas"]["TwoFactorReauthenticationRequest"];
+                    readonly "application/json": components["schemas"]["TwoFactorReauthenticationRequest"];
+                };
+            };
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["TwoFactorChallengeResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Conflict */
+                readonly 409: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Payload Too Large */
+                readonly 413: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Unsupported Media Type */
+                readonly 415: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -6906,7 +8929,7 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         /** @description Prevents indexing and archiving of shared-wishlist responses. */
@@ -6914,7 +8937,26 @@ export interface paths {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -7099,7 +9141,7 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         /** @description Prevents indexing and archiving of shared-wishlist responses. */
@@ -7107,7 +9149,26 @@ export interface paths {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -7263,7 +9324,7 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         /** @description Prevents indexing and archiving of shared-wishlist responses. */
@@ -7271,7 +9332,26 @@ export interface paths {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -7396,7 +9476,7 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         /** @description Prevents indexing and archiving of shared-wishlist responses. */
@@ -7404,7 +9484,26 @@ export interface paths {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -7505,6 +9604,36 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -7716,7 +9845,7 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         /** @description Prevents indexing and archiving of shared-wishlist responses. */
@@ -7724,7 +9853,26 @@ export interface paths {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -7861,7 +10009,7 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         /** @description Prevents indexing and archiving of shared-wishlist responses. */
@@ -7869,7 +10017,26 @@ export interface paths {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -7978,6 +10145,34 @@ export interface paths {
                 };
                 /** @description The authenticated user is not authorized */
                 readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
@@ -8165,6 +10360,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -8375,6 +10598,34 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -8539,6 +10790,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -8724,6 +11003,34 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -8863,6 +11170,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -9028,6 +11363,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -9220,13 +11583,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -9370,6 +11752,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -9545,6 +11955,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -9741,6 +12179,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -9949,6 +12415,34 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -10117,6 +12611,34 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
                 /** @description Internal server error */
                 readonly 500: {
                     headers: {
@@ -10204,6 +12726,34 @@ export interface paths {
                     };
                     content: {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -10405,13 +12955,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -10584,13 +13153,32 @@ export interface paths {
                         readonly "application/json": components["schemas"]["ErrorResponse"];
                     };
                 };
-                /** @description Too Many Requests */
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
                 readonly 429: {
                     headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
-                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
                     };
                 };
                 /** @description Internal server error */
@@ -11485,6 +14073,76 @@ export interface components {
             readonly offset?: number | string;
             readonly value?: null | string;
         };
+        /** @description Describes an incomplete sign-in without granting an authenticated session. */
+        readonly TwoFactorChallengeResponse: {
+            /**
+             * Format: date-time
+             * @description Gets the absolute expiration in UTC.
+             */
+            readonly expiresAt?: string;
+            /** @description Gets the short-lived opaque proof retained only in client memory. */
+            readonly flow?: string;
+            /** @description Gets the next permitted action. */
+            readonly requiredAction?: components["schemas"]["TwoFactorRequiredAction"];
+        };
+        /** @description Contains untrusted second-factor input validated by the application pipeline. */
+        readonly TwoFactorCompletionRequest: {
+            /** @description Gets the optional authenticator code. */
+            readonly code?: null | string;
+            /** @description Gets the opaque sign-in proof. */
+            readonly flow?: null | string;
+            /** @description Gets the optional recovery code. */
+            readonly recoveryCode?: null | string;
+        };
+        /** @enum {string} */
+        readonly TwoFactorFlowPurpose: "signIn" | "replaceAuthenticator" | "regenerateRecoveryCodes";
+        /** @description Contains untrusted second-factor input validated by the application pipeline. */
+        readonly TwoFactorFlowRequest: {
+            /** @description Gets the opaque, operation-bound proof. */
+            readonly flow?: null | string;
+        };
+        /** @description Contains untrusted second-factor input validated by the application pipeline. */
+        readonly TwoFactorReauthenticationRequest: {
+            /** @description Gets the current authenticator code. */
+            readonly code?: null | string;
+            readonly purpose?: null | components["schemas"]["TwoFactorFlowPurpose"];
+            /** @description Gets the recovery code permitted only for forced replacement. */
+            readonly recoveryCode?: null | string;
+        };
+        /** @description Contains newly generated recovery codes that cannot be retrieved again. */
+        readonly TwoFactorRecoveryCodesResponse: {
+            /** @description Gets the ten plaintext recovery codes shown only after their generation is committed. */
+            readonly recoveryCodes?: readonly string[];
+        };
+        /**
+         * @description Identifies the next permitted step of a second-factor sign-in.
+         * @enum {string}
+         */
+        readonly TwoFactorRequiredAction: "verify" | "enroll" | "replace" | "complete";
+        /** @description Contains untrusted second-factor input validated by the application pipeline. */
+        readonly TwoFactorSetupConfirmationRequest: {
+            /** @description Gets the candidate authenticator code. */
+            readonly code?: null | string;
+            /** @description Gets the authorized setup proof. */
+            readonly flow?: null | string;
+        };
+        /** @description Contains the candidate authenticator material, exposed only to an authorized setup flow. */
+        readonly TwoFactorSetupResponse: {
+            /** @description Gets the Base32 key for manual authenticator enrollment. */
+            readonly manualKey?: string;
+            /** @description Gets the URI that the frontend can encode as a QR code without sending it to a third party. */
+            readonly otpAuthUri?: string;
+        };
+        /** @description Describes second-factor enrollment without exposing security material. */
+        readonly TwoFactorStatusResponse: {
+            /** @description Gets whether the member has a confirmed authenticator. */
+            readonly isEnabled?: boolean;
+            /**
+             * Format: int32
+             * @description Gets the number of unconsumed recovery codes for the current authenticator.
+             */
+            readonly remainingRecoveryCodes?: number | string;
+        };
         /** @description Represents a request to update the current member email address. */
         readonly UpdateMemberEmailRequest: {
             /** @description Gets the current member password. */
@@ -11966,7 +14624,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Too Many Requests */
+            /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
             readonly 429: {
                 headers: {
                     /** @description Prevents indexing and archiving of shared-wishlist responses. */
@@ -11974,7 +14632,26 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
                 };
             };
             /** @description Internal server error */
@@ -12087,7 +14764,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Too Many Requests */
+            /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
             readonly 429: {
                 headers: {
                     /** @description Prevents indexing and archiving of shared-wishlist responses. */
@@ -12095,7 +14772,26 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content: {
-                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
                 };
             };
             /** @description Internal server error */
@@ -12229,6 +14925,34 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
                 };
             };
             /** @description Internal server error */
@@ -12369,6 +15093,34 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
+                };
+            };
             /** @description Internal server error */
             readonly 500: {
                 headers: {
@@ -12500,6 +15252,34 @@ export interface operations {
                     readonly "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
+                };
+            };
             /** @description Internal server error */
             readonly 500: {
                 headers: {
@@ -12555,6 +15335,34 @@ export interface operations {
                 };
                 content: {
                     readonly "application/json": components["schemas"]["CsrfTokenResponse"];
+                };
+            };
+            /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
                 };
             };
             /** @description Internal server error */

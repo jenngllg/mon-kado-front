@@ -6,10 +6,11 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { GoogleMessages } from "./googleMessages.js";
+import { createTwoFactorView } from "../twoFactor/twoFactorView.js";
 
 /** Public proof form. The continuation exposes operations, never the private binding.
  * @param {{continuation: import("./googleLinkContinuation.js").GoogleLinkContinuation | null,
- * session: Pick<import("../../auth/sessionManager.js").SessionManager, "restore" | "getSnapshot">,
+ * session: import("../twoFactor/twoFactorView.js").TwoFactorSession,
  * signal?: AbortSignal, onDestination: (path: string) => void, onAuthenticated: () => void}} options Dependencies.
  * @returns {HTMLElement} Disposable view.
  */
@@ -203,8 +204,12 @@ export function createGoogleLinkView({ continuation, session, signal, onDestinat
     busy = true;
     updateControls();
     try {
-      await continuation.link(password.value, { signal: lifetime.signal });
-      if (!disposed && !invalidated) { clearPassword(); onAuthenticated(); }
+      const state = await continuation.link(password.value, { signal: lifetime.signal });
+      if (!disposed && !invalidated) {
+        clearPassword();
+        if (state.twoFactor) view.replaceChildren(createTwoFactorView({ session, signal: lifetime.signal, onAuthenticated }));
+        else onAuthenticated();
+      }
     } catch (error) {
       if (disposed || invalidated || isAbortError(error)) return;
       if (accepted) presentFinalization();

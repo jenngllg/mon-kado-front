@@ -5,6 +5,7 @@ import { createSessionCoordinator } from "./sessionCoordinator.js";
 import { waitForSession } from "./sessionAsync.js";
 import { isStrongEntityTag } from "../api/entityTag.js";
 import { validateDisplayName } from "./displayNameValidation.js";
+import { readTwoFactorProof, readTwoFactorSetup, readRecoveryCodes } from "./twoFactorContract.js";
 
 const SessionPath = "/api/v1/auth/sessions";
 const RenewalMargin = 60_000;
@@ -22,13 +23,14 @@ const RenewalMargin = 60_000;
  *   etag: string | null,
  *   logoutPending: boolean,
  *   authenticationPending?: boolean,
- *   endReason?: "passwordChanged",
+ *   twoFactor?: import("./twoFactorContract.js").TwoFactorState,
+ *   endReason?: "passwordChanged" | "accountDeleted" | "authenticatorChanged",
  *   issue: import("../errors/errorMessages.js").UserFacingError | null
  * }>} SessionSnapshot
  */
-/** @typedef {(transport: Readonly<{request: Request}>) => Promise<import("../api/apiClient.js").ApiResponse<AccessTokenResponse>>} Authenticate */
+/** @typedef {(transport: Readonly<{request: Request}>) => Promise<import("../api/apiClient.js").ApiResponse<unknown>>} Authenticate */
 /** @typedef {(transport: Readonly<{request: Request}>) => Promise<import("../api/apiClient.js").ApiResponse<unknown>>} ResetPassword */
-/** @typedef {Readonly<{sessionIssue: import("../errors/errorMessages.js").UserFacingError | null}>} PasswordResetResult */
+/** @typedef {Readonly<{sessionIssue: import("../errors/errorMessages.js").UserFacingError | null, recoveryCodes?: readonly string[]}>} PasswordResetResult */
 /** @typedef {Readonly<{
  *   start: (options?: {restore?: boolean}) => Promise<SessionSnapshot>,
  *   restore: () => Promise<SessionSnapshot>,
@@ -38,8 +40,11 @@ const RenewalMargin = 60_000;
  *   prepareExternalAuthentication: (options?: {signal?: AbortSignal}) => Promise<Readonly<{generation: string}>>,
  *   observeExternalAuthentication: (generation: string, invalidated: () => void) => () => void,
  *   establishSession: (authenticate: Authenticate, options?: {signal?: AbortSignal, expectedGeneration?: string}) => Promise<SessionSnapshot>,
+ *   secondFactor?: import("./twoFactorContract.js").SecondFactorActions,
  *   resetPassword: (reset: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   changePassword: (change: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
+ *   deleteAccount: (confirm: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
+ *   rotateAuthenticator: (rotate: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   confirmEmailChange: (confirm: ResetPassword, options?: {signal?: AbortSignal}) => Promise<PasswordResetResult>,
  *   getSnapshot: () => SessionSnapshot,
  *   subscribe: (listener: (state: SessionSnapshot) => void) => () => void,
@@ -89,12 +94,13 @@ export function createSessionManager({
   /** @type {Promise<PasswordResetResult> | null} */
   let resetting = null;
   /** @type {Promise<PasswordResetResult> | null} */
-  let changingPassword = null;
+  let closingSession = null;
+  /** @type {"changePassword" | "deleteAccount" | "rotateAuthenticator" | null} */ let closingOperation = null;
   /** Distinct confirmations must never borrow another operation's successful result.
    * @type {Set<Promise<PasswordResetResult>>} */
   const confirmingEmailChanges = new Set();
   /** Non-secret bookkeeping: retrying synchronization must never repeat the reset POST.
-   * @type {{generation: string, logoutPending: boolean, operation: "resetPassword" | "changePassword" | "confirmEmailChange"} | null} */
+   * @type {{generation: string, logoutPending: boolean, operation: "resetPassword" | "changePassword" | "deleteAccount" | "rotateAuthenticator" | "confirmEmailChange"} | null} */
   let pendingResetClosure = null;
   /** @type {Set<(state: SessionSnapshot) => void>} */
   const subscribers = new Set();
@@ -107,6 +113,10 @@ export function createSessionManager({
   let identityReadVersion = 0;
   let blocked = false;
   let authenticationPending = false;
+  /** @type {import("./twoFactorContract.js").TwoFactorProof | null} */ let secondFactorProof = null;
+  /** @type {ReturnType<typeof setTimeout> | undefined} */ let secondFactorTimer;
+  let secondFactorBusy = false;
+  let secondFactorCancelled = false;
   let disposed = false;
   const lifetime = new AbortController();
   const api = createApiClient({
@@ -127,10 +137,22 @@ export function createSessionManager({
     refreshIdentity,
     request,
     establishSession,
+    secondFactor: Object.freeze({
+      setup: (options = {}) => secondFactorOperation("setup", {}, options),
+      confirm: (/** @type {string} */ code, options = {}) => secondFactorOperation("confirm", { code }, options),
+      complete: (/** @type {{code?: string, recoveryCode?: string}} */ values, options = {}) => secondFactorOperation("complete", values, options),
+      cancel: () => {
+        if (secondFactorBusy) { secondFactorCancelled = true; return; }
+        discardSecondFactor();
+        if (!disposed && snapshot.twoFactor) publish("anonymous");
+      },
+    }),
     prepareExternalAuthentication,
     observeExternalAuthentication,
     resetPassword,
-    changePassword,
+    changePassword: (change, options = {}) => closeAuthenticatedSession(change, options, "changePassword"),
+    deleteAccount: (confirm, options = {}) => closeAuthenticatedSession(confirm, options, "deleteAccount"),
+    rotateAuthenticator: (rotate, options = {}) => closeAuthenticatedSession(rotate, options, "rotateAuthenticator"),
     confirmEmailChange,
     getSnapshot: () => snapshot,
     subscribe: (listener) => {
@@ -173,8 +195,9 @@ export function createSessionManager({
   /** @returns {Promise<SessionSnapshot>} Explicit restoration or shared in-flight work. */
   function restore() {
     assertActive();
+    if (secondFactorProof !== null) return Promise.resolve(snapshot);
     if (confirmingEmailChanges.size > 0) return Promise.allSettled([...confirmingEmailChanges]).then(() => snapshot);
-    if (changingPassword !== null) return changingPassword.then(() => snapshot, () => snapshot);
+    if (closingSession !== null) return closingSession.then(() => snapshot, () => snapshot);
     if (resetting !== null) return resetting.then(() => snapshot, error => {
       if (!disposed && snapshot.status === "initializing") setUnavailable(safeFailure(error));
       return snapshot;
@@ -339,7 +362,7 @@ export function createSessionManager({
     return coordinator.exclusive(async () => {
       await synchronize();
       if (signal?.aborted) throw createAbortError();
-      if (establishing !== null || authenticationPending || snapshot.status === "signingOut") {
+      if (establishing !== null || secondFactorProof !== null || secondFactorBusy || authenticationPending || snapshot.status === "signingOut") {
         throw new ApiError({ kind: "http", errorCode: "CLIENT_SESSION_BUSY" });
       }
       if (metadata === null) throw new ApiError({ kind: "network", errorCode: "CLIENT_SESSION_COORDINATION_UNAVAILABLE" });
@@ -377,6 +400,7 @@ export function createSessionManager({
   function establishSession(authenticate, { signal, expectedGeneration } = {}) {
     assertActive();
     if (signal?.aborted) return Promise.reject(createAbortError());
+    if (secondFactorBusy) return Promise.reject(new ApiError({ kind: "http", errorCode: "CLIENT_SESSION_BUSY" }));
     if (establishing !== null) {
       if (expectedGeneration !== undefined || establishingExternal) {
         return Promise.reject(new ApiError({ kind: "http", errorCode: "CLIENT_SESSION_BUSY" }));
@@ -416,19 +440,7 @@ export function createSessionManager({
         request: (path, options = {}) => api.request(path, { ...options, authentication: "none", csrf: true, signal: lifetime.signal }),
       });
       await verify(expected);
-      if (response.status !== 200) throw invalidResponse(response);
-      const token = readCredentials(response, now());
-      // Cookie ownership changed, even if identity loading fails afterward.
-      candidate = token;
-      authenticationPending = true;
-      pendingAuthenticationGeneration = metadata?.generation ?? null;
-      // Accepted credentials must disappear from views before asynchronous metadata writes.
-      publish("initializing");
-      await commitAuthenticationGeneration(expected);
-      api.invalidateCsrfToken();
-      publish("initializing");
-      await loadIdentity(token, expected);
-      return snapshot;
+      return acceptAuthentication(response, expected);
     }, { signal: waitingSignal }).catch(error => {
       if (!started && waitingSignal.aborted) error = createAbortError();
       if (ownsState && expected === revision && !disposed) {
@@ -456,6 +468,97 @@ export function createSessionManager({
       }
     });
     return waitForSession(establishing, waitingSignal);
+  }
+
+  /** @param {import("../api/apiClient.js").ApiResponse<unknown>} response Authentication result.
+   * @param {number} expected Current local generation.
+   */
+  async function acceptAuthentication(response, expected) {
+    if (response.status === 202) {
+      const deadline = secondFactorProof === null ? undefined : Date.parse(secondFactorProof.expiresAt);
+      try { secondFactorProof = readTwoFactorProof(response.data, now(), deadline); }
+      catch { throw invalidResponse(response); }
+      clearTimeout(secondFactorTimer);
+      secondFactorTimer = setTimeout(expireSecondFactor, Date.parse(secondFactorProof.expiresAt) - now());
+      publish("anonymous");
+      return snapshot;
+    }
+    const token = readCredentials(response, now());
+    discardSecondFactor();
+    candidate = token;
+    authenticationPending = true;
+    pendingAuthenticationGeneration = metadata?.generation ?? null;
+    publish("initializing");
+    await commitAuthenticationGeneration(expected);
+    api.invalidateCsrfToken();
+    publish("initializing");
+    await loadIdentity(token, expected);
+    return snapshot;
+  }
+
+  /** Each step holds the cookie lock only during HTTP, never while waiting for user input.
+   * @template {"setup" | "confirm" | "complete"} T
+   * @param {T} operation Allowed step.
+   * @param {{code?: string, recoveryCode?: string}} values View input.
+   * @param {{signal?: AbortSignal}} options Cancels waiting, not a submitted mutation.
+   * @returns {Promise<T extends "setup" ? {manualKey: string, otpAuthUri: string} : T extends "confirm" ? readonly string[] : SessionSnapshot>} Validated result.
+   */
+  function secondFactorOperation(operation, values, { signal }) {
+    assertActive();
+    if (signal?.aborted) return Promise.reject(createAbortError());
+    expireSecondFactor();
+    const proof = secondFactorProof;
+    if (proof === null) return Promise.reject(authenticationRequired());
+    if (secondFactorBusy) return Promise.reject(new ApiError({ kind: "http", errorCode: "CLIENT_SESSION_BUSY" }));
+    secondFactorBusy = true;
+    secondFactorCancelled = false;
+    const expected = revision;
+    const waitingSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
+    const pending = coordinator.exclusive(async () => {
+      await verify(expected);
+      if (secondFactorProof !== proof || waitingSignal.aborted || now() >= Date.parse(proof.expiresAt)) throw createAbortError();
+      // CSRF preparation can mutate cookies. Retain the lock, but recheck ownership
+      // before consuming an authenticator or recovery code after that request.
+      await api.refreshCsrfToken();
+      await verify(expected);
+      if (secondFactorProof !== proof || waitingSignal.aborted || secondFactorCancelled || now() >= Date.parse(proof.expiresAt)) throw createAbortError();
+      const path = { setup: "setup", confirm: "setup/confirmations", complete: "completions" }[operation];
+      const response = await api.request("/api/v1/auth/two-factor/" + path, {
+        method: "POST", body: { flow: proof.flow, code: values.code, recoveryCode: values.recoveryCode }, authentication: "none", csrf: true, signal: lifetime.signal,
+      });
+      await verify(expected);
+      if (operation === "complete") return acceptAuthentication(response, expected);
+      if (response.status !== 200) throw invalidResponse(response);
+      if (operation === "setup") return readTwoFactorSetup(response.data);
+      const codes = readRecoveryCodes(response.data);
+      secondFactorProof = Object.freeze({ ...proof, requiredAction: "complete" });
+      publish("anonymous");
+      return codes;
+    }, { signal: waitingSignal }).catch(error => {
+      if (expected === revision && !disposed && !isAbortError(error)) {
+        const safe = safeFailure(error);
+        if (authenticationPending) {
+          if (safe.statusCode === 401) abandonAuthentication();
+          else setUnavailable(safe);
+        } else if (safe.kind === "http" && safe.statusCode === 401) {
+          discardSecondFactor();
+          publish("anonymous", null, null, toUserFacingError(safe));
+        }
+      }
+      throw isAbortError(error) ? error : safeFailure(error);
+    }).finally(() => {
+      secondFactorBusy = false;
+      if (secondFactorCancelled && secondFactorProof !== null) { discardSecondFactor(); publish("anonymous"); }
+      expireSecondFactor();
+    });
+    return /** @type {Promise<T extends "setup" ? {manualKey: string, otpAuthUri: string} : T extends "confirm" ? readonly string[] : SessionSnapshot>} */ (waitForSession(pending, waitingSignal));
+  }
+
+  function discardSecondFactor() { secondFactorProof = null; clearTimeout(secondFactorTimer); }
+  function expireSecondFactor() {
+    if (secondFactorProof === null || secondFactorBusy || now() < Date.parse(secondFactorProof.expiresAt)) return;
+    discardSecondFactor();
+    publish("anonymous", null, null, toUserFacingError(new ApiError({ kind: "http", errorCode: "CLIENT_TWO_FACTOR_EXPIRED" })));
   }
 
   /** Publishes accepted cookie ownership without ever repeating the authentication POST.
@@ -552,22 +655,27 @@ export function createSessionManager({
     });
   }
 
-  /** Changes an authenticated password while retaining ownership of a started cookie mutation.
+  /** Ends an authenticated account operation while retaining ownership of its cookie mutation.
    * @param {ResetPassword} change Injected HTTP operation.
-   * @param {{signal?: AbortSignal}} [options] Cancels waiting, never an already submitted PUT.
+   * @param {{signal?: AbortSignal}} options Cancels waiting, never an already submitted mutation.
+   * @param {"changePassword" | "deleteAccount" | "rotateAuthenticator"} operation Purpose of the confirmed closure.
    * @returns {Promise<PasswordResetResult>} Confirmed write, separate from metadata reconciliation.
    */
-  function changePassword(change, { signal } = {}) {
+  function closeAuthenticatedSession(change, { signal }, operation) {
     assertActive();
     if (signal?.aborted) return Promise.reject(createAbortError());
-    if (changingPassword !== null) return waitForSession(changingPassword, signal);
+    if (closingSession !== null) {
+      if (closingOperation !== operation) return Promise.reject(new ApiError({ kind: "http", errorCode: "CLIENT_SESSION_BUSY" }));
+      return waitForSession(closingSession, signal);
+    }
     const expected = revision;
     const userId = snapshot.user?.id;
-    if (pendingResetClosure?.operation !== "changePassword" && (snapshot.status !== "authenticated" || userId === undefined)) return Promise.reject(authenticationRequired());
+    if (pendingResetClosure?.operation !== operation && (snapshot.status !== "authenticated" || userId === undefined)) return Promise.reject(authenticationRequired());
     const waitingSignal = AbortSignal.any([lifetime.signal, ...(signal ? [signal] : [])]);
     let submitted = false;
-    changingPassword = coordinator.exclusive(async () => {
-      if (pendingResetClosure?.operation === "changePassword") return finishPasswordReset();
+    closingOperation = operation;
+    closingSession = coordinator.exclusive(async () => {
+      if (pendingResetClosure?.operation === operation) return finishPasswordReset();
       await verify(expected);
       if (waitingSignal.aborted) throw createAbortError();
       await renewUnderLock(expected, userId);
@@ -576,17 +684,24 @@ export function createSessionManager({
       if (blocked || snapshot.status !== "authenticated" || snapshot.user?.id !== userId || credentials === null) throw authenticationRequired();
       submitted = true;
       const response = await change({ request: (path, options = {}) => api.request(path, {
-        ...options, authentication: "required", csrf: false, expectEmptyResponse: true, signal: lifetime.signal,
+        ...options, authentication: "required", csrf: operation === "rotateAuthenticator" && options.csrf === true,
+        expectEmptyResponse: operation !== "rotateAuthenticator", signal: lifetime.signal,
       }) });
-      if (response.status !== 204 || response.data !== null) throw invalidResponse(response);
+      let recoveryCodes;
+      if (operation === "rotateAuthenticator") {
+        if (response.status !== 200) throw invalidResponse(response);
+        recoveryCodes = readRecoveryCodes(response.data);
+      } else if (response.status !== 204 || response.data !== null) throw invalidResponse(response);
       if (disposed || expected !== revision) throw createAbortError();
       const previous = metadata;
       if (previous === null) throw unavailable();
       clearCredentials();
-      pendingResetClosure = { generation: previous.generation, logoutPending: blocked, operation: "changePassword" };
+      pendingResetClosure = { generation: previous.generation, logoutPending: blocked, operation };
       // The integration observes success before its lost-access handler destroys the view.
-      publish("anonymous", null, null, blocked ? logoutIssue() : null, "passwordChanged");
-      return finishPasswordReset();
+      const reason = { changePassword: "passwordChanged", deleteAccount: "accountDeleted", rotateAuthenticator: "authenticatorChanged" };
+      publish("anonymous", null, null, blocked ? logoutIssue() : null, /** @type {SessionSnapshot["endReason"]} */ (reason[operation]));
+      const closure = await finishPasswordReset();
+      return recoveryCodes === undefined ? closure : Object.freeze({ ...closure, recoveryCodes });
     }, { signal: waitingSignal }).catch(error => {
       if (disposed || expected !== revision || isAbortError(error)) throw createAbortError();
       const safe = safeFailure(error);
@@ -594,10 +709,15 @@ export function createSessionManager({
         candidate = null;
         if (safe.statusCode === 401) expire(safe);
         else setUnavailable(safe);
+      } else if (operation === "rotateAuthenticator" &&
+        (safe.kind !== "http" || safe.statusCode === 401 || (safe.statusCode ?? 0) >= 500)) {
+        // The server may already have rotated the factor and revoked every session.
+        // Abandon this grant locally without claiming success or replaying the mutation.
+        expire(safe);
       }
       throw safe;
-    }).finally(() => { changingPassword = null; });
-    return waitForSession(changingPassword, waitingSignal);
+    }).finally(() => { closingSession = null; closingOperation = null; });
+    return waitForSession(closingSession, waitingSignal);
   }
 
   /** Reconciles a confirmed reset or change without retaining or resending any credentials.
@@ -725,6 +845,7 @@ export function createSessionManager({
 
   /** Clears all private state and invalidates callers from the old generation. */
   function clearCredentials() {
+    discardSecondFactor();
     revision += 1;
     identityReadVersion += 1;
     tokenVersion += 1;
@@ -748,7 +869,8 @@ export function createSessionManager({
     if (disposed) return;
     invalidateExternalAuthentications(false);
     if (status !== "unavailable") failure = null;
-    snapshot = Object.freeze({ status, user, etag, logoutPending: blocked, authenticationPending, issue, ...(endReason ? { endReason } : {}) });
+    snapshot = Object.freeze({ status, user, etag, logoutPending: blocked, authenticationPending, issue, ...(endReason ? { endReason } : {}),
+      ...(secondFactorProof === null ? {} : { twoFactor: Object.freeze({ requiredAction: secondFactorProof.requiredAction, expiresAt: secondFactorProof.expiresAt }) }) });
     for (const listener of subscribers) listener(snapshot);
   }
 

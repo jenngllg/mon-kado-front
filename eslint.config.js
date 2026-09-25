@@ -3,7 +3,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["coverage/", "dist/"],
+    ignores: ["coverage/", "dist/", ".e2e-dist/", "playwright-report/", "test-results/"],
   },
   eslint.configs.recommended,
   {
@@ -15,7 +15,7 @@ export default [
     },
   },
   {
-    files: ["tools/**/*.js", "tests/**/*.js", "vite.config.js"],
+    files: ["tools/**/*.js", "tests/**/*.js", "e2e/**/*.js", "playwright.config.js", "vite.config.js"],
     languageOptions: {
       ecmaVersion: "latest",
       globals: globals.node,
@@ -51,7 +51,13 @@ export default [
       "tests/wishlistShareRenewDialog.test.js",
       "tests/wishlistShareRevokeDialog.test.js",
       "tests/sharedWishlistView.test.js",
+      "tests/reservationHistoryView.test.js",
       "tests/sharedWishView.test.js",
+      "tests/giftReservationSection.test.js",
+      "tests/reservationCreateForm.test.js",
+      "tests/reservationEditForm.test.js",
+      "tests/reservationCancelDialog.test.js",
+      "tests/sharedSessionView.test.js",
       "tests/wishlistParticipationSection.test.js",
       "tests/memberWishlistParticipationSection.test.js",
       "tests/sharedWishlistApplication.test.js",
@@ -69,6 +75,12 @@ export default [
       "tests/googleView.test.js",
       "tests/googleApplication.test.js",
       "tests/googleLinkView.test.js",
+      "tests/twoFactorView.test.js",
+      "tests/twoFactorGoogle.test.js",
+      "tests/accountDeletionView.test.js",
+      "tests/personalDataView.test.js",
+      "tests/authenticatorView.test.js",
+      "tests/authenticatorViewState.test.js",
       "tests/wishDeleteDialog.test.js",
       "tests/wishesReorderView.test.js",
       "tests/wishReorderDrag.test.js",

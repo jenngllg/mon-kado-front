@@ -11,6 +11,23 @@ const viewStyles = readStyleFile("../src/styles/views.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
+  it("keeps reservation confirmation gutters bounded by the viewport with enlarged text", () => {
+    const dialog = viewStyles.match(/(?:^|\n)\.reservation-cancel-dialog\s*\{([^}]+)\}/)?.[1];
+    expect(dialog).toContain("width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)))");
+    expect(dialog).toContain("padding-inline: min(var(--space-6), 4vw)");
+  });
+  it("preserves the flow spacing above the reservation editor and wraps its actions", () => {
+    const editor = viewStyles.match(/\.reservation-edit-group\s*\{([^}]+)\}/)?.[1];
+    expect(editor).toContain("margin-inline: 0");
+    expect(editor).not.toMatch(/margin\s*:|margin-block-start\s*:/);
+    expect(layoutStyles.match(/\.cluster\s*\{([^}]+)\}/)?.[1]).toContain("flex-wrap: wrap");
+    expect(viewStyles.match(/\.wishlist-form__actions\s*\{([^}]+)\}/)?.[1]).toContain("--cluster-space: var(--space-3)");
+  });
+  it("keeps the availability filter target touch accessible and its long label wrappable", () => {
+    expect(viewStyles.match(/\.shared-wishlist-filter\s*\{([^}]+)\}/)?.[1]).toContain("min-block-size: var(--control-min-size)");
+    expect(viewStyles.match(/\.shared-wishlist-filter span\s*\{([^}]+)\}/)?.[1]).toContain("overflow-wrap: anywhere");
+    expect(viewStyles.match(/\.shared-wishlist-filter input\s*\{([^}]+)\}/)?.[1]).toContain("flex-shrink: 0");
+  });
   it("keeps private share URLs bounded and actions wrapping at narrow widths", () => {
     expect(viewStyles.match(/\.wishlist-share textarea\s*\{([^}]+)\}/)?.[1]).toContain("min-inline-size: 0");
     expect(viewStyles.match(/\.wishlist-share__actions\s*\{([^}]+)\}/)?.[1]).toContain("flex-wrap: wrap");
@@ -206,7 +223,7 @@ describe("graphic foundations", () => {
     expect(viewStyles.match(/\.wish-reorder-commands button\s*\{([^}]+)\}/)?.[1]).toContain("white-space: normal");
   });
   it("bounds the native gift modal to the viewport with internal scrolling and token-based presentation", () => {
-    const modal = viewStyles.match(/\.wish-delete-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1] ?? "";
+    const modal = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(modal).toContain("width: min(var(--content-narrow), calc(100% - var(--space-6)))");
     expect(modal).toContain("max-height: calc(100dvh - var(--space-6))");
     expect(modal).toContain("overflow: auto");
@@ -214,6 +231,7 @@ describe("graphic foundations", () => {
     expect(modal).toContain("overflow-wrap: anywhere");
     expect(modal).toContain("background: var(--color-surface)");
     expect(viewStyles).toContain(".wish-delete-dialog::backdrop");
+    expect(viewStyles).toContain(".reservation-cancel-dialog::backdrop");
     expect(viewStyles.match(/\.wish-edit-view__deletion\s*\{([^}]+)\}/)?.[1]).toContain("border-block-start: 1px solid var(--color-border)");
   });
   it("separates deletion from editing and wraps the destructive confirmation at enlarged text sizes", () => {
@@ -249,5 +267,5 @@ describe("graphic foundations", () => {
  * @returns {string} Stylesheet contents.
  */
 function readStyleFile(relativePath) {
-  return readFileSync(new URL(relativePath, import.meta.url), "utf8");
+  return readFileSync(new URL(relativePath, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 }

@@ -2,6 +2,188 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Publication approuvée sur le VPS — #811
+
+La cible retenue est le VPS existant, et non GitHub Pages. Le site canonique est
+`https://www.monkado.fr`, avec redirection de l'apex, et l'API reste
+`https://api.monkado.fr`. Aucun abonnement supplémentaire ni serveur Node permanent.
+
+Le workflow manuel `Publish approved frontend` publie uniquement un commit de
+`develop` dont la quality gate est verte, après approbation de l'environnement
+`production`. Un merge seul ne déploie rien. Il construit avec l'API de production
+et le choix Google approuvé dans `publication.json`, vérifie le contrat OpenAPI public, puis publie une archive
+statique et son manifeste sous une release immuable liée au commit.
+
+Le pointeur `frontend-production` n'est mis à jour qu'après publication complète.
+Le VPS le récupère avec son propre service, vérifie checksum, configuration et
+révision backend, puis bascule atomiquement le répertoire servi par Caddy. Aucun
+secret backend, PAT ou clé SSH de déploiement n'est transmis à ce workflow.
+
+Prérequis : installer et publier les changements backend #811 avant la première
+publication frontend ; configurer explicitement l'approbation de l'environnement
+`production`. La procédure opérateur, les verrous #813, les limites d'archives,
+le retour arrière et les tests HTTPS sont documentés dans le dépôt backend,
+`deployments/frontend/README.md`. Aucun DNS, merge ou déploiement n'est autorisé
+automatiquement par la présence de ces fichiers. La mise en ligne technique ne
+remplace pas les pages juridiques validées ni le smoke test Google séparé.
+
+## Bêta, confidentialité et connexion — #828
+
+La bêta ne filtre pas les inscriptions par liste d’e-mails ; la confirmation de
+l’adresse reste exigée par les parcours existants. Les écrans MFA, la gestion de
+l’authentificateur, l’export et la confirmation de suppression utilisent les
+contrats authentifiés existants, sans nouveau service externe.
+
+Les pages légales sont des brouillons statiques à approuver. Google reste désactivé
+et `legalApproved` reste à `false` : le build local fonctionne mais la publication
+est bloquée. La procédure de validation, les informations manquantes et l’ordre de
+publication backend/frontend sont dans [le runbook #828](deployments/publication-readiness.md).
+
+## Contrôles des merge requests — #934
+
+Le workflow `Frontend quality` s'exécute sur chaque MR et push vers `develop` ou
+`main`, ainsi que manuellement. Node 24 et la version pnpm du dépôt sont utilisés
+avec installation figée, lint, checkJs, tests/couverture, build et Chromium.
+Il n'y a aucun retry de test ni étape autorisée à échouer silencieusement.
+
+Un job séparé extrait le backend public `develop` dans une copie propre, affiche
+sa révision, construit et démarre API, migrations, PostgreSQL et Caddy jetables.
+Il vérifie les types contre ce contrat réel sur le port 7000, sans Worker,
+Google, compte réel ou secret existant. Une dérive fait échouer la MR : examiner
+le changement avant toute régénération, ne jamais modifier les types à la main.
+L'attente bornée de démarrage n'est pas un retry des contrôles contractuels.
+
+Les actions sont épinglées par SHA, les permissions sont en lecture seule,
+les credentials Git ne sont pas persistés et les PR ne reçoivent aucun secret
+de déploiement. Les anciennes exécutions de la même référence sont annulées.
+Les traces et captures de navigateur ne contiennent que les fixtures synthétiques
+et sont conservées trois jours après échec. Aucun log backend brut n'est publié.
+
+Le contrôle agrégé `Frontend quality gate` exige la réussite des deux jobs.
+Il est requis sur `develop`, à jour de sa base, avec passage par MR, historique
+linéaire, conversations résolues et interdiction du push forcé, y compris pour
+les administrateurs. Aucun second approbateur n'est imposé sur ce dépôt individuel.
+La branche `main` n'existe pas encore : appliquer la même protection à sa création.
+La configuration Caddy est également validée dans un conteneur sans réseau ni port
+publié. La CI ne déploie rien.
+
+## Politique HTTP du frontend déployé — #932
+
+`deployments/caddy/Caddyfile` définit un site frontend à importer dans Caddy sur
+le VPS, en conservant le site API existant. Servir exclusivement le répertoire
+`dist/` du build, jamais le dépôt. Variables d'environnement du serveur :
+
+- `FRONTEND_HOST` : nom HTTPS du frontend, par exemple `app.example.fr`.
+- `FRONTEND_ROOT` : chemin absolu du build monté en lecture seule.
+- `FRONTEND_API_ORIGIN` : origine HTTPS exacte de l'API, sans chemin ni slash
+  final, correspondant à `VITE_API_BASE_URL` utilisé lors du build.
+
+Frontend et API doivent partager le même domaine enregistrable pour les cookies
+SameSite du backend. Ces valeurs sont des exemples, pas des domaines déployés.
+Valider la configuration avec `caddy validate --config <Caddyfile>` avant reload.
+
+La CSP refuse les scripts externes, inline et eval, les frames, objets et bases
+HTML ; seules les ressources locales, l'origine API et les aperçus d'image
+`blob:`/`data:` sont autorisés. Les attributs de style restent autorisés pour
+les interactions existantes, sans autoriser les blocs de style inline.
+Google reste désactivé. Aucun collecteur de rapports CSP n'est configuré afin
+de ne pas transmettre des URL privées. Aucun journal d'accès n'est activé ici.
+
+Les documents, routes SPA, erreurs et fichiers non fingerprintés sont `no-store`.
+Seuls les fichiers existants sous `/assets/`, avec empreinte et extension admise,
+sont immuables pendant un an. Les assets absents, sources, fichiers cachés,
+source maps et chemins API ne reçoivent pas le document SPA de remplacement.
+Les seules méthodes servies sont GET et HEAD.
+
+Toutes les réponses portent nosniff, anti-embedding, no-referrer et une politique
+restrictive des permissions, tout en autorisant la copie explicite. L'indexation
+est désactivée pour tout ce frontend applicatif, y compris les liens partagés ;
+ce n'est pas une protection d'accès. HSTS est limité au nom servi, sans
+`includeSubDomains` ni preload ; ne l'activer sur un domaine réel qu'avec HTTPS
+opérationnel. Les contrôles HTTP locaux ne valident pas les certificats publics.
+
+Les tests Chromium réutilisent la CSP du fichier avec l'origine API contrôlée.
+Les tests de contrat de configuration complètent, sans remplacer, les vérifications
+HTTP sur Caddy. Le déploiement réel et ses contrôles HTTPS relèvent de #935.
+
+## Sécurité dans le navigateur — #931
+
+Le transport commun refuse les redirections, utilise `cache: "no-store"` pour
+ne pas lire ni alimenter le cache HTTP et `referrerPolicy: "no-referrer"` pour
+ne pas transmettre la route courante à l'API, y compris lors de l'antiforgery.
+Ces mesures ne remplacent pas les en-têtes serveur ni HTTPS (#932/#935).
+
+Les titres, messages et textes de validation bruts du backend ne sont pas
+conservés dans les erreurs normalisées : seuls les chemins de validation servent
+aux messages français locaux. Les contenus métier sont insérés comme texte ;
+les URL produit sont limitées à HTTP(S) sans identifiants, et les images privées
+à leur origine et chemin API attendus. Les liens produit ouverts ailleurs
+conservent `noopener noreferrer`.
+
+Les secrets de partage et JWT restent en mémoire ; la coordination de session
+ne persiste que ses métadonnées techniques. Le cookie invité reste HttpOnly,
+géré par le backend. Les sources d'images et aperçus locaux sont nettoyés au
+départ. Un scénario Chromium vérifie du HTML hostile, une URL JavaScript et
+l'absence du secret de partage dans le DOM, l'URL nettoyée et les stockages.
+Ces contrôles ne constituent pas un test d'intrusion ni une garantie contre
+une extension malveillante, un appareil compromis ou une capture par le visiteur.
+
+## Parcours navigateur permanents — #930
+
+Après `pnpm install --frozen-lockfile`, installer Chromium avec
+`pnpm test:e2e:install`, puis lancer `pnpm test:e2e`. Le port 5173 doit être
+libre : le runner refuse de réutiliser un serveur existant et ne change pas de
+port. Il construit une application dédiée dans `.e2e-dist/`, démarre son propre
+serveur de prévisualisation et l'arrête à la fin.
+
+Les scénarios traversent le vrai frontend dans Chromium avec une API contrôlée
+isolée par contexte navigateur : connexion et déconnexion inter-onglets,
+création/suppression de liste, ajout/édition/suppression de cadeau, lien partagé
+et perte du contexte après rechargement, révocation, validation et résultat
+incertain de participation, réservation avec conflit puis annulation, menu mobile.
+Les mutations sont vérifiées par leurs requêtes et les états visibles ; les
+tests n'utilisent ni délais arbitraires ni retry automatique.
+
+Toutes les requêtes vers l'API sont interceptées, les destinations externes
+bloquées et les appels non prévus font échouer les assertions. Aucun backend ni
+compte réel n'est nécessaire. Ces contrôles ne prouvent pas la persistance réelle,
+le fonctionnement des cookies serveur, HTTPS, les fournisseurs externes ni la
+compatibilité Firefox/Safari. Ils complètent les tests unitaires et les audits.
+
+`playwright-report/`, `test-results/` et `.e2e-dist/` sont ignorés par Git.
+Une trace et des captures sont conservées seulement après échec, avec des données
+synthétiques exclusivement. Ne pas réutiliser ce runner avec des secrets réels.
+Les fichiers E2E et leur configuration sont vérifiés par `pnpm typecheck` et ESLint.
+L'exécution automatique dans les merge requests est traitée par #934.
+
+## Tests et couverture — #929
+
+`pnpm test` exécute les tests unitaires et les intégrations Happy DOM.
+`pnpm test:coverage` exécute la même suite avec le fournisseur V8, de même version
+que Vitest. Il mesure explicitement **tous** les fichiers JavaScript de `src/`
+et `tools/`, y compris les fichiers non importés par les tests. Aucun fichier
+applicatif n'est exclu pour améliorer le résultat ; les déclarations OpenAPI
+générées (`.d.ts`) ne contiennent pas de code exécutable.
+
+Les rapports HTML, LCOV et JSON sont produits dans `coverage/`, ignoré par Git.
+Le rapport HTML permet d'identifier les branches manquantes avant d'écrire des
+tests ciblés. Les rapports sont des artefacts locaux/CI, pas des fichiers à commiter.
+
+Le socle mesuré après consolidation contient 3 002 tests : 97,70 % des lignes,
+94,28 % des instructions, 94,45 % des fonctions et 89,76 % des branches. Ces valeurs
+sont les seuils globaux bloquants, sans réduction automatique. Les attentes de
+session indépendantes et le moteur de correspondance des routes sont contrôlés
+à 100 % pour les quatre métriques. L'objectif reste de compléter la couverture :
+le socle existant n'atteint pas encore 100 %, notamment dans le câblage des routes,
+les chemins de secours du routeur et l'outillage OpenAPI. Ces lacunes restent
+visibles dans le rapport ; aucun seuil à 100 % global ni couverture exhaustive
+n'est revendiqué.
+
+Un échec doit être corrigé, jamais masqué par un retry, un test désactivé ou une
+exclusion. Utiliser des promesses contrôlées et horloges simulées pour les courses
+et délais. Happy DOM ne prouve pas le rendu, les cookies réels ou le focus natif :
+les parcours navigateur permanents relèvent de #930, leur exécution CI de #934.
+
 ## Droits et disponibilité du partage — #903
 
 | Accès | Actions proposées |
@@ -336,8 +518,13 @@ opaque : le hook `onUnauthorized` ignore les réponses d’un ancien JWT, sans
 exposer ce JWT au hook ni utiliser son expiration comme identité de requête.
 Le délai couvre aussi la lecture du corps de réponse. Les redirections HTTP
 sont refusées pour empêcher tout transfert des en-têtes de partage ou CSRF.
-Seule une erreur antiforgery `400` non structurée peut être rejouée une fois,
-après renouvellement du jeton CSRF.
+Seule une erreur antiforgery `400` non structurée ou portant le code
+`SECURITY_CSRF_VALIDATION_FAILED` peut être rejouée une fois, après renouvellement
+du jeton CSRF. Les autres erreurs structurées ne sont pas rejouées.
+Les jetons CSRF anonymes et authentifiés restent dans des caches mémoire
+distincts : leur lecture utilise exactement l’identité retenue pour la mutation.
+Un changement de JWT renouvelle le cache authentifié ; une invalidation de session
+efface les deux caches. Aucun JWT n’est ajouté aux demandes anonymes.
 
 `router.presentError()` ne réutilise comme traduction que les objets produits
 par `toUserFacingError()` ; un objet brut est toujours normalisé. Les liens
@@ -1652,6 +1839,156 @@ déjà reçu ni son éventuel Set-Cookie. La participation avec un compte et le
 rattachement après connexion restent dans leurs US dédiées.
 
 ## Périmètre actuel
+
+### Quantités des cadeaux partagés — #917
+
+La liste partagée et le détail d’un cadeau affichent les quantités souhaitées,
+réservées et disponibles renvoyées par le backend. Une disponibilité nulle est
+signalée par « Entièrement réservé ». La quantité personnelle n’apparaît que
+lorsque l’identité de session est résolue et reconnue par le backend.
+
+Les lectures d’un membre utilisent son JWT ; celles d’un invité restent anonymes
+avec les cookies du transport. Le secret de partage reste requis dans son en-tête.
+Les changements de compte ou de session détruisent l’ancienne vue et relisent les
+données, sans conserver la quantité personnelle précédente. Un refus `401` d’une
+lecture authentifiée conserve le traitement de session habituel ; une erreur
+anonyme ne déconnecte pas un compte. L’actualisation reste explicite hors changement
+d’identité : aucune disponibilité en temps réel n’est promise.
+
+Les noms des autres participants sont écartés. Les cartes propriétaire restent
+sans information de réservation. Aucun filtre, pagination ni mutation de
+réservation n’est ajouté par cette US.
+
+### Réservation courante (#918)
+
+Le détail partagé lit « Ma réservation » après résolution de la session : JWT
+pour le membre, cookie HttpOnly du transport pour l’invité, et secret de partage
+dans l’en-tête dédié. Cette lecture ne crée ni participation ni réservation.
+L’ETag individuel validé n’est jamais affiché. La projection écarte les données
+inutilisées et toute identité d’un autre participant.
+
+Une réservation absente se distingue d’une participation non reconnue. Une panne
+technique reste locale à la section ; l’actualisation est explicite et conserve
+les règles communes de corrélation et de limitation de débit. Les changements
+de compte, le départ et les pertes d’accès détruisent la lecture et ses données.
+La reconnaissance invitée dépend du cookie de ce navigateur ; aucune récupération
+automatique ni mutation n’est promise par ce parcours.
+
+### Réserver un cadeau (#919)
+
+Après lecture de la réservation courante, une participation reconnue sans
+réservation peut choisir une quantité entière de 1 à 100 dans la disponibilité
+connue. La confirmation explicite crée avec `PUT`, CSRF et sans `If-Match` ;
+une réservation existante n’est jamais remplacée par ce parcours.
+
+Le succès `201` avec ETag individuel verrouille le formulaire, puis le détail
+est relu sans mise à jour optimiste. Les actualisations sont désactivées pendant
+l’opération. Conflits et résultats incertains imposent une vérification de la
+disponibilité et de la réservation avant une nouvelle confirmation explicite.
+Une réservation retrouvée n’est pas attribuée à la tentative incertaine.
+La saisie reste seulement en mémoire ; quitter la page ou changer de session
+annule l’attente sans garantir l’annulation d’une écriture déjà reçue.
+
+### Modifier la quantité réservée (#920)
+
+Une réservation reconnue propose une quantité préremplie et une annulation
+locale. L’enregistrement utilise son ETag individuel avec `If-Match`, jamais
+celui du cadeau ou de la collection. Une quantité inchangée n’est pas envoyée.
+Une diminution reste possible lorsque la disponibilité est nulle ; augmenter
+reste limité à la quantité actuelle plus la disponibilité connue, sous réserve
+de la décision du backend.
+
+Après conflit ou résultat incertain, la saisie reste conservée et une vérification
+explicite relit cadeau et réservation. La quantité serveur est présentée avant
+la décision d’enregistrer la saisie ou de l’adopter par annulation locale.
+Cette vérification actualise aussi les quantités souhaitée, réservée et disponible
+du détail, ainsi que l’état de reconnaissance de la réservation, sans remplacer
+le formulaire ni sa saisie. Une réponse liée à une vue détruite ou remplacée
+ne réaffiche pas ces informations.
+Une réservation disparue n’est jamais recréée automatiquement. Le succès est
+conservé si la relecture suivante échoue ; seule cette lecture peut être reprise.
+
+### Annuler ma réservation (#921)
+
+Une confirmation native relit le cadeau et la réservation avant d’afficher
+son nom et la quantité concernée. Fermer avant envoi conserve la saisie d’édition.
+Le DELETE explicite utilise l’ETag individuel et le CSRF, sans corps ni rejeu
+supplémentaire. Seul un `204` confirme l’annulation ; une absence ultérieure
+ne prouve pas le résultat d’une tentative incertaine.
+
+Les conflits et résultats incertains imposent une relecture et une nouvelle
+confirmation. Après une tentative, l’édition reste bloquée jusqu’à actualisation
+complète du cadeau. Pendant l’envoi, la fermeture locale est désactivée ; quitter
+la vue ou changer de session ferme néanmoins immédiatement la modale et ignore
+la réponse tardive. Cela ne garantit pas l’annulation du DELETE serveur.
+Après succès, le détail est relu et affiche « Réservation annulée ».
+
+### Cadeaux disponibles (#922)
+
+La liste partagée propose un filtre local à la vue, désactivé par défaut.
+Chaque activation ou désactivation relit la collection via le backend :
+`availableOnly=true` lorsqu’il est actif, aucun paramètre lorsqu’il est inactif.
+Le frontend ne retrie ni ne filtre les résultats et n’ajoute pas de pagination.
+Le backend conserve aussi les cadeaux déjà réservés par le participant courant,
+même lorsque leur disponibilité est nulle ; l’aide du filtre le précise.
+
+Un résultat filtré vide invite à désactiver le filtre, sans affirmer que la liste
+ne contient aucun cadeau. Le choix reste conservé pendant une actualisation ou
+un réessai de cette vue, mais n’est ni persisté ni transféré entre onglets.
+Un changement d’identité reconstruit la vue et repart sans filtre. Les lectures
+concurrentes sont bloquées ; un refus d’accès retire les résultats et invalide
+les réponses tardives. Aucun appel de réservation n’est déclenché par le filtre.
+
+### Historique personnel des réservations (#923)
+
+`/reservations` lit des pages de 20 entrées depuis le compte connecté,
+sans contexte partagé ni cookie invité exploité par JavaScript. Les entrées
+suivent l’ordre serveur (activité la plus récente), sans tri local. Le total
+et la page courante sont explicités. Cette pagination ne concerne pas les cadeaux.
+
+Une entrée décrit un cycle de réservation : dernière quantité, état actif,
+annulé ou indisponible, dates de création, dernière activité et fin éventuelle.
+Ce n’est pas un journal de chaque changement. Les dates sont affichées en UTC.
+Les noms peuvent être ceux conservés par le backend après disparition du cadeau.
+L’historique n’expose ni autres participants, ni secrets, ni commandes de gestion.
+Un identifiant de partage ne suffit pas à reconstruire l’accès : il faut rouvrir
+le lien reçu. L’affichage est relu à chaque ouverture/actualisation, sans cache
+persistant, et retiré au départ ou au changement de session.
+
+### Filtrer et parcourir l’historique (#924)
+
+Le filtre natif propose toutes les réservations, les actives, les annulées ou
+les indisponibles. Son application est explicite et revient à la première page.
+Les commandes précédent/suivant sont présentes au-dessus et sous les résultats,
+désactivées aux extrémités ; chaque action effectue une nouvelle lecture serveur.
+Le service contrôle les bornes de page et de taille (1 à 100), les métadonnées
+et le statut des résultats, sans filtrage local, préchargement ou retry ajouté.
+
+L’actualisation et les réessais conservent la page et le filtre appliqués. Si
+la page demandée a disparu, une action explicite permet de rejoindre la dernière
+page disponible, ou la première lorsque l’historique est vide. Aucun rattrapage
+automatique en boucle. Le choix reste uniquement dans la vue montée et est
+réinitialisé après départ ou changement de compte. Un filtre sans résultat est
+distingué d’un historique entièrement vide ; aucune mutation n’est déclenchée.
+
+### Changements d’accès et de session des réservations (#925)
+
+Une perte d’accès n’annule pas une réservation : le frontend ne lance aucune
+mutation pour « nettoyer » un changement de compte, une déconnexion, un cookie
+invité non reconnu ou un partage révoqué. Les données personnelles et brouillons
+restent liés à la vue et à l’identité résolue ; les réponses anciennes sont
+ignorées après destruction ou remplacement du contexte. Le cookie invité reste
+géré par le backend, sans accès JavaScript ni promesse de récupération.
+
+Un cadeau introuvable retire uniquement son détail et conserve le contexte de
+liste ; un partage inaccessible retire aussi le contexte. Une participation
+non reconnue retire la quantité personnelle devenue obsolète, sans retirer les
+informations publiques encore accessibles. Une confirmation précédente n’est
+plus affichée après un refus terminal. Les résultats incertains restent soumis
+à relecture explicite, sans annulation, recréation ou rattachement automatique.
+Le renouvellement ou la révocation à distance se constate à la prochaine requête, sans
+polling ni promesse de propagation instantanée. L’historique membre est retiré
+à la déconnexion et relu pour le compte suivant, sans repli invité.
 
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités

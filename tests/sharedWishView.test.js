@@ -6,7 +6,7 @@ import { createSharedWishView } from "../src/features/sharing/sharedWishView.js"
 import { barrier } from "./sessionTestHelpers.js";
 const shareLinkId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
 /** @type {import("../src/features/sharing/sharedWishlistService.js").SharedWishDetail} */
-const wish = { id: wishId, name: "Un cadeau", note: "  Une note\ncomplète <script>texte</script>  ", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false };
+const wish = { id: wishId, name: "Un cadeau", note: "  Une note\ncomplète <script>texte</script>  ", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false, reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity: 1 };
 /** @type {HTMLElement[]} */ const views = [];
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
 /** @param {Partial<Parameters<typeof createSharedWishView>[0]>} [options] Dependencies. */
@@ -19,6 +19,56 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("shared gift presentation", () => {
+  it("ignores verification from an earlier reservation section after refreshing the gift", async () => {
+    // Arrange
+    /** @type {Array<(value: typeof wish) => void>} */
+    const callbacks = [];
+    const ui = setup({ createReservation: (_missing, _wish, _saved, _busy, _lost, fresh) => {
+      callbacks.push(fresh);
+      return document.createElement("section");
+    } });
+    await settle();
+
+    // Act
+    ui.button("Actualiser le cadeau").click();
+    await settle();
+    callbacks[0]({ ...wish, quantity: 99, availableQuantity: 98 });
+
+    // Assert
+    expect(callbacks).toHaveLength(2);
+    expect(ui.view.textContent).toContain("Quantité souhaitée : 2");
+    expect(ui.view.textContent).not.toContain("Quantité souhaitée : 99");
+  });
+
+  it("updates verified quantities without replacing the reservation draft and ignores detached callbacks", async () => {
+    let verified = (/** @type {typeof wish} */ value) => { void value; };
+    const input = document.createElement("input"); input.value = "1";
+    const ui = setup({ createReservation: (_missing, _wish, _saved, _busy, _lost, fresh) => { verified = fresh; return input; } });
+    await settle(); verified({ ...wish, quantity: 5, reservedQuantity: 3, availableQuantity: 2, currentParticipantReservedQuantity: 3 });
+    expect(ui.view.textContent).toContain("Quantité souhaitée : 5"); expect(ui.view.textContent).toContain("Quantité disponible : 2"); expect(ui.view.textContent).toContain("Ma quantité réservée : 3");
+    expect(ui.view.querySelector("input")).toBe(input); expect(input.value).toBe("1"); expect(ui.loadOne).toHaveBeenCalledOnce();
+    disposeComponent(ui.view); verified(wish); expect(ui.view.querySelector(".shared-wish-quantities")).toBeNull();
+  });
+  it.each(["context", "gift"])("removes an earlier reservation confirmation after terminal %s loss", async kind => {
+    const access = new AbortController(); let saved = () => {}, missing = () => {};
+    const ui = setup({ accessSignal: access.signal, createReservation: (onMissing, _wish, onSaved) => { saved = onSaved; missing = onMissing; return document.createElement("section"); } });
+    await settle(); saved(); await settle(); expect(ui.view.textContent).toContain("Réservation enregistrée");
+    if (kind === "context") access.abort(); else missing();
+    expect(ui.view.textContent).not.toContain("Réservation enregistrée"); expect(ui.view.querySelector("img, .shared-wish-quantities")).toBeNull();
+    saved(); await settle(); expect(ui.view.textContent).not.toContain("Réservation enregistrée");
+  });
+  it("removes obsolete personal quantities without hiding public information when guest recognition is lost", async () => {
+    let unrecognized = () => {};
+    const ui = setup({ createReservation: (_missing, _wish, _saved, _busy, lost) => { unrecognized = lost; return document.createElement("section"); } });
+    await settle(); const personal = ui.view.querySelector(".shared-wish-quantities__personal"); expect(personal?.textContent).toContain("1");
+    unrecognized(); expect(personal?.textContent).toBe(""); expect(ui.view.textContent).not.toContain("Ma quantité réservée"); expect(ui.view.textContent).toContain("Quantité disponible : 0"); expect(ui.view.querySelector("h1")?.textContent).toBe(wish.name);
+  });
+  it("clears an earlier success when a new reservation operation starts", async () => {
+    let saved = (/** @type {string | undefined} */ message) => { void message; }, busy = (/** @type {boolean} */ value) => { void value; };
+    const ui = setup({ createReservation: (_missing, _wish, onSaved, onBusy) => { saved = onSaved; busy = onBusy; return document.createElement("section"); } });
+    await settle(); saved("Réservation modifiée"); await settle(); expect(ui.view.textContent).toContain("Réservation modifiée");
+    busy(true); expect(ui.view.textContent).not.toContain("Réservation modifiée"); expect(ui.button("Actualiser le cadeau").disabled).toBe(true);
+  });
   it("invalidates the mounted detail independently of its own pending request", async () => {
     const access = new AbortController(), gate = barrier(); let sent = /** @type {AbortSignal | null} */ (null); const ui = setup({ accessSignal: access.signal, loadOne: async (_id, _wish, { signal }) => { sent = signal; await gate.promise; return wish; } }); access.abort(); gate.resolve(); await settle(); expect(/** @type {AbortSignal | null} */ (sent)?.aborted).toBe(true); expect(ui.view.querySelector("h1")?.textContent).toBe("Lien de partage indisponible"); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.textContent).not.toContain(wish.note);
   });

@@ -72,8 +72,13 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   const notificationRegion = createNotificationRegion();
   const sessionFeedback = document.createElement("div");
   sessionFeedback.className = "app-session-feedback container container--regular";
+  sessionFeedback.setAttribute("role", "region");
+  sessionFeedback.setAttribute("aria-label", "État de la session");
   sessionFeedback.hidden = true;
-  element.append(skipLink, header, sessionFeedback, outlet, notificationRegion);
+  const footer = document.createElement("footer");
+  footer.className = "container container--regular";
+  footer.append(createLegalLinks());
+  element.append(skipLink, header, sessionFeedback, outlet, footer, notificationRegion);
   // Native focus scrolling can leave a field behind the sticky header.
   addComponentEventListener(element, outlet, "focusin", event => {
     const target = event.target;
@@ -284,3 +289,4 @@ function getActiveNavigationRoute(routeName) {
 function navigationRouteExists(routeName) {
   return NavigationItems.some((item) => item.routeName === routeName);
 }
+import { createLegalLinks } from "../components/legalLinks.js";

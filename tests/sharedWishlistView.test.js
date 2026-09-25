@@ -6,7 +6,7 @@ import { createSharedWishlistView, createSharedWishlistEntryView } from "../src/
 import { barrier } from "./sessionTestHelpers.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 /** @type {import("../src/features/sharing/sharedWishlistService.js").SharedWishlist} */
-const list = { id, name: "Une belle liste", ownerDisplayName: "Camille", occasion: "birthday", eventDate: "2024-02-29", message: "Message\nmultiligne", wishes: [{ id, name: "Un cadeau", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false }] };
+const list = { id, name: "Une belle liste", ownerDisplayName: "Camille", occasion: "birthday", eventDate: "2024-02-29", message: "Message\nmultiligne", wishes: [{ id, name: "Un cadeau", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: null }] };
 /** @type {HTMLElement[]} */ const views = [];
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
 /** @param {Partial<Parameters<typeof createSharedWishlistView>[0]>} [options] Injectable options. */
@@ -18,6 +18,35 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it("filters through fresh reads without local exclusion, retains own full gifts, and restores the full collection", async () => {
+    const ui = setup(); await settle();
+    const filter = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="checkbox"]'));
+    expect(filter.checked).toBe(false); expect(ui.load.mock.calls[0][1].availableOnly).toBe(false);
+    expect(filter.closest("label")?.textContent).toContain("Afficher uniquement les cadeaux disponibles");
+    expect(document.getElementById(filter.getAttribute("aria-describedby") ?? "")?.textContent).toContain("déjà réservés");
+    ui.load.mockResolvedValue({ ...list, wishes: [{ ...list.wishes[0], availableQuantity: 0, reservedQuantity: 2, currentParticipantReservedQuantity: 1 }] });
+    filter.click(); await settle();
+    expect(ui.load.mock.calls[1][1].availableOnly).toBe(true); expect(ui.view.querySelectorAll("li")).toHaveLength(1);
+    expect(document.activeElement).toBe(filter); expect(ui.view.textContent).toContain("1 cadeau affiché.");
+    filter.click(); await settle(); expect(ui.load.mock.calls[2][1].availableOnly).toBe(false);
+  });
+  it("keeps the filter through errors and retry, distinguishes filtered emptiness, and blocks duplicate reads", async () => {
+    const ui = setup(); await settle(); const gate = barrier();
+    const filter = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="checkbox"]'));
+    ui.load.mockImplementation(async () => { await gate.promise; throw new ApiError({ kind: "network" }); });
+    filter.click(); filter.click(); expect(filter.disabled).toBe(true); expect(ui.load).toHaveBeenCalledTimes(2); expect(ui.view.querySelector("li")).toBeNull();
+    gate.resolve(); await settle(); expect(filter.checked).toBe(true); expect(document.activeElement?.getAttribute("role")).toBe("alert");
+    ui.load.mockResolvedValue({ ...list, wishes: [] }); ui.button("Réessayer").click(); await settle();
+    expect(ui.load.mock.calls[2][1].availableOnly).toBe(true); expect(ui.view.textContent).toContain("Aucun cadeau ne correspond à ce filtre");
+    expect(ui.view.textContent).not.toContain("Cette liste ne contient pas encore de cadeau");
+    filter.click(); await settle(); expect(ui.view.textContent).toContain("Cette liste ne contient pas encore de cadeau");
+  });
+  it("invalidates a pending filtered read on access loss without restoring cards or controls", async () => {
+    const access = new AbortController(), ui = setup({ accessSignal: access.signal }); await settle(); const gate = barrier();
+    ui.load.mockImplementation(async () => { await gate.promise; return list; });
+    const filter = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="checkbox"]')); filter.click(); access.abort(); gate.resolve(); await settle();
+    expect(ui.view.querySelector("li")).toBeNull(); expect(ui.view.querySelector("h1")?.textContent).toBe("Lien de partage indisponible"); expect(filter.disabled).toBe(true);
+  });
   it.each([false, true])("clears revoked context and aborts an outstanding read, late rejection=%s", async reject => {
     const access = new AbortController(), gate = barrier(); let sent = /** @type {AbortSignal | null} */ (null);
     const ui = setup({ accessSignal: access.signal, load: async (_id, { signal }) => { sent = signal; await gate.promise; if (reject) throw new ApiError({ kind: "network" }); return list; } });
