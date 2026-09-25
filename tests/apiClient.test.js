@@ -8,6 +8,24 @@ const BaseUrl = "http://localhost:7000";
 const CorrelationId = "0199-0000-7000-8000-000000000001";
 
 describe("ApiClient", () => {
+  it("never dispatches a protected mutation after its credential generation changes during CSRF preparation", async () => {
+    // Arrange
+    let version = 0;
+    const pending = createDeferred();
+    const fetchMock = vi.fn(/** @type {typeof fetch} */ (async () => pending.promise));
+    const client = createApiClient({ baseUrl: BaseUrl, fetchImplementation: fetchMock,
+      accessTokenProvider: () => "synthetic-bearer", accessTokenVersionProvider: () => version });
+    // Act
+    const result = client.request("/api/v1/auth/two-factor/setup/confirmations", {
+      method: "POST", csrf: true, authentication: "required", body: { flow: "synthetic-flow", code: "123456" },
+    });
+    const rejected = expect(result).rejects.toMatchObject({ name: "AbortError" });
+    version++;
+    pending.resolve(jsonResponse({ token: "synthetic-csrf" }));
+    await rejected;
+    // Assert
+    expect(fetchMock.mock.calls.filter(([, request]) => request?.method === "POST")).toHaveLength(0);
+  });
   it("does not reuse a late CSRF response after a credential change", async () => {
     // Arrange
     let accessToken = "old-account";

@@ -11,7 +11,7 @@ La cible retenue est le VPS existant, et non GitHub Pages. Le site canonique est
 Le workflow manuel `Publish approved frontend` publie uniquement un commit de
 `develop` dont la quality gate est verte, après approbation de l'environnement
 `production`. Un merge seul ne déploie rien. Il construit avec l'API de production
-et Google désactivé, vérifie le contrat OpenAPI public, puis publie une archive
+et le choix Google approuvé dans `publication.json`, vérifie le contrat OpenAPI public, puis publie une archive
 statique et son manifeste sous une release immuable liée au commit.
 
 Le pointeur `frontend-production` n'est mis à jour qu'après publication complète.
@@ -26,6 +26,18 @@ le retour arrière et les tests HTTPS sont documentés dans le dépôt backend,
 `deployments/frontend/README.md`. Aucun DNS, merge ou déploiement n'est autorisé
 automatiquement par la présence de ces fichiers. La mise en ligne technique ne
 remplace pas les pages juridiques validées ni le smoke test Google séparé.
+
+## Bêta, confidentialité et connexion — #828
+
+La bêta ne filtre pas les inscriptions par liste d’e-mails ; la confirmation de
+l’adresse reste exigée par les parcours existants. Les écrans MFA, la gestion de
+l’authentificateur, l’export et la confirmation de suppression utilisent les
+contrats authentifiés existants, sans nouveau service externe.
+
+Les pages légales sont des brouillons statiques à approuver. Google reste désactivé
+et `legalApproved` reste à `false` : le build local fonctionne mais la publication
+est bloquée. La procédure de validation, les informations manquantes et l’ordre de
+publication backend/frontend sont dans [le runbook #828](deployments/publication-readiness.md).
 
 ## Contrôles des merge requests — #934
 

@@ -63,18 +63,20 @@ jobs:
           MONKADO_OPENAPI_URL: https://api.monkado.fr/openapi/v1.json
       - name: Build the approved public configuration
         run: pnpm build
-        env:
-          VITE_API_BASE_URL: https://api.monkado.fr
-          VITE_GOOGLE_AUTH_ENABLED: 'false'
+      - name: Require approved legal documents and revision-bound Google setting
+        id: publication
+        run: node tools/publication/checkPublication.js >> "$GITHUB_OUTPUT"
       - name: Package only static build files
         env:
           BACKEND_REVISION: ${{ steps.backend.outputs.revision }}
+          GOOGLE_ENABLED: ${{ steps.publication.outputs.googleEnabled }}
         run: |
           set -euo pipefail
           configuration_hash=$(python3 .backend/deployments/production/release_manifest.py hash)
           python3 .backend/src/Operations.Frontend/frontend_cli.py package \
             --dist dist --output "$RUNNER_TEMP/frontend-package" --revision "$GITHUB_SHA" \
-            --backend-revision "$BACKEND_REVISION" --configuration-hash "$configuration_hash"
+            --backend-revision "$BACKEND_REVISION" --configuration-hash "$configuration_hash" \
+            --google-enabled "$GOOGLE_ENABLED"
       - name: Publish immutable build before changing the production pointer
         env:
           GH_TOKEN: ${{ github.token }}

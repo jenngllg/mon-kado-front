@@ -12,10 +12,7 @@ const ErrorResults = new Set(["cancelled", "failed", "unavailable"]);
 /** @typedef {(options: GoogleStartOptions) => Promise<void>} StartGoogle */
 /** @typedef {Readonly<{flow: string, attempt: GoogleAttempt}>} GoogleReturn */
 /** @typedef {ReturnType<typeof createGoogleService>} GoogleService */
-/** Anticipated contract, not an addition to the generated OpenAPI file.
- * TODO(#868): replace this alias after the backend prerequisite lands.
- * @typedef {Readonly<{flow: string}>} PendingGoogleCompletionRequest
- */
+/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["CompleteGoogleSessionRequest"]} PendingGoogleCompletionRequest */
 
 /** Parses only the backend handoff, never OAuth parameters or provider tokens.
  * @param {string} fragment Consumed fragment.

@@ -1,9 +1,7 @@
 import { ApiError, createAbortError, isAbortError } from "../../api/apiError.js";
 import { validateCurrentPassword } from "../../auth/passwordValidation.js";
 
-/** TODO(#869): replace this provisional alias when the backend publishes the JSON binding.
- * @typedef {{flow: string, currentPassword: string}} PendingGoogleLinkRequest
- */
+/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["LinkGoogleAccountRequest"]} GoogleLinkRequest */
 /** @typedef {Readonly<{status: "ready" | "accepted" | "invalid", errorCode: string | null}>} GoogleLinkState */
 /** @typedef {ReturnType<typeof createGoogleLinkContinuation>} GoogleLinkContinuation */
 /** Owns the private binding until its only consumer disposes it or the backend accepts it.
@@ -29,12 +27,12 @@ export function createGoogleLinkContinuation({ handoff, session, now, onDispose 
   unwatch = session.observeExternalAuthentication(generation, () => invalidate("CLIENT_GOOGLE_SUPERSEDED"));
   unsubscribe = session.subscribe(snapshot => {
     if (disposed || state.status === "invalid") return;
-    if (started && state.status === "ready" && snapshot.authenticationPending) {
+    if (started && state.status === "ready" && (snapshot.authenticationPending || snapshot.twoFactor)) {
       flow = "";
       clearTimeout(timer);
       unwatch();
       publish("accepted");
-    } else if (state.status === "accepted" && !snapshot.authenticationPending && snapshot.status !== "authenticated") {
+    } else if (state.status === "accepted" && !snapshot.authenticationPending && !snapshot.twoFactor && snapshot.status !== "authenticated") {
       invalidate("CLIENT_GOOGLE_SUPERSEDED");
     }
   });
@@ -81,8 +79,7 @@ export function createGoogleLinkContinuation({ handoff, session, now, onDispose 
         if (disposed || state.status !== "ready") throw createAbortError();
         started = true;
         // The request owns these values only while the coordinated HTTP operation runs.
-        /** @type {PendingGoogleLinkRequest} */
-        const body = { flow, currentPassword };
+        const body = /** @satisfies {GoogleLinkRequest} */ ({ flow, currentPassword });
         currentPassword = "";
         try { return await request("/api/v1/auth/google/link", { method: "POST", body, authentication: "none", csrf: true }); }
         finally { body.flow = ""; body.currentPassword = ""; }

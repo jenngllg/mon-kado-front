@@ -70,7 +70,7 @@ describe("application shell", () => {
     expect(shell.notificationRegion.classList.contains("notification-region"))
       .toBe(true);
 
-    const links = [...shell.element.querySelectorAll("nav a")];
+    const links = [...shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')];
     expect(links.map((link) => link.textContent)).toEqual([
       "Accueil",
       "Connexion",
@@ -81,6 +81,8 @@ describe("application shell", () => {
       "/login",
       "/register",
     ]);
+    expect([...shell.element.querySelectorAll("footer a")].map(link => link.getAttribute("href")))
+      .toEqual(["/legal-notice", "/privacy-policy", "/terms-of-use"]);
   });
 
   it("opens and closes the mobile navigation with accessible state", () => {

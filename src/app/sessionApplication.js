@@ -158,7 +158,9 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
         ? (state.user && sharedSignIn.consume(state.user.id)) || getLoginDestination(current.url.searchParams) : RoutePaths.Lists;
       void router.replace(destination).then(result => { if (result?.url.pathname !== destination) sharedSignIn.discardResume(); });
     }
-    if (lostAccess && isProtectedRoute(current?.name)) {
+    const showingNewRecoveryCodes = state.endReason === "authenticatorChanged" && current?.name === RouteNames.Authenticator &&
+      window.location.pathname === RoutePaths.Authenticator;
+    if (lostAccess && isProtectedRoute(current?.name) && !showingNewRecoveryCodes) {
       // Remove private content before an asynchronous guard can yield.
       disposeComponent(shell.outlet);
       shell.outlet.replaceChildren(createLoadingState({ label: "Vérification de la session…" }));
@@ -179,7 +181,8 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     shell, router, session,
     start: () => {
       // Public share fragments must be consumed before background cookie restoration.
-      if (/^\/shared-wishlists\/[^/]+(?:\/wishes\/[^/]+)?\/?$/.test(window.location.pathname)) {
+      if (/^\/shared-wishlists\/[^/]+(?:\/wishes\/[^/]+)?\/?$/.test(window.location.pathname) ||
+        window.location.pathname.replace(/\/+$/, "") === RoutePaths.ConfirmAccountDeletion) {
         const started = router.start();
         void session.start();
         return started;
@@ -257,7 +260,8 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       const operation = logout ? session.logout() : session.restore();
       void operation.then(() => {
         // A consumed confirmation link cannot be reconstructed: retain its completed public view.
-        if (!disposed && !logout && target === window.location.href && router.getCurrentRoute()?.name !== RouteNames.ConfirmEmailChange) return router.replace(target);
+        if (!disposed && !logout && target === window.location.href && router.getCurrentRoute()?.name !== RouteNames.ConfirmEmailChange &&
+          router.getCurrentRoute()?.name !== RouteNames.ConfirmAccountDeletion && router.getCurrentRoute()?.name !== RouteNames.Authenticator) return router.replace(target);
       }).catch(error => { if (!disposed) router.presentError(error); })
         .finally(() => { if (!disposed) setButtonLoading(button, false); });
     } });
