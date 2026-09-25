@@ -15,11 +15,11 @@ import { createSharedSignInContinuation } from "../features/sharing/sharedSignIn
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
- * @param {{apiBaseUrl: string, googleAuthEnabled?: boolean, google?: import("../features/google/googleService.js").GoogleService,
+ * @param {{apiBaseUrl: string, preproduction?: boolean, googleAuthEnabled?: boolean, google?: import("../features/google/googleService.js").GoogleService,
  * session?: import("../auth/sessionManager.js").SessionManager,
  * reportError?: (error: unknown, source: "browser" | "promise") => void}} options Dependencies.
  */
-export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, reportError, session = createSessionManager({ apiBaseUrl }),
+export function createSessionApplication(root, { apiBaseUrl, preproduction = false, googleAuthEnabled = false, reportError, session = createSessionManager({ apiBaseUrl }),
   google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
   let disposed = false;
   const sharing = createSharedWishlistContext();
@@ -34,7 +34,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   let googleVerified = false;
   /** @type {string} */
   let googleFlowRoute = RouteNames.GoogleReturn;
-  const shell = createApplicationShell({ onLogout: () => { void session.logout(); } });
+  const shell = createApplicationShell({ preproduction, onLogout: () => { void session.logout(); } });
   root.replaceChildren(shell.element);
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({

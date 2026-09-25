@@ -18,7 +18,8 @@ const reporter = createErrorReporter(import.meta.env);
 import.meta.hot?.dispose(reporter.dispose);
 try {
   const configuration = createPublicConfiguration(import.meta.env);
-  const application = createSessionApplication(applicationRoot, { ...configuration, reportError: reporter.report });
+  const application = createSessionApplication(applicationRoot, { ...configuration,
+    preproduction: import.meta.env.VITE_PREPRODUCTION === "true", reportError: reporter.report });
   import.meta.hot?.dispose(application.dispose);
   void application.start();
 } catch (error) {
