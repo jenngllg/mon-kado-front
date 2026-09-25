@@ -3,6 +3,24 @@ import { readArchiveResponse } from "../src/api/archiveResponse.js";
 import { createApiClient } from "../src/api/apiClient.js";
 
 describe("authenticated archives", () => {
+  it("cancels a rejected response without reading an unbounded private body", async () => {
+    // Arrange
+    const cancel = vi.fn(); const stream = new ReadableStream({ cancel });
+    const response = new Response(stream, { headers: { "Content-Type": "text/html" } });
+    // Act
+    const result = await readArchiveResponse(response, 9);
+    // Assert
+    expect(result.isValid).toBe(false); expect(cancel).toHaveBeenCalledOnce(); expect(stream.locked).toBe(false);
+  });
+  it("releases the reader even when a failed stream also rejects cancellation", async () => {
+    // Arrange
+    const failure = new Error("synthetic-stream-failure");
+    const stream = new ReadableStream({ start(controller) { controller.error(failure); } });
+    const response = new Response(stream, { headers: { "Content-Type": "application/zip" } });
+    // Act / Assert
+    await expect(readArchiveResponse(response, 9)).rejects.toBe(failure);
+    expect(stream.locked).toBe(false);
+  });
   it("returns only complete ZIP bytes through the normal Bearer boundary", async () => {
     // Arrange
     const fetchImplementation = vi.fn().mockResolvedValue(new Response("PKfixture", { headers: { "Content-Type": "application/zip" } }));

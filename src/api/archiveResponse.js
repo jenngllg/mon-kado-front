@@ -6,7 +6,10 @@
 export async function readArchiveResponse(response, expectedBytes) {
   const invalid = { data: null, isValid: false, isEmpty: false };
   if (response.status !== 200 || response.headers.get("Content-Type")?.split(";", 1)[0].trim().toLowerCase() !== "application/zip" ||
-    !response.body) return invalid;
+    !response.body) {
+    await response.body?.cancel();
+    return invalid;
+  }
   const reader = response.body.getReader();
   /** @type {Uint8Array<ArrayBuffer>[]} */ const chunks = [];
   let size = 0;
@@ -21,7 +24,7 @@ export async function readArchiveResponse(response, expectedBytes) {
     if (size !== expectedBytes) return invalid;
     return { data: new Blob(chunks, { type: "application/zip" }), isValid: true, isEmpty: false };
   } finally {
-    await reader.cancel();
-    reader.releaseLock();
+    try { await reader.cancel(); }
+    finally { reader.releaseLock(); }
   }
 }
