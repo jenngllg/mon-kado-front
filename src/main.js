@@ -6,6 +6,7 @@ import {
 } from "./config/environment.js";
 import { createAlert } from "./components/index.js";
 import { createSessionApplication } from "./app/sessionApplication.js";
+import { createErrorReporter } from "./observability/errorReporter.js";
 
 const applicationRoot = document.querySelector("#app");
 
@@ -13,12 +14,15 @@ if (!(applicationRoot instanceof HTMLElement)) {
   throw new Error("The application root element is missing.");
 }
 
+const reporter = createErrorReporter(import.meta.env);
+import.meta.hot?.dispose(reporter.dispose);
 try {
   const configuration = createPublicConfiguration(import.meta.env);
-  const application = createSessionApplication(applicationRoot, configuration);
+  const application = createSessionApplication(applicationRoot, { ...configuration, reportError: reporter.report });
   import.meta.hot?.dispose(application.dispose);
   void application.start();
 } catch (error) {
+  reporter.report(error, "startup");
   renderStartupError(applicationRoot, error);
 }
 

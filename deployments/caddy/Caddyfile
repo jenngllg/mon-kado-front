@@ -1,10 +1,11 @@
 # Import this site into the VPS Caddy configuration; do not replace the API site.
 # FRONTEND_HOST: HTTPS hostname; FRONTEND_ROOT: absolute built dist directory.
 # FRONTEND_API_ORIGIN: exact HTTPS API origin, without a path or trailing slash.
+# FRONTEND_SENTRY_ORIGIN: empty when disabled; otherwise the exact HTTPS DSN ingest origin (no wildcard).
 (frontend_security) {
 	header {
 		-Server
-		Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' blob: data: {$FRONTEND_API_ORIGIN}; connect-src 'self' {$FRONTEND_API_ORIGIN}; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'"
+		Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' blob: data: {$FRONTEND_API_ORIGIN}; connect-src 'self' {$FRONTEND_API_ORIGIN} {$FRONTEND_SENTRY_ORIGIN}; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'"
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy no-referrer

@@ -39,6 +39,42 @@ et `legalApproved` reste à `false` : le build local fonctionne mais la publicat
 est bloquée. La procédure de validation, les informations manquantes et l’ordre de
 publication backend/frontend sont dans [le runbook #828](deployments/publication-readiness.md).
 
+## Observabilité minimale — #933
+
+Sentry est désactivé par défaut. Pour l'activer au build, définir explicitement
+`VITE_SENTRY_ENABLED=true`, `VITE_SENTRY_DSN` (DSN public SaaS Sentry HTTPS),
+`VITE_SENTRY_ENVIRONMENT=preproduction` ou `production` et `VITE_SENTRY_RELEASE`
+avec le SHA Git complet de 40 caractères. Une configuration absente ou invalide
+désactive la collecte sans empêcher l'application de démarrer. Ne jamais mettre
+de jeton d'administration Sentry dans une variable `VITE_*`.
+
+Le client isolé ne collecte automatiquement ni navigation, ni console, ni DOM,
+ni performance, ni session, ni replay. Les erreurs globales non interceptées et
+les erreurs de démarrage produisent uniquement une catégorie fixe, un environnement
+et une révision, accompagnés d'un identifiant d'événement aléatoire et des
+métadonnées techniques du SDK. Chaque catégorie est envoyée au plus une fois par chargement
+(sept catégories maximum). Les annulations et erreurs HTTP métier sous 500 sont
+ignorées. Les erreurs récupérées localement par les formulaires ne sont pas toutes
+reportées : ce dispositif ne constitue pas un suivi exhaustif des pannes API.
+
+Une projection finale supprime messages d'exception, stacks, URL, noms, e-mails,
+identifiants métier, données utilisateur, cookies, corps et breadcrumbs. Ce choix
+réduit volontairement la précision diagnostique. Aucun stockage local ni retry
+applicatif ; les échecs du collecteur n'affectent pas l'interface. Le transport
+omet credentials et referrer, refuse les redirections et le cache.
+
+Avant activation réelle, configurer le projet Sentry (région, accès, rétention,
+filtrage serveur et suppression des IP) et tester une réception synthétique.
+Le destinataire réseau voit nécessairement l'IP de connexion : le filtrage du
+payload ne rend pas le transport anonyme. Aucun événement réel n'est envoyé
+pendant les tests. Le DSN réel et cette validation restent à fournir.
+
+La CSP réserve `FRONTEND_SENTRY_ORIGIN` à `connect-src` uniquement : laisser cette
+variable Caddy vide lorsque la collecte est désactivée. Pour l'activer, renseigner
+exclusivement l'origine HTTPS du collecteur du DSN (par exemple
+`https://o123.ingest.de.sentry.io`, sans clé, chemin ni wildcard), puis vérifier
+la politique déployée. Aucun assouplissement de `script-src` n'est nécessaire.
+
 ## Contrôles des merge requests — #934
 
 Le workflow `Frontend quality` s'exécute sur chaque MR et push vers `develop` ou

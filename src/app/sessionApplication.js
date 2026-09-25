@@ -16,9 +16,10 @@ import { createSharedSignInContinuation } from "../features/sharing/sharedSignIn
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
  * @param {{apiBaseUrl: string, googleAuthEnabled?: boolean, google?: import("../features/google/googleService.js").GoogleService,
- * session?: import("../auth/sessionManager.js").SessionManager}} options Dependencies.
+ * session?: import("../auth/sessionManager.js").SessionManager,
+ * reportError?: (error: unknown, source: "browser" | "promise") => void}} options Dependencies.
  */
-export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, session = createSessionManager({ apiBaseUrl }),
+export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, reportError, session = createSessionManager({ apiBaseUrl }),
   google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
   let disposed = false;
   const sharing = createSharedWishlistContext();
@@ -175,7 +176,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       }
     }
   });
-  const removeGlobalErrors = installGlobalErrorHandlers({ target: window, presentError: router.presentError });
+  const removeGlobalErrors = installGlobalErrorHandlers({ target: window, presentError: router.presentError, reportError });
 
   return Object.freeze({
     shell, router, session,

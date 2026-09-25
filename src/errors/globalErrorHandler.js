@@ -6,16 +6,18 @@ import { toUserFacingError } from "./errorMessages.js";
  *
  * @param {{
  *   target: Pick<EventTarget, "addEventListener" | "removeEventListener">,
- *   presentError: (error: import("./errorMessages.js").UserFacingError) => void
+ *   presentError: (error: import("./errorMessages.js").UserFacingError) => void,
+ *   reportError?: (error: unknown, source: "browser" | "promise") => void
  * }} options Global handler dependencies.
  * @returns {() => void} Function removing both listeners.
  */
-export function installGlobalErrorHandlers({ target, presentError }) {
+export function installGlobalErrorHandlers({ target, presentError, reportError = () => {} }) {
   /** @param {Event} event */
   const handleError = (event) => {
     event.preventDefault();
     const error = getEventValue(event, "error") ??
       new Error("An unexpected browser error occurred.");
+    reportError(error, "browser");
     presentUnlessAborted(error, presentError);
   };
   /** @param {Event} event */
@@ -23,6 +25,7 @@ export function installGlobalErrorHandlers({ target, presentError }) {
     event.preventDefault();
     const error = getEventValue(event, "reason") ??
       new Error("An unexpected promise rejection occurred.");
+    reportError(error, "promise");
     presentUnlessAborted(error, presentError);
   };
 
