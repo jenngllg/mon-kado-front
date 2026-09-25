@@ -83,6 +83,10 @@ describe("application shell", () => {
     ]);
     expect([...shell.element.querySelectorAll("footer a")].map(link => link.getAttribute("href")))
       .toEqual(["/legal-notice", "/privacy-policy", "/terms-of-use"]);
+    for (const link of shell.element.querySelectorAll("footer a")) {
+      expect(link.classList.contains("action-link")).toBe(true);
+      expect(link.getAttribute("data-native-navigation")).toBe("true");
+    }
   });
 
   it("opens and closes the mobile navigation with accessible state", () => {

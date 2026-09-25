@@ -505,9 +505,11 @@
 .wishlist-share-revoke-dialog,
 .wishlist-share-renew-dialog {
   margin: auto;
-  width: min(var(--content-narrow), calc(100% - var(--space-6)));
+  width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)));
+  max-width: 100%;
   max-height: calc(100dvh - var(--space-6));
   padding: clamp(var(--space-4), 4vw, var(--space-6));
+  padding-inline: min(var(--space-6), 4vw);
   overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--color-border-strong);
@@ -526,10 +528,6 @@
 }
 
 .wish-delete-dialog h2 { font-size: var(--font-size-xl); }
-.reservation-cancel-dialog {
-  width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)));
-  padding-inline: min(var(--space-6), 4vw);
-}
 .reservation-cancel-dialog h2 { font-size: var(--font-size-xl); }
 .reservation-edit-group { border: 0; margin-inline: 0; margin-block-end: 0; padding: 0; min-inline-size: 0; }
 .wishlist-share-renew-dialog h2 { font-size: var(--font-size-xl); }
