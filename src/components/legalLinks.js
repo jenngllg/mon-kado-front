@@ -1,3 +1,5 @@
+import { createActionLink } from "./actionLink.js";
+
 /** Native document links must not be intercepted by the application session/router.
  * @returns {HTMLElement} Accessible public-document navigation.
  */
@@ -6,9 +8,7 @@ export function createLegalLinks() {
   navigation.className = "cluster";
   navigation.setAttribute("aria-label", "Informations légales");
   for (const [path, label] of [["legal-notice", "Mentions légales"], ["privacy-policy", "Confidentialité"], ["terms-of-use", "Conditions d’utilisation"]]) {
-    const link = document.createElement("a");
-    link.href = "/" + path;
-    link.textContent = label;
+    const link = createActionLink({ label, href: "/" + path });
     link.dataset.nativeNavigation = "true";
     navigation.append(link);
   }
