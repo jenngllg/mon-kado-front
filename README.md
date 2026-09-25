@@ -51,7 +51,8 @@ de jeton d'administration Sentry dans une variable `VITE_*`.
 Le client isolé ne collecte automatiquement ni navigation, ni console, ni DOM,
 ni performance, ni session, ni replay. Les erreurs globales non interceptées et
 les erreurs de démarrage produisent uniquement une catégorie fixe, un environnement
-et une révision. Chaque catégorie est envoyée au plus une fois par chargement
+et une révision, accompagnés d'un identifiant d'événement aléatoire et des
+métadonnées techniques du SDK. Chaque catégorie est envoyée au plus une fois par chargement
 (sept catégories maximum). Les annulations et erreurs HTTP métier sous 500 sont
 ignorées. Les erreurs récupérées localement par les formulaires ne sont pas toutes
 reportées : ce dispositif ne constitue pas un suivi exhaustif des pannes API.

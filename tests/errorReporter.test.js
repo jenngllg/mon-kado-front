@@ -21,10 +21,11 @@ describe("private frontend error reporting", () => {
     // Assert
     expect(send).toHaveBeenCalledTimes(1);
     const envelope = send.mock.calls[0]?.[0];
-    expect(envelope[1][0][1]).toEqual({ message: "browser", level: "error", platform: "javascript",
+    expect(envelope[1][0][1]).toEqual({ event_id: expect.stringMatching(/^[a-f0-9]{32}$/), message: "browser", level: "error", platform: "javascript",
       environment: "preproduction", release: "b".repeat(40), type: undefined,
       sdk: { integrations: [], name: "sentry.javascript.browser", version: "11.0.0",
         packages: [{ name: "npm:@sentry/browser", version: "11.0.0" }], settings: { infer_ip: "never" } } });
+    expect(envelope[0].event_id).toBe(envelope[1][0][1].event_id);
     expect(JSON.stringify(envelope)).not.toMatch(/private@example|password|share-secret|localhost|request|breadcrumbs|user|transaction/);
     reporter.dispose();
   });
@@ -80,7 +81,7 @@ describe("private frontend error reporting", () => {
       transportOptions: { fetchOptions: { credentials: "omit", referrerPolicy: "no-referrer", redirect: "error" } } });
     const dirty = { type: undefined, message: "browser", user: { email: "secret@example.test" }, request: { url: "https://private/#token" },
       extra: { password: "secret" }, breadcrumbs: [{ message: "private" }], exception: { values: [{ value: "private" }] } };
-    expect(await options.beforeSend(dirty, {})).toEqual({ type: undefined, message: "browser", level: "error", platform: "javascript", environment: "preproduction", release: "b".repeat(40) });
+    expect(await options.beforeSend(dirty, {})).toEqual({ type: undefined, event_id: expect.stringMatching(/^[a-f0-9]{32}$/), message: "browser", level: "error", platform: "javascript", environment: "preproduction", release: "b".repeat(40) });
     expect(await options.beforeSend({ type: undefined, message: "raw secret" }, {})).toBeNull();
     expect(sanitizeTelemetryEvent({ type: undefined })).toBeNull();
   });

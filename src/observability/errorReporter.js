@@ -25,7 +25,8 @@ export function readTelemetryConfiguration(env) {
  */
 export function sanitizeTelemetryEvent(event) {
   if (!Categories.has(event.message ?? "")) return null;
-  return { type: undefined, message: event.message, level: "error", platform: "javascript" };
+  return { type: undefined, event_id: crypto.randomUUID().replaceAll("-", ""),
+    message: event.message, level: "error", platform: "javascript" };
 }
 
 /** @typedef {{captureEvent: (event: {message: string}) => unknown, close: (timeout: number) => PromiseLike<boolean>}} ErrorClient */
