@@ -142,6 +142,7 @@ describe("email change HTTP contracts", () => {
   it("permits only the existing single antiforgery replay", async () => {
     // Arrange
     const f = setup(); await f.session.start(); f.operation.confirmStatus = 400;
+    f.operation.body = {statusCode:400,title:null,message:null,errorCode:"SECURITY_CSRF_VALIDATION_FAILED",validationErrors:null};
     // Act / Assert
     await expect(f.service.confirmChange(Link, options())).rejects.toMatchObject({ statusCode: 400 });
     expect(f.confirmations()).toHaveLength(2);

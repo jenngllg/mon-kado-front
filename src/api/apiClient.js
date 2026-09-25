@@ -65,7 +65,7 @@ export class ApiClient {
   #baseUrl;
   #correlationIdProvider;
   #csrfTokenManager;
-  /** @type {{ accessToken: string, manager: CsrfTokenManager } | null} */
+  /** @type {{accessToken: string, version: number, manager: CsrfTokenManager} | null} */
   #authenticatedCsrf = null;
   #fetch;
   #onUnauthorized;
@@ -153,7 +153,7 @@ export class ApiClient {
   }
 
   /**
-   * Fetches and stores a fresh CSRF token.
+   * Fetches and stores a fresh anonymous CSRF token for cookie-only operations.
    *
    * @returns {Promise<void>} Completion signal.
    */
@@ -178,7 +178,7 @@ export class ApiClient {
     tokenVersion,
   ) {
     throwIfCallerAborted(options.signal);
-    const csrfManager = options.csrf ? this.#selectCsrfManager(accessToken) : this.#csrfTokenManager;
+    const csrfManager = options.csrf ? this.#getCsrfManager(accessToken, tokenVersion) : this.#csrfTokenManager;
     const csrfToken = options.csrf
       ? await waitForWithAbort(
         csrfManager.getToken(),
@@ -186,10 +186,11 @@ export class ApiClient {
       )
       : null;
     throwIfCallerAborted(options.signal);
-
     // Preparing antiforgery may outlive the selected session. Never submit its
     // sensitive payload after a logout or credential-generation replacement.
-    if (accessToken !== null && tokenVersion !== this.#accessTokenVersionProvider()) throw createAbortError();
+    if ((accessToken !== null || options.csrf) && !this.#isCurrentCredential(accessToken, tokenVersion)) {
+      throw createAbortError();
+    }
 
     const correlationId = this.#correlationIdProvider();
     const headers = createRequestHeaders({
@@ -257,8 +258,11 @@ export class ApiClient {
       options.csrf &&
       allowCsrfRetry &&
       response.status === 400 &&
-      (errorResponse === null || errorResponse.errorCode === "SECURITY_CSRF_VALIDATION_FAILED")
+      errorResponse?.errorCode === "SECURITY_CSRF_VALIDATION_FAILED"
     ) {
+      if (!this.#isCurrentCredential(accessToken, tokenVersion)) {
+        throw createAbortError();
+      }
       await waitForWithAbort(csrfManager.refreshToken(), options.signal);
 
       return this.#sendRequest(
@@ -283,28 +287,45 @@ export class ApiClient {
   }
 
   /**
-   * Keeps anonymous and authenticated request tokens separate: ASP.NET binds
-   * antiforgery tokens to the identity used when requesting them.
-   * @param {string | null} accessToken Credential selected for the mutation.
-   * @returns {CsrfTokenManager} Identity-specific, memory-only token cache.
+   * Selects a bounded cache using the exact identity sent by the operation.
+   * @param {string | null} accessToken Selected Bearer, or anonymous context.
+   * @param {number} version Credential revision at dispatch.
+   * @returns {CsrfTokenManager} Identity-specific token cache.
    */
-  #selectCsrfManager(accessToken) {
-    if (accessToken === null) return this.#csrfTokenManager;
-    if (this.#authenticatedCsrf?.accessToken !== accessToken) {
+  #getCsrfManager(accessToken, version) {
+    if (accessToken === null) {
+      return this.#csrfTokenManager;
+    }
+
+    if (this.#authenticatedCsrf?.accessToken !== accessToken || this.#authenticatedCsrf.version !== version) {
       this.#authenticatedCsrf?.manager.invalidateToken();
       this.#authenticatedCsrf = {
         accessToken,
-        manager: new CsrfTokenManager(() => this.#loadCsrfToken(accessToken)),
+        version,
+        manager: new CsrfTokenManager(() => this.#loadCsrfToken(accessToken, version)),
       };
     }
+
     return this.#authenticatedCsrf.manager;
   }
 
   /**
-   * @param {string | null} [accessToken] Credential matching the mutation.
+   * Checks whether an asynchronous result still belongs to the selected session.
+   * @param {string | null} accessToken Selected Bearer, or anonymous context.
+   * @param {number} version Credential revision at dispatch.
+   * @returns {boolean} Whether it is safe to continue the original operation.
+   */
+  #isCurrentCredential(accessToken, version) {
+    return version === this.#accessTokenVersionProvider() &&
+      (accessToken === null || accessToken === this.#accessTokenProvider());
+  }
+
+  /**
+   * @param {string | null} [accessToken] Exact identity of the protected operation.
+   * @param {number} [version] Credential revision at dispatch.
    * @returns {Promise<string>} Fresh CSRF request token.
    */
-  async #loadCsrfToken(accessToken = null) {
+  async #loadCsrfToken(accessToken = null, version = this.#accessTokenVersionProvider()) {
     const url = createApiUrl(this.#baseUrl, "/security/csrf-token");
     const correlationId = this.#correlationIdProvider();
     const { response, metadata, decodedResponse } = await this.#fetchWithTimeout(
@@ -317,6 +338,15 @@ export class ApiClient {
       undefined,
       this.#timeoutMs,
       correlationId,
+      (response, metadata) => {
+        if (response.status === 401 && accessToken !== null && this.#isCurrentCredential(accessToken, version)) {
+          this.#notifyUnauthorized(new ApiError({
+            kind: "http",
+            statusCode: 401,
+            correlationId: metadata.correlationId,
+          }));
+        }
+      },
     );
 
     if (!response.ok) {
