@@ -2,6 +2,19 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Préproduction privée — #935 (déploiement en attente)
+
+`pnpm build:preproduction` construit exclusivement dans `.preproduction-dist/`,
+avec `preproduction.json` comme cible versionnée : frontend
+`https://preprod.monkado.fr`, API `https://api.preprod.monkado.fr`. Le bandeau
+« Préproduction — données de test » reste visible dans le shell. Les variables
+ambiantes ne peuvent pas activer Google ou Sentry ni changer cette API.
+
+Ce build ne constitue pas un déploiement. Ne jamais le transmettre au publisher
+de production. Le canal privé, la stack isolée et la recette HTTPS réelle restent
+préalables à la clôture de #935 ; voir [le contrat d’infrastructure](deployments/preproduction.md).
+Le build de production, son origine et sa validation juridique restent inchangés.
+
 ## Publication approuvée sur le VPS — #811
 
 La cible retenue est le VPS existant, et non GitHub Pages. Le site canonique est

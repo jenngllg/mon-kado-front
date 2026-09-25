@@ -23,10 +23,10 @@ let shellIdentifier = 0;
 /**
  * Creates the persistent application shell.
  *
- * @param {{onLogout?: () => void}} [options] Session actions.
+ * @param {{onLogout?: () => void, preproduction?: boolean}} [options] Session actions and build identity.
  * @returns {ApplicationShell} Application shell API.
  */
-export function createApplicationShell({ onLogout = () => {} } = {}) {
+export function createApplicationShell({ onLogout = () => {}, preproduction = false } = {}) {
   shellIdentifier += 1;
   const navigationIdentifier = `primary-navigation-${shellIdentifier}`;
   const element = document.createElement("div");
@@ -79,6 +79,13 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   footer.className = "container container--regular";
   footer.append(createLegalLinks());
   element.append(skipLink, header, sessionFeedback, outlet, footer, notificationRegion);
+  if (preproduction) {
+    const environmentNotice = document.createElement("p");
+    environmentNotice.className = "app-environment-notice container";
+    environmentNotice.textContent = "Préproduction — données de test";
+    // Keep the notice across routes without enlarging the sticky header at 200% text.
+    header.after(environmentNotice);
+  }
   // Native focus scrolling can leave a field behind the sticky header.
   addComponentEventListener(element, outlet, "focusin", event => {
     const target = event.target;

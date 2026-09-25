@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "environment": "preproduction",
+  "frontendOrigin": "https://preprod.monkado.fr",
+  "apiOrigin": "https://api.preprod.monkado.fr",
+  "access": "ssh-tunnel",
+  "syntheticDataOnly": true,
+  "googleEnabled": false,
+  "telemetryEnabled": false
+}

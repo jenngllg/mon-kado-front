@@ -1,12 +1,12 @@
 import { defineConfig } from "vitest/config";
 import publication from "./publication.json" with { type: "json" };
+import preproduction from "./preproduction.json" with { type: "json" };
+import { buildDefinitions } from "./tools/publication/buildTarget.js";
 
 export default defineConfig(({ command, mode }) => ({
-  define: command === "build" ? {
-    "import.meta.env.VITE_API_BASE_URL": JSON.stringify(mode === "e2e" ? "http://localhost:7000" : publication.apiOrigin),
-    "import.meta.env.VITE_GOOGLE_AUTH_ENABLED": JSON.stringify(mode === "e2e" ? "false" : String(publication.googleEnabled)),
-  } : {},
+  define: command === "build" ? buildDefinitions(mode, publication, preproduction) : {},
   build: {
+    outDir: mode === "preproduction" ? ".preproduction-dist" : "dist",
     rollupOptions: {
       input: ["index.html", "legal-notice.html", "privacy-policy.html", "terms-of-use.html"],
     },

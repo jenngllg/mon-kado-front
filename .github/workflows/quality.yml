@@ -33,6 +33,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:coverage
       - run: pnpm build
+      - name: Verify isolated preproduction build
+        run: pnpm build:preproduction
       - name: Validate deployed Caddy configuration
         run: >-
           docker run --rm --network none

@@ -3,7 +3,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["coverage/", "dist/", ".e2e-dist/", "playwright-report/", "test-results/"],
+    ignores: ["coverage/", "dist/", ".e2e-dist/", ".preproduction-dist/", "playwright-report/", "test-results/"],
   },
   eslint.configs.recommended,
   {

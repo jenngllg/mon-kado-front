@@ -13,6 +13,7 @@
     "api:types:check": "node tools/openapi-types/generate-api-types.js --check",
     "dev": "vite",
     "build": "vite build",
+    "build:preproduction": "vite build --mode preproduction",
     "preview": "vite preview",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
