@@ -11,6 +11,8 @@ describe("deployed frontend policy", () => {
     expect(config).toContain("Referrer-Policy no-referrer");
     expect(config).toContain("X-Content-Type-Options nosniff");
     expect(config).toContain('X-Robots-Tag "noindex, nofollow, noarchive"');
+    expect(config).toContain("connect-src 'self' {$FRONTEND_API_ORIGIN} {$FRONTEND_SENTRY_ORIGIN};");
+    expect(config.match(/\{\$FRONTEND_SENTRY_ORIGIN\}/g)).toHaveLength(1);
   });
 
   it("limits immutable caching to existing fingerprinted assets and excludes private source paths from the SPA", () => {

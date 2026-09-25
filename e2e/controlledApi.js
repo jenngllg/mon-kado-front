@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 const policyMatch = readFileSync(new URL("../deployments/caddy/Caddyfile", import.meta.url), "utf8")
   .match(/Content-Security-Policy "([^"]+)"/);
 if (!policyMatch) throw new Error("The deployed CSP is required for browser tests.");
-const deployedPolicy = policyMatch[1].replaceAll("{$FRONTEND_API_ORIGIN}", "http://localhost:7000");
+const deployedPolicy = policyMatch[1].replaceAll("{$FRONTEND_API_ORIGIN}", "http://localhost:7000")
+  .replaceAll("{$FRONTEND_SENTRY_ORIGIN}", "");
 
 export const listId = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 export const shareId = "019c52dd-56c1-7cc6-8a95-243f3a032e06";

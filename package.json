@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@fontsource-variable/nunito-sans": "5.3.0",
+    "@sentry/browser": "11.0.0",
     "qrcode": "1.5.4"
   }
 }

@@ -10,7 +10,8 @@ describe("installGlobalErrorHandlers", () => {
     // Arrange
     const target = new EventTarget();
     const presentError = vi.fn();
-    installGlobalErrorHandlers({ target, presentError });
+    const reportError = vi.fn();
+    installGlobalErrorHandlers({ target, presentError, reportError });
     const event = new Event(eventName);
     Object.defineProperty(event, property, {
       value: new Error("Sensitive detail"),
@@ -21,6 +22,7 @@ describe("installGlobalErrorHandlers", () => {
 
     // Assert
     expect(presentError).toHaveBeenCalledOnce();
+    expect(reportError).toHaveBeenCalledExactlyOnceWith(expect.any(Error), eventName === "error" ? "browser" : "promise");
     expect(presentError).toHaveBeenCalledWith(expect.objectContaining({
       title: "Une erreur est survenue",
       message: "Réessaie dans quelques instants.",
@@ -48,9 +50,11 @@ describe("installGlobalErrorHandlers", () => {
     // Arrange
     const target = new EventTarget();
     const presentError = vi.fn();
+    const reportError = vi.fn();
     const removeListeners = installGlobalErrorHandlers({
       target,
       presentError,
+      reportError,
     });
 
     // Act
@@ -60,5 +64,6 @@ describe("installGlobalErrorHandlers", () => {
 
     // Assert
     expect(presentError).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
   });
 });
