@@ -2,6 +2,7 @@ import { isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createButton, createFormField, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { decodeWishImage, validateWishImageFile, WishImageValidationError } from "../wishes/wishImageValidation.js";
+import { createMemberAvatar } from "../../components/memberAvatar.js";
 
 /** Owns only the local file and rendered sources; the profile owns versions and mutations.
  * @param {{onUpload: (file: Blob) => void, onRemove: () => void, onRefresh: () => void, decode?: typeof decodeWishImage}} options Actions.
@@ -19,6 +20,7 @@ export function createProfileImageSection({ onUpload, onRemove, onRefresh, decod
   /** @type {string | null} */ let objectUrl = null;
   /** @type {AbortController | null} */ let decoder = null;
   /** @type {import("./profileImageService.js").ProfilePhoto | null} */ let photo = null;
+  let identity = "";
   const upload = createButton({ label: "Enregistrer la photo", onClick: () => { if (!upload.disabled && selected) onUpload(selected); } });
   const cancel = createButton({ label: "Annuler la sélection", variant: "secondary", onClick: () => { if (!cancel.disabled) { clearSelection(); input.focus(); } } });
   const remove = createButton({ label: "Supprimer la photo", variant: "danger", onClick: () => { if (!remove.disabled) onRemove(); } });
@@ -26,7 +28,7 @@ export function createProfileImageSection({ onUpload, onRemove, onRefresh, decod
   const actions = node("div", ""); actions.className = "cluster"; actions.append(upload, cancel, remove, refresh);
   element.append(title, node("p", "Ta photo de profil est publique. Choisis une image que tu acceptes de montrer aux autres."), current, field, status, preview, actions);
   addComponentEventListener(element, input, "change", () => { void select(); });
-  registerComponentCleanup(element, () => { disposed = true; clearSelection(); photo = null; disposeComponent(current); current.replaceChildren(); });
+  registerComponentCleanup(element, () => { disposed = true; clearSelection(); photo = null; identity = ""; disposeComponent(current); current.replaceChildren(); });
   sync();
   return { element, title, clearSelection, update, focusRemove: () => { (remove.hidden ? title : remove).focus(); } };
 
@@ -37,19 +39,16 @@ export function createProfileImageSection({ onUpload, onRemove, onRefresh, decod
     if (objectUrl) URL.revokeObjectURL(objectUrl);
     objectUrl = null; if (reset) input.value = ""; setFormFieldValidation(field, null); status.textContent = ""; sync();
   }
-  /** @param {import("./profileImageService.js").ProfilePhoto | null} value Safe source. @param {boolean} disabled Parent lock. @param {boolean} blocked Explicit recovery required. */
-  function update(value, disabled, blocked) {
+  /** @param {import("./profileImageService.js").ProfilePhoto | null} value Safe source. @param {boolean} disabled Parent lock. @param {boolean} blocked Explicit recovery required. @param {string} [memberId] Canonical identity. */
+  function update(value, disabled, blocked, memberId = "") {
     inactive = disabled || blocked || disposed;
-    if (value !== photo) {
-      photo = value; disposeComponent(current); current.replaceChildren();
+    if (value !== photo || memberId !== identity) {
+      photo = value; identity = memberId; disposeComponent(current); current.replaceChildren();
       if (value && !disposed) {
         const fallback = node("p", value.imageUnavailable ? "Photo indisponible" : "Sans photo"); current.append(fallback);
-        if (value.imageUrl) {
-          const image = node("img", ""); image.alt = "Ta photo de profil"; image.width = 256; image.height = 256; image.referrerPolicy = "no-referrer";
-          image.style.maxWidth = "100%"; image.style.height = "auto"; fallback.hidden = true;
-          addComponentEventListener(current, image, "error", () => { image.removeAttribute("src"); image.remove(); fallback.textContent = "Photo indisponible"; fallback.hidden = false; }, { once: true });
-          registerComponentCleanup(current, () => image.removeAttribute("src")); image.src = value.imageUrl; current.append(image);
-        }
+        fallback.hidden = !!value.imageUrl;
+        current.prepend(createMemberAvatar({ memberId, imageUrl: value.imageUrl, size: 256,
+          onError: () => { fallback.textContent = "Photo indisponible"; fallback.hidden = false; } }));
       }
     }
     element.hidden = !photo || disposed; sync(); refresh.disabled = disabled || disposed || !photo;

@@ -2,12 +2,26 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Photos et avatars — #951
+
+La recherche de membres, la photo actuelle de `/profile` et le lien « Mon profil »
+du menu partagent un avatar décoratif. Sans photo utilisable, une grille symétrique
+locale fondée sur l’identifiant du membre remplace l’image ; le motif ne dépend pas
+du nom et n’est pas garanti unique. Aucun fournisseur d’avatar externe n’est appelé.
+
+Seules les URLs publiques de photo correspondant à l’origine API et au membre
+sont utilisées. Le remplacement reste visible pendant le chargement et après erreur,
+sans retry automatique. Les dimensions sont réservées et les sources nettoyées au
+départ ou au changement de compte. Une nouvelle lecture ou URL permet une nouvelle
+tentative. Les listes partagées et participants n’exposent pas de photo via leur contrat.
+Les actions et aperçus temporaires de #950 restent indépendants de cet affichage.
+
 ## Photo de profil — #950
 
 Dans `/profile`, la photo s’enregistre séparément du nom : sélectionner un fichier
 ne l’envoie pas, annuler le nom ne retire pas la sélection et une mutation de photo
 conserve le nom non enregistré. La photo est publique, sans lien signé expirant.
-Les autres écrans et avatars de remplacement restent dans #951.
+Les autres affichages et avatars de remplacement sont décrits dans #951 ci-dessus.
 
 JPEG, PNG et WebP non animés sont acceptés jusqu’à 10 Mio et 40 millions de pixels.
 Le navigateur vérifie signature et lisibilité sans transformer le fichier ; le
@@ -43,7 +57,7 @@ Chargement, absence de résultat et erreurs disposent d’annonces et de récup�
 La recherche et ses résultats restent dans la vue montée, sans stockage ni terme
 dans l’URL frontend. Le nom est transmis uniquement comme paramètre de recherche
 à l’API publique, sans JWT. Aucun profil, invitation ou accès aux listes d’autrui
-n’est déduit d’un résultat. Les photos et avatars seront traités dans #951.
+n’est déduit d’un résultat. Les photos et avatars sont affichés conformément à #951.
 
 ## Publication approuvée sur le VPS — #811
 

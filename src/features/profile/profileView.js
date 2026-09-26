@@ -177,7 +177,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     useCurrent.disabled = busy || confirmingPhoto || needsRead;
     form.setAttribute("aria-busy", String(busy));
     loading.hidden = !busy || saving || photoBusy;
-    photoSection?.update(photoBase?.photo ?? null, busy || confirmingPhoto, needsRead || photoNeedsRead);
+    photoSection?.update(photoBase?.photo ?? null, busy || confirmingPhoto, needsRead || photoNeedsRead, photoBase?.id);
     photoConfirmation.hidden = !confirmingPhoto;
     confirmPhoto.disabled = busy || photoNeedsRead || needsRead || !photoBase?.photo || !(photoBase.photo.imageUrl || photoBase.photo.imageUnavailable);
     cancelPhoto.disabled = busy;
