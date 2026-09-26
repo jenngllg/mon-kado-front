@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { BrowserClient } from "@sentry/browser";
 import { createRouter } from "../src/router/index.js";
 import { createActionLink, createButton, createFormField, createNotificationRegion, disposeComponent, setButtonLoading, showNotification } from "../src/components/index.js";
 import { registerComponentCleanup } from "../src/components/componentLifecycle.js";
@@ -7,6 +8,13 @@ import { createApplicationShell } from "../src/app/index.js";
 import { toUserFacingError } from "../src/errors/errorMessages.js";
 import { installGlobalErrorHandlers } from "../src/errors/index.js";
 import { ApiError } from "../src/api/index.js";
+
+// SDK integration is exercised in errorReporter.test.js; this UI test must not initialize a provider.
+vi.mock("@sentry/browser", () => ({
+  BrowserClient: vi.fn(() => { throw new Error("Unexpected telemetry client in UI test."); }),
+  defaultStackParser: vi.fn(),
+  makeFetchTransport: vi.fn(),
+}));
 
 /** @type {Array<() => void>} */
 let cleanups;
@@ -39,6 +47,7 @@ describe("UI foundation regressions", () => {
   it("presents missing startup configuration with a French title and a main landmark", async () => {
     // Arrange
     vi.stubEnv("VITE_API_BASE_URL", "");
+    vi.stubEnv("VITE_SENTRY_ENABLED", "false");
     const root = document.createElement("div");
     root.id = "app";
     document.body.append(root);
@@ -51,6 +60,7 @@ describe("UI foundation regressions", () => {
     expect(root.querySelector("main [role='alert'] h1")?.textContent).toBe("MonKado ne peut pas démarrer");
     expect(root.textContent).toContain("Configuration publique obligatoire manquante : VITE_API_BASE_URL.");
     expect(root.querySelector("header")).toBeNull();
+    expect(BrowserClient).not.toHaveBeenCalled();
   });
   it("lets navigation back to the mounted route supersede pending work", async () => {
     // Arrange
