@@ -1,26 +1,30 @@
 import { ApiError } from "../../api/apiError.js";
 import { isStrongEntityTag } from "../../api/entityTag.js";
 import { validateDisplayName } from "../../auth/displayNameValidation.js";
+import { createProfileImageService, readProfilePhoto } from "./profileImageService.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["UpdateMemberProfileRequest"]} UpdateMemberProfileRequest */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["MemberProfileResponse"]} MemberProfileResponse */
-/** @typedef {Readonly<{displayName: string, email: string, etag: string}>} Profile */
+/** @typedef {Readonly<{displayName: string, email: string, etag: string, id?: string, photo?: import("./profileImageService.js").ProfilePhoto}>} Profile */
 /** @typedef {(options: {signal: AbortSignal}) => Promise<Profile>} LoadProfile */
 /** @typedef {(displayName: string, options: {etag: string, signal: AbortSignal}) => Promise<Readonly<{displayName: string, etag: string}>>} SaveProfile */
 
 /** Creates the authenticated profile boundary; never mutates cookies directly.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request" | "refreshIdentity">} session Session owner.
- * @returns {{load: LoadProfile, save: SaveProfile}} Injectable operations.
+ * @param {{apiBaseUrl?: string}} [options] Trusted photo origin.
+ * @returns {{load: LoadProfile, save: SaveProfile} & ReturnType<typeof createProfileImageService>} Injectable operations.
  */
-export function createProfileService(session) {
+export function createProfileService(session, { apiBaseUrl = "" } = {}) {
   return {
+    ...createProfileImageService(session),
     load: async ({ signal }) => {
       const state = await session.refreshIdentity({ signal });
       if (state.status !== "authenticated" || state.user === null ||
         validateDisplayName(state.user.displayName) !== null || !isStrongEntityTag(state.etag)) {
         throw new ApiError({ kind: "invalidResponse" });
       }
-      return Object.freeze({ displayName: state.user.displayName, email: state.user.email, etag: state.etag });
+      return Object.freeze({ displayName: state.user.displayName, email: state.user.email, etag: state.etag,
+        ...(apiBaseUrl ? { id: state.user.id, photo: readProfilePhoto(state.user.profileImageUrl, state.user.id, apiBaseUrl) } : {}) });
     },
     save: async (displayName, { etag, signal }) => {
       if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "invalidResponse", errorCode: "CLIENT_PROFILE_PRECONDITION_INVALID" });

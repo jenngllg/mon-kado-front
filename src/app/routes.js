@@ -158,7 +158,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       path: RoutePaths.Profile,
       title: "Mon profil · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createProfileView({ ...createProfileService(session), signal: context.signal }),
+        createProfileView({ ...createProfileService(session, { apiBaseUrl }), signal: context.signal }),
     },
     {
       name: RouteNames.PasswordChange, path: RoutePaths.PasswordChange, title: "Changer mon mot de passe · MonKado",
