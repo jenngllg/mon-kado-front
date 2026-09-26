@@ -26,6 +26,16 @@ function setup() {
 }
 
 describe("profile service and shared validation", () => {
+  it("projects the versioned current-member photo only for the configured API", async () => {
+    const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
+    const profileImageUrl = `http://localhost:7000/api/v1/members/${id}/profile/image?imageId=019c52dd-56c1-7cc6-8a95-243f3a032e05`;
+    const refreshIdentity = vi.fn(async () => ({ ...snapshot, user: { ...snapshot.user, id, profileImageUrl } }));
+    const request = vi.fn();
+    const service = createProfileService({refreshIdentity,request},{apiBaseUrl:"http://localhost:7000"});
+    const result = await service.load({signal});
+    expect(result.photo).toEqual({imageUrl:profileImageUrl,imageUnavailable:false}); expect(Object.isFrozen(result.photo)).toBe(true);
+    expect(request).not.toHaveBeenCalled();
+  });
   it("loads the safe identity through the session boundary", async () => {
     // Arrange
     const { load, request, refreshIdentity } = setup();

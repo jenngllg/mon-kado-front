@@ -2,6 +2,30 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Photo de profil — #950
+
+Dans `/profile`, la photo s’enregistre séparément du nom : sélectionner un fichier
+ne l’envoie pas, annuler le nom ne retire pas la sélection et une mutation de photo
+conserve le nom non enregistré. La photo est publique, sans lien signé expirant.
+Les autres écrans et avatars de remplacement restent dans #951.
+
+JPEG, PNG et WebP non animés sont acceptés jusqu’à 10 Mio et 40 millions de pixels.
+Le navigateur vérifie signature et lisibilité sans transformer le fichier ; le
+backend reste responsable de l’analyse et produit une version WebP de 512 px au
+maximum. Les aperçus temporaires sont révoqués à leur remplacement ou au départ.
+
+La suppression se confirme directement dans la section après lecture fraîche du
+profil. Annuler conserve les brouillons et l’ETag du nom. Photo et nom partagent
+l’ETag du compte, mais leurs versions de référence ne sont jamais remplacées
+silencieusement : une relecture après mutation de photo présente une comparaison
+lorsqu’un nom non enregistré existe. Les opérations sont exclusives.
+
+Un conflit ou résultat incertain impose une relecture et une nouvelle décision.
+Après succès confirmé, seul l’échec de lecture peut être repris, jamais la mutation
+déjà réussie. Les erreurs d’image restent locales et une source indisponible exige
+une actualisation explicite. Quitter la page annule l’attente, pas nécessairement
+la mutation serveur. Aucun effacement physique immédiat des fichiers n’est promis.
+
 ## Recherche publique de membres — #949
 
 La page `/members`, accessible dans le menu avec ou sans connexion, recherche
