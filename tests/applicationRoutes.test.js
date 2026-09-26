@@ -11,6 +11,7 @@ import {
   RoutePaths,
 } from "../src/app/index.js";
 import { createPlaceholderView } from "../src/views/index.js";
+import { disposeComponent } from "../src/components/index.js";
 const unusedSession = {
   prepareExternalAuthentication: async () => { throw new Error("Unexpected Google preparation."); },
   observeExternalAuthentication: () => () => {},
@@ -34,6 +35,7 @@ const unusedSession = {
 /** @type {Array<[string, string]>} */
 const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
+  [RouteNames.Members, RoutePaths.Members],
   [RouteNames.Login, RoutePaths.Login],
   [RouteNames.LinkGoogle, RoutePaths.LinkGoogle],
   [RouteNames.GoogleReturn, RoutePaths.GoogleReturn],
@@ -61,6 +63,15 @@ const ExpectedRoutes = [
 ];
 
 describe("application routes", () => {
+  it("renders member search publicly without restoring a session or reading the API", async () => {
+    const route = getRoute(RouteNames.Members);
+    expect(route.beforeEnter).toBeUndefined();
+    const context = createRouteContext("/members");
+    const view = await route.render(context);
+    expect(view.querySelector("h1")?.textContent).toBe("Rechercher un membre");
+    expect(view.querySelector("input")?.getAttribute("name")).toBe("displayName");
+    disposeComponent(view);
+  });
   it("exposes the complete route catalogue with static list routes first", () => {
     // Arrange
     const routes = createApplicationRoutes({ session: unusedSession, apiBaseUrl: "http://localhost:7000" });

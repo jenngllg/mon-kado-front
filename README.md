@@ -2,6 +2,25 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Recherche publique de membres — #949
+
+La page `/members`, accessible dans le menu avec ou sans connexion, recherche
+explicitement les membres par nom d’affichage. Aucun appel n’est effectué avant
+« Rechercher » ou Entrée. La saisie accepte au maximum 80 caractères Unicode
+après nettoyage, avant normalisation, et au moins deux après normalisation NFC.
+Les séquences Unicode invalides et caractères de contrôle sont refusés.
+
+Les résultats conservent l’ordre serveur et se parcourent par pages de 20 membres.
+Une nouvelle recherche repart de la première page ; modifier le champ seul ne
+change pas la recherche utilisée par les boutons de pagination. Une page devenue
+indisponible propose un retour explicite à la première page, sans retry automatique.
+Chargement, absence de résultat et erreurs disposent d’annonces et de récupération.
+
+La recherche et ses résultats restent dans la vue montée, sans stockage ni terme
+dans l’URL frontend. Le nom est transmis uniquement comme paramètre de recherche
+à l’API publique, sans JWT. Aucun profil, invitation ou accès aux listes d’autrui
+n’est déduit d’un résultat. Les photos et avatars seront traités dans #951.
+
 ## Publication approuvée sur le VPS — #811
 
 La cible retenue est le VPS existant, et non GitHub Pages. Le site canonique est

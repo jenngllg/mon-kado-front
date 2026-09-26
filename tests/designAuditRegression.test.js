@@ -7,6 +7,7 @@ import { createNotificationRegion, dismissNotification, disposeComponent, showNo
 afterEach(() => {
   for (const element of document.body.children) if (element instanceof HTMLElement) disposeComponent(element);
   document.body.replaceChildren();
+  vi.restoreAllMocks();
 });
 
 function setupNotification() {
@@ -32,22 +33,34 @@ describe("design audit regressions", () => {
     const header = /** @type {HTMLElement} */ (shell.element.querySelector("header"));
     header.getBoundingClientRect = () => new DOMRect(0, 0, 1440, 69);
     field.getBoundingClientRect = () => new DOMRect(100, top, 300, 44);
-    field.scrollIntoView = vi.fn();
+    const scroll = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
     shell.outlet.append(field);
     document.body.append(shell.element);
     // Act
     field.focus();
     // Assert
-    expect(field.scrollIntoView).toHaveBeenCalledTimes(top < 69 ? 1 : 0);
-    if (top < 69) expect(field.scrollIntoView).toHaveBeenCalledWith({ block: "center", inline: "nearest", behavior: "instant" });
+    expect(scroll).toHaveBeenCalledTimes(top < 69 ? 1 : 0);
+    if (top < 69) expect(scroll).toHaveBeenCalledWith({ top: top - 69 - 8, behavior: "instant" });
     expect(document.activeElement).toBe(field);
     // Disposal must also remove this presentation-only event.
     disposeComponent(shell.element);
     disposeComponent(shell.element);
-    vi.mocked(field.scrollIntoView).mockClear();
+    scroll.mockClear();
     field.blur();
     field.focus();
-    expect(field.scrollIntoView).not.toHaveBeenCalled();
+    expect(scroll).not.toHaveBeenCalled();
+  });
+
+  it("reveals the beginning of a tall alert below a enlarged header without centering it", () => {
+    const shell = createApplicationShell();
+    const alert = document.createElement("div"); alert.tabIndex = -1; alert.setAttribute("role", "alert");
+    const header = /** @type {HTMLElement} */ (shell.element.querySelector("header"));
+    header.getBoundingClientRect = () => new DOMRect(0, 0, 320, 249);
+    alert.getBoundingClientRect = () => new DOMRect(30, 60, 260, 900);
+    const scroll = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+    shell.outlet.append(alert); document.body.append(shell.element); alert.focus();
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({ top: -197, behavior: "instant" });
+    expect(document.activeElement).toBe(alert);
   });
 
   it("returns keyboard focus to the previous control after dismissing a notification", () => {

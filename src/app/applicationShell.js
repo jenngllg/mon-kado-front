@@ -83,8 +83,10 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   addComponentEventListener(element, outlet, "focusin", event => {
     const target = event.target;
     if (!(target instanceof HTMLElement) || target === outlet) return;
-    if (target.getBoundingClientRect().top < header.getBoundingClientRect().bottom) {
-      target.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    const coveredByHeader = target.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
+    if (coveredByHeader < 0) {
+      // Centering a tall alert can still leave its beginning behind the header.
+      window.scrollBy({ top: coveredByHeader - 8, behavior: "instant" });
     }
   });
   // Skipping content is a focus action: hash navigation would remount views whose link was consumed.
@@ -181,7 +183,7 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
     navigationLinks.clear();
     for (const item of NavigationItems) {
       const isAccountAction = item.routeName === RouteNames.Login || item.routeName === RouteNames.Register;
-      if (item.routeName !== RouteNames.Home &&
+      if (item.routeName !== RouteNames.Home && item.routeName !== RouteNames.Members &&
         (mode === "pending" || (mode === "member" ? isAccountAction : !isAccountAction))) continue;
       const listItem = document.createElement("li");
       const link = document.createElement("a");
