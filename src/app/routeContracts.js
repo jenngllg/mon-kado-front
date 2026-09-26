@@ -1,5 +1,6 @@
 export const RouteNames = Object.freeze({
   Home: "home",
+  Members: "members",
   Login: "login",
   LinkGoogle: "link-google",
   GoogleReturn: "google-return",
@@ -28,6 +29,7 @@ export const RouteNames = Object.freeze({
 
 export const RoutePaths = Object.freeze({
   Home: "/",
+  Members: "/members",
   Login: "/login",
   LinkGoogle: "/login/link-google",
   GoogleReturn: "/login/google-return",
@@ -60,6 +62,7 @@ export const NavigationItems = Object.freeze([
     href: RoutePaths.Home,
     routeName: RouteNames.Home,
   }),
+  Object.freeze({ label: "Rechercher un membre", href: RoutePaths.Members, routeName: RouteNames.Members }),
   Object.freeze({
     label: "Mes listes",
     href: RoutePaths.Lists,

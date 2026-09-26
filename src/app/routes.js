@@ -7,6 +7,8 @@ import {
   RoutePaths,
 } from "./routeContracts.js";
 import { createSessionGuard } from "../auth/sessionGuards.js";
+import { createMemberSearchService } from "../features/members/memberSearchService.js";
+import { createMemberSearchView } from "../features/members/memberSearchView.js";
 import { createReservationHistoryService } from "../features/reservations/reservationHistoryService.js";
 import { createReservationHistoryView } from "../features/reservations/reservationHistoryView.js";
 import { createRegistrationService } from "../features/registration/registrationService.js";
@@ -86,6 +88,11 @@ export {
 function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn) {
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
+    {
+      name: RouteNames.Members, path: RoutePaths.Members, title: "Rechercher un membre · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createMemberSearchView({ ...createMemberSearchService(session), signal: context.signal }),
+    },
     {
       name: RouteNames.Login,
       path: RoutePaths.Login,

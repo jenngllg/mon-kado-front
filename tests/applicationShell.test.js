@@ -31,6 +31,11 @@ afterEach(() => {
 });
 
 describe("application shell", () => {
+  it.each(["anonymous", "initializing", "authenticated", "signingOut", "unavailable"])("keeps member search available in session state %s", status => {
+    const shell = createTestShell();
+    shell.setSession({ status: /** @type {import("../src/auth/sessionManager.js").SessionSnapshot["status"]} */ (status), user: null, etag: null, logoutPending: false, issue: null });
+    expect(shell.element.querySelector('nav a[href="/members"]')?.textContent).toBe("Rechercher un membre");
+  });
   it("groups session recovery feedback in a named landmark without a duplicate live region", () => {
     // Arrange
     const shell = createTestShell();
@@ -73,11 +78,13 @@ describe("application shell", () => {
     const links = [...shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')];
     expect(links.map((link) => link.textContent)).toEqual([
       "Accueil",
+      "Rechercher un membre",
       "Connexion",
       "S’inscrire",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/",
+      "/members",
       "/login",
       "/register",
     ]);
@@ -151,6 +158,7 @@ describe("application shell", () => {
 
   it.each([
     [RouteNames.Home, "Accueil"],
+    [RouteNames.Members, "Rechercher un membre"],
     [RouteNames.Lists, "Mes listes"],
     [RouteNames.NewList, "Mes listes"],
     [RouteNames.EditList, "Mes listes"],
