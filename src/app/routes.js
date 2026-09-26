@@ -91,7 +91,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.Members, path: RoutePaths.Members, title: "Rechercher un membre · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createMemberSearchView({ ...createMemberSearchService(session), signal: context.signal }),
+        createMemberSearchView({ ...createMemberSearchService(session, { apiBaseUrl }), signal: context.signal }),
     },
     {
       name: RouteNames.Login,

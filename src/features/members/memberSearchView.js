@@ -3,6 +3,7 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { createAlert, createButton, createEmptyState, createFormField, createLoadingState, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { validateMemberSearch } from "./memberSearchValidation.js";
+import { createMemberAvatar } from "../../components/memberAvatar.js";
 
 /** A public, explicitly submitted search with view-local query state.
  * @param {{search: import("./memberSearchService.js").SearchMembers, signal?: AbortSignal}} options Operations.
@@ -90,7 +91,8 @@ export function createMemberSearchView({ search, signal }) {
         results.append(node("p", message)); status.textContent = message;
         const collection = node("ul", ""); collection.className = "wishlists-grid"; collection.setAttribute("role", "list");
         for (const member of page.items) {
-          const item = node("li", member.displayName); item.className = "wishlist-card"; collection.append(item);
+          const item = node("li", ""); item.className = "wishlist-card member-result";
+          item.append(createMemberAvatar({ memberId: member.id, imageUrl: member.photo?.imageUrl, size: 56 }), node("span", member.displayName)); collection.append(item);
         }
         results.append(collection);
         if (totalPages > 1) {

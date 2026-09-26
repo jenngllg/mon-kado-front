@@ -2,18 +2,20 @@ import { ApiError, createAbortError } from "../../api/apiError.js";
 import { validateDisplayName } from "../../auth/displayNameValidation.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { validateMemberSearch } from "./memberSearchValidation.js";
+import { readProfilePhoto } from "../profile/profileImageService.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["UserSearchResponse"]} MemberResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["PaginatedResponseOfUserSearchResponse"]} PageResponse */
-/** @typedef {Readonly<{id: string, displayName: string}>} Member */
+/** @typedef {Readonly<{id: string, displayName: string, photo?: import("../profile/profileImageService.js").ProfilePhoto}>} Member */
 /** @typedef {Readonly<{items: ReadonlyArray<Member>, currentPage: number, pageSize: number, totalCount: number}>} MemberPage */
 /** @typedef {(displayName: string, options: {page?: number, signal: AbortSignal}) => Promise<MemberPage>} SearchMembers */
 
-/** Searches public names without retaining profile images or private identity data.
+/** Searches public names and validates public photo sources without retaining private identity data.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Common transport.
+ * @param {{apiBaseUrl?: string}} [options] Trusted image origin.
  * @returns {{search: SearchMembers}} Public search operation.
  */
-export function createMemberSearchService(session) {
+export function createMemberSearchService(session, { apiBaseUrl = "" } = {}) {
   return { async search(displayName, { page: requestedPage = 1, signal }) {
     if (validateMemberSearch(displayName) || !Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > 2147483647) {
       throw new TypeError("Invalid member search query.");
@@ -35,7 +37,8 @@ export function createMemberSearchService(session) {
     const items = page.items.map((/** @type {Partial<MemberResponse> | null} */ item) => {
       if (!item || !isWishlistId(item.id) || typeof item.displayName !== "string" || validateDisplayName(item.displayName) || seen.has(item.id.toLowerCase())) throw invalid();
       seen.add(item.id.toLowerCase());
-      return Object.freeze({ id: item.id, displayName: item.displayName });
+      return Object.freeze({ id: item.id, displayName: item.displayName,
+        ...(apiBaseUrl ? { photo: readProfilePhoto(item.profileImageUrl, item.id, apiBaseUrl) } : {}) });
     });
     return Object.freeze({ items: Object.freeze(items), currentPage: requestedPage, pageSize: 20, totalCount: page.totalCount });
   } };

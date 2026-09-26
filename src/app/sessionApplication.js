@@ -34,7 +34,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   let googleVerified = false;
   /** @type {string} */
   let googleFlowRoute = RouteNames.GoogleReturn;
-  const shell = createApplicationShell({ onLogout: () => { void session.logout(); } });
+  const shell = createApplicationShell({ apiBaseUrl, onLogout: () => { void session.logout(); } });
   root.replaceChildren(shell.element);
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({

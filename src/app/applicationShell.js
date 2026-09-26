@@ -1,5 +1,7 @@
 import { createNotificationRegion, createButton, createLoadingState, disposeComponent } from "../components/index.js";
-import { addComponentEventListener } from "../components/componentLifecycle.js";
+import { addComponentEventListener, registerComponentCleanup } from "../components/componentLifecycle.js";
+import { createMemberAvatar } from "../components/memberAvatar.js";
+import { readProfilePhoto } from "../features/profile/profileImageService.js";
 import {
   NavigationItems,
   RouteNames,
@@ -23,10 +25,10 @@ let shellIdentifier = 0;
 /**
  * Creates the persistent application shell.
  *
- * @param {{onLogout?: () => void}} [options] Session actions.
+ * @param {{onLogout?: () => void, apiBaseUrl?: string}} [options] Session actions and trusted photo origin.
  * @returns {ApplicationShell} Application shell API.
  */
-export function createApplicationShell({ onLogout = () => {} } = {}) {
+export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } = {}) {
   shellIdentifier += 1;
   const navigationIdentifier = `primary-navigation-${shellIdentifier}`;
   const element = document.createElement("div");
@@ -57,6 +59,8 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   const navigationLinks = new Map();
 
   let navigationMode = "";
+  let avatarKey = "";
+  registerComponentCleanup(element, () => { avatarKey = ""; });
   /** @type {import("../router/router.js").RouteSnapshot | null} */
   let currentRoute = null;
 
@@ -175,7 +179,7 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   function setSession(state) {
     const mode = state.status === "authenticated" ? "member" :
       ["initializing", "signingOut"].includes(state.status) ? "pending" : "anonymous";
-    if (navigationMode === mode) return;
+    if (navigationMode === mode) { updateAvatar(state); return; }
     navigationMode = mode;
     const restoreFocus = navigationList.contains(document.activeElement);
     disposeComponent(navigationList);
@@ -203,7 +207,23 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
       navigationList.append(item);
     }
     setCurrentRoute(currentRoute);
+    avatarKey = "";
+    updateAvatar(state);
     if (restoreFocus) brand.focus();
+  }
+
+  /** @param {import("../auth/sessionManager.js").SessionSnapshot} state Current identity, never persisted here. */
+  function updateAvatar(state) {
+    const link = navigationLinks.get(RouteNames.Profile);
+    if (!link) { avatarKey = ""; return; }
+    const member = state.status === "authenticated" && !state.logoutPending && !state.authenticationPending ? state.user : null;
+    const photo = member ? readProfilePhoto(member.profileImageUrl, member.id, apiBaseUrl) : null;
+    const key = member ? JSON.stringify([member.id, photo?.imageUrl]) : "";
+    if (key === avatarKey) return;
+    avatarKey = key;
+    const previous = link.querySelector(".member-avatar");
+    if (previous instanceof HTMLElement) { disposeComponent(previous); previous.remove(); }
+    if (member) link.prepend(createMemberAvatar({ memberId: member.id, imageUrl: photo?.imageUrl, size: 32 }));
   }
 
   /**
