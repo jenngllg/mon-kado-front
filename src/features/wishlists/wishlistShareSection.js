@@ -14,7 +14,7 @@ import { createWishlistShareRevokeDialog } from "./wishlistShareRevokeDialog.js"
 export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, signal }) {
   const section = document.createElement("section"); section.className = "wishlist-share flow";
   const title = document.createElement("h2"); title.textContent = "Partager ma liste"; title.tabIndex = -1;
-  const help = document.createElement("p"); help.textContent = "Toute personne possédant ce lien peut consulter ta liste. Partage-le uniquement avec les personnes de ton choix.";
+  const help = document.createElement("p"); help.textContent = "Une liste partagée est visible sur ton profil et accessible à tous.";
   const feedback = document.createElement("div");
   const status = document.createElement("p"); status.setAttribute("role", "status");
   const empty = document.createElement("p"); empty.textContent = "Aucun lien de partage créé";

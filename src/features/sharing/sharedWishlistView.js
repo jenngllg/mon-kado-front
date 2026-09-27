@@ -5,14 +5,16 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 import { WishlistOccasions } from "../wishlists/wishlistValidation.js";
 import { createWishCard } from "../wishes/wishCard.js";
 import { createSharedWishQuantities } from "./sharedWishQuantities.js";
+import { createBackLink } from "../../components/backLink.js";
+import { memberOriginQuery, memberProfileHref } from "../members/memberNavigation.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 /** Public collection; only its transport retains access to a bearer context.
- * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal, accessSignal?: AbortSignal,
+ * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null,
  * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishlistView({ shareLinkId, load, signal, accessSignal, createParticipation }) {
+export function createSharedWishlistView({ shareLinkId, load, signal, accessSignal, createParticipation, fromMemberId }) {
   const view = element("section", ""); view.className = "wishlist-details-view flow";
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
   const information = element("section", ""); information.className = "wishlist-details-info flow";
@@ -31,7 +33,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
   gifts.append(element("h2", "Les cadeaux de cette liste"), filterControls, resultStatus, results); gifts.hidden = true;
   const refresh = createButton({ label: "Actualiser la liste", variant: "secondary", onClick: () => { void read(true); } }); refresh.hidden = true;
   information.append(title, details, refresh); layout.append(information, gifts);
-  view.append(createActionLink({ label: "Retour à l’accueil", href: "/" }), layout);
+  view.append(fromMemberId ? createBackLink({ label: "Retour au profil", href: memberProfileHref(fromMemberId) }) : createActionLink({ label: "Retour à l’accueil", href: "/" }), layout);
   let disposed = false, busy = false, terminal = false;
   let availableOnly = false;
   addComponentEventListener(view, filter, "change", () => {
@@ -63,7 +65,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
       else {
         const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
         for (const wish of list.wishes) {
-          const card = createWishCard(wish, false, { editable: false, detailHref: `/shared-wishlists/${shareLinkId}/wishes/${wish.id}` });
+          const card = createWishCard(wish, false, { editable: false, detailHref: `/shared-wishlists/${shareLinkId}/wishes/${wish.id}${memberOriginQuery(fromMemberId)}` });
           const content = card.querySelector(".wish-card__content");
           content?.insertBefore(createSharedWishQuantities(wish), content.querySelector("a"));
           cards.append(card);
@@ -99,12 +101,12 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
     title.focus();
   }
 }
-/** @param {"missing" | "invalid"} state Entry without usable credentials. @returns {HTMLElement} No-network state. */
-export function createSharedWishlistEntryView(state) {
+/** @param {"missing" | "invalid"} state Entry without usable credentials. @param {string | null} [fromMemberId] Non-secret navigation origin. @returns {HTMLElement} No-network state. */
+export function createSharedWishlistEntryView(state, fromMemberId) {
   const view = element("section", ""); view.className = "error-view flow";
   view.append(element("h1", state === "missing" ? "Rouvre le lien reçu" : "Lien de partage indisponible"),
     element("p", state === "missing" ? "Pour consulter cette liste, ouvre à nouveau le lien de partage qui t’a été envoyé." : "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."),
-    createActionLink({ label: "Retour à l’accueil", href: "/" }));
+    fromMemberId ? createBackLink({ label: "Retour au profil", href: memberProfileHref(fromMemberId) }) : createActionLink({ label: "Retour à l’accueil", href: "/" }));
   return view;
 }
 /** @param {HTMLElement} container Disposable subtree. */

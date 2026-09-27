@@ -279,6 +279,7 @@ function createMenuButton(navigationIdentifier) {
  * @returns {string | null} Navigation item route name.
  */
 function getActiveNavigationRoute(routeName) {
+  if (routeName === RouteNames.MemberProfile) return RouteNames.Members;
   if (routeName === RouteNames.PasswordChange || routeName === RouteNames.EmailChange) return RouteNames.Profile;
   if (
     routeName === RouteNames.Lists ||

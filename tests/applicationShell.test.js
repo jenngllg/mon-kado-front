@@ -159,6 +159,7 @@ describe("application shell", () => {
   it.each([
     [RouteNames.Home, "Accueil"],
     [RouteNames.Members, "Rechercher un membre"],
+    [RouteNames.MemberProfile, "Rechercher un membre"],
     [RouteNames.Lists, "Mes listes"],
     [RouteNames.NewList, "Mes listes"],
     [RouteNames.EditList, "Mes listes"],

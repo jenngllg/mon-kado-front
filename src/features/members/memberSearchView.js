@@ -6,15 +6,15 @@ import { validateMemberSearch } from "./memberSearchValidation.js";
 import { createMemberAvatar } from "../../components/memberAvatar.js";
 
 /** A public, explicitly submitted search with view-local query state.
- * @param {{search: import("./memberSearchService.js").SearchMembers, signal?: AbortSignal}} options Operations.
+ * @param {{search: import("./memberSearchService.js").SearchMembers, signal?: AbortSignal, state?: {query: string, page: number}}} options Operations and tab-local navigation state.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createMemberSearchView({ search, signal }) {
-  const view = node("section", ""); view.className = "flow";
+export function createMemberSearchView({ search, signal, state = { query: "", page: 1 } }) {
+  const view = node("section", ""); view.className = "member-search-view flow";
   const title = node("h1", "Rechercher un membre");
   const form = node("form", ""); form.noValidate = true; form.className = "flow"; form.setAttribute("aria-label", "Rechercher un membre");
   const input = node("input", ""); input.type = "search"; input.name = "displayName"; input.autocomplete = "off";
-  const field = createFormField({ label: "Nom d’affichage", control: input, required: true, description: "Saisis au moins deux caractères du nom du membre. 80 caractères maximum." });
+  const field = createFormField({ label: "Nom d’affichage", control: input, required: true });
   const summary = node("div", ""); summary.hidden = true;
   const submit = createButton({ label: "Rechercher", type: "submit" });
   const status = node("p", ""); status.setAttribute("role", "status"); status.className = "visually-hidden";
@@ -57,6 +57,9 @@ export function createMemberSearchView({ search, signal }) {
     addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });
     if (signal.aborted) disposeComponent(view);
   }
+  if (!disposed && state.query && !validateMemberSearch(state.query) && Number.isInteger(state.page) && state.page > 0 && state.page <= 2147483647) {
+    input.value = submitted = state.query; requestedPage = state.page; void read();
+  }
   return view;
 
   function flushBlur() { const action = deferred; deferred = null; action?.(); }
@@ -70,6 +73,7 @@ export function createMemberSearchView({ search, signal }) {
   function go(page) { flushBlur(); if (disposed || busy) return; requestedPage = page; void read(); }
   async function read() {
     if (disposed || busy) return;
+    state.query = submitted; state.page = requestedPage;
     busy = true; input.disabled = true; submit.disabled = true; status.textContent = "";
     clear(results); results.setAttribute("aria-busy", "true");
     results.append(createLoadingState({ label: "Recherche de membres…" }));
@@ -89,10 +93,12 @@ export function createMemberSearchView({ search, signal }) {
       } else {
         const message = `${page.totalCount} membre${page.totalCount > 1 ? "s" : ""} trouvé${page.totalCount > 1 ? "s" : ""}. Page ${requestedPage} sur ${totalPages}.`;
         results.append(node("p", message)); status.textContent = message;
-        const collection = node("ul", ""); collection.className = "wishlists-grid"; collection.setAttribute("role", "list");
+        const collection = node("ul", ""); collection.className = "member-search-results"; collection.setAttribute("role", "list");
         for (const member of page.items) {
-          const item = node("li", ""); item.className = "wishlist-card member-result";
-          item.append(createMemberAvatar({ memberId: member.id, imageUrl: member.photo?.imageUrl, size: 56 }), node("span", member.displayName)); collection.append(item);
+          const item = node("li", ""); item.className = "member-search-result";
+          const link = node("a", ""); link.href = `/members/${member.id}`;
+          link.append(createMemberAvatar({ memberId: member.id, imageUrl: member.photo?.imageUrl, size: 56 }), node("span", member.displayName));
+          item.append(link); collection.append(item);
         }
         results.append(collection);
         if (totalPages > 1) {
@@ -111,7 +117,7 @@ export function createMemberSearchView({ search, signal }) {
       if (correlation) extra.push(`Référence : ${correlation}`);
       if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) extra.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
       const alert = createAlert({ ...translated, detail: extra.join(" ") || null, variant: "error" }); alert.tabIndex = -1;
-      results.append(alert, createButton({ label: "Réessayer", variant: "secondary", onClick: () => { flushBlur(); void read(); } })); alert.focus();
+      results.append(alert); alert.focus();
     } finally {
       if (!disposed) { busy = false; input.disabled = false; submit.disabled = false; results.setAttribute("aria-busy", "false"); }
     }

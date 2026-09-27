@@ -9,6 +9,9 @@ import {
 import { createSessionGuard } from "../auth/sessionGuards.js";
 import { createMemberSearchService } from "../features/members/memberSearchService.js";
 import { createMemberSearchView } from "../features/members/memberSearchView.js";
+import { createMemberProfileService } from "../features/members/memberProfileService.js";
+import { createMemberProfileView } from "../features/members/memberProfileView.js";
+import { createMemberNavigation } from "../features/members/memberNavigation.js";
 import { createReservationHistoryService } from "../features/reservations/reservationHistoryService.js";
 import { createReservationHistoryView } from "../features/reservations/reservationHistoryView.js";
 import { createRegistrationService } from "../features/registration/registrationService.js";
@@ -86,12 +89,19 @@ export {
  * @param {SharingSignInOptions} sharingSignIn Dedicated sign-in integration.
  */
 function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn) {
+  const memberSearchState = { query: "", page: 1 };
+  const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
     {
       name: RouteNames.Members, path: RoutePaths.Members, title: "Rechercher un membre · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createMemberSearchView({ ...createMemberSearchService(session, { apiBaseUrl }), signal: context.signal }),
+        createMemberSearchView({ ...createMemberSearchService(session, { apiBaseUrl }), signal: context.signal, state: memberSearchState }),
+    },
+    {
+      name: RouteNames.MemberProfile, path: RoutePaths.MemberProfile, title: "Profil du membre · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createMemberProfileView({ memberId: context.params.memberId, ...createMemberProfileService(session, { apiBaseUrl, frontendOrigin: window.location.origin }), signal: context.signal }),
     },
     {
       name: RouteNames.Login,
@@ -240,10 +250,12 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de cadeaux partagée · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        const state = sharing.enter(context.params.shareLinkId, context.consumeFragment());
-        if (state !== "ready") return createSharedWishlistEntryView(state);
+        const fragment = context.consumeFragment();
+        const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams, !!fragment);
+        const state = sharing.enter(context.params.shareLinkId, fragment);
+        if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
         let resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId) ?? null;
-        return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal,
+        return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal, fromMemberId,
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           load: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load,
           createParticipation: options => {
@@ -259,9 +271,10 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         // Only an original list link can establish access; a detail fragment is discarded.
         context.consumeFragment();
+        const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams);
         const state = sharing.enter(context.params.shareLinkId, "");
-        if (state !== "ready") return createSharedWishlistEntryView(state);
-        return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal,
+        if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
+        return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, fromMemberId,
           ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized, onVerified) => createGiftReservationSection({
             shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized,
             loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
