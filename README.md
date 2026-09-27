@@ -2,6 +2,31 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Profil public et listes du membre — #970
+
+Un résultat de `/members` ouvre `/members/:memberId`, accessible sans connexion.
+La page présente le pseudo, l’avatar circulaire et les listes dont le partage est
+actif, hors listes suspendues. Cela inclut les partages déjà existants : activer
+un partage rend désormais la liste découvrable depuis le profil public.
+Le panneau de partage indique cette règle. Aucun réglage de visibilité parallèle.
+
+Chaque liste ouvre le parcours partagé existant, avec les mêmes règles de
+participation et réservation. Le secret est consommé depuis le fragment puis
+gardé uniquement dans le contexte mémoire existant. `fromMember` est un identifiant
+de navigation, jamais une autorisation. Les liens du profil sont supprimés au départ.
+Une révocation, suppression ou suspension retire la liste à la prochaine lecture.
+
+Les flèches de retour conservent le parcours souhait → liste → profil → recherche.
+La dernière recherche soumise et sa page restent en mémoire de l’application,
+sans stockage navigateur ; revenir relance une lecture fraîche. Le profil est aussi
+relu à chaque entrée, sans bouton d’actualisation ni de réessai.
+
+La MR backend #970 doit être intégrée **avant** cette version du front : le contrôle
+OpenAPI de CI compare toujours au backend `develop`, sans contournement.
+Pour vérifier sans arrêter un serveur local déjà ouvert, définir
+`MONKADO_E2E_PORT=5178` avant `pnpm test:e2e`. Les tests navigateur utilisent
+exclusivement des données synthétiques et bloquent les API réelles.
+
 ## Photos et avatars — #951
 
 La recherche de membres, la photo actuelle de `/profile` et le lien « Mon profil »
@@ -54,10 +79,11 @@ change pas la recherche utilisée par les boutons de pagination. Une page devenu
 indisponible propose un retour explicite à la première page, sans retry automatique.
 Chargement, absence de résultat et erreurs disposent d’annonces et de récupération.
 
-La recherche et ses résultats restent dans la vue montée, sans stockage ni terme
-dans l’URL frontend. Le nom est transmis uniquement comme paramètre de recherche
-à l’API publique, sans JWT. Aucun profil, invitation ou accès aux listes d’autrui
-n’est déduit d’un résultat. Les photos et avatars sont affichés conformément à #951.
+Les résultats restent dans la vue montée, sans stockage ni terme dans l’URL frontend.
+La recherche soumise et sa page sont conservées en mémoire pour le retour depuis
+un profil (#970). Le nom est transmis uniquement comme paramètre de recherche
+à l’API publique, sans JWT. Ouvrir un résultat ne crée aucune participation ni
+invitation. Les photos et avatars sont affichés conformément à #951.
 
 ## Publication approuvée sur le VPS — #811
 

@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { controlledApi } from "./controlledApi.js";
+import { controlledApi, frontendOrigin } from "./controlledApi.js";
 
 const flow = "B".repeat(43);
 const manualKey = "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP";
@@ -19,7 +19,7 @@ async function privateApi(context, api, challenge = null) {
   await context.route("http://localhost:7000/api/v1/**", async route => {
     const request = route.request(), path = new URL(request.url()).pathname, method = request.method();
     if (method === "OPTIONS") return route.fallback();
-    const headers = { "Access-Control-Allow-Origin": "http://localhost:5173", "Access-Control-Allow-Credentials": "true", "Content-Type": "application/json" };
+    const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Content-Type": "application/json" };
     /** @param {number} status @param {unknown} body */
     const send = (status, body) => route.fulfill({ status, headers, body: status === 204 ? "" : JSON.stringify(body) });
     if (path === "/api/v1/auth/sessions" && method === "POST" && challenge) {

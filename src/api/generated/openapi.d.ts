@@ -6080,6 +6080,130 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/members/{memberId}/profile": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Gets the public profile of a confirmed member and their active, non-suspended shared lists. */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    /** @description The member identifier. */
+                    readonly memberId: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["PublicMemberProfileResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/members/{memberId}/profile/image": {
         readonly parameters: {
             readonly query?: never;
@@ -13786,6 +13910,39 @@ export interface components {
          * @enum {string}
          */
         readonly PersonalDataExportStatus: "queued" | "processing" | "ready" | "failed" | "expired";
+        /** @description Contains the public identity and discoverable lists of a member. */
+        readonly PublicMemberProfileResponse: {
+            /** @description Gets the display name. */
+            readonly displayName?: string;
+            /**
+             * Format: uuid
+             * @description Gets the public member identifier.
+             */
+            readonly id?: string;
+            /** @description Gets the optional versioned public photo URL. */
+            readonly profileImageUrl?: null | string;
+            /** @description Gets the actively shared lists, newest first. */
+            readonly wishlists?: readonly components["schemas"]["PublicMemberWishlistResponse"][];
+        };
+        /** @description Contains the public summary and active link of a discoverable list. */
+        readonly PublicMemberWishlistResponse: {
+            /**
+             * Format: date
+             * @description Gets the optional event date.
+             */
+            readonly eventDate?: null | string;
+            /**
+             * Format: uuid
+             * @description Gets the wishlist identifier.
+             */
+            readonly id?: string;
+            /** @description Gets the list name. */
+            readonly name?: string;
+            /** @description Gets the occasion. */
+            readonly occasion?: components["schemas"]["WishlistOccasion"];
+            /** @description Gets the active frontend share URL, including its bearer fragment. */
+            readonly shareUrl?: string;
+        };
         /** @description Represents register account request. */
         readonly RegisterAccountRequest: {
             /** @description Gets display name. */

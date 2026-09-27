@@ -1,6 +1,7 @@
 export const RouteNames = Object.freeze({
   Home: "home",
   Members: "members",
+  MemberProfile: "member-profile",
   Login: "login",
   LinkGoogle: "link-google",
   GoogleReturn: "google-return",
@@ -30,6 +31,7 @@ export const RouteNames = Object.freeze({
 export const RoutePaths = Object.freeze({
   Home: "/",
   Members: "/members",
+  MemberProfile: "/members/:memberId",
   Login: "/login",
   LinkGoogle: "/login/link-google",
   GoogleReturn: "/login/google-return",

@@ -1,4 +1,6 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
+import { createBackLink } from "../../components/backLink.js";
+import { memberOriginQuery } from "../members/memberNavigation.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
@@ -8,13 +10,13 @@ import { createSharedWishQuantities } from "./sharedWishQuantities.js";
 const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
 /** A fresh public detail, without participant information or owner actions.
- * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal,
+ * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null,
  * createReservation?: (onUnavailable: () => void, wish: import("./sharedWishlistService.js").SharedWishDetail, onSaved: (message?: string) => void, onBusy: (busy: boolean) => void, onUnrecognized: () => void, onVerified: (wish: import("./sharedWishlistService.js").SharedWishDetail) => void) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal, createReservation }) {
+export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal, createReservation, fromMemberId }) {
   const view = element("section", ""); view.className = "shared-wish-view flow";
-  const back = createActionLink({ label: "Retour à la liste", href: `/shared-wishlists/${shareLinkId}` });
+  const back = (fromMemberId ? createBackLink : createActionLink)({ label: "Retour à la liste", href: `/shared-wishlists/${shareLinkId}${memberOriginQuery(fromMemberId)}` });
   const title = element("h1", "Cadeau partagé"); title.tabIndex = -1;
   const results = element("div", ""); results.className = "flow";
   const notice = element("p", ""); notice.setAttribute("role", "status"); notice.hidden = true;

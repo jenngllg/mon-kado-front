@@ -31,7 +31,8 @@ describe("member search presentation", () => {
     const { view, search, input, submit } = setup(); input.value = " Jenn "; input.dispatchEvent(new Event("input")); expect(search).not.toHaveBeenCalled();
     submit(); expect(view.textContent).toContain("Recherche de membres…"); await settle();
     expect(search).toHaveBeenCalledExactlyOnceWith("Jenn", { page: 1, signal: expect.any(AbortSignal) });
-    expect(view.querySelector("li")?.textContent).toBe("<img src=x>"); expect(view.querySelector("img, a")).toBeNull(); expect(document.activeElement).toBe(view.querySelector("h2"));
+    expect(view.querySelector("li")?.textContent).toBe("<img src=x>"); expect(view.querySelector("img")).toBeNull();
+    expect(view.querySelector("li a")?.getAttribute("href")).toBe(`/members/${page.items[0].id}`); expect(document.activeElement).toBe(view.querySelector("h2"));
   });
   it("keeps submitted search separate from edits across pagination then resets on submission", async () => {
     const { view, search, input, submit, click } = setup(); search.mockResolvedValue({ ...page, totalCount: 40 }); input.value = "Jenn"; submit(); await settle();
@@ -45,13 +46,27 @@ describe("member search presentation", () => {
     submit(); submit(); expect(search).toHaveBeenCalledTimes(2); expect(input.disabled).toBe(true); expect(view.querySelector("li")).toBeNull();
     gate.resolve(); await settle(); expect(view.textContent).toContain("Aucun membre trouvé"); expect(input.disabled).toBe(false);
   });
-  it("requires explicit exact retry then explicit recovery from a vanished page", async () => {
+  it("shows a recoverable error without adding a retry button", async () => {
     const { view, search, input, submit, click } = setup(); input.value = "Jenn"; search.mockResolvedValue({ ...page, totalCount: 40 }); submit(); await settle();
     search.mockRejectedValue(new ApiError({ kind: "http", statusCode: 429, correlationId: "reference", retryAfterSeconds: 8 })); click("Page suivante"); await settle();
     expect(view.textContent).toContain("8 seconde(s)"); expect(view.textContent).toContain("reference"); expect(document.activeElement?.getAttribute("role")).toBe("alert");
-    input.value = "Alice"; search.mockResolvedValue({ ...page, items: [], totalCount: 0 }); click("Réessayer"); await settle();
-    expect(search.mock.calls.at(-1)).toEqual(["Jenn", { page: 2, signal: expect.any(AbortSignal) }]); expect(view.textContent).toContain("Cette page n’est plus disponible");
-    expect(search).toHaveBeenCalledTimes(3); click("Revenir à la première page"); await settle(); expect(search.mock.calls.at(-1)?.[1].page).toBe(1);
+    expect(view.textContent).not.toContain("Réessayer");
+    input.value = "Alice"; search.mockResolvedValue({ ...page, items: [], totalCount: 0 }); submit(); await settle();
+    expect(search.mock.calls.at(-1)).toEqual(["Alice", { page: 1, signal: expect.any(AbortSignal) }]); expect(view.textContent).toContain("Aucun membre trouvé");
+  });
+  it("offers a first-page navigation when the requested results page disappears", async () => {
+    const { view, search, input, submit, click } = setup(); input.value = "Jenn"; search.mockResolvedValue({ ...page, totalCount: 40 }); submit(); await settle();
+    search.mockResolvedValue({ ...page, items: [], totalCount: 0 }); click("Page suivante"); await settle();
+    expect(view.textContent).toContain("Cette page n’est plus disponible");
+    click("Revenir à la première page"); await settle(); expect(search.mock.calls.at(-1)?.[1].page).toBe(1);
+  });
+  it("restores the submitted query and page after visiting a profile without storing results", async () => {
+    const state = { query: "Jenn", page: 2 };
+    const search = vi.fn(async () => ({ ...page, totalCount: 40 }));
+    const view = createMemberSearchView({ search, state }); views.push(view); document.body.append(view); await settle();
+    expect(search).toHaveBeenCalledExactlyOnceWith("Jenn", { page: 2, signal: expect.any(AbortSignal) });
+    expect(view.querySelector("input")?.value).toBe("Jenn"); disposeComponent(view);
+    expect(state).toEqual({ query: "Jenn", page: 2 });
   });
   it("defers blur validation while the submit target is being pressed", () => {
     const { view, input, submit } = setup(); const button = /** @type {HTMLButtonElement} */ (view.querySelector('button[type="submit"]'));

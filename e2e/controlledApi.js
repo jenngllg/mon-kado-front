@@ -12,6 +12,7 @@ export const shareId = "019c52dd-56c1-7cc6-8a95-243f3a032e06";
 export const wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e10";
 export const secret = "A".repeat(43);
 export const sharedPath = `/shared-wishlists/${shareId}`;
+export const frontendOrigin = `http://localhost:${Number(process.env.MONKADO_E2E_PORT || 5173)}`;
 
 /** Test-only transport: no API request may reach a real backend.
  * @param {import('@playwright/test').BrowserContext} context
@@ -25,7 +26,7 @@ export async function controlledApi(context) {
   await context.route("**/*", async route => {
     const request = route.request();
     const url = new URL(request.url());
-    if (url.origin === "http://localhost:5173") {
+    if (url.origin === frontendOrigin) {
       const response = await route.fetch();
       return route.fulfill({ response, headers: { ...response.headers(), "Content-Security-Policy": deployedPolicy } });
     }
@@ -36,7 +37,7 @@ export async function controlledApi(context) {
     const path = url.pathname;
     const method = request.method();
     expect(request.headers().referer).toBeUndefined();
-    const headers = { "Access-Control-Allow-Origin": "http://localhost:5173", "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag,X-Correlation-ID", "Content-Type": "application/json" };
+    const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag,X-Correlation-ID", "Content-Type": "application/json" };
     /** @param {number} status @param {unknown} data @param {string} [etag] */
     const send = (status, data, etag) => route.fulfill({ status, headers: { ...headers, ...(etag ? { ETag: etag } : {}) }, body: status === 204 ? "" : JSON.stringify(data) });
     /** @param {number} status @param {string | null} code */

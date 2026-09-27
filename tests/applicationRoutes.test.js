@@ -36,6 +36,7 @@ const unusedSession = {
 const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
   [RouteNames.Members, RoutePaths.Members],
+  [RouteNames.MemberProfile, RoutePaths.MemberProfile],
   [RouteNames.Login, RoutePaths.Login],
   [RouteNames.LinkGoogle, RoutePaths.LinkGoogle],
   [RouteNames.GoogleReturn, RoutePaths.GoogleReturn],

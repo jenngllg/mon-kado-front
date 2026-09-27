@@ -55,6 +55,7 @@ export default [
       "tests/sharedWishlistView.test.js",
       "tests/reservationHistoryView.test.js",
       "tests/memberSearchView.test.js",
+      "tests/memberProfileView.test.js",
       "tests/sharedWishView.test.js",
       "tests/giftReservationSection.test.js",
       "tests/reservationCreateForm.test.js",
