@@ -23,6 +23,14 @@ describe("public member profile contract", () => {
     const empty = setup({ ...profile, wishlists: [] }); expect((await empty.load(id, { signal: empty.signal })).wishlists).toEqual([]);
     const dated = setup({ ...profile, wishlists: [{ ...list, eventDate: "2027-02-03" }] }); expect((await dated.load(id, { signal: dated.signal })).wishlists[0].eventDate).toBe("2027-02-03");
   });
+  it("canonicalizes deep-link identifiers before validating the member photo", async () => {
+    const imageUrl = `https://api.example.test/api/v1/members/${id}/profile/image?imageId=${other}`;
+    const service = setup({ ...profile, profileImageUrl: imageUrl, wishlists: [{ ...list, shareUrl: list.shareUrl.replace(other, other.toUpperCase()) }] });
+    const result = await service.load(id.toUpperCase(), { signal: service.signal });
+    expect(result.id).toBe(id);
+    expect(result.photo).toEqual({ imageUrl, imageUnavailable: false });
+    expect(result.wishlists[0].shareHref).toBe(`/shared-wishlists/${other}?fromMember=${id}#${secret}`);
+  });
   it.each([null, {}, { ...profile, id: 12 }, { ...profile, id: other }, { ...profile, displayName: "" }, { ...profile, wishlists: null },
     { ...profile, wishlists: [null] }, { ...profile, wishlists: [list, list] }, { ...profile, wishlists: [list, { ...list, id }] },
     ...[{ id: "invalid" }, { name: "" }, { occasion: "invalid" }, { eventDate: "2027-02-30" }, { shareUrl: null },
@@ -59,5 +67,12 @@ describe("non-secret member provenance", () => {
   it("rejects duplicate provenance and builds safe destinations", () => {
     expect(createMemberNavigation().read(other, new URLSearchParams(`fromMember=${id}&fromMember=${other}`))).toBeNull();
     expect(memberProfileHref(id)).toBe(`/members/${id}`); expect(memberOriginQuery(id)).toBe(`?fromMember=${id}`);
+  });
+  it("preserves navigation across equivalent mixed-case share identifiers", () => {
+    const nav = createMemberNavigation();
+    nav.read(other.toUpperCase(), new URLSearchParams({ fromMember: id.toUpperCase() }));
+    expect(nav.read(other, new URLSearchParams())).toBe(id);
+    expect(nav.read("invalid", new URLSearchParams({ fromMember: id }))).toBeNull();
+    expect(nav.read(other, new URLSearchParams())).toBeNull();
   });
 });

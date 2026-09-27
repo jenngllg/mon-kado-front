@@ -24,6 +24,7 @@ export function createMemberProfileService(session, { apiBaseUrl, frontendOrigin
     const profile = /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["PublicMemberProfileResponse"]> | null} */ (response.data);
     if (response.status !== 200 || !profile || !isWishlistId(profile.id) || profile.id.toLowerCase() !== memberId.toLowerCase() ||
       typeof profile.displayName !== "string" || validateDisplayName(profile.displayName) || !Array.isArray(profile.wishlists)) throw invalid();
+    const canonicalMemberId = profile.id.toLowerCase();
     const ids = new Set();
     const links = new Set();
     const wishlists = profile.wishlists.map(item => {
@@ -36,9 +37,9 @@ export function createMemberProfileService(session, { apiBaseUrl, frontendOrigin
       if (parts.length !== 2 || !isWishlistId(parts[0]) || !/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(parts[1]) || links.has(parts[0].toLowerCase())) throw invalid();
       links.add(parts[0].toLowerCase());
       return Object.freeze({ id: item.id, name: item.name, occasion: item.occasion, eventDate: item.eventDate,
-        shareHref: `/shared-wishlists/${parts[0]}?fromMember=${memberId.toLowerCase()}#${parts[1]}` });
+        shareHref: `/shared-wishlists/${parts[0].toLowerCase()}?fromMember=${canonicalMemberId}#${parts[1]}` });
     });
-    return Object.freeze({ id: memberId, displayName: profile.displayName,
-      photo: readProfilePhoto(profile.profileImageUrl, memberId, apiBaseUrl), wishlists: Object.freeze(wishlists) });
+    return Object.freeze({ id: canonicalMemberId, displayName: profile.displayName,
+      photo: readProfilePhoto(profile.profileImageUrl, canonicalMemberId, apiBaseUrl), wishlists: Object.freeze(wishlists) });
   } };
 }

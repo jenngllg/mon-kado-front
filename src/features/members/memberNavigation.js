@@ -13,9 +13,11 @@ export function createMemberNavigation() {
   return {
     /** @param {string} shareId List share. @param {URLSearchParams} params Route parameters. @param {boolean} hasFragment Explicit bearer entry. */
     read(shareId, params, hasFragment = false) {
+      if (!isWishlistId(shareId)) { current = null; return null; }
+      const canonicalShareId = shareId.toLowerCase();
       const values = params.getAll("fromMember");
-      if (values.length === 1 && isWishlistId(values[0])) current = { shareId, memberId: values[0].toLowerCase() };
-      else if (values.length || hasFragment || current?.shareId !== shareId) current = null;
+      if (values.length === 1 && isWishlistId(values[0])) current = { shareId: canonicalShareId, memberId: values[0].toLowerCase() };
+      else if (values.length || hasFragment || current?.shareId !== canonicalShareId) current = null;
       return current?.memberId ?? null;
     },
   };
