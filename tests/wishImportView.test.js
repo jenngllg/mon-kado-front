@@ -34,6 +34,48 @@ function setup(options = {}) {
   return { view, form, analysis, input, values, analyze, submit, create, loadOne, loadWish, uploadImage, preview, onCreated };
 }
 describe("unified creation and suggestions", () => {
+  it.each(["invalid", "unreadable", "aborted"])("preserves the current image after a failed local replacement: %s", async failure => {
+    // Arrange
+    const ui = setup(); await settle(); await ui.analyze();
+    const image = ui.view.querySelector('img[src^="blob:"]');
+    vi.mocked(decodeWishImage).mockRejectedValue(failure === "aborted" ? new DOMException("Cancelled", "AbortError") : new Error("Unreadable"));
+    const file = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="file"]'));
+    const choose = /** @type {HTMLButtonElement} */ (ui.view.querySelector('button[aria-label="Remplacer l’image"]'));
+    const picker = vi.spyOn(file, "click"); choose.click(); expect(picker).toHaveBeenCalledOnce();
+    const transfer = new DataTransfer();
+    transfer.items.add(failure === "invalid" ? new File(["text"], "invalid.txt", { type: "text/plain" }) : new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], "image.png", { type: "image/png" }));
+    // Act
+    file.files = transfer.files; file.dispatchEvent(new Event("change")); await settle();
+    // Assert
+    expect(ui.view.querySelector('img[src^="blob:"]')).toBe(image);
+    expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
+    expect(file.value).toBe("");
+    expect(ui.view.querySelector('[role="alert"]') !== null).toBe(failure !== "aborted");
+    expect(revoke).toHaveBeenCalledTimes(failure === "invalid" ? 0 : 1);
+  });
+  it.each(["dispose", "edit"])("revokes a pending local image and ignores late decoding after %s", async action => {
+    const ui = setup(); await settle(); const gate = barrier();
+    vi.mocked(decodeWishImage).mockImplementation(async () => { await gate.promise; });
+    const file = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="file"]'));
+    const transfer = new DataTransfer(); transfer.items.add(new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], "image.png", { type: "image/png" }));
+    file.files = transfer.files; file.dispatchEvent(new Event("change")); await settle();
+    if (action === "dispose") disposeComponent(ui.view);
+    else { ui.input.value = url; ui.input.dispatchEvent(new Event("input")); }
+    gate.resolve(); await settle();
+    expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:preview-1");
+    expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull(); expect(ui.uploadImage).not.toHaveBeenCalled();
+  });
+  it("retains an explicit draft when proposed metadata and image are unavailable", async () => {
+    const ui = setup(); await settle(); ui.values.name.value = "Mon produit";
+    vi.mocked(decodeWishImage).mockRejectedValue(new Error("Image cannot be decoded"));
+    ui.preview.mockResolvedValue({ name: "", price: "", url, image: new Blob(["fixture"]), warnings: [] });
+    await ui.analyze();
+    expect(ui.values.name.value).toBe("Mon produit"); expect(ui.view.textContent).toContain("Nom : Non renseigné");
+    expect(ui.view.textContent).toContain("Prix : Non renseigné"); expect(ui.view.textContent).toContain("Suggestions à vérifier");
+    expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull();
+    button(ui.view, "Garder ma saisie").click(); expect(ui.values.name.value).toBe("Mon produit");
+    await ui.submit(); expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).toHaveBeenCalledOnce();
+  });
   it("selects a local image before Ajouter without uploading until creation", async () => {
     // Arrange
     const ui = setup(); await settle(); ui.values.name.value = "Mon souhait";
@@ -171,6 +213,35 @@ describe("unified creation and suggestions", () => {
   });
 });
 describe("confirmed gift and recoverable image", () => {
+  it.each([
+    [new ApiError({ kind: "http", statusCode: 429, retryAfterSeconds: 7, correlationId: "reference" }), "Réessaie dans 7"],
+    [new ApiError({ kind: "http", statusCode: 413 }), "10 Mio"],
+    [new ApiError({ kind: "http", statusCode: 415 }), "ne peut pas être utilisée"],
+    [new ApiError({ kind: "http", statusCode: 400, errorCode: "WISH_IMAGE_UNSUPPORTED_FORMAT" }), "ne peut pas être utilisée"],
+    [new ApiError({ kind: "http", statusCode: 400, errorCode: "WISH_IMAGE_INVALID" }), "est invalide"],
+    [new Error("private failure"), "n’a pas pu être confirmé"],
+  ])("keeps the created wish after an image rejection %#", async (error, message) => {
+    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(error); await ui.submit();
+    expect(ui.view.textContent).toContain(message); expect(ui.view.textContent).not.toContain("private failure");
+    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce(); expect(ui.onCreated).not.toHaveBeenCalled();
+  });
+  it.each(["suspended", "invalid-tag"])("does not replace an image after a failed reference read: %s", async failure => {
+    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(new ApiError({ kind: "network" })); await ui.submit();
+    if (failure === "suspended") ui.loadOne.mockResolvedValue({ wishlist: { id, name: "Liste", occasion: "birthday", eventDate: null, message: null, isSuspended: true }, etag: '"l"' });
+    else ui.loadWish.mockResolvedValue({ ...created(), etag: "invalid" });
+    button(ui.view, "Relire le souhait").click(); await settle();
+    expect(button(ui.view, "Enregistrer l’image proposée").hidden).toBe(true); expect(ui.uploadImage).toHaveBeenCalledOnce();
+    expect(ui.view.textContent).toContain(failure === "suspended" ? "Liste suspendue" : "relecture doit réussir");
+  });
+  it.each(["list-success", "list-failure", "wish-success", "wish-failure"])("ignores a completion read after departure: %s", async stage => {
+    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(new ApiError({ kind: "network" })); await ui.submit();
+    const gate = barrier();
+    if (stage.startsWith("list")) ui.loadOne.mockImplementation(async () => { await gate.promise; if (stage.endsWith("failure")) throw new Error("late private error"); return { wishlist: { id, name: "Liste", occasion: "birthday", eventDate: null, message: null, isSuspended: false }, etag: '"l"' }; });
+    else ui.loadWish.mockImplementation(async () => { await gate.promise; if (stage.endsWith("failure")) throw new Error("late private error"); return created(); });
+    button(ui.view, "Relire le souhait").click(); await settle(); disposeComponent(ui.view); gate.resolve(); await settle();
+    expect(ui.uploadImage).toHaveBeenCalledOnce(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.onCreated).not.toHaveBeenCalled();
+    expect(ui.view.textContent).not.toContain("late private error"); expect(ui.view.querySelector(".wish-image-section__media")?.childElementCount).toBe(0);
+  });
   it("requires rechecking and a second explicit image decision without a second creation", async () => {
     const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 412 })); await ui.submit();
     expect(ui.view.textContent).toContain("Souhait ajouté. L’enregistrement de son image n’a pas pu être confirmé."); expect(ui.form.hidden).toBe(true); expect(ui.onCreated).not.toHaveBeenCalled(); await ui.submit();

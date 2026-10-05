@@ -107,7 +107,10 @@ export async function controlledApi(context) {
       if (path === `/api/v1/shared-wishlists/${shareId}/wishes/${wishId}/reservations/current` && ["GET", "PUT", "DELETE"].includes(method)) {
         const reservation = () => ({ id: "019c52dd-56c1-7cc6-8a95-243f3a032e20", wishId, quantity: state.reservedQuantity });
         const etag = () => `"reservation-${state.reservationVersion}"`;
-        if (method === "GET") return state.reservedQuantity ? send(200, reservation(), etag()) : error(404, "GIFT_RESERVATION_NOT_FOUND");
+        if (method === "GET") {
+          if (!state.authenticated) return error(401, "GUEST_SESSION_INVALID");
+          return state.reservedQuantity ? send(200, reservation(), etag()) : error(404, "GIFT_RESERVATION_NOT_FOUND");
+        }
         state.reservations++;
         expect(request.headers()["x-csrf-token"]).toBe("csrf-test-only");
         if (state.reservedQuantity && request.headers()["if-match"] !== etag()) return error(412, "GIFT_RESERVATION_VERSION_CONFLICT");

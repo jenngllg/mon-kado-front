@@ -46,13 +46,20 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
           route.params.listId !== context.params.listId || session.getSnapshot().status !== "authenticated") return;
         showNotification(shell.notificationRegion, { message: "Partage désactivé", variant: "success" });
       },
-      sharingSignIn: { continuation: sharedSignIn, onSignIn: id => {
+      sharingSignIn: { continuation: sharedSignIn, onSignIn: (id, wishId) => {
         const state = session.getSnapshot(), route = router.getCurrentRoute();
         if (disposed || state.status !== "anonymous" || state.authenticationPending || state.logoutPending ||
-          route?.name !== RouteNames.SharedWishlist || route.params.shareLinkId !== id || !sharedSignIn.prepare(id)) return;
+          (route?.name !== RouteNames.SharedWishlist && route?.name !== RouteNames.SharedWish) ||
+          route.params.shareLinkId !== id || (wishId !== undefined && route.params.wishId !== wishId) || !sharedSignIn.prepare(id, wishId)) return;
         void router.navigate(RoutePaths.Login).then(result => { if (result?.name !== RouteNames.Login) sharedSignIn.cancel(); });
       } },
       onWishDeleted: async context => {
+        const current = router.getCurrentRoute();
+        if (!disposed && !context.signal.aborted && current?.name === RouteNames.ListDetails &&
+          current.params.listId === context.params.listId && session.getSnapshot().status === "authenticated") {
+          showNotification(shell.notificationRegion, { message: "Souhait supprimé", variant: "success" });
+          return;
+        }
         const editPath = RoutePaths.EditWish.replace(":listId", context.params.listId).replace(":wishId", context.params.wishId);
         if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.EditWish ||
           window.location.pathname.replace(/\/+$/, "") !== editPath || session.getSnapshot().status !== "authenticated") return;

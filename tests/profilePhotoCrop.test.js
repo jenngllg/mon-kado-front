@@ -56,4 +56,35 @@ describe("profile photo crop", () => {
     ui.image.dispatchEvent(new Event("load")); ui.encode.mockImplementation(callback => callback(null));
     await expect(ui.editor.exportImage()).rejects.toThrow("Image export failed");
   });
+  it("keeps pointer positioning bounded and ignores locked or unrelated gestures", () => {
+    const ui = setup();
+    const viewport = /** @type {HTMLElement} */ (ui.editor.element.querySelector(".profile-photo-crop__viewport"));
+    const capture = vi.fn();
+    viewport.setPointerCapture = capture;
+    vi.spyOn(viewport, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 240, 240));
+    const sliders = ui.editor.element.querySelectorAll("input");
+    const down = () => viewport.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, isPrimary: true, button: 0, clientX: 120, clientY: 120 }));
+    const move = (/** @type {number} */ x, id = 1) => viewport.dispatchEvent(new PointerEvent("pointermove", { pointerId: id, clientX: x, clientY: 180 }));
+    sliders[0].dispatchEvent(new Event("input")); down(); move(0);
+    expect(capture).not.toHaveBeenCalled();
+    ui.image.dispatchEvent(new Event("load"));
+    viewport.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, isPrimary: false }));
+    viewport.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, isPrimary: true, button: 2 }));
+    expect(capture).not.toHaveBeenCalled();
+    down(); move(-1000, 2); expect(sliders[1].value).toBe("50");
+    move(-1000); expect(sliders[1].value).toBe("100"); expect(sliders[2].value).toBe("50");
+    move(1000); expect(sliders[1].value).toBe("0");
+    for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+      down(); viewport.dispatchEvent(new PointerEvent(type)); move(-1000); expect(sliders[1].value).toBe("0");
+    }
+    ui.editor.setDisabled(true); down(); move(-1000); expect(sliders[1].value).toBe("0");
+    ui.editor.setDisabled(false); sliders[0].value = "2"; sliders[0].dispatchEvent(new Event("input")); down(); move(-1000);
+    expect(sliders[1].value).toBe("100"); expect(Number(sliders[2].value)).toBeLessThan(50);
+    expect(ui.image.style.left).toBe("-200%");
+  });
+  it("rejects export when the browser cannot allocate a canvas", async () => {
+    const ui = setup(); ui.image.dispatchEvent(new Event("load"));
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    await expect(ui.editor.exportImage()).rejects.toThrow("Canvas unavailable");
+  });
 });

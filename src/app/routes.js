@@ -248,6 +248,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
           deletion: createWishesService(session, { apiBaseUrl }),
+          onDeleted: () => onWishDeleted(context),
           loadWishes: createWishesService(session, { apiBaseUrl }).load, reorder: createWishesService(session, { apiBaseUrl }).reorder, signal: context.signal,
           share: { ...createWishlistShareService(session, { frontendOrigin: window.location.origin }),
             onRevoked: () => onWishlistShareRevoked(context),
@@ -278,12 +279,15 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams);
         const state = sharing.enter(context.params.shareLinkId, "");
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
+        const resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId);
         return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, fromMemberId,
           ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized, onVerified) => createGiftReservationSection({
             shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized, fromMemberId,
             loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
             createIdentification: onRecognized => createGuestParticipationHost(session, {
               shareLinkId: context.params.shareLinkId, signal: context.signal, onUnavailable, onRecognized,
+              resumeAccount,
+              onSignIn: () => sharingSignIn.onSignIn?.(context.params.shareLinkId, context.params.wishId),
               ...createWishlistParticipationService(session, { context: sharing }),
             }),
             onCancelled: () => onSaved("Réservation annulée"),
@@ -326,7 +330,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   ]);
 }
 
-/** @typedef {{continuation?: import("../features/sharing/sharedSignInContinuation.js").SharedSignInContinuation, onSignIn?: (id: string) => void}} SharingSignInOptions */
+/** @typedef {{continuation?: import("../features/sharing/sharedSignInContinuation.js").SharedSignInContinuation, onSignIn?: (id: string, wishId?: string) => void}} SharingSignInOptions */
 /**
  * Creates the complete frontend route catalogue.
  *

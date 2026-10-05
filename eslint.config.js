@@ -93,6 +93,7 @@ export default [
       "tests/wishReorderDrag.test.js",
       "tests/wishReorderApplication.test.js",
       "tests/wishImageEditor.test.js",
+      "tests/wishImageSection.test.js",
       "tests/wishImportView.test.js",
       "tests/wishImageDecode.test.js",
       "tests/wishDeleteApplication.test.js",

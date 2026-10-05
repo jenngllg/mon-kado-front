@@ -17,11 +17,11 @@ const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "lo
 /** Mounts owner-only list details and independently refreshable gifts.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
  * loadWishes: import("../wishes/wishesService.js").LoadWishes, reorder?: import("../wishes/wishesService.js").ReorderWishes,
- * deletion?: {loadOne: import("../wishes/wishesService.js").LoadWish, remove: import("../wishes/wishesService.js").RemoveWish},
+ * deletion?: {loadOne: import("../wishes/wishesService.js").LoadWish, remove: import("../wishes/wishesService.js").RemoveWish}, onDeleted?: () => void | Promise<void>,
  * share?: {load: import("./wishlistShareService.js").LoadWishlistShare, create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, copyText: (text: string) => Promise<void>, onRevoked?: () => void}, signal?: AbortSignal}} options View dependencies.
  * @returns {HTMLElement} Routed component, with explicit disposal.
  */
-export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reorder, share, deletion, signal }) {
+export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reorder, share, deletion, signal, onDeleted = () => {} }) {
   const view = element("section", ""); view.className = "wishlist-details-view wishlist-details-view--owner flow";
   const back = createBackLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
@@ -70,6 +70,8 @@ export function createWishlistDetailsView({ wishlistId, loadOne, loadWishes, reo
         else if (state === "suspended") shareUnavailable("suspended");
       },
       onDeleted: async () => {
+        if (disposed) return;
+        await onDeleted();
         if (disposed) return;
         modal.close();
         await readGifts(true);
