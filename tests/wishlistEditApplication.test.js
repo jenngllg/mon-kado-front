@@ -19,7 +19,7 @@ function setup() {
       expect(headers.has("X-CSRF-TOKEN")).toBe(false);
       if (init?.method === "GET") { state.reads++; expect(init.body).toBeUndefined(); return Response.json(item, { headers: { ETag: '"v1"' } }); }
       state.writes++; expect(init?.method).toBe("PUT"); expect(headers.get("If-Match")).toBe('"v1"');
-      expect(JSON.parse(String(init?.body))).toEqual({ name: "Nouveau nom", occasion: "birthday", eventDate: "2020-02-29", message: null });
+      expect(JSON.parse(String(init?.body))).toEqual({ name: "Nouveau nom", occasion: "birthday", eventDate: "2020-02-29", message: null, surpriseMode: true });
       await state.beforeWrite();
       return Response.json(state.status === 200 ? { ...item, name: "Nouveau nom" } : { statusCode: state.status, title: "Private English", message: "Private message" }, { status: state.status, headers: { ETag: '"v2"' } });
     }

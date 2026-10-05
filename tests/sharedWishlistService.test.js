@@ -35,6 +35,12 @@ describe("public share context", () => {
   });
 });
 describe("shared wishlist service", () => {
+  it("accepts fully hidden owner quantities", async () => {
+    const hidden = { ...wish, reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null };
+    const service = setup({ ...data, wishes: [hidden] });
+    const result = await service.load(id, service.options);
+    expect(result.wishes[0]).toMatchObject({ reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null });
+  });
   it.each([false, true])("sends only the requested backend availability filter %s and preserves its complete order", async availableOnly => {
     const own = { ...wish, id: listId, reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity: 1 };
     const service = setup({ ...data, wishes: [own, wish] });

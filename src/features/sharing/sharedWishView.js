@@ -69,7 +69,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
         product.setAttribute("aria-label", `Voir le produit « ${wish.name} » (nouvel onglet)`); information.append(product);
       } else if (wish.productUnavailable) information.append(element("p", "Lien produit indisponible"));
       layout.append(createWishImage(wish), information); results.append(layout);
-      if (createReservation) results.append(createReservation(() => {
+      if (createReservation && wish.reservedQuantity !== null) results.append(createReservation(() => {
         if (disposed || terminal) return;
         terminal = true; lifetime.abort(); clear(); clearNotice(); refresh.hidden = true;
         title.textContent = "Cadeau introuvable"; title.focus();

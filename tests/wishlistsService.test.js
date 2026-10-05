@@ -3,7 +3,7 @@ import { ApiError } from "../src/api/apiError.js";
 import { createWishlistsService } from "../src/features/wishlists/wishlistsService.js";
 
 const signal = new AbortController().signal;
-const item = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Anniversaire", occasion: "birthday", eventDate: "2028-02-29", isSuspended: false };
+const item = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Anniversaire", occasion: "birthday", eventDate: "2028-02-29", isSuspended: false, surpriseMode: true };
 /** @param {unknown} [data] JSON body. @param {number} [status] Status. */
 function setup(data = [item], status = 200) {
   const request = vi.fn(async () => ({ data, status,
@@ -33,7 +33,7 @@ describe("owned wishlists service", () => {
     source[0].name = "changed";
     // Assert
     expect(result.map(row => row.name)).toEqual(["Z", "A"]);
-    expect(Object.keys(result[0])).toEqual(["id", "name", "occasion", "eventDate", "isSuspended"]);
+    expect(Object.keys(result[0])).toEqual(["id", "name", "occasion", "eventDate", "isSuspended", "surpriseMode"]);
     expect(JSON.stringify(result)).not.toContain("private");
     expect(result[1].eventDate).toBeNull();
   });

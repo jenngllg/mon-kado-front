@@ -4,6 +4,10 @@ import { createSharedWishQuantities } from "../src/features/sharing/sharedWishQu
 import { createWishCard } from "../src/features/wishes/wishCard.js";
 
 describe("shared quantities", () => {
+  it("shows no quantity or availability hint when the server hides reservations", () => {
+    const view = createSharedWishQuantities({ reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null });
+    expect(view.textContent).toBe("");
+  });
   it.each([null, 0, 2])("renders only the recognized personal quantity %s", currentParticipantReservedQuantity => {
     const view = createSharedWishQuantities({ reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity });
     expect(view.textContent).toContain("Quantité réservée : 2");

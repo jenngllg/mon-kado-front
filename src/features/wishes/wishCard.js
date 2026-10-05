@@ -8,6 +8,10 @@ export function createWishCard(item, suspended, { editable = true, detailHref } 
   const media = createWishImage(item);
   const content = element("div", ""); content.className = "wish-card__content flow";
   content.append(element("h3", item.name));
+  if (editable && item.wishlistId) {
+    const title = content.querySelector("h3");
+    title?.replaceChildren(createActionLink({ label: item.name, href: RoutePaths.WishDetails.replace(":listId", item.wishlistId).replace(":wishId", item.id) }));
+  }
   if (item.note) { const note = element("p", item.note); note.className = "wishlist-details-note"; content.append(note); }
   const price = element("p", item.price === null ? "Prix non renseigné" : PriceFormat.format(item.price)); price.className = "wish-card__price";
   content.append(price, element("p", `Quantité souhaitée : ${item.quantity}`));

@@ -57,7 +57,7 @@ export async function controlledApi(context) {
     if (path === "/api/v1/wishlists" && method === "GET") return send(200, state.listExists ? [wishlist] : []);
     if (path === "/api/v1/wishlists" && method === "POST") {
       expect(request.headers().authorization).toBe("Bearer access-test-only");
-      expect(Object.keys(request.postDataJSON()).sort()).toEqual(["eventDate", "message", "name", "occasion"]);
+      expect(Object.keys(request.postDataJSON()).sort()).toEqual(["eventDate", "message", "name", "occasion", "surpriseMode"]);
       Object.assign(wishlist, request.postDataJSON());
       state.listExists = true;
       state.listWrites++;

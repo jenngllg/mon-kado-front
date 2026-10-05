@@ -7,7 +7,7 @@ import { safeHttpUrl } from "../wishes/wishValidation.js";
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["SharedWishDetailResponse"]} SharedWishDetailResponse */
 /** @typedef {Readonly<{id: string, name: string, price: number | null, quantity: number, url: string | null,
  * imageUrl: string | null, productUnavailable: boolean, imageUnavailable: boolean,
- * reservedQuantity: number, availableQuantity: number, currentParticipantReservedQuantity: number | null}>} SharedWish */
+ * reservedQuantity: number | null, availableQuantity: number | null, currentParticipantReservedQuantity: number | null}>} SharedWish */
 /** @typedef {Readonly<{id: string, name: string, ownerDisplayName: string, occasion: import("../wishlists/wishlistValidation.js").WishlistOccasion,
  * eventDate: string | null, message: string | null, wishes: ReadonlyArray<SharedWish>}>} SharedWishlist */
 /** @typedef {(id: string, options: {signal: AbortSignal, availableOnly?: boolean}) => Promise<SharedWishlist>} LoadSharedWishlist */
@@ -88,9 +88,10 @@ function projectWish(wish, id, base, invalid, includeCurrent) {
     typeof wish.quantity !== "number" || !Number.isInteger(wish.quantity) || wish.quantity < 1 || wish.quantity > 100) throw invalid();
   const price = wish.price;
   const reserved = wish.reservedQuantity, available = wish.availableQuantity, current = wish.currentParticipantReservedQuantity;
-  if (typeof reserved !== "number" || !Number.isSafeInteger(reserved) || reserved < 0 || reserved > 2147483647 ||
+  const hidden = reserved === null && available === null && current === null;
+  if (!hidden && (typeof reserved !== "number" || !Number.isSafeInteger(reserved) || reserved < 0 || reserved > 2147483647 ||
     typeof available !== "number" || available !== Math.max(0, wish.quantity - reserved) ||
-    !(current === null || (typeof current === "number" && Number.isInteger(current) && current >= 0 && current <= 100 && current <= reserved))) throw invalid();
+    !(current === null || (typeof current === "number" && Number.isInteger(current) && current >= 0 && current <= 100 && current <= reserved)))) throw invalid();
   if (price !== null && (typeof price !== "number" || !/^\d{1,8}(?:\.\d{1,2})?$/.test(String(price)) || price <= 0 || price > 99999999.99)) throw invalid();
   const url = wish.url === null ? null : safeHttpUrl(wish.url);
   const candidate = wish.imageUrl === null ? null : safeHttpUrl(wish.imageUrl);

@@ -51,6 +51,15 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
     });
     return field;
   });
+  const surpriseMode = document.createElement("input");
+  surpriseMode.type = "checkbox"; surpriseMode.name = "surpriseMode"; surpriseMode.checked = true;
+  surpriseMode.setAttribute("role", "switch");
+  const surpriseLabel = document.createElement("label"); surpriseLabel.className = "wishlist-surprise-switch";
+  const surpriseText = document.createElement("span"); surpriseText.textContent = "Mode surprise";
+  surpriseLabel.append(surpriseMode, surpriseText);
+  const surpriseHint = document.createElement("p"); surpriseHint.textContent = "Masquer les réservations sur mes souhaits.";
+  form.append(surpriseLabel, surpriseHint);
+  addComponentEventListener(form, surpriseMode, "change", () => { if (!disposed && !inactive()) onChange(); });
   addComponentEventListener(form, form, "pointerdown", event => {
     const target = event.target instanceof Element ? event.target.closest("button") : null;
     pressedAction = target instanceof HTMLButtonElement ? target : null;
@@ -61,7 +70,7 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
   });
   addComponentEventListener(form, document, "pointercancel", () => { pressedAction = null; flushBlur(); });
   registerComponentCleanup(form, () => { disposed = true; deferredBlur = null; pressedAction = null; reset(); });
-  return { form, fields, validate, discardDeferredBlur: () => { deferredBlur = null; }, reset };
+  return { form, fields, surpriseMode, validate, discardDeferredBlur: () => { deferredBlur = null; }, reset };
 
   function flushBlur() { const check = deferredBlur; deferredBlur = null; check?.(); }
   /** @param {typeof fields[number]} field Field to validate. */
@@ -70,8 +79,9 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
     field.error = field.name === "eventDate" && field.control.validity.badInput ? WishlistServerMessages.eventDate : validateValue(field.name, field.control.value);
     setFormFieldValidation(field.element, field.error);
   }
-  /** @param {Partial<Record<WishlistField, string | null>>} [values] Raw field values, empty by default. */
+  /** @param {Partial<Record<WishlistField, string | null>> & {surpriseMode?: boolean}} [values] Raw field values, empty by default. */
   function reset(values = {}) {
+    surpriseMode.checked = values.surpriseMode ?? true;
     deferredBlur = null;
     for (const field of fields) {
       field.control.value = values[field.name] ?? ""; field.dirty = false; field.checked = false; field.error = null;
