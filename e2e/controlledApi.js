@@ -20,7 +20,7 @@ export const frontendOrigin = `http://localhost:${Number(process.env.MONKADO_E2E
 export async function controlledApi(context) {
   const state = { authenticated: false, joins: 0, reservations: 0, reads: 0, revoked: false, listExists: true, listWrites: 0, listVersion: 1, reservedQuantity: 0, reservationVersion: 1, wishExists: true, wishWrites: 0, wishVersion: 1 };
   const wishlist = { id: listId, name: "Anniversaire — test navigateur", occasion: "birthday", eventDate: "2027-12-20", message: "Liste de test", isSuspended: false };
-  const wish = { id: wishId, wishlistId: listId, name: "Une théière", note: "Une note\nsur deux lignes.", url: "https://example.test/produit", price: 25, quantity: 3, position: 1, entityTag: '"wish-1"', imageUrl: null, reservedQuantity: 0, availableQuantity: 3, currentParticipantReservedQuantity: 0 };
+  const wish = { id: wishId, wishlistId: listId, name: "Une théière", note: "Une note\nsur deux lignes.", url: "https://example.test/produit", price: 25, quantity: 3, position: 1, entityTag: '"wish-1"', imageUrl: null, reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null };
   /** @type {string[]} */
   const unexpected = [];
   await context.route("**/*", async route => {
