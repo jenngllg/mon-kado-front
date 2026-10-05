@@ -5,7 +5,7 @@ import { validateWishlistEditField, validateWishlistField } from "../src/feature
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const signal = new AbortController().signal;
-const item = { id, name: "Liste", occasion: "birthday", eventDate: "2020-02-29", message: "Message", isSuspended: false };
+const item = { id, name: "Liste", occasion: "birthday", eventDate: "2020-02-29", message: "Message", isSuspended: false, surpriseMode: true };
 /** @type {import("../src/features/wishlists/wishlistsService.js").WishlistValues} */
 const values = { name: " \u0085Liste ", occasion: "birthday", eventDate: "2020-02-29", message: " Message\n " };
 /** @param {unknown} [data] JSON. @param {number} [status] Status. @param {string | null} [etag] Tag. */
@@ -20,14 +20,14 @@ describe("versioned wishlist service", () => {
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}`, { method: "GET", authentication: "required", signal });
     expect(result).toEqual({ wishlist: item, etag: '"v1"' }); expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wishlist)).toBe(true);
   });
-  it("PUTs only four fields, preserves the opaque ETag exactly and never adds CSRF", async () => {
+  it("PUTs only five fields, preserves the opaque ETag exactly and never adds CSRF", async () => {
     const service = setup(); await service.update(id, { ...values, ...{ ownerId: "not sent" } }, { etag: '"AbCd-12"', signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}`, { method: "PUT", authentication: "required", signal, ifMatch: '"AbCd-12"',
-      body: { name: "Liste", occasion: "birthday", eventDate: "2020-02-29", message: "Message" } });
+      body: { name: "Liste", occasion: "birthday", eventDate: "2020-02-29", message: "Message", surpriseMode: true } });
   });
   it("clears optional fields and does not normalize Unicode", async () => {
     const service = setup(); await service.update(id, { ...values, name: "e\u0301", eventDate: "", message: " \t\n" }, { etag: '"v1"', signal });
-    expect(service.request.mock.calls[0]).toEqual([expect.any(String), expect.objectContaining({ body: { name: "e\u0301", occasion: "birthday", eventDate: null, message: null } })]);
+    expect(service.request.mock.calls[0]).toEqual([expect.any(String), expect.objectContaining({ body: { name: "e\u0301", occasion: "birthday", eventDate: null, message: null, surpriseMode: true } })]);
   });
   it.each(["../secret", "https://external.test", "", "00000000-0000-0000-0000-000000000000", "bad-id"])("rejects malformed ID %s without transport", async invalid => {
     const service = setup();

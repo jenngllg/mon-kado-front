@@ -18,7 +18,7 @@ function setup() {
       const headers = new Headers(init?.headers);
       expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("Content-Type")).toBe("application/json");
       expect(headers.has("If-Match")).toBe(false); expect(headers.has("X-CSRF-TOKEN")).toBe(false); expect(init?.credentials).toBe("include");
-      expect(JSON.parse(String(init?.body))).toEqual({ name: item.name, occasion: "birthday", eventDate: null, message: null });
+      expect(JSON.parse(String(init?.body))).toEqual({ name: item.name, occasion: "birthday", eventDate: null, message: null, surpriseMode: true });
       await state.beforeWrite();
       return Response.json(state.status === 201 ? item : { statusCode: state.status, title: "Private English", message: "Private message" }, { status: state.status, headers: { ETag: '"created"' } });
     }

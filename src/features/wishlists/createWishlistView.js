@@ -20,7 +20,7 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
   const status = textElement("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   let disposed = false; let submitting = false; let completed = false; let validationSummary = false;
-  const { form, fields, validate, discardDeferredBlur } = createWishlistForm({
+  const { form, fields, surpriseMode, validate, discardDeferredBlur } = createWishlistForm({
     label: "Créer une liste", validateValue: (field, value) => validateWishlistField(field, value, now),
     inactive: () => submitting || completed || disposed, onChange: updateSummary,
   });
@@ -53,6 +53,7 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
   /** @param {boolean} loading Pending operation. */
   function setLoading(loading) {
     submitting = loading; setButtonLoading(submit, loading);
+    surpriseMode.disabled = loading || completed;
     for (const field of fields) field.control.disabled = loading || completed;
     submit.disabled = loading || completed;
     form.setAttribute("aria-busy", String(loading)); status.textContent = loading ? "Création de ta liste…" : "";
@@ -68,7 +69,7 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
     setLoading(true);
     /** @type {import("./wishlistsService.js").CreatedWishlist} */ let created;
     try {
-      created = await create({ name: fields[0].control.value, occasion, eventDate: fields[2].control.value, message: fields[3].control.value }, { signal: lifetime.signal });
+      created = await create({ name: fields[0].control.value, occasion, eventDate: fields[2].control.value, message: fields[3].control.value, surpriseMode: surpriseMode.checked }, { signal: lifetime.signal });
     } catch (error) {
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) presentFailure(error);
       return;

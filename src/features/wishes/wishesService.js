@@ -8,7 +8,7 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"]} WishCollectionItemResponse */
 /** @typedef {Readonly<{id: string, wishlistId: string, name: string, note: string | null, price: number | null,
  * quantity: number, position: string, entityTag: string, url: string | null, imageUrl: string | null,
- * productUnavailable: boolean, imageUnavailable: boolean}>} Wish */
+ * productUnavailable: boolean, imageUnavailable: boolean, reservedQuantity?: number | null, availableQuantity?: number | null}>} Wish */
 /** @typedef {Readonly<{wishes: ReadonlyArray<Wish>, etag: string}>} WishCollection */
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishCollection>} LoadWishes */
 /** @typedef {Readonly<{wish: Wish, etag: string}>} CreatedWish */
@@ -127,7 +127,13 @@ function editable(response, wishlistId, wishId, base) {
   const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
   if (response.status !== 200 || !data || Array.isArray(data) || !isStrongEntityTag(response.metadata.etag)) throw invalid();
   const quantity = typeof data.quantity === "string" && /^\d+$/.test(data.quantity) ? Number(data.quantity) : data.quantity;
-  const wish = projectWish({ ...data, quantity, entityTag: response.metadata.etag }, wishlistId, base, invalid);
+  const projected = projectWish({ ...data, quantity, entityTag: response.metadata.etag }, wishlistId, base, invalid);
+  const reserved = data.reservedQuantity ?? null;
+  const available = data.availableQuantity ?? null;
+  if (!(reserved === null && available === null) &&
+      (typeof reserved !== "number" || !Number.isSafeInteger(reserved) || reserved < 0 ||
+       typeof available !== "number" || available !== Math.max(0, projected.quantity - reserved))) throw invalid();
+  const wish = Object.freeze({ ...projected, reservedQuantity: reserved, availableQuantity: available });
   if (wish.id.toLowerCase() !== wishId.toLowerCase()) throw invalid();
   // Navigation uses the safe projection; editing must not silently rewrite the original URL.
   const values = Object.freeze({ name: wish.name, note: wish.note ?? "", url: data.url ?? "",

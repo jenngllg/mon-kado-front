@@ -27,7 +27,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
     inactive: () => disposed || busy || terminal || base?.wishlist.isSuspended === true,
     onChange: () => { if (validationSummary && editor.fields.every(field => field.error === null)) clearFeedback(); syncControls(); },
   });
-  const { form, fields } = editor; form.hidden = true;
+  const { form, fields, surpriseMode } = editor; form.hidden = true;
   const actions = textElement("div", ""); actions.className = "wishlist-form__actions cluster";
   const submit = createButton({ label: "Enregistrer les modifications", type: "submit" });
   const cancel = createButton({ label: "Annuler les modifications", variant: "secondary", onClick: useStored });
@@ -64,7 +64,8 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
     if (!base) return false;
     const stored = base.wishlist;
     return trimWishlistText(fields[0].control.value) !== stored.name || fields[1].control.value !== stored.occasion ||
-      (fields[2].control.value || null) !== stored.eventDate || (trimWishlistText(fields[3].control.value) || null) !== stored.message;
+      (fields[2].control.value || null) !== stored.eventDate || (trimWishlistText(fields[3].control.value) || null) !== stored.message ||
+      surpriseMode.checked !== (stored.surpriseMode ?? true);
   }
   function syncControls() {
     if (disposed) return;
@@ -72,6 +73,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
     form.hidden = base === null || terminal;
     deletion.hidden = base === null || terminal || suspended || busy || blocked;
     for (const field of fields) field.control.disabled = busy || suspended || terminal;
+    surpriseMode.disabled = busy || suspended || terminal;
     submit.disabled = busy || blocked || suspended || terminal || !hasChanges();
     submit.textContent = decision ? "Enregistrer ma saisie" : "Enregistrer les modifications";
     cancel.disabled = busy || suspended || terminal || !base;
@@ -91,10 +93,11 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
   function presentComparison() {
     if (!base) return;
     comparison.hidden = false; comparison.replaceChildren(textElement("h2", "Version enregistrée"),
-      textElement("p", "Ta saisie est conservée ci-dessous. « Enregistrer ma saisie » remplacera les quatre informations de cette version, sans fusion automatique."));
+        textElement("p", "Ta saisie est conservée ci-dessous. « Enregistrer ma saisie » remplacera cette version, sans fusion automatique."));
     const data = base.wishlist; const list = document.createElement("dl");
     for (const [label, value] of [["Nom de la liste", data.name], ["Occasion", WishlistOccasions[data.occasion]],
-      ["Date de l’événement", data.eventDate ?? "Sans date"], ["Message", data.message ?? "Sans message"]]) {
+        ["Date de l’événement", data.eventDate ?? "Sans date"], ["Message", data.message ?? "Sans message"],
+        ["Mode surprise", (data.surpriseMode ?? true) ? "Activé" : "Désactivé"]]) {
       list.append(textElement("dt", label), textElement("dd", value));
     }
     comparison.append(list);
@@ -143,7 +146,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
     busy = true; syncControls(); setButtonLoading(submit, true); status.textContent = "Enregistrement de ta liste…";
     try {
       const saved = await update(wishlistId, { name: fields[0].control.value, occasion,
-        eventDate: fields[2].control.value, message: fields[3].control.value }, { etag: base.etag, signal: lifetime.signal });
+        eventDate: fields[2].control.value, message: fields[3].control.value, surpriseMode: surpriseMode.checked }, { etag: base.etag, signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
       if (!isStrongEntityTag(saved.etag)) throw new ApiError({ kind: "invalidResponse" });
       base = saved; editor.reset(saved.wishlist); decision = false; blocked = saved.wishlist.isSuspended; clearComparison();

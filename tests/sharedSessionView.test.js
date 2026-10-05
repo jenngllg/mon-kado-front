@@ -19,19 +19,20 @@ describe("identity-bound shared view", () => {
     const change = (/** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ next) => { state = next; notify(state); };
 
     // Act / Assert
-    expect(create).toHaveBeenLastCalledWith({ authentication: "none", includeCurrent: false });
+    expect(create).not.toHaveBeenCalled();
     change(snapshot("authenticated", "account-a"));
     expect(host.textContent).toBe("account-a");
     expect(create).toHaveBeenLastCalledWith({ authentication: "required", includeCurrent: true });
-    notify(state); expect(create).toHaveBeenCalledTimes(2);
+    notify(state); expect(create).toHaveBeenCalledTimes(1);
     change(snapshot("authenticated", "account-b"));
     expect(host.textContent).toBe("account-b"); expect(host.textContent).not.toContain("account-a");
     change(snapshot("authenticated", "account-b", true));
-    expect(create).toHaveBeenLastCalledWith({ authentication: "none", includeCurrent: false });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(host.textContent).not.toContain("account-b");
     change(snapshot("anonymous"));
     expect(create).toHaveBeenLastCalledWith({ authentication: "none", includeCurrent: true });
     disposeComponent(host); disposeComponent(host); notify(snapshot("authenticated", "late"));
-    expect(host.textContent).toBe(""); expect(unsubscribe).toHaveBeenCalledOnce(); expect(clean).toHaveBeenCalledTimes(5);
+    expect(host.textContent).toBe(""); expect(unsubscribe).toHaveBeenCalledOnce(); expect(clean).toHaveBeenCalledTimes(3);
   });
   it("never starts a read after route cancellation", () => {
     // Arrange

@@ -13472,6 +13472,8 @@ export interface components {
             readonly name: null | string;
             /** @description Gets the requested occasion. */
             readonly occasion: components["schemas"]["WishlistOccasion"];
+            /** @description Gets the requested surprise mode; omission keeps the default or existing setting. */
+            readonly surpriseMode?: null | boolean;
         };
         /** @description Represents a manual gift wish creation request. */
         readonly CreateWishRequest: {
@@ -14121,7 +14123,7 @@ export interface components {
              * Format: int32
              * @description Gets the remaining quantity.
              */
-            readonly availableQuantity?: number | string;
+            readonly availableQuantity?: null | number | string;
             /**
              * Format: int32
              * @description Gets the quantity reserved by the current participant when one is joined.
@@ -14152,7 +14154,7 @@ export interface components {
              * Format: int32
              * @description Gets the total quantity reserved by all participants.
              */
-            readonly reservedQuantity?: number | string;
+            readonly reservedQuantity?: null | number | string;
             /** @description Gets the optional product URL. */
             readonly url?: null | string;
         };
@@ -14186,7 +14188,7 @@ export interface components {
              * Format: int32
              * @description Gets the remaining quantity, clamped to zero.
              */
-            readonly availableQuantity?: number | string;
+            readonly availableQuantity?: null | number | string;
             /**
              * Format: int32
              * @description Gets the quantity reserved by the current participant when one is joined.
@@ -14215,7 +14217,7 @@ export interface components {
              * Format: int32
              * @description Gets the total quantity reserved by all participants.
              */
-            readonly reservedQuantity?: number | string;
+            readonly reservedQuantity?: null | number | string;
             /** @description Gets the optional product URL. */
             readonly url?: null | string;
         };
@@ -14345,6 +14347,8 @@ export interface components {
             readonly name: null | string;
             /** @description Gets the requested occasion. */
             readonly occasion: components["schemas"]["WishlistOccasion"];
+            /** @description Gets the requested surprise mode; omission keeps the default or existing setting. */
+            readonly surpriseMode?: null | boolean;
         };
         /** @description Represents a gift wish update request. */
         readonly UpdateWishRequest: {
@@ -14620,6 +14624,8 @@ export interface components {
             readonly name: string;
             /** @description Gets the associated occasion. */
             readonly occasion: components["schemas"]["WishlistOccasion"];
+            /** @description Gets whether reservation quantities are hidden from the owner. */
+            readonly surpriseMode?: boolean;
             /**
              * Format: date-time
              * @description Gets the UTC start of the current suspension.
@@ -14676,6 +14682,11 @@ export interface components {
         /** @description Represents the private details of a gift wish. */
         readonly WishResponse: {
             /**
+             * Format: int32
+             * @description Gets the available quantity, or null when reservation information is hidden.
+             */
+            readonly availableQuantity?: null | number | string;
+            /**
              * Format: date-time
              * @description Gets the UTC creation date and time.
              */
@@ -14707,6 +14718,11 @@ export interface components {
              * @default 1
              */
             readonly quantity: number | string;
+            /**
+             * Format: int32
+             * @description Gets the reserved quantity, or null when reservation information is hidden.
+             */
+            readonly reservedQuantity?: null | number | string;
             /**
              * Format: date-time
              * @description Gets the optional UTC update date and time.

@@ -3,7 +3,7 @@ import { ApiError } from "../src/api/apiError.js";
 import { createWishlistsService } from "../src/features/wishlists/wishlistsService.js";
 
 const signal = new AbortController().signal;
-const item = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Liste 🎁", occasion: "birthday", eventDate: "2028-02-29", message: "Un message", isSuspended: false };
+const item = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Liste 🎁", occasion: "birthday", eventDate: "2028-02-29", message: "Un message", isSuspended: false, surpriseMode: true };
 /** @type {import("../src/features/wishlists/wishlistsService.js").WishlistValues} */
 const values = { name: " \u0085Liste 🎁 ", occasion: "birthday", eventDate: "2028-02-29", message: " Un message \n " };
 /** @param {unknown} [data] Body. @param {number} [status] HTTP status. @param {string | null} [etag] Tag. @param {string | null} [location] Optional backend destination. */
@@ -12,18 +12,18 @@ function setup(data = item, status = 201, etag = '"version-1"', location = /** @
   return { request, ...createWishlistsService({ request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request) }) };
 }
 describe("wishlist creation service", () => {
-  it("posts the exact four-field JSON with JWT required and the original signal, without CSRF or If-Match", async () => {
+  it("posts the exact five-field JSON with JWT required and the original signal, without CSRF or If-Match", async () => {
     const { create, request } = setup();
     const result = await create({ ...values, ...{ ownerId: "not-sent", gift: "not-sent" } }, { signal });
     expect(request).toHaveBeenCalledExactlyOnceWith("/api/v1/wishlists", { method: "POST", authentication: "required", signal,
-      body: { name: item.name, occasion: item.occasion, eventDate: item.eventDate, message: item.message } });
+      body: { name: item.name, occasion: item.occasion, eventDate: item.eventDate, message: item.message, surpriseMode: true } });
     expect(result).toEqual({ wishlist: item, etag: '"version-1"' });
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wishlist)).toBe(true);
   });
   it("sends null optional values and leaves normalization to the server", async () => {
     const { create, request } = setup();
     await create({ ...values, name: "e\u0301", eventDate: "", message: "\n \t" }, { signal });
-    expect(request.mock.calls[0]).toEqual(["/api/v1/wishlists", expect.objectContaining({ body: { name: "e\u0301", occasion: "birthday", eventDate: null, message: null } })]);
+    expect(request.mock.calls[0]).toEqual(["/api/v1/wishlists", expect.objectContaining({ body: { name: "e\u0301", occasion: "birthday", eventDate: null, message: null, surpriseMode: true } })]);
   });
   it("ignores Location and projects only useful fields without retaining the source object", async () => {
     const source = { ...item, suspensionReason: "private", createdAt: "unused", updatedAt: null };

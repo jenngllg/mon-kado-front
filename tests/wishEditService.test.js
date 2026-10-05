@@ -19,7 +19,7 @@ describe("gift editing service", () => {
     expect(result.values).toEqual({ name: item.name, note: item.note, url: item.url, price: "0,29", quantity: "2" });
     expect(result.wish.url).toBe("https://example.test/product"); expect(result.wish.position).toBe(item.position); expect(result.etag).toBe('"gift-2"');
     for (const value of [result, result.wish, result.values]) expect(Object.isFrozen(value)).toBe(true);
-    expect(result.values).not.toHaveProperty("imageUrl"); expect(result.wish).not.toHaveProperty("reservedQuantity");
+    expect(result.values).not.toHaveProperty("imageUrl"); expect(result.wish.reservedQuantity).toBeNull();
   });
   it("keeps unsafe stored URLs as text to correct, never as navigable links", async () => {
     const result = await setup({ ...item, url: "javascript:alert(1)" }).loadOne(id, wishId, { signal });

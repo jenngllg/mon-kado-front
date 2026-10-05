@@ -16,7 +16,7 @@ function setup(options = {}) {
   const onCreated = vi.fn(/** @type {(created: typeof result) => Promise<void>} */ (async () => {}));
   const view = createWishlistView({ create, onCreated, now: () => new Date("2028-02-29T12:00:00Z"), ...options }); views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const controls = [...form.querySelectorAll("input,select,textarea")];
+  const controls = [...form.querySelectorAll("input:not([type=checkbox]),select,textarea")];
   const fields = /** @type {[HTMLInputElement, HTMLSelectElement, HTMLInputElement, HTMLTextAreaElement]} */ (controls);
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   /** @param {number} index Field index. @param {string} value Input value. */
@@ -28,6 +28,15 @@ function setup(options = {}) {
 async function settle() { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); }
 
 describe("create wishlist form", () => {
+  it("defaults to surprise mode and submits an explicit disabled mode", async () => {
+    const ui = setup(); ui.fill();
+    const mode = /** @type {HTMLInputElement} */ (ui.view.querySelector('[role="switch"]'));
+    expect(mode.checked).toBe(true);
+    mode.click(); ui.send();
+    expect(mode.disabled).toBe(true);
+    await settle();
+    expect(ui.create.mock.calls[0][0].surpriseMode).toBe(false);
+  });
   it("provides four native labelled fields and only contract-supported controls", () => {
     const ui = setup();
     expect(ui.view.querySelector("h1")?.textContent).toBe("Créer une liste");
@@ -85,7 +94,7 @@ describe("create wishlist form", () => {
     const gate = barrier(); const ui = setup(); ui.create.mockImplementation(async () => { await gate.promise; return result; }); ui.fill(); ui.send(); ui.send();
     expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.submit.disabled).toBe(true);
     expect(ui.form.getAttribute("aria-busy")).toBe("true"); expect(ui.view.querySelector('[role="status"]')?.textContent).toBe("Création de ta liste…");
-    expect(ui.create).toHaveBeenCalledWith({ name: " Liste 🎁 ", occasion: "birthday", eventDate: "2028-02-29", message: " Message\nmultiligne " }, { signal: expect.any(AbortSignal) });
+    expect(ui.create).toHaveBeenCalledWith({ name: " Liste 🎁 ", occasion: "birthday", eventDate: "2028-02-29", message: " Message\nmultiligne ", surpriseMode: true }, { signal: expect.any(AbortSignal) });
     gate.resolve(); await settle(); await settle();
     expect(ui.onCreated).toHaveBeenCalledExactlyOnceWith(result); expect(ui.fields.every(field => field.value === "")).toBe(true);
     ui.send(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.submit.disabled).toBe(true);

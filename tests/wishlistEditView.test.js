@@ -18,7 +18,7 @@ function setup(options = {}, initial = original) {
   const view = createWishlistEditView({ wishlistId: original.wishlist.id, loadOne, update, now: () => new Date("2028-03-01T12:00:00Z"), ...options });
   views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const fields = /** @type {Array<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} */ ([...form.querySelectorAll("input,select,textarea")]);
+  const fields = /** @type {Array<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} */ ([...form.querySelectorAll("input:not([type=checkbox]),select,textarea")]);
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   /** @param {string} label Button text. */
   function button(label) { const button = [...view.querySelectorAll("button")].find(button => button.textContent === label); if (!button) throw Error(label); return button; }
@@ -33,6 +33,16 @@ async function conflict(ui) {
   ui.input(0, " Mon brouillon "); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISHLIST_VERSION_CONFLICT" })); ui.send(); await settle();
 }
 describe("wishlist editor", () => {
+  it("saves a mode-only change and resets cancellation to the persisted setting", async () => {
+    const initial = { ...original, wishlist: { ...original.wishlist, surpriseMode: false } };
+    const ui = setup({}, initial); await settle();
+    const mode = /** @type {HTMLInputElement} */ (ui.view.querySelector('[role="switch"]'));
+    expect(mode.checked).toBe(false); expect(ui.submit.disabled).toBe(true);
+    mode.click(); expect(ui.submit.disabled).toBe(false);
+    ui.button("Annuler les modifications").click(); expect(mode.checked).toBe(false);
+    mode.click(); ui.send(); await settle();
+    expect(ui.update.mock.calls[0][1].surpriseMode).toBe(true);
+  });
   it("loads fresh, leaves initial focus to the router, uses four labelled fields and prevents unchanged writes", async () => {
     const ui = setup(); expect(ui.form.hidden).toBe(true); expect(ui.view.textContent).toContain("Chargement de ta liste…"); await settle();
     expect(ui.form.hidden).toBe(false); expect(ui.form.noValidate).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(["Liste initiale", "birthday", "2020-02-29", "Message initial"]);
@@ -57,7 +67,7 @@ describe("wishlist editor", () => {
     ui.update.mockImplementation(async () => { await gate.promise; return { ...original, wishlist: { ...original.wishlist, name: "Nom enregistré" }, etag: '"v2"' }; });
     ui.input(0, " Mon brouillon "); ui.send(); ui.send();
     expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.form.getAttribute("aria-busy")).toBe("true");
-    expect(ui.update).toHaveBeenCalledExactlyOnceWith(original.wishlist.id, { name: " Mon brouillon ", occasion: "birthday", eventDate: "2020-02-29", message: "Message initial" }, { etag: '"v1"', signal: expect.any(AbortSignal) });
+    expect(ui.update).toHaveBeenCalledExactlyOnceWith(original.wishlist.id, { name: " Mon brouillon ", occasion: "birthday", eventDate: "2020-02-29", message: "Message initial", surpriseMode: true }, { etag: '"v1"', signal: expect.any(AbortSignal) });
     gate.resolve(); await settle(); expect(ui.view.textContent).toContain("Modifications enregistrées"); expect(ui.fields[0].value).toBe("Nom enregistré"); expect(ui.submit.disabled).toBe(true); expect(ui.loadOne).toHaveBeenCalledOnce();
     ui.input(0, "Deuxième édition"); ui.send(); await settle(); expect(ui.update.mock.calls[1][2].etag).toBe('"v2"');
   });
