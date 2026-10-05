@@ -38,7 +38,7 @@ test("a known revoked link removes public content on refresh", async ({ page, co
   // Wait for the independent initial participation read before revoking access.
   await expect(page.getByRole("textbox", { name: /Nom d’affichage/ })).toBeVisible();
   api.state.revoked = true;
-  await page.getByRole("button", { name: "Actualiser la liste", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Afficher uniquement les souhaits disponibles" }).check();
   await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Nom d’affichage" })).toHaveCount(0);

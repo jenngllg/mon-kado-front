@@ -36,7 +36,17 @@ function edit(input, value) { input.value = value; input.dispatchEvent(new Event
 async function submit(form) { form.dispatchEvent(new Event("submit", { cancelable: true })); await settle(); }
 
 describe("profile editor", () => {
-  it("loads once and presents a labelled form and read-only selectable email", async () => {
+  it("omits redundant display-name help", async () => {
+    // Arrange
+    const { view } = mount();
+    await settle();
+    // Act
+    const text = view.textContent;
+    // Assert
+    expect(text).not.toContain("Le nom que les autres verront");
+    expect(text).not.toContain("Choisis un pseudonyme");
+  });
+  it("loads once and presents a labelled form without repeating the email", async () => {
     // Arrange / Act
     const { view, input, form, load, save } = mount(); await settle();
     // Assert
@@ -45,8 +55,9 @@ describe("profile editor", () => {
     expect(input.value).toBe("Jenn"); expect(input.required).toBe(true);
     expect(input.getAttribute("autocomplete")).toBe("nickname"); expect(input.hasAttribute("maxlength")).toBe(false);
     expect(view.querySelector('label[for="' + input.id + '"]')).not.toBeNull();
-    expect(input.getAttribute("aria-describedby")).toBeTruthy();
-    expect(view.querySelector("dd")?.textContent).toBe("jenn@example.test");
+    expect(input.hasAttribute("aria-describedby")).toBe(false);
+    expect(view.textContent).not.toContain("jenn@example.test");
+    expect(view.textContent).not.toContain("Adresse e-mail");
     expect(view.querySelectorAll("input")).toHaveLength(1);
     expect(button(view, "Enregistrer les modifications").disabled).toBe(true);
     expect(load).toHaveBeenCalledOnce(); expect(save).not.toHaveBeenCalled();

@@ -18,7 +18,7 @@ export function createWishlistShareRenewDialog({ wishlistId, etag, load, renew, 
   const title = document.createElement("h2"); title.textContent = "Renouveler le lien de partage ?";
   title.id = `share-renew-${crypto.randomUUID()}`; title.tabIndex = -1; title.setAttribute("autofocus", "");
   const warning = document.createElement("p"); warning.id = `${title.id}-warning`;
-  warning.textContent = "L’ancien lien ne permettra plus d’accéder à ta liste. Tu devras communiquer le nouveau lien aux personnes de ton choix. Les participations existantes ne seront pas supprimées.";
+  warning.textContent = "L’ancien lien sera désactivé. Partage le nouveau lien ; les participations seront conservées.";
   dialog.setAttribute("aria-labelledby", title.id); dialog.setAttribute("aria-describedby", warning.id);
   const feedback = document.createElement("div");
   const status = document.createElement("p"); status.setAttribute("role", "status");

@@ -55,7 +55,7 @@ describe("wishlist creation application integration", () => {
     const form = app.fillAndSend();
     await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Liste créée") === true);
     expect(window.location.pathname).toBe("/lists/" + item.id); expect(window.history.length).toBe(length);
-    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Cette liste ne contient pas encore de cadeau") === true);
+    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Aucun souhait pour le moment") === true);
     expect(app.shell.outlet.querySelector("h1")?.textContent).toBe(item.name);
     expect(document.activeElement).toBe(app.shell.outlet); expect(app.state.writes).toBe(1);
     expect(app.shell.notificationRegion.children).toHaveLength(1);

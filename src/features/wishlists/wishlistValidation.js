@@ -7,7 +7,7 @@ export const WishlistOccasions = Object.freeze({ birthday: "Anniversaire", chris
 export const WishlistServerMessages = Object.freeze({
   name: "Vérifie le nom de ta liste : 100 caractères maximum, sans caractères de contrôle.",
   occasion: "Choisis une occasion parmi les options proposées.",
-  eventDate: "Choisis une date valide, aujourd’hui ou plus tard (jour UTC).",
+  eventDate: "Choisis une date valide, aujourd’hui ou plus tard.",
   message: "Vérifie ton message : 500 caractères maximum, sans caractères de contrôle autres que les retours à la ligne et tabulations.",
 });
 

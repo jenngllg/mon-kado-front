@@ -45,7 +45,7 @@ test("anonymous search → profile → shared list → wish and back preserves t
   await expect(page.locator(".member-avatar")).toHaveCount(1);
   await page.getByRole("link", { name: /Anniversaire — test navigateur/ }).click();
   await expect(page).toHaveURL(`${sharedPath}?fromMember=${memberId}`);
-  await page.getByRole("link", { name: "Voir le cadeau « Une théière »", exact: true }).click();
+  await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   await expect(page).toHaveURL(`${sharedPath}/wishes/${wishId}?fromMember=${memberId}`);
   await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();

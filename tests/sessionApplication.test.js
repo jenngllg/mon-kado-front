@@ -26,6 +26,38 @@ function mount(path = "/", transport = createSessionTransport(), hub = createCoo
 }
 
 describe("session routes and shell", () => {
+  it.each(["/profile/email", "/profile/password"])("redirects Google-linked members away from %s before mounting a credential form", async path => {
+    // Arrange
+    const transport = createSessionTransport();
+    Object.assign(transport.state.user, { isGoogleLinked: true });
+    const app = mount(path, transport);
+    // Act
+    await app.start();
+    // Assert
+    expect(app.router.getCurrentRoute()?.url.pathname).toBe("/profile");
+    expect(app.shell.outlet.querySelector('input[type="password"]')).toBeNull();
+    expect(app.shell.outlet.querySelector('nav a[href="/profile/email"]')).toBeNull();
+    expect(app.shell.outlet.querySelector('nav a[href="/profile/password"]')).toBeNull();
+    expect(transport.fetch.mock.calls.some(call => /email-changes|password-changes/.test(String(call[0])))).toBe(false);
+  });
+  it("shows member home actions after restoration and guest actions after logout", async () => {
+    // Arrange
+    const app = mount("/");
+    // Act
+    await app.start();
+    await app.session.start();
+    // Assert
+    expect(app.shell.outlet.querySelector('a[href="/register"]')).toBeNull();
+    expect(app.shell.outlet.querySelector('a[href="/login"]')).toBeNull();
+    expect(app.shell.outlet.querySelector('a[href="/lists"]')?.textContent).toBe("Mes listes");
+    expect(app.shell.outlet.querySelector('a[href="/reservations"]')?.textContent).toBe("Mes réservations");
+    // Act
+    await app.session.logout();
+    await app.router.navigate("/");
+    // Assert
+    expect(app.shell.outlet.querySelector('a[href="/register"]')?.textContent).toBe("Créer un compte");
+    expect(app.shell.outlet.querySelector('a[href="/login"]')?.textContent).toBe("Se connecter");
+  });
   it("loads private reservation history freshly and removes it on coordinated logout during a read", async () => {
     const transport = createSessionTransport(), hub = createCoordinatorHub(), fallback = transport.fetch.getMockImplementation();
     const gate = barrier(), started = barrier(); let delay = false, reads = 0;
@@ -92,7 +124,7 @@ describe("session routes and shell", () => {
       await observe(() => app.shell.outlet.textContent?.includes("Ton profil est à jour.") === true);
       // Assert
       expect(app.session.getSnapshot().user?.displayName).toBe("Updated member");
-      expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon profil");
+      expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
       await other.start(); delaySave = true; input.value = "Private draft";
       form.dispatchEvent(new Event("submit", { cancelable: true })); await saveEntered.promise;
       await other.logout(); saveGate.resolve();
@@ -127,7 +159,7 @@ describe("session routes and shell", () => {
     expect(app.shell.element.querySelector('nav a[href="/login"]')).toBeNull();
     gate.resolve(); await starting;
     expect(app.shell.outlet.textContent).toContain("Mon profil");
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon profil");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
     expect(document.activeElement).toBe(app.shell.outlet);
   });
 
@@ -322,9 +354,9 @@ describe("authenticated password navigation", () => {
   it("links from profile, groups navigation, replaces history and shows one memory-only login confirmation", async () => {
     // Arrange
     const f = setupChange(); const app = mount("/profile", f.transport); await app.start();
-    expect(app.shell.outlet.querySelector('a[href="/profile/password"]')?.textContent).toBe("Changer mon mot de passe");
+    expect(app.shell.outlet.querySelector('a[href="/profile/password"]')?.textContent).toBe("Mot de passe");
     await app.router.navigate("/profile/password");
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon profil");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
     const historyLength = window.history.length; const fields = submitChange(app); await f.entered.promise;
     // Act
     f.gate.resolve(); await waitRoute(app, "/login");

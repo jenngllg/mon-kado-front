@@ -25,10 +25,12 @@ export default [
   {
     files: [
       "tests/actionLink.test.js",
+      "tests/accountLayout.test.js",
       "tests/button.test.js",
       "tests/feedbackComponents.test.js",
       "tests/formField.test.js",
       "tests/notification.test.js",
+      "tests/refreshOnReturn.test.js",
       "tests/router.test.js",
       "tests/applicationRoutes.test.js",
       "tests/applicationShell.test.js",
@@ -40,6 +42,7 @@ export default [
       "tests/profileView.test.js",
       "tests/profileImageView.test.js",
       "tests/memberAvatar.test.js",
+      "tests/profilePhotoCrop.test.js",
       "tests/wishlistsView.test.js",
       "tests/wishlistsApplication.test.js",
       "tests/createWishlistView.test.js",

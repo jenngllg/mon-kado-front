@@ -36,6 +36,18 @@ describe("application shell", () => {
     shell.setSession({ status: /** @type {import("../src/auth/sessionManager.js").SessionSnapshot["status"]} */ (status), user: null, etag: null, logoutPending: false, issue: null });
     expect(shell.element.querySelector('nav a[href="/members"]')?.textContent).toBe("Rechercher un membre");
   });
+  it("styles logout as a navigation item while retaining button behavior", () => {
+    let calls = 0;
+    const shell = createApplicationShell({ onLogout: () => { calls += 1; } });
+    shellElements.push(shell.element);
+    shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
+    const logout = /** @type {HTMLButtonElement} */ (shell.element.querySelector("button.app-navigation__link"));
+    expect(logout.textContent).toBe("Se déconnecter");
+    expect(logout.type).toBe("button");
+    expect(logout.hasAttribute("aria-current")).toBe(false);
+    logout.click();
+    expect(calls).toBe(1);
+  });
   it("groups session recovery feedback in a named landmark without a duplicate live region", () => {
     // Arrange
     const shell = createTestShell();

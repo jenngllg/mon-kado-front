@@ -1,5 +1,5 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
-import { createActionLink, createAlert, createButton, disposeComponent } from "../../components/index.js";
+import { createBackLink, createActionLink, createAlert, createButton, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createLoginView } from "../login/loginView.js";
@@ -60,8 +60,10 @@ export function createAccountDeletionView({ session, service, consumeFragment, s
     content.append(message("Compte connecté : " + state.user.displayName), createAlert({ variant: "warning", title: "Suppression définitive",
       message: "Ton compte et ses données seront supprimés selon les règles décrites dans la politique de confidentialité. Tes sessions seront fermées. Télécharge ton export avant de continuer si tu veux le conserver." }));
     const accepted = document.createElement("input"); accepted.type = "checkbox";
-    const label = document.createElement("label"); label.append(accepted, message("Je confirme vouloir supprimer définitivement ce compte"));
-    const confirm = createButton({ label: "Supprimer définitivement mon compte", onClick: () => {
+    const label = document.createElement("label"); label.className = "account-deletion-confirmation";
+    const consentText = document.createElement("span"); consentText.textContent = "Je confirme vouloir supprimer définitivement ce compte";
+    label.append(accepted, consentText);
+    const confirm = createButton({ label: "Supprimer définitivement mon compte", variant: "danger", onClick: () => {
       if (!accepted.checked || busy || token === null || presentedUser !== session.getSnapshot().user?.id) return;
       void submit(token);
     } }); confirm.disabled = true;
@@ -81,8 +83,8 @@ export function createAccountDeletionView({ session, service, consumeFragment, s
       const result = await service.confirm(confirmationToken, { signal: lifetime.signal });
       if (disposed) return;
       completed = true; token = null; clearContent();
-      content.append(createAlert({ title: "Compte supprimé", message: "La suppression a été confirmée. Tu n’as pas besoin de renvoyer le lien.", variant: "success" }),
-        createActionLink({ label: "Retour à l’accueil", href: "/" }));
+      view.prepend(createBackLink({ label: "Retour à l’accueil", href: "/" }));
+      content.append(createAlert({ title: "Compte supprimé", message: "La suppression a été confirmée. Tu n’as pas besoin de renvoyer le lien.", variant: "success" }));
       if (result.sessionIssue) content.append(createAlert({ title: "Synchronisation à vérifier", message: "La suppression a réussi. Utilise le bandeau de session pour réessayer uniquement la synchronisation.", variant: "warning" }));
     } catch (error) {
       showError(error);

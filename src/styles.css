@@ -8,5 +8,7 @@
 @import "./styles/shell.css" layer(components);
 @import "./styles/views.css" layer(components);
 @import "./styles/members.css" layer(components);
+@import "./styles/mockup-fidelity.css" layer(components);
+@import "./styles/site-theme.css" layer(components);
 @import "./styles/google.css" layer(components);
 @import "./styles/utilities.css" layer(utilities);

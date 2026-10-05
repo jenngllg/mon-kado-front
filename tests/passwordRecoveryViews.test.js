@@ -43,12 +43,13 @@ describe("password reset view", () => {
     const f = mountReset();
     // Assert
     expect(f.consumeFragment).toHaveBeenCalledOnce(); expect(f.resetPassword).not.toHaveBeenCalled();
+    expect(document.getElementById(input(f.view, "newPassword").getAttribute("aria-describedby") ?? "")?.textContent).toBe("De 12 à 128 caractères.");
     expect(f.view.querySelector("form")?.noValidate).toBe(true);
     expect(f.view.querySelectorAll("input")).toHaveLength(2);
     for (const control of f.view.querySelectorAll("input")) {
       expect(control.type).toBe("password"); expect(control.autocomplete).toBe("new-password"); expect(control.required).toBe(true);
       expect(control.hasAttribute("maxlength")).toBe(false); expect(control.hasAttribute("minlength")).toBe(false);
-      expect(f.view.querySelector(`label[for="${control.id}"]`)).not.toBeNull(); expect(control.getAttribute("aria-describedby")).toBeTruthy();
+      expect(f.view.querySelector(`label[for="${control.id}"]`)).not.toBeNull(); expect(control.hasAttribute("aria-describedby")).toBe(control.name === "newPassword");
     }
     expect(f.view.innerHTML).not.toMatch(/secret-fixture|019c52dd/);
     expect(f.view.textContent).toContain("même si un autre compte y est ouvert");

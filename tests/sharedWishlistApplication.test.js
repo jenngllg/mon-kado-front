@@ -5,7 +5,7 @@ import { createSessionManager } from "../src/auth/sessionManager.js";
 import { barrier, createCoordinatorHub, createSessionTransport, untilSession } from "./sessionTestHelpers.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", secret = "A".repeat(43), path = `/shared-wishlists/${id}`;
 const data = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", name: "Liste publique", ownerDisplayName: "Camille", occasion: "other", eventDate: null, message: null, wishes: [], currentParticipant: null };
-const wish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e06", name: "Cadeau public", note: "Note\ncomplète", price: null, quantity: 1, url: null, imageUrl: null, reservedQuantity: 1, availableQuantity: 0, currentParticipantReservedQuantity: 1 };
+const wish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e06", name: "Souhait public", note: "Note\ncomplète", price: null, quantity: 1, url: null, imageUrl: null, reservedQuantity: 1, availableQuantity: 0, currentParticipantReservedQuantity: 1 };
 const detailPath = `${path}/wishes/${wish.id}`;
 /** @type {ReturnType<typeof createSessionApplication>[]} */ const apps = [];
 afterEach(() => { apps.splice(0).forEach(app => app.dispose()); document.body.replaceChildren(); window.history.replaceState({}, "", "/"); });
@@ -61,11 +61,24 @@ function setup(target = path + "#" + secret) {
 /** @param {() => boolean} predicate DOM milestone. */
 function observe(predicate) { if (predicate()) return Promise.resolve(); return new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(document.body, { childList: true, subtree: true, characterData: true }); }); }
 describe("public shared wishlist integration", () => {
+  it("does not offer list participation or load a participant on the list", async () => {
+    // Arrange
+    const { app, state } = setup();
+    // Act
+    await app.start();
+    await untilSession(app.session, value => value.status === "authenticated");
+    await observe(() => app.shell.outlet.querySelector(".wish-card") !== null);
+    // Assert
+    expect(app.shell.outlet.querySelector(".wishlist-participation")).toBeNull();
+    expect(app.shell.outlet.textContent).not.toContain("Participer");
+    expect(state.participantReads).toBe(0);
+    expect(state.joins).toBe(0);
+  });
   it("uses the server filter without mutation and resets it after a session change", async () => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => app.shell.outlet.textContent?.includes("Participer avec mon compte") === true);
     const filter = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector('input[type="checkbox"]')); filter.click();
-    await observe(() => app.shell.outlet.textContent?.includes("1 cadeau affiché.") === true);
+    await observe(() => app.shell.outlet.textContent?.includes("1 souhait affiché.") === true);
     expect(state.filters.at(-1)).toBe("true"); expect(state.joins + state.reservationWrites + state.reservationDeletes).toBe(0);
     await app.session.logout(); await observe(() => app.shell.outlet.querySelector('input[name="displayName"]') !== null);
     expect(state.filters.at(-1)).toBeNull(); expect(/** @type {HTMLInputElement} */ (app.shell.outlet.querySelector('input[type="checkbox"]')).checked).toBe(false);
@@ -89,9 +102,9 @@ describe("public shared wishlist integration", () => {
   it.each([false, true])("creates once and rejects late success after logout=%s", async logout => {
     const { app, state } = setup(); state.reserved = false; await app.start(); await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => app.shell.outlet.textContent?.includes("Participer avec mon compte") === true); await app.router.navigate(detailPath);
-    await observe(() => app.shell.outlet.querySelector('form[aria-label="Réserver ce cadeau"]') !== null);
+    await observe(() => app.shell.outlet.querySelector('form[aria-label="Réserver ce souhait"]') !== null);
     expect(state.reservationWrites).toBe(0); const gate = barrier(), started = barrier(); state.beforeReserve = async () => { started.resolve(); await gate.promise; };
-    const submit = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Réserver ce cadeau"); submit?.click(); submit?.click(); await started.promise;
+    const submit = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Réserver ce souhait"); submit?.click(); submit?.click(); await started.promise;
     expect(state.reservationWrites).toBe(1);
     expect([...app.shell.outlet.querySelectorAll("button")].filter(button => button.textContent?.startsWith("Actualiser")).every(button => button.disabled)).toBe(true);
     if (logout) await app.session.logout(); gate.resolve();
@@ -103,7 +116,7 @@ describe("public shared wishlist integration", () => {
     await observe(() => app.shell.outlet.textContent?.includes("Participer avec mon compte") === true);
     await app.router.navigate(detailPath); await observe(() => app.shell.outlet.textContent?.includes("Tu as réservé 1") === true);
     const gate = barrier(); state.beforeReservation = () => gate.promise;
-    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Actualiser ma réservation")?.click();
+    window.dispatchEvent(new Event("focus"));
     const logout = app.session.logout(); gate.resolve(); await logout;
     await observe(() => app.shell.outlet.textContent?.includes("Aucune participation n’est reconnue") === true);
     expect(app.shell.outlet.textContent).not.toContain("Tu as réservé 1"); expect(app.router.getCurrentRoute()?.url.pathname).toBe(detailPath);
@@ -113,7 +126,7 @@ describe("public shared wishlist integration", () => {
     await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => app.shell.outlet.textContent?.includes("Ma quantité réservée : 1") === true);
     state.status = 401;
-    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Actualiser la liste")?.click();
+    /** @type {HTMLInputElement | null} */ (app.shell.outlet.querySelector('input[type="checkbox"]'))?.click();
     await untilSession(app.session, value => value.status === "anonymous");
     expect(app.shell.outlet.textContent).not.toContain("Ma quantité réservée : 1");
     expect(app.router.getCurrentRoute()?.url.pathname).toBe(path);
@@ -122,7 +135,7 @@ describe("public shared wishlist integration", () => {
   });
   it.each([false, true])("returns from dedicated sign-in without joining, existing=%s", async existing => {
     const { app, state, transport } = setup(); transport.state.refreshStatus = 401; state.joined = existing; await app.start(); await observe(() => [...app.shell.outlet.querySelectorAll("a")].some(link => link.textContent === "Se connecter pour poursuivre avec mon compte" && !link.hidden));
-    [...app.shell.outlet.querySelectorAll("a")].find(link => link.textContent === "Se connecter pour poursuivre avec mon compte")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Après connexion, tu retrouveras cette liste partagée.") === true);
+    [...app.shell.outlet.querySelectorAll("a")].find(link => link.textContent === "Se connecter pour poursuivre avec mon compte")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Retour à la liste sans se connecter") === true);
     expect(window.location.pathname).toBe("/login"); expect(window.location.search).toBe(""); expect(app.shell.outlet.innerHTML).not.toContain(secret);
     await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } }));
     await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Poursuivre avec mon compte" && !button.disabled));
@@ -131,7 +144,7 @@ describe("public shared wishlist integration", () => {
   });
   it.each(["/", "/forgot-password", "/register"])("cancels dedicated return after leaving for %s", async target => {
     const { app, transport } = setup(); transport.state.refreshStatus = 401; await app.start(); await observe(() => [...app.shell.outlet.querySelectorAll("a")].some(link => link.textContent === "Se connecter pour poursuivre avec mon compte" && !link.hidden));
-    [...app.shell.outlet.querySelectorAll("a")].find(link => link.textContent === "Se connecter pour poursuivre avec mon compte")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Après connexion, tu retrouveras cette liste partagée.") === true); await app.router.navigate(target);
+    [...app.shell.outlet.querySelectorAll("a")].find(link => link.textContent === "Se connecter pour poursuivre avec mon compte")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Retour à la liste sans se connecter") === true); await app.router.navigate(target);
     await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); expect(window.location.pathname).not.toBe(path);
   });
   it("keeps ordinary sign-in separate from the preserved context", async () => {
@@ -146,7 +159,7 @@ describe("public shared wishlist integration", () => {
   });
   it.each([503])("keeps the existing session after public read failure %s without a duplicate shell alert", async status => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true);
-    state.status = status; [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Actualiser la liste")?.click(); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null);
+    state.status = status; /** @type {HTMLInputElement | null} */ (app.shell.outlet.querySelector('input[type="checkbox"]'))?.click(); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null);
     expect(app.session.getSnapshot().status).toBe("authenticated"); expect(app.shell.element.querySelectorAll('[role="alert"]')).toHaveLength(1); expect(state.reads).toBe(2);
     state.status = 200; app.shell.outlet.querySelector("button")?.click(); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true); expect(state.reads).toBe(3);
   });
@@ -177,7 +190,7 @@ describe("public shared wishlist integration", () => {
   it("remains public after logout and invalidates access only when a 404 is known", async () => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true);
     await app.session.logout(); expect(app.router.getCurrentRoute()?.url.pathname).toBe(path); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true); const readsBeforeRefusal = state.reads;
-    state.status = 404; [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Actualiser la liste")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Lien de partage indisponible") === true); expect(app.shell.outlet.textContent).not.toContain(data.name);
+    state.status = 404; /** @type {HTMLInputElement | null} */ (app.shell.outlet.querySelector('input[type="checkbox"]'))?.click(); await observe(() => app.shell.outlet.textContent?.includes("Lien de partage indisponible") === true); expect(app.shell.outlet.textContent).not.toContain(data.name);
     await app.router.navigate("/"); await app.router.navigate(path); expect(app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(state.reads).toBe(readsBeforeRefusal + 1);
   });
 });
@@ -185,7 +198,7 @@ describe("public shared wishlist integration", () => {
 describe("public shared gift integration", () => {
   it("opens accessible detail links, reloads each direction and never publishes credentials", async () => {
     const { app, state, hub } = setup(); await app.start(); await observe(() => app.shell.outlet.querySelector(`a[href="${detailPath}"]`) !== null);
-    const link = /** @type {HTMLAnchorElement} */ (app.shell.outlet.querySelector(`a[href="${detailPath}"]`)); expect(link.getAttribute("aria-label")).toBe(`Voir le cadeau « ${wish.name} »`); link.click();
+    const link = /** @type {HTMLAnchorElement} */ (app.shell.outlet.querySelector(`a[href="${detailPath}"]`)); expect(link.getAttribute("aria-label")).toBe(`Voir le souhait « ${wish.name} »`); link.click();
     await observe(() => app.shell.outlet.querySelector("h1")?.textContent === wish.name); expect(state.reads).toBe(2); expect(state.detailReads).toBe(1); expect(app.router.getCurrentRoute()?.url.pathname).toBe(detailPath);
     expect(app.shell.element.innerHTML).not.toMatch(/reservedQuantity|currentParticipant|AAAA/); expect(JSON.stringify(hub.messages)).not.toContain(secret); expect(JSON.stringify(app.router.getCurrentRoute())).not.toContain(secret);
     app.shell.outlet.querySelector(`a[href="${path}"]`)?.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 })); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); expect(state.reads).toBe(3);
@@ -200,13 +213,13 @@ describe("public shared gift integration", () => {
   });
   it("rejects an invalid gift without HTTP and preserves list access, unlike an invalid share", async () => {
     const { app, state } = setup(); await app.start(); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name);
-    await app.router.navigate(`${path}/wishes/bad`); await observe(() => app.shell.outlet.textContent?.includes("Cadeau introuvable") === true); expect(state.reads).toBe(1);
+    await app.router.navigate(`${path}/wishes/bad`); await observe(() => app.shell.outlet.textContent?.includes("Souhait introuvable") === true); expect(state.reads).toBe(1);
     await app.router.navigate(path); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); expect(state.reads).toBe(2);
     await app.router.navigate(`/shared-wishlists/bad/wishes/${wish.id}#discard`); expect(app.shell.outlet.textContent).toContain("Lien de partage indisponible"); await app.router.navigate(path); expect(app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(state.reads).toBe(2);
   });
   it.each(["SHARED_WISH_NOT_FOUND", "SHARED_WISHLIST_NOT_FOUND", "UNKNOWN"])("preserves only appropriate access after %s", async errorCode => {
     const { app, state } = setup(); await app.start(); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); state.status = 404; state.errorCode = errorCode;
-    await app.router.navigate(detailPath); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null); expect(app.shell.outlet.querySelector("h1")?.textContent).toBe(errorCode === "SHARED_WISH_NOT_FOUND" ? "Cadeau introuvable" : "Lien de partage indisponible");
+    await app.router.navigate(detailPath); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null); expect(app.shell.outlet.querySelector("h1")?.textContent).toBe(errorCode === "SHARED_WISH_NOT_FOUND" ? "Souhait introuvable" : "Lien de partage indisponible");
     state.status = 200; await app.router.navigate(path);
     if (errorCode === "SHARED_WISH_NOT_FOUND") { await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); expect(state.reads).toBe(3); }
     else { expect(app.shell.outlet.textContent).toContain("Rouvre le lien reçu"); expect(state.reads).toBe(2); }

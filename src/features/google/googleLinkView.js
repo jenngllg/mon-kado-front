@@ -1,6 +1,6 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { validateCurrentPassword } from "../../auth/passwordValidation.js";
-import { createActionLink, createAlert, createButton, createFormField, disposeComponent,
+import { createBackLink, createActionLink, createAlert, createButton, createFormField, disposeComponent,
   setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
@@ -153,7 +153,7 @@ export function createGoogleLinkView({ continuation, session, signal, onDestinat
       errorCode: errorCode === "GOOGLE_AUTHENTICATION_FAILED" ? "CLIENT_GOOGLE_LINK_EXPIRED" : errorCode }), GoogleMessages);
     const alert = createAlert({ ...translated, variant: "error", headingLevel: 1 });
     alert.tabIndex = -1;
-    view.replaceChildren(alert, createActionLink({ label: "Revenir à la connexion", href: RoutePaths.Login }));
+    view.replaceChildren(createBackLink({ label: "Revenir à la connexion", href: RoutePaths.Login }), alert);
     queueMicrotask(() => { if (!disposed) alert.focus(); });
   }
   function links() {

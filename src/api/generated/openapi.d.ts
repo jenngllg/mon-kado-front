@@ -13510,6 +13510,8 @@ export interface components {
              * @description Gets the member identifier.
              */
             readonly id: string;
+            /** @description Gets whether the member has a linked Google identity. */
+            readonly isGoogleLinked?: boolean;
             /** @description Gets the public profile-photo URL, or null for a generated avatar. */
             readonly profileImageUrl?: null | string;
             /** @description Gets the current member roles. */

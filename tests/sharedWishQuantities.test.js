@@ -17,7 +17,7 @@ describe("shared quantities", () => {
     expect(view.querySelector("button,a,input")).toBeNull();
   });
   it("never adds aggregate quantities to owner cards", () => {
-    const card = createWishCard({ id: "gift", name: "Cadeau", quantity: 2, price: null, url: null, imageUrl: null, productUnavailable: false, imageUnavailable: false }, false);
+    const card = createWishCard({ id: "gift", name: "Souhait", quantity: 2, price: null, url: null, imageUrl: null, productUnavailable: false, imageUnavailable: false }, false);
     expect(card.textContent).not.toMatch(/réservée|disponible|Entièrement/);
   });
 });

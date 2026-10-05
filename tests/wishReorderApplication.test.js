@@ -4,7 +4,7 @@ import { createSessionApplication } from "../src/app/sessionApplication.js";
 import { createSessionManager } from "../src/auth/sessionManager.js";
 import { createSessionTransport, createCoordinatorHub, barrier } from "./sessionTestHelpers.js";
 const list = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Liste privée", occasion: "birthday", eventDate: null, message: null, isSuspended: false };
-const wishes = [1, 2, 3].map(i => ({ id: `019c52dd-56c1-7cc6-8a95-${String(i).padStart(12, "0")}`, wishlistId: list.id, name: "Cadeau " + i, note: null, price: 12, quantity: 1, position: String(i), entityTag: '"item"', imageUrl: null, url: null }));
+const wishes = [1, 2, 3].map(i => ({ id: `019c52dd-56c1-7cc6-8a95-${String(i).padStart(12, "0")}`, wishlistId: list.id, name: "Souhait " + i, note: null, price: 12, quantity: 1, position: String(i), entityTag: '"item"', imageUrl: null, url: null }));
 const path = `/lists/${list.id}`;
 /** @type {Array<() => void>} */ const cleanups = [];
 afterEach(() => { cleanups.splice(0).reverse().forEach(cleanup => cleanup()); vi.restoreAllMocks(); document.body.replaceChildren(); window.history.replaceState(null, "", "/"); });
@@ -38,8 +38,8 @@ function until(root, predicate) {
 }
 /** @param {ReturnType<typeof setup>} app App. */
 async function ready(app) {
-  await app.start(); await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Réorganiser les cadeaux" && !button.hidden));
-  app.click("Réorganiser les cadeaux");
+  await app.start(); await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Réorganiser les souhaits" && !button.hidden));
+  app.click("Réorganiser les souhaits");
   await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-reorder-view")?.getAttribute("aria-busy") === "false");
 }
 describe("reordering in the protected list detail", () => {
@@ -49,17 +49,17 @@ describe("reordering in the protected list detail", () => {
     app.click("Descendre"); app.click("Enregistrer l’ordre"); await until(app.shell.outlet, () => app.state.reads === 3 && app.shell.outlet.querySelector(".wish-reorder-view") === null && app.shell.outlet.querySelectorAll(".wish-card").length === 3);
     expect(window.location.pathname).toBe(path); expect(app.state.parents).toBe(3); expect(app.state.writes).toBe(1);
     await Promise.resolve();
-    expect([...app.shell.outlet.querySelectorAll(".wish-card h3")].map(e => e.textContent)).toEqual(["Cadeau 2", "Cadeau 1", "Cadeau 3"]);
-    expect(app.shell.outlet.textContent.match(/Ordre des cadeaux enregistré/g)).toHaveLength(1); expect(document.activeElement?.textContent).toBe("Les cadeaux de ta liste");
+    expect([...app.shell.outlet.querySelectorAll(".wish-card h3")].map(e => e.textContent)).toEqual(["Souhait 2", "Souhait 1", "Souhait 3"]);
+    expect(app.shell.outlet.textContent.match(/Ordre des souhaits enregistré/g)).toHaveLength(1); expect(document.activeElement?.textContent).toBe("Souhaits");
   });
   it("abandons locally then rereads without writing", async () => {
     const app = setup(); await ready(app); app.click("Descendre"); app.click("Annuler"); await until(app.shell.outlet, () => app.state.reads === 3 && app.shell.outlet.querySelectorAll(".wish-card").length === 3);
-    expect(app.state.writes).toBe(0); expect(app.shell.outlet.querySelector("h3")?.textContent).toBe("Cadeau 1");
+    expect(app.state.writes).toBe(0); expect(app.shell.outlet.querySelector("h3")?.textContent).toBe("Souhait 1");
   });
   it("keeps confirmed success after failed collection reread and retries only the read", async () => {
     const app = setup(); await ready(app); app.click("Descendre"); app.state.failRead = true; app.click("Enregistrer l’ordre");
     await until(app.shell.outlet, () => app.state.reads === 3 && app.shell.outlet.querySelector(".wish-reorder-view") === null && app.shell.outlet.querySelector('[role="alert"]') !== null);
-    expect(app.shell.outlet.textContent).toContain("Ordre des cadeaux enregistré"); app.state.failRead = false; app.click("Réessayer");
+    expect(app.shell.outlet.textContent).toContain("Ordre des souhaits enregistré"); app.state.failRead = false; app.click("Réessayer");
     await until(app.shell.outlet, () => app.shell.outlet.querySelectorAll(".wish-card").length === 3); expect(app.state.writes).toBe(1);
   });
   it.each([401, 403, 404, 409, 412, 413, 428, 429, 503])("handles %s without shell duplication or retries", async status => {
@@ -79,6 +79,6 @@ describe("reordering in the protected list detail", () => {
     }
     await until(app.shell.outlet, () => !app.shell.outlet.querySelector(".wish-reorder-view")); gate.resolve();
     for (let i = 0; i < 30; i++) await Promise.resolve();
-    expect(app.shell.element.textContent).not.toContain("Ordre des cadeaux enregistré"); expect(app.state.writes).toBe(1);
+    expect(app.shell.element.textContent).not.toContain("Ordre des souhaits enregistré"); expect(app.state.writes).toBe(1);
   });
 });

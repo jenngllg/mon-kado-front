@@ -78,7 +78,7 @@ export const NavigationItems = Object.freeze([
     routeName: RouteNames.Reservations,
   }),
   Object.freeze({
-    label: "Mon profil",
+    label: "Mon compte",
     href: RoutePaths.Profile,
     routeName: RouteNames.Profile,
   }),

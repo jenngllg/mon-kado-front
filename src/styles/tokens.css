@@ -68,7 +68,7 @@
   --content-narrow: 42rem;
   --content-regular: 72rem;
   --content-wide: 90rem;
-  --content-gutter: clamp(1rem, 4vw, 3.75rem);
+  --content-gutter: clamp(min(1rem, 5vw), 4vw, 3.75rem);
   --text-measure: 65ch;
   --control-min-size: 2.75rem;
   --notification-width: 24rem;

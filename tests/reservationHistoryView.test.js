@@ -12,6 +12,16 @@ afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.repla
 function setup() { const load = vi.fn(/** @type {import("../src/features/reservations/reservationHistoryService.js").LoadReservationHistory} */ (async () => page)); const view = createReservationHistoryView({ load }); views.push(view); document.body.append(view); return { view, load }; }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("reservation history presentation", () => {
+  it("uses dedicated history rows without inheriting the illustrated wishlist grid", async () => {
+    const { view } = setup(); await settle();
+    const collection = view.querySelector(".reservation-history-list");
+    expect(collection?.getAttribute("role")).toBe("list");
+    expect(collection?.querySelectorAll(".reservation-history-card")).toHaveLength(1);
+    expect(collection?.querySelector(".reservation-history-card__description h2")?.textContent).toBe(item.wishName);
+    expect(collection?.querySelector(".reservation-history-card__status")?.getAttribute("data-status")).toBe("active");
+    expect(collection?.querySelectorAll(".reservation-history-card__dates time")).toHaveLength(2);
+    expect(view.querySelector(".wishlists-grid, .wishlist-card")).toBeNull();
+  });
   it("navigates both directions and resets the page only when a filter is explicitly applied", async () => {
     const { view, load } = setup(); await settle();
     load.mockImplementation(async ({ page: currentPage = 1 }) => ({ ...page, currentPage, totalCount: 40 }));

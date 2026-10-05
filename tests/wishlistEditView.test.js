@@ -33,6 +33,37 @@ async function conflict(ui) {
   ui.input(0, " Mon brouillon "); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISHLIST_VERSION_CONFLICT" })); ui.send(); await settle();
 }
 describe("wishlist editor", () => {
+  it("places conflict recovery before the preserved form without starting another operation", async () => {
+    // Arrange
+    const ui = setup(); await settle(); await conflict(ui);
+    // Act
+    const reread = ui.button("Relire la liste");
+    const alert = ui.view.querySelector('[role="alert"]');
+    // Assert
+    expect(reread.hidden).toBe(false);
+    expect((alert?.compareDocumentPosition(reread) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(reread.compareDocumentPosition(ui.form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ui.form.contains(reread)).toBe(false);
+    expect(ui.fields[0].value).toBe(" Mon brouillon ");
+    expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.update).toHaveBeenCalledOnce();
+  });
+  it("returns to the current list rather than the overview", async () => {
+    // Arrange / Act
+    const ui = setup(); await settle();
+    // Assert
+    expect(ui.view.querySelector(".back-link")?.getAttribute("href")).toBe(`/lists/${original.wishlist.id}`);
+    expect(ui.view.querySelector(".back-link")?.textContent).toBe("Retour à la liste");
+  });
+  it("falls back to the overview when the list no longer exists", async () => {
+    // Arrange
+    const ui = setup(); await settle();
+    ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
+    // Act
+    ui.input(0, "Nouveau nom"); ui.send(); await settle();
+    // Assert
+    expect(ui.view.querySelector(".back-link")?.getAttribute("href")).toBe("/lists");
+    expect(ui.view.querySelector(".back-link")?.textContent).toBe("Retour à Mes listes");
+  });
   it("saves a mode-only change and resets cancellation to the persisted setting", async () => {
     const initial = { ...original, wishlist: { ...original.wishlist, surpriseMode: false } };
     const ui = setup({}, initial); await settle();
@@ -82,7 +113,8 @@ describe("wishlist editor", () => {
     const ui = setup(); await settle(); ui.input(3, " Mon message\n "); await conflict(ui);
     expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.submit.disabled).toBe(true); ui.send(); expect(ui.update).toHaveBeenCalledOnce();
     ui.loadOne.mockResolvedValue({ ...original, wishlist: { ...original.wishlist, name: "Autre onglet", message: "Concurrent" }, etag: '"v8"' });
-    ui.button("Relire la liste").click(); await settle(); expect(ui.view.textContent).toContain("Autre onglet"); expect(ui.view.textContent).toContain("sans fusion automatique");
+    ui.button("Relire la liste").click(); await settle(); expect(ui.view.textContent).toContain("Autre onglet"); expect(ui.view.textContent).toContain("L’enregistrer remplacera les informations ci-dessous.");
+    expect(ui.view.querySelector(".wishlist-edit-view__comparison")?.textContent).toContain("29 février 2020");
     expect(ui.fields[0].value).toBe(" Mon brouillon "); expect(ui.fields[3].value).toBe(" Mon message\n "); expect(ui.update).toHaveBeenCalledOnce();
     ui.send(); await settle(); expect(ui.update.mock.calls[1][2].etag).toBe('"v8"'); expect(ui.submit.disabled).toBe(true);
     ui.loadOne.mockResolvedValue({ ...original, etag: '"v9"' }); ui.button("Relire la liste").click(); await settle();
@@ -114,8 +146,31 @@ describe("wishlist editor", () => {
   });
   it("blocks suspended lists, conceals reasons, permits re-read and never enables editing from local cancel", async () => {
     const ui = setup({}, { ...original, wishlist: { ...original.wishlist, isSuspended: true, ...{ suspensionReason: "private" } } }); await settle();
-    expect(ui.view.textContent).toContain("Liste suspendue"); expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.view.textContent).not.toContain("private"); expect(ui.fields.every(field => field.disabled)).toBe(true);
+    expect(ui.view.textContent).toContain("Liste suspendue"); expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.view.textContent).not.toContain("private");
+    for (const field of ui.fields) {
+      if (field instanceof HTMLSelectElement) expect(field.disabled).toBe(true);
+      else {
+        expect(field.disabled).toBe(false); expect(field.readOnly).toBe(true);
+        field.focus(); expect(document.activeElement).toBe(field);
+      }
+    }
+    expect(ui.button("Annuler les modifications").disabled).toBe(true);
     ui.send(); expect(ui.update).not.toHaveBeenCalled();
+  });
+  it("keeps suspended fields readable after a failed re-read and restores editing only after a valid read", async () => {
+    // Arrange
+    const ui = setup({}, { ...original, wishlist: { ...original.wishlist, isSuspended: true } }); await settle();
+    ui.loadOne.mockRejectedValueOnce(new ApiError({ kind: "network" }));
+    // Act
+    ui.button("Relire la liste").click(); await settle();
+    // Assert
+    expect(ui.fields[0].hasAttribute("readonly")).toBe(true); expect(ui.submit.disabled).toBe(true);
+    ui.send(); expect(ui.update).not.toHaveBeenCalled();
+    // Act
+    ui.loadOne.mockResolvedValueOnce(original); ui.button("Relire la liste").click(); await settle();
+    // Assert
+    expect(ui.fields.every(field => !field.disabled && !field.hasAttribute("readonly"))).toBe(true);
+    expect(ui.update).not.toHaveBeenCalled();
   });
   it.each(["initial", "read", "write"])("presents a safe missing-list state during %s", async phase => {
     const gate = barrier(); const missing = new ApiError({ kind: "http", statusCode: 404 });

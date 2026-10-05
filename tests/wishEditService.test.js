@@ -4,8 +4,8 @@ import { ApiError } from "../src/api/apiError.js";
 import { createApiClient } from "../src/api/apiClient.js";
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
-const item = { id: wishId, wishlistId: id, name: "Cadeau", note: "Ligne\nDeux", url: "https://EXAMPLE.test:443/product", imageUrl: null, price: "0.29", quantity: "2", position: "9223372036854775807" };
-const values = { name: " Cadeau ", note: " Ligne\nDeux ", url: " https://EXAMPLE.test:443/product ", price: "0,29", quantity: "2" };
+const item = { id: wishId, wishlistId: id, name: "Souhait", note: "Ligne\nDeux", url: "https://EXAMPLE.test:443/product", imageUrl: null, price: "0.29", quantity: "2", position: "9223372036854775807" };
+const values = { name: " Souhait ", note: " Ligne\nDeux ", url: " https://EXAMPLE.test:443/product ", price: "0,29", quantity: "2" };
 const signal = new AbortController().signal;
 /** @param {unknown} [data] Body. @param {number} [status] Status. @param {string | null} [etag] Entity tag. */
 function setup(data = item, status = 200, etag = /** @type {string | null} */ ('"gift-2"')) {

@@ -33,11 +33,29 @@ describe("registration view", () => {
     for (const field of fields) {
       expect(field.required).toBe(true);
       expect(view.querySelector(`label[for="${field.id}"]`)).not.toBeNull();
-      expect(view.querySelector(`#${field.getAttribute("aria-describedby")}`)?.textContent).toBeTruthy();
       expect(field.hasAttribute("maxlength")).toBe(false);
       expect(field.hasAttribute("minlength")).toBe(false);
     }
     expect(view.querySelector('a[href="/login"]')?.textContent).toBe("Se connecter");
+  });
+
+  it("explains password length before validation and preserves accessible error descriptions", async () => {
+    // Arrange
+    const app = mount();
+    // Act
+    const descriptions = [...app.view.querySelectorAll(".form-field__description")];
+    // Assert
+    expect(descriptions).toHaveLength(1);
+    expect(descriptions[0].textContent).toBe("De 12 à 128 caractères.");
+    expect(app.fields[2].getAttribute("aria-describedby")).toBe(descriptions[0].id);
+    for (const field of app.fields.filter(field => field.name !== "password")) expect(field.hasAttribute("aria-describedby")).toBe(false);
+    await app.send();
+    for (const field of app.fields) {
+      for (const id of (field.getAttribute("aria-describedby") ?? "").split(" ")) {
+        expect(document.getElementById(id)?.textContent).toBeTruthy();
+      }
+    }
+    expect(app.fields[2].getAttribute("aria-describedby")).toContain(descriptions[0].id);
   });
 
   it("toggles password visibility with a non-submitting, keyboard-focusable native button", () => {
@@ -227,9 +245,9 @@ describe("registration view", () => {
     await app.send();
     // Assert
     expect(app.view.querySelector("form")).toBeNull();
-    expect(app.view.querySelector("h1")?.textContent).toBe("Demande prise en compte");
-    expect(app.view.textContent).toContain("Si un nouveau compte peut être créé avec cette adresse, tu recevras un e-mail de confirmation. Consulte aussi tes indésirables.");
-    expect(app.view.textContent).toContain("Confirme ton adresse avant de te connecter.");
+    expect(app.view.querySelector("h1")?.textContent).toBe("Demande reçue");
+    expect(app.view.textContent).toContain("Si l’inscription est possible, tu recevras un lien de confirmation par e-mail.");
+    expect(app.view.querySelectorAll(":scope > p")).toHaveLength(1);
     expect(document.activeElement).toBe(app.view.querySelector("h1"));
     expect(app.view.querySelector('a[href="/"]')).not.toBeNull();
     expect(app.view.querySelector('a[href="/confirm-email"]')?.textContent).toBe("Renvoyer le lien de confirmation");

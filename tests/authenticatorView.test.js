@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSessionApplication } from "../src/app/sessionApplication.js";
 import { authenticatorFixture } from "./authenticatorTestHelpers.js";
 import { ManualKey, RecoveryCodes } from "./twoFactorTestHelpers.js";
+import { barrier } from "./sessionTestHelpers.js";
 
 /** @type {{app: ReturnType<typeof createSessionApplication>, fixture: ReturnType<typeof authenticatorFixture>}[]} */ const applications = [];
 afterEach(() => {
@@ -32,6 +33,55 @@ function submit(root, value) {
 }
 
 describe("authenticator management routes", () => {
+  it("ignores a queued method switch during verification", async () => {
+    // Arrange
+    const { root, factor } = await mount();
+    const gate = barrier(); factor.beforeBegin = async () => { await gate.promise; };
+    button(root, "Remplacer mon authentificateur").click();
+    // Act
+    const input = submit(root, "123456");
+    const changeMethod = button(root, "Utiliser un code de récupération");
+    changeMethod.disabled = false; changeMethod.dispatchEvent(new MouseEvent("click")); changeMethod.disabled = true;
+    // Assert
+    expect(root.querySelector('input[name="code"]')).toBe(input);
+    expect(root.querySelector('input[name="recoveryCode"]')).toBeNull();
+    gate.resolve();
+    await vi.waitFor(() => expect(root.textContent).toContain("Code du nouvel authentificateur"));
+  });
+  it.each([false, true])("associates a local format error with the field and clears it on correction (recovery: %s)", async recovery => {
+    // Arrange
+    const { root, factorPosts } = await mount();
+    button(root, "Remplacer mon authentificateur").click();
+    if (recovery) button(root, "Utiliser un code de récupération").click();
+    // Act
+    const input = submit(root, "12");
+    // Assert
+    expect(factorPosts()).toHaveLength(0);
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(document.activeElement).toBe(input);
+    const descriptions = (input.getAttribute("aria-describedby") ?? "").split(" ").map(id => document.getElementById(id)?.textContent).join(" ");
+    expect(descriptions).toContain(recovery ? "code de récupération complet" : "six chiffres");
+    // Act
+    input.value = "1"; input.dispatchEvent(new Event("input"));
+    // Assert
+    expect(input.getAttribute("aria-invalid")).not.toBe("true");
+    expect(root.querySelector('[role="alert"].ui-alert--error')).toBeNull();
+    input.value = "12"; input.dispatchEvent(new Event("input"));
+    expect(input.getAttribute("aria-invalid")).not.toBe("true");
+    expect(factorPosts()).toHaveLength(0);
+  });
+  it("focuses the new method and removes obsolete feedback when switching proofs", async () => {
+    // Arrange
+    const { root, factorPosts } = await mount();
+    button(root, "Remplacer mon authentificateur").click();
+    submit(root, "12");
+    // Act
+    button(root, "Utiliser un code de récupération").click();
+    // Assert
+    expect(document.activeElement).toBe(root.querySelector('input[name="recoveryCode"]'));
+    expect(root.querySelector('[role="alert"].ui-alert--error')).toBeNull();
+    expect(factorPosts()).toHaveLength(0);
+  });
   it.each(["replace", "regenerate"])("completes %s with codes shown after session revocation and a fresh login", async operation => {
     // Arrange
     const { root, session, app, factorPosts } = await mount();

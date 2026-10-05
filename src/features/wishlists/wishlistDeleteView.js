@@ -2,12 +2,12 @@ import { ApiError, isAbortError } from "../../api/apiError.js";
 import { isStrongEntityTag } from "../../api/entityTag.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading } from "../../components/index.js";
+import { createBackLink, createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId, WishlistOccasions } from "./wishlistValidation.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-const Consequences = "Cette action est définitive. La liste et tous ses cadeaux seront supprimés. Les liens de partage associés ne permettront plus d’y accéder.";
+const Consequences = "Cette action est définitive. La liste et tous ses souhaits seront supprimés. Les liens de partage associés ne permettront plus d’y accéder.";
 
 /** Owns a freshly loaded deletion confirmation, never an optimistic removal.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
@@ -27,13 +27,14 @@ export function createWishlistDeleteView({ wishlistId, loadOne, remove, onDelete
   const lifetime = new AbortController();
   /** @type {import("./wishlistsService.js").CreatedWishlist | null} */ let current = null;
   let disposed = false; let busy = false; let blocked = true; let terminal = false; let completed = false;
-  const editPath = isWishlistId(wishlistId) ? RoutePaths.EditList.replace(":listId", wishlistId) : RoutePaths.Lists;
-  const cancel = createActionLink({ label: "Annuler", href: editPath });
+  const detailPath = isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists;
+  const cancel = createActionLink({ label: "Annuler", href: detailPath });
+  const back = createBackLink({ label: "Retour à la liste", href: detailPath });
   const confirm = createButton({ label: "Supprimer définitivement", variant: "danger", onClick: () => { void deleteWishlist(); } });
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
   const reread = createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void read(true); } }); reread.hidden = true;
   actions.append(cancel, confirm); confirmation.append(question, details, warning, actions);
-  view.append(title, feedback, status, confirmation, retry, reread, createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists }));
+  view.append(back, title, feedback, status, retry, reread, confirmation);
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); current = null; question.textContent = ""; details.replaceChildren();
     clearFeedback(); status.textContent = ""; confirmation.hidden = true; confirm.disabled = true;
@@ -59,7 +60,7 @@ export function createWishlistDeleteView({ wishlistId, loadOne, remove, onDelete
     retry.hidden = current !== null || busy || terminal || completed;
     reread.hidden = current === null || !blocked || terminal || completed; reread.disabled = busy;
     if (busy || completed) { cancel.removeAttribute("href"); cancel.setAttribute("aria-disabled", "true"); cancel.setAttribute("role", "link"); cancel.tabIndex = -1; }
-    else { cancel.href = editPath; cancel.removeAttribute("aria-disabled"); cancel.removeAttribute("role"); cancel.removeAttribute("tabindex"); }
+    else { cancel.href = terminal || completed ? RoutePaths.Lists : detailPath; cancel.removeAttribute("aria-disabled"); cancel.removeAttribute("role"); cancel.removeAttribute("tabindex"); }
     confirmation.setAttribute("aria-busy", String(busy));
   }
   function renderCurrent() {
@@ -104,7 +105,7 @@ export function createWishlistDeleteView({ wishlistId, loadOne, remove, onDelete
     } finally { if (!disposed) { busy = false; setButtonLoading(confirm, false); status.textContent = ""; syncControls(); } }
     if (disposed || lifetime.signal.aborted) return;
     // Navigation is independent of the confirmed mutation, which is never reopened.
-    completed = true; current = null; question.textContent = ""; details.replaceChildren(); syncControls();
+    completed = true; current = null; question.textContent = ""; details.replaceChildren(); returnToOverview(); syncControls();
     show({ title: "Liste supprimée", message: "La suppression de ta liste est confirmée.", variant: "success" });
     try { await onDeleted(); }
     catch {
@@ -113,10 +114,16 @@ export function createWishlistDeleteView({ wishlistId, loadOne, remove, onDelete
   }
   function focusFeedback() { /** @type {HTMLElement | null} */ (feedback.firstElementChild)?.focus(); }
   function notFound() {
+    returnToOverview();
     terminal = true; blocked = true; current = null; question.textContent = ""; details.replaceChildren();
     show({ title: "Liste introuvable", message: "Cette liste n’est pas disponible. Tu peux revenir à Mes listes." }); syncControls();
   }
   function showSuspended() { show({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" }); }
+  function returnToOverview() {
+    back.href = RoutePaths.Lists; back.title = "Retour à Mes listes";
+    back.querySelector("span")?.replaceChildren("Retour à Mes listes");
+    cancel.href = RoutePaths.Lists;
+  }
   /** @param {unknown} error Normalized failure. @param {boolean} mutation Whether a DELETE may have reached the server. */
   function presentFailure(error, mutation) {
     if (error instanceof ApiError && error.statusCode === 404) { notFound(); return; }

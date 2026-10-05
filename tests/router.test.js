@@ -113,7 +113,7 @@ describe("route matching", () => {
     window.history.replaceState(
       {},
       "",
-      "/lists/cadeau%20ete/?filter=available#gift-2",
+      "/lists/souhait%20ete/?filter=available#gift-2",
     );
     const render = vi.fn((context) => createView(context.params.listId));
     const { router, outlet } = createTestRouter([
@@ -127,14 +127,14 @@ describe("route matching", () => {
     // Assert
     expect(route).toMatchObject({
       name: "list",
-      path: "/lists/cadeau%20ete",
-      params: { listId: "cadeau ete" },
+      path: "/lists/souhait%20ete",
+      params: { listId: "souhait ete" },
       isNotFound: false,
     });
     expect(route?.searchParams.get("filter")).toBe("available");
     expect(route?.url.hash).toBe("#gift-2");
-    expect(outlet.textContent).toBe("cadeau ete");
-    expect(window.location.pathname).toBe("/lists/cadeau%20ete");
+    expect(outlet.textContent).toBe("souhait ete");
+    expect(window.location.pathname).toBe("/lists/souhait%20ete");
   });
 
   it("prioritizes a static route over a parameter route", async () => {

@@ -1,4 +1,5 @@
 export { createActionLink } from "./actionLink.js";
+export { createBackLink } from "./backLink.js";
 export { createAlert } from "./alert.js";
 export { createButton, setButtonLoading } from "./button.js";
 export { disposeComponent } from "./componentLifecycle.js";

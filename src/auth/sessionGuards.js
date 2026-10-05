@@ -27,6 +27,9 @@ export function createSessionGuard(name, session) {
     if (AnonymousRoutes.has(name) && state.status === "authenticated") {
       return { redirectTo: RoutePaths.Lists, replace: true };
     }
+    if (state.user?.isGoogleLinked === true && (name === RouteNames.EmailChange || name === RouteNames.PasswordChange)) {
+      return { redirectTo: RoutePaths.Profile, replace: true };
+    }
   };
 }
 

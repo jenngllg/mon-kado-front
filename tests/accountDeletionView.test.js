@@ -36,6 +36,21 @@ function accept(root) {
 }
 
 describe("account deletion browser flow", () => {
+  it("groups consent with its native checkbox and marks the final action as destructive", async () => {
+    // Arrange
+    const { root, posts } = await mount();
+    const label = root.querySelector(".account-deletion-confirmation");
+    const checkbox = /** @type {HTMLInputElement} */ (label?.querySelector('input[type="checkbox"]'));
+    const confirm = button(root, "Supprimer définitivement mon compte");
+    // Act
+    checkbox.focus();
+    // Assert
+    expect(label?.querySelector("span")?.textContent).toBe("Je confirme vouloir supprimer définitivement ce compte");
+    expect(document.activeElement).toBe(checkbox);
+    expect(confirm.classList.contains("ui-button--danger")).toBe(true);
+    expect(confirm.disabled).toBe(true);
+    expect(posts()).toHaveLength(0);
+  });
   it("does not subscribe or confirm for an already-aborted landing view", () => {
     // Arrange
     const f = accountDeletionFixture(); disposals.push(() => f.session.dispose());

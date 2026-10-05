@@ -16,7 +16,7 @@ import { installWishReorderDrag } from "./wishReorderDrag.js";
  */
 export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, reorder, onSaved, onCancel, signal }) {
   const view = node("section", ""); view.className = "wish-reorder-view flow";
-  const title = node("h2", "Réorganiser les cadeaux"); title.tabIndex = -1;
+  const title = node("h2", "Réorganiser les souhaits"); title.tabIndex = -1;
   const help = node("p", "Déplace les cartes par leur poignée, utilise Monter et Descendre, ou choisis une position. Les changements restent locaux jusqu’à l’enregistrement.");
   const feedback = node("div", ""); feedback.className = "flow";
   const comparison = node("div", ""); comparison.className = "wish-reorder-comparison flow"; comparison.hidden = true;
@@ -31,7 +31,7 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
   const saveButtons = [0, 1].map(() => createButton({ label: "Enregistrer l’ordre", onClick: () => { void save(); } }));
   const cancelButtons = [0, 1].map(() => createButton({ label: "Annuler", variant: "secondary", onClick: () => { void leave(completed); } }));
   const bars = saveButtons.map((button, i) => { const bar = node("div", ""); bar.className = "cluster wish-reorder-actions"; bar.append(button, cancelButtons[i]); return bar; });
-  const reread = createButton({ label: "Relire les cadeaux", variant: "secondary", onClick: () => { void read(true); } });
+  const reread = createButton({ label: "Relire les souhaits", variant: "secondary", onClick: () => { void read(true); } });
   const adopt = createButton({ label: "Utiliser l’ordre enregistré", variant: "secondary", onClick: useLatest });
   view.append(title, help, feedback, reread, comparison, adopt, status, bars[0], grid, bars[1]);
   const stopDrag = installWishReorderDrag(view, grid, { enabled: canMove, move: (id, index) => move(id, index, cards.get(id)?.handle) });
@@ -51,7 +51,7 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
   function sync() {
     view.setAttribute("aria-busy", String(busy));
     for (const button of saveButtons) { button.disabled = !canMove() || !changed(); button.textContent = decision ? "Enregistrer mon ordre" : "Enregistrer l’ordre"; }
-    for (const button of cancelButtons) { button.disabled = disposed || busy; button.textContent = completed ? "Retour aux cadeaux" : "Annuler"; }
+    for (const button of cancelButtons) { button.disabled = disposed || busy; button.textContent = completed ? "Retour aux souhaits" : "Annuler"; }
     reread.hidden = disposed || terminal || completed || (!needsRead && base !== null); reread.disabled = busy;
     adopt.hidden = disposed || completed || terminal || !latest; adopt.disabled = busy || suspended || (latest?.wishes.length ?? 0) > 1000;
     adopt.textContent = differentMembership ? "Repartir de la collection actualisée" : "Utiliser l’ordre enregistré";
@@ -120,14 +120,14 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
     const names = new Map([...base.wishes, ...latest.wishes].map(item => [item.id.toLowerCase(), item.name]));
     for (const [label, ids] of [["Ton ordre proposé", draft], ["Ordre enregistré", latest.wishes.map(item => item.id.toLowerCase())]]) {
       comparison.append(node("h3", /** @type {string} */ (label))); const order = node("ol", "");
-      for (const id of /** @type {string[]} */ (ids)) order.append(node("li", names.get(id) ?? "Cadeau indisponible"));
+      for (const id of /** @type {string[]} */ (ids)) order.append(node("li", names.get(id) ?? "Souhait indisponible"));
       comparison.append(order);
     }
   }
   /** @param {boolean} explicit Retry or conflict reread. */
   async function read(explicit) {
     if (disposed || busy || terminal || completed) return;
-    stopDrag(); busy = true; blocked = true; clear(feedback); feedback.append(createLoadingState({ label: "Chargement de l’ordre des cadeaux…" })); sync();
+    stopDrag(); busy = true; blocked = true; clear(feedback); feedback.append(createLoadingState({ label: "Chargement de l’ordre des souhaits…" })); sync();
     try {
       if (!isWishlistId(wishlistId)) throw new ApiError({ kind: "http", statusCode: 404 });
       const list = await loadWishlist(wishlistId, { signal: lifetime.signal });
@@ -146,9 +146,9 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
       blocked = suspended || differentMembership || loaded.wishes.length > 1000;
       renderCards();
       if (suspended) show({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" });
-      else if (loaded.wishes.length > 1000) show({ title: "Réorganisation indisponible", message: "La réorganisation est limitée à 1 000 cadeaux. Aucun ordre partiel ne sera envoyé." });
-      else if (differentMembership) show({ title: "Le contenu de la liste a changé", message: "Des cadeaux ont été ajoutés ou supprimés. Repars de la collection actualisée pour choisir un nouvel ordre.", variant: "warning" });
-      else if (draft.length < 2) show({ title: "Aucun déplacement nécessaire", message: "Il faut au moins deux cadeaux pour les réorganiser.", variant: "info" });
+      else if (loaded.wishes.length > 1000) show({ title: "Réorganisation indisponible", message: "La réorganisation est limitée à 1 000 souhaits. Aucun ordre partiel ne sera envoyé." });
+      else if (differentMembership) show({ title: "Le contenu de la liste a changé", message: "Des souhaits ont été ajoutés ou supprimés. Repars de la collection actualisée pour choisir un nouvel ordre.", variant: "warning" });
+      else if (draft.length < 2) show({ title: "Aucun déplacement nécessaire", message: "Il faut au moins deux souhaits pour les réorganiser.", variant: "info" });
       else if (latest && !changed()) show({ title: "L’ordre est déjà enregistré", message: "Aucune nouvelle écriture n’est nécessaire.", variant: "info" });
       if (explicit && feedback.childElementCount) focusError(); else title.focus();
     } catch (error) { if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) { failure(error, false); focusError(); } }
@@ -164,7 +164,7 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
     if (disposed || busy) return;
     stopDrag(); busy = true; sync();
     try { await (saved ? onSaved() : onCancel()); }
-    catch { if (!disposed) show({ title: completed ? "Ordre des cadeaux enregistré" : "Retour indisponible", message: "Le retour aux cadeaux a échoué. Réessaie le retour sans renvoyer l’ordre.", variant: completed ? "success" : "error" }).focus(); }
+    catch { if (!disposed) show({ title: completed ? "Ordre des souhaits enregistré" : "Retour indisponible", message: "Le retour aux souhaits a échoué. Réessaie le retour sans renvoyer l’ordre.", variant: completed ? "success" : "error" }).focus(); }
     finally { if (!disposed) { busy = false; sync(); } }
   }
   async function save() {
@@ -175,7 +175,7 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
       await reorder(wishlistId, [...draft], { etag: base.etag, signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
       completed = true; blocked = true; base = null; latest = null; draft = []; cards.clear(); clear(grid); clear(comparison); comparison.hidden = true;
-      show({ title: "Ordre des cadeaux enregistré", message: "L’enregistrement est confirmé.", variant: "success" });
+      show({ title: "Ordre des souhaits enregistré", message: "L’enregistrement est confirmé.", variant: "success" });
     } catch (error) {
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) { failure(error, true); focusError(); }
     } finally { if (!disposed) { busy = false; status.textContent = ""; sync(); } }
@@ -199,9 +199,9 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
     if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) detail.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
     const invalidOrder = error instanceof ApiError && (error.statusCode === 413 || error.validationErrors.some(item => item.propertyName?.startsWith("wishIds")));
     show({ title: precondition ? "Actualisation nécessaire" : translated.title,
-      message: precondition ? "La collection a été modifiée ailleurs. Ton ordre est conservé. Relis les cadeaux avant de continuer." :
-        uncertain ? "L’enregistrement de l’ordre ne peut pas être confirmé. Relis les cadeaux avant de réessayer." :
-        invalidOrder ? "L’ordre complet ne peut pas être envoyé. Relis les cadeaux ; aucun envoi partiel ne sera effectué." : translated.message,
+      message: precondition ? "La collection a été modifiée ailleurs. Ton ordre est conservé. Relis les souhaits avant de continuer." :
+        uncertain ? "L’enregistrement de l’ordre ne peut pas être confirmé. Relis les souhaits avant de réessayer." :
+        invalidOrder ? "L’ordre complet ne peut pas être envoyé. Relis les souhaits ; aucun envoi partiel ne sera effectué." : translated.message,
       detail: detail.join(" ") || null });
     if (invalidOrder) { blocked = true; needsRead = true; }
   }

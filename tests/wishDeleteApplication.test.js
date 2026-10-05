@@ -5,7 +5,7 @@ import { createSessionManager } from "../src/auth/sessionManager.js";
 import { barrier, createCoordinatorHub, createSessionTransport } from "./sessionTestHelpers.js";
 
 const list = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Liste privée", occasion: "birthday", eventDate: null, message: null, isSuspended: false };
-const wish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: list.id, name: "Cadeau privé", note: null, url: null, price: 0.29, quantity: 2, imageUrl: null, position: "9223372036854775807" };
+const wish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: list.id, name: "Souhait privé", note: null, url: null, price: 0.29, quantity: 2, imageUrl: null, position: "9223372036854775807" };
 const detail = `/lists/${list.id}`, path = `${detail}/wishes/${wish.id}/edit`;
 /** @type {Array<() => void>} */ const cleanups = [];
 afterEach(() => { cleanups.splice(0).reverse().forEach(cleanup => cleanup()); vi.restoreAllMocks(); document.body.replaceChildren(); window.history.replaceState(null, "", "/"); });
@@ -16,7 +16,7 @@ function setup() {
     const resource = new URL(String(input)).pathname;
     if (resource === `/api/v1/wishlists/${list.id}`) { state.parentReads++; return Response.json({ ...list, isSuspended: state.suspended }, { headers: { ETag: '"list"' } }); }
     if (resource === `/api/v1/wishlists/${list.id}/wishes`) {
-      state.collectionReads++; return Response.json(state.collectionStatus === 200 ? { wishes: state.remaining ? [{ ...wish, id: list.id, name: "Autre cadeau", entityTag: '"remaining"' }] : [] } : { statusCode: state.collectionStatus }, { status: state.collectionStatus, headers: { ETag: '"collection-new"' } });
+      state.collectionReads++; return Response.json(state.collectionStatus === 200 ? { wishes: state.remaining ? [{ ...wish, id: list.id, name: "Autre souhait", entityTag: '"remaining"' }] : [] } : { statusCode: state.collectionStatus }, { status: state.collectionStatus, headers: { ETag: '"collection-new"' } });
     }
     if (resource === `/api/v1/wishlists/${list.id}/wishes/${wish.id}`) {
       if (init?.method === "GET") { state.reads++; return Response.json(wish, { headers: { ETag: `"gift-${state.version}"` } }); }
@@ -41,7 +41,7 @@ function until(root, predicate) {
 /** @param {ReturnType<typeof setup>} app App. */
 async function ready(app) {
   await until(app.shell.outlet, () => app.shell.outlet.querySelector("form")?.hidden === false);
-  app.click("Supprimer ce cadeau");
+  app.click("Supprimer ce souhait");
   await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Supprimer définitivement" && !/** @type {HTMLButtonElement} */ (button).disabled));
 }
 describe("gift deletion integration", () => {
@@ -49,18 +49,18 @@ describe("gift deletion integration", () => {
     const app = setup(); app.state.remaining = remaining; await app.start(); app.state.version = 2; await ready(app);
     expect(app.state.reads).toBe(2); expect(app.state.parentReads).toBe(2); expect(app.state.writes).toBe(0); expect(window.location.pathname).toBe(path);
     const replace = vi.spyOn(window.history, "replaceState"); app.click("Supprimer définitivement");
-    await until(app.shell.element, () => window.location.pathname === detail && app.shell.notificationRegion.textContent.includes("Cadeau supprimé") && (remaining ? app.shell.outlet.textContent.includes("Autre cadeau") : app.shell.outlet.textContent.includes("Cette liste ne contient pas encore de cadeau")));
+    await until(app.shell.element, () => window.location.pathname === detail && app.shell.notificationRegion.textContent.includes("Souhait supprimé") && (remaining ? app.shell.outlet.textContent.includes("Autre souhait") : app.shell.outlet.textContent.includes("Aucun souhait pour le moment")));
     expect(app.state.writes).toBe(1); expect(app.state.parentReads).toBe(3); expect(app.state.collectionReads).toBe(1); expect(app.shell.outlet.querySelector("dialog")).toBeNull(); expect(document.activeElement).toBe(app.shell.outlet);
-    expect(replace.mock.calls.some(call => String(call[2]).endsWith(detail))).toBe(true); expect(app.shell.notificationRegion.textContent.match(/Cadeau supprimé/g)).toHaveLength(1); expect(app.shell.outlet.textContent).not.toContain("Cadeau privé");
+    expect(replace.mock.calls.some(call => String(call[2]).endsWith(detail))).toBe(true); expect(app.shell.notificationRegion.textContent.match(/Souhait supprimé/g)).toHaveLength(1); expect(app.shell.outlet.textContent).not.toContain("Souhait privé");
   });
   it("preserves confirmed success when collection reloading fails and retries only GET", async () => {
     const app = setup(); app.state.collectionStatus = 503; await app.start(); await ready(app); app.click("Supprimer définitivement");
-    await until(app.shell.element, () => window.location.pathname === detail && app.shell.outlet.querySelector('[role="alert"]') !== null && app.shell.notificationRegion.textContent.includes("Cadeau supprimé"));
-    app.state.collectionStatus = 200; app.click("Réessayer"); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Cette liste ne contient pas encore de cadeau")); expect(app.state.writes).toBe(1); expect(app.state.collectionReads).toBe(2);
+    await until(app.shell.element, () => window.location.pathname === detail && app.shell.outlet.querySelector('[role="alert"]') !== null && app.shell.notificationRegion.textContent.includes("Souhait supprimé"));
+    app.state.collectionStatus = 200; app.click("Réessayer"); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Aucun souhait pour le moment")); expect(app.state.writes).toBe(1); expect(app.state.collectionReads).toBe(2);
   });
   it("retains success and removes the obsolete editor if history navigation throws", async () => {
     const app = setup(); await app.start(); await ready(app); vi.spyOn(window.history, "replaceState").mockImplementationOnce(() => { throw new Error("history failure"); }); app.click("Supprimer définitivement");
-    await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Cadeau supprimé") && !app.shell.outlet.querySelector("dialog"));
+    await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Souhait supprimé") && !app.shell.outlet.querySelector("dialog"));
     expect(app.shell.outlet.querySelector("form")).toBeNull(); expect(app.shell.outlet.querySelector(`a[href="${detail}"]`)).not.toBeNull(); app.click("Supprimer définitivement"); expect(app.state.writes).toBe(1);
   });
   it.each([401, 403, 404, 409, 412, 428, 429, 503])("handles %s without retry, session mutation or duplicate shell errors", async status => {
@@ -81,6 +81,6 @@ describe("gift deletion integration", () => {
       else { app.transport.state.user.id = "different-member"; await other.establishSession(async () => ({ data: app.transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); }
     }
     gate.resolve(); await gate.promise; expect(dialog.open).toBe(false); expect(dialog.isConnected).toBe(false);
-    expect(/** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value).toBe(""); expect(app.state.writes).toBe(1); expect(app.shell.notificationRegion.textContent).not.toContain("Cadeau supprimé"); expect(JSON.stringify(app.hub.messages)).not.toContain("Cadeau privé");
+    expect(/** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value).toBe(""); expect(app.state.writes).toBe(1); expect(app.shell.notificationRegion.textContent).not.toContain("Souhait supprimé"); expect(JSON.stringify(app.hub.messages)).not.toContain("Souhait privé");
   });
 });

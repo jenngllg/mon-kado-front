@@ -18,7 +18,7 @@ export function createWishlistShareRevokeDialog({ wishlistId, wishlistName, etag
   const title = document.createElement("h2"); title.textContent = `Désactiver le partage de « ${wishlistName} » ?`;
   title.id = `share-revoke-${crypto.randomUUID()}`; title.tabIndex = -1; title.setAttribute("autofocus", "");
   const warning = document.createElement("p"); warning.id = `${title.id}-warning`;
-  warning.textContent = "Ce lien ne permettra plus d’accéder à ta liste. Ta liste et ses cadeaux seront conservés. Tu pourras créer un nouveau lien de partage quand tu le souhaiteras.";
+  warning.textContent = "Ce lien sera désactivé. Ta liste et ses souhaits seront conservés.";
   dialog.setAttribute("aria-labelledby", title.id); dialog.setAttribute("aria-describedby", warning.id);
   const feedback = document.createElement("div");
   const status = document.createElement("p"); status.setAttribute("role", "status");

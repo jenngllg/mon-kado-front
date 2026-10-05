@@ -13,10 +13,10 @@ import { createWishImage } from "./wishImage.js";
  */
 export function createWishImportCompletion({ wishlistId, created, image, uploadImage, loadWish, loadWishlist, onComplete, signal }) {
   const element = document.createElement("section"); element.className = "flow";
-  const title = document.createElement("h2"); title.textContent = "Cadeau ajouté"; title.tabIndex = -1;
+  const title = document.createElement("h2"); title.textContent = "Image du souhait"; title.tabIndex = -1;
   const feedback = document.createElement("div"); const current = document.createElement("div"); current.className = "wish-image-section__media";
   const status = document.createElement("p"); status.setAttribute("role", "status");
-  const reread = createButton({ label: "Relire le cadeau", variant: "secondary", onClick: () => { void read(); } });
+  const reread = createButton({ label: "Relire le souhait", variant: "secondary", onClick: () => { void read(); } });
   const send = createButton({ label: "Enregistrer l’image proposée", onClick: () => { void upload(); } });
   let disposed = false, busy = false, blocked = false, completed = false, terminal = false;
   /** @type {Blob | null} */ let selection = image;
@@ -30,14 +30,14 @@ export function createWishImportCompletion({ wishlistId, created, image, uploadI
   function clear() { disposeComponent(feedback); feedback.replaceChildren(); }
   /** @param {unknown} error Safe failure. @param {boolean} reading List or gift recheck. */
   function failure(error, reading) {
-    blocked = true; clear(); const safe = toUserFacingError(error); let message = "Cadeau ajouté. L’enregistrement de son image n’a pas pu être confirmé.";
+    blocked = true; clear(); const safe = toUserFacingError(error); let message = "Souhait ajouté. L’enregistrement de son image n’a pas pu être confirmé.";
     const details = [safe.message];
     if (error instanceof ApiError) {
       if (error.correlationId) details.push(`Référence : ${error.correlationId}`);
       if (error.statusCode === 429 && error.retryAfterSeconds !== null) details.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
-      if (error.errorCode === "WISHLIST_SUSPENDED") message = "Cadeau ajouté. Liste suspendue — Consultation uniquement. Relis le cadeau avant de reprendre.";
-      else if (error.errorCode === "WISH_IMAGE_NOT_FOUND") message = "Cadeau ajouté. Image indisponible : relis le cadeau avant de reprendre.";
-      else if (error.statusCode === 404) { message = "Ce cadeau ou sa liste n’est plus disponible. Aucune nouvelle création ne sera effectuée."; terminal = true; selection = null; reference = null; disposeComponent(current); current.replaceChildren(); }
+      if (error.errorCode === "WISHLIST_SUSPENDED") message = "Souhait ajouté. Liste suspendue — Consultation uniquement. Relis le souhait avant de reprendre.";
+      else if (error.errorCode === "WISH_IMAGE_NOT_FOUND") message = "Souhait ajouté. Image indisponible : relis le souhait avant de reprendre.";
+      else if (error.statusCode === 404) { message = "Ce souhait ou sa liste n’est plus disponible. Aucune nouvelle création ne sera effectuée."; terminal = true; selection = null; reference = null; disposeComponent(current); current.replaceChildren(); }
       else if (error.statusCode === 413) details.push("L’image ne doit pas dépasser 10 Mio.");
       else if (error.statusCode === 415 || error.errorCode === "WISH_IMAGE_UNSUPPORTED_FORMAT") details.push("L’image proposée ne peut pas être utilisée.");
       else if (error.errorCode === "WISH_IMAGE_INVALID") details.push("L’image proposée est invalide.");
@@ -52,24 +52,25 @@ export function createWishImportCompletion({ wishlistId, created, image, uploadI
       const saved = await uploadImage(wishlistId, reference.wish.id, selection, { etag: reference.etag, signal });
       if (disposed || signal.aborted) return;
       completed = true; selection = null; reference = saved; clear();
-      feedback.append(createAlert({ variant: "success", title: "Cadeau ajouté", message: "Le cadeau et son image sont enregistrés." }));
+      disposeComponent(current); current.replaceChildren();
+      feedback.append(createAlert({ variant: "success", title: "Souhait ajouté", message: "Le souhait et son image sont enregistrés." }));
       await onComplete(saved);
     } catch (error) {
       if (disposed || signal.aborted || isAbortError(error)) return;
-      if (completed) { clear(); feedback.append(createAlert({ variant: "success", title: "Cadeau ajouté", message: "Le cadeau et son image sont enregistrés. Utilise le retour à la liste pour les consulter." })); }
+      if (completed) { clear(); feedback.append(createAlert({ variant: "success", title: "Souhait ajouté", message: "Le souhait et son image sont enregistrés. Utilise le retour à la liste pour les consulter." })); }
       else failure(error, false);
     } finally { if (!disposed) { busy = false; status.textContent = ""; sync(); } }
   }
   async function read() {
     if (disposed || signal.aborted || busy || completed || terminal || !reference) return;
-    busy = true; blocked = true; clear(); status.textContent = "Relecture du cadeau…"; sync();
+    busy = true; blocked = true; clear(); status.textContent = "Relecture du souhait…"; sync();
     try {
       const list = await loadWishlist(wishlistId, { signal }); if (disposed || signal.aborted) return;
       if (list.wishlist.isSuspended) throw new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" });
       const fresh = await loadWish(wishlistId, reference.wish.id, { signal }); if (disposed || signal.aborted) return;
       if (!isStrongEntityTag(fresh.etag)) throw new ApiError({ kind: "invalidResponse" });
       reference = fresh; disposeComponent(current); current.replaceChildren(createWishImage(fresh.wish)); blocked = false;
-      feedback.append(createAlert({ variant: "info", title: "Image actuelle du cadeau", message: "Vérifie l’image enregistrée avant d’envoyer celle proposée. Cet enregistrement remplacera l’image actuelle, sans recréer le cadeau." })); title.focus();
+      feedback.append(createAlert({ variant: "info", title: "Image actuelle du souhait", message: "Vérifie l’image enregistrée avant d’envoyer celle proposée. Cet enregistrement remplacera l’image actuelle, sans recréer le souhait." })); title.focus();
     } catch (error) { if (!disposed && !signal.aborted && !isAbortError(error)) failure(error, true); }
     finally { if (!disposed) { busy = false; status.textContent = ""; sync(); } }
   }

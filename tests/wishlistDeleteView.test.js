@@ -30,10 +30,11 @@ describe("wishlist deletion confirmation", () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Chargement de ta liste…"); expect(ui.confirm.disabled).toBe(true); expect(ui.cancel.closest('[hidden]')).not.toBeNull(); await settle();
     expect(ui.view.querySelector("h1")?.textContent).toBe("Supprimer une liste");
     expect(ui.view.querySelector("h2")?.textContent).toBe("Supprimer définitivement « Liste privée » ?");
-    expect(ui.view.textContent).toContain("Cette action est définitive. La liste et tous ses cadeaux seront supprimés. Les liens de partage associés ne permettront plus d’y accéder.");
+    expect(ui.view.textContent).toContain("Cette action est définitive. La liste et tous ses souhaits seront supprimés. Les liens de partage associés ne permettront plus d’y accéder.");
     expect(ui.view.textContent).not.toMatch(/réservation|participant|image/i); expect(ui.view.querySelector("input,select,textarea,dialog")).toBeNull();
     expect(ui.confirm.classList.contains("ui-button--danger")).toBe(true); expect(ui.confirm.type).toBe("button"); expect(document.activeElement).not.toBe(ui.confirm);
-    expect(ui.cancel.getAttribute("href")).toBe(`/lists/${original.wishlist.id}/edit`); expect(ui.view.querySelector('a[href="/lists"]')).not.toBeNull();
+    expect(ui.cancel.getAttribute("href")).toBe(`/lists/${original.wishlist.id}`);
+    expect(ui.view.querySelector(".back-link")?.getAttribute("href")).toBe(`/lists/${original.wishlist.id}`);
     expect(ui.remove).not.toHaveBeenCalled(); expect(ui.loadOne).toHaveBeenCalledExactlyOnceWith(original.wishlist.id, { signal: expect.any(AbortSignal) });
     expect(ui.view.querySelector("time")?.dateTime).toBe("2020-02-29"); expect(ui.view.querySelector("time")?.textContent).toBe("29 février 2020");
   });
@@ -60,6 +61,7 @@ describe("wishlist deletion confirmation", () => {
   });
   it("requires manual read and a new click across repeated conflicts, showing the latest name and ETag", async () => {
     const ui = setup(); await settle(); await failDeletion(ui, new ApiError({ kind: "http", statusCode: 412, errorCode: "WISHLIST_VERSION_CONFLICT" }));
+    expect(ui.button("Relire la liste").compareDocumentPosition(ui.confirm) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     expect(ui.view.textContent).toContain("Cette liste a été modifiée ailleurs. Relis ses informations avant de confirmer à nouveau sa suppression."); expect(document.activeElement).toBe(ui.view.querySelector('[role="alert"]'));
     expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.confirm.disabled).toBe(true);
     for (const etag of ['"v2"', '"v3"']) {

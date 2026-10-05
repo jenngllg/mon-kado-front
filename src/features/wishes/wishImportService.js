@@ -8,14 +8,14 @@ import { parseWishPrice, safeHttpUrl, validateWishField } from "./wishValidation
 /** @typedef {Readonly<{name: string, url: string, price: string, image: Blob | null, warnings: readonly string[]}>} WishSuggestions */
 /** @typedef {(wishlistId: string, url: string, options: {signal: AbortSignal}) => Promise<WishSuggestions>} PreviewWish */
 const Warnings = Object.freeze({
-  WISH_IMPORT_PAGE_UNAVAILABLE: "La page n’a pas pu être analysée. Tu peux compléter le cadeau manuellement.",
-  WISH_IMPORT_NAME_UNAVAILABLE: "Le nom du cadeau n’a pas pu être récupéré.",
+  WISH_IMPORT_PAGE_UNAVAILABLE: "La page n’a pas pu être analysée. Tu peux compléter le souhait manuellement.",
+  WISH_IMPORT_NAME_UNAVAILABLE: "Le nom du souhait n’a pas pu être récupéré.",
   WISH_IMPORT_PRICE_UNAVAILABLE: "Aucun prix fiable en euros n’a pu être récupéré.",
   WISH_IMPORT_CURRENCY_UNSUPPORTED: "Le prix utilise une devise non prise en charge. Renseigne un prix en euros si tu le souhaites.",
   WISH_IMPORT_IMAGE_UNAVAILABLE: "Aucune image utilisable n’a pu être récupérée.",
 });
 export const ImportImageUnavailable = Warnings.WISH_IMPORT_IMAGE_UNAVAILABLE;
-export const ImportUrlMessage = "Indique un lien HTTP ou HTTPS valide, sans identifiants ni port personnalisé, de 2 048 caractères maximum.";
+export const ImportUrlMessage = "Lien invalide";
 /** @param {string} value Untrusted URL. */
 export function validateImportUrl(value) {
   const clean = trimWishlistText(value); const url = safeHttpUrl(clean);
