@@ -10,6 +10,7 @@
   border-radius: var(--radius-md);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-heading);
+  text-decoration: none;
   transition:
     background-color var(--motion-duration-fast) var(--motion-easing-standard),
     border-color var(--motion-duration-fast) var(--motion-easing-standard),
@@ -78,8 +79,50 @@
 .action-link {
   padding-inline: var(--space-2);
   color: var(--color-text);
-  text-decoration-thickness: 0.0625rem;
+  text-decoration: none;
 }
+
+.action-link:not([aria-disabled="true"]):hover { background-color: var(--color-surface-muted); }
+
+.action-disclosure { position: relative; }
+.action-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--control-min-size);
+  min-height: var(--control-min-size);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  list-style: none;
+}
+.action-disclosure > summary::-webkit-details-marker { display: none; }
+.action-disclosure > summary:hover,
+.action-disclosure[open] > summary { background: var(--color-surface-muted); }
+.action-disclosure--primary > summary { background: var(--color-accent); border-color: transparent; color: var(--color-text-on-accent); }
+.action-disclosure--primary > summary:hover,
+.action-disclosure--primary[open] > summary { background: var(--color-accent-hover); }
+.action-disclosure__panel {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + var(--space-2));
+  z-index: 5;
+  display: grid;
+  min-width: 13rem;
+  width: max-content;
+  max-width: min(25rem, calc(100vw - 3rem));
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+.action-disclosure__panel > .action-link { justify-content: start; padding-inline: var(--space-3); }
+.action-disclosure--sharing .action-disclosure__panel { width: 25rem; padding: var(--space-5); }
+.action-disclosure--sharing .wishlist-share { border: 0; padding: 0; }
 
 .action-link--danger {
   color: var(--color-danger);
@@ -101,6 +144,8 @@
 }
 
 .form-field__control {
+  /* Leave the sticky header and the field label visible after focus scrolling. */
+  scroll-margin-block-start: 9rem;
   width: 100%;
   min-height: var(--control-min-size);
   border: 1px solid var(--color-border-strong);
@@ -115,13 +160,79 @@ textarea.form-field__control {
 }
 
 .form-field__control:disabled {
-  background: var(--color-surface-muted);
+  background-color: var(--color-surface-muted);
   color: var(--color-text-muted);
   cursor: not-allowed;
 }
 
 .form-field--invalid .form-field__control {
   border-color: var(--color-danger);
+}
+
+/* Navigation and commands are distinguished by shape, surface and focus, not underlines. */
+.ui-button:is(:hover, :focus, :active),
+.action-link:is(:hover, :focus, :active),
+nav a { text-decoration: none; }
+
+.section-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.section-toolbar > h2 { font-size: var(--font-size-xl); }
+.section-toolbar__actions { display: flex; flex-wrap: wrap; justify-content: end; gap: var(--space-2); margin-inline-start: auto; }
+
+.back-link {
+  width: var(--control-min-size);
+  height: var(--control-min-size);
+  padding: 0;
+  text-decoration: none;
+}
+
+.back-link > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.back-link svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+select,
+select.form-field__control {
+  appearance: none;
+  padding-inline-end: calc(var(--space-4) + 1.5rem);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23133f30' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-4) center;
+  background-size: 1rem 1rem;
+}
+
+input[type="date"].form-field__control::-webkit-calendar-picker-indicator {
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  margin: 0;
+}
+
+@media (forced-colors: active) {
+  select,
+  select.form-field__control {
+    appearance: auto;
+    background-image: none;
+  }
 }
 
 .form-field__description,
@@ -147,6 +258,7 @@ textarea.form-field__control {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
+  padding-inline: min(var(--space-4), 5vw);
 }
 
 .ui-alert--info {
@@ -337,4 +449,41 @@ textarea.form-field__control {
 .member-avatar img[hidden] { display: none; }
 .member-result { display: flex; align-items: center; gap: var(--space-3, 0.75rem); }
 .member-result > span:last-child { min-width: 0; overflow-wrap: anywhere; }
-.app-navigation__link .member-avatar { margin-inline-end: 0.5rem; }
+.app-navigation__link .member-avatar {
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  flex: 0 0 var(--avatar-size);
+  margin-inline-end: 0.5rem;
+}
+
+.recovery-codes {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0;
+  list-style-position: inside;
+}
+.recovery-codes li {
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+.account-deletion-confirmation,
+.recovery-codes-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: var(--control-min-size);
+  cursor: pointer;
+}
+.account-deletion-confirmation input,
+.recovery-codes-confirmation input {
+  flex: 0 0 auto;
+  width: var(--space-5);
+  height: var(--space-5);
+  accent-color: var(--color-text);
+}
+.app-navigation__link:has(.member-avatar) {
+  width: fit-content;
+  max-width: 100%;
+}

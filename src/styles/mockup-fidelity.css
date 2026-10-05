@@ -1,0 +1,246 @@
+/* Layouts from the original approved screens 04, 05, 07 and 08. */
+.app-header__content { min-height: 5.8rem; }
+.app-header { background: var(--color-background); box-shadow: none; }
+.app-navigation__link { font-size: 1.125rem; }
+@media (min-width: 80rem) {
+  .app-header__content { display: grid; grid-template-columns: clamp(10rem, 15vw, 15rem) minmax(0, 1fr); }
+  .app-navigation { width: 100%; margin-inline-start: 0; }
+  .app-navigation__list { display: flex; width: 100%; gap: 1.5rem; }
+  .app-navigation__list > li:first-child { display: none; }
+  .app-navigation__list > li:nth-child(2) { margin-inline-start: auto; }
+  .app-navigation__list > li:has(a[href="/reservations"]) { margin-inline-end: auto; }
+}
+.app-main:has(> :is(.wishlists-view, .wishlist-details-view--owner, .wishlist-create-view, .wish-create-view, .wishlist-edit-view, .wish-edit-view)) {
+  --container-max-width: 86rem;
+  padding-block: 2.8rem 4rem;
+}
+.wishlists-view { max-width: 78rem; margin-inline: auto; --flow-space: 2.8rem; }
+.app-main:has(> .wishlists-view)::before {
+  content: "";
+  position: absolute; left: 0; top: 6.4rem;
+  width: 8.6rem; height: 11rem;
+  background: url("/images/design/corner-leaf-isolated.webp") left top / contain no-repeat;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.wishlists-view__header { min-height: 7.5rem; padding-inline: 3.25rem 0; }
+.wishlists-view__header > .home-hero__primary-action { min-width: 14.75rem; min-height: 3.625rem; font-size: 1.125rem; }
+.wishlists-grid { gap: 2rem 2.75rem; }
+.wishlists-grid > .wishlist-card {
+  display: grid;
+  grid-template-columns: 42% minmax(0, 1fr);
+  padding: 0;
+  gap: 0;
+  min-height: 20rem;
+  border-radius: var(--radius-md);
+  background: transparent;
+}
+.wishlists-grid > .wishlist-card:is(:hover, :focus-within) { border-color: var(--color-accent); }
+.wishlist-card__cover {
+  width: 100%;
+  height: 100%;
+  min-height: 20rem;
+  object-fit: cover;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+.wishlist-card__content {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 1.25rem;
+  padding: 2.5rem 1.5rem;
+  min-width: 0;
+}
+.wishlist-card h2 { display: flex; align-items: center; gap: 1rem; font-size: 1.5rem; line-height: 1.3; padding-inline-end: 1rem; }
+.wishlist-card h2 .wishlist-card__open { font: inherit; }
+.wishlist-card__icon { width: 3.5rem; height: 3.5rem; flex-shrink: 0; border-radius: 50%; }
+.wishlist-card__content > time, .wishlist-card__content > p { font-size: 1.125rem; }
+.wishlist-card__actions { top: 0.35rem; right: 0.35rem; }
+.wishlist-card__occasion { background: var(--color-surface-muted); }
+
+.wishlist-create-view,
+.wishlist-edit-view,
+.wish-create-view,
+.wish-edit-view {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.wishlist-create-view h1,
+.wishlist-edit-view h1,
+.wish-create-view h1,
+.wish-edit-view h1 { font-size: clamp(2rem, 3.2vw, 3rem); line-height: 1.15; }
+.wishlist-create-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  column-gap: 7.5%;
+  align-items: start;
+}
+.wishlist-create-view > :not(.wishlist-live-preview) { grid-column: 1; }
+.wishlist-create-view > .back-link { justify-self: start; }
+.wishlist-create-view > .wishlist-form { margin-block-start: 3rem; }
+.wishlist-create-view .wishlist-form > button { min-width: 15rem; min-height: 3.5rem; font-size: 1.125rem; }
+.wishlist-create-view .form-field {
+  display: grid;
+  grid-template-columns: minmax(9rem, 28%) minmax(0, 1fr);
+  align-items: start;
+  gap: 0.5rem 1rem;
+}
+.wishlist-create-view .form-field > label { padding-block-start: 0.8rem; }
+.wishlist-create-view .form-field__label { font-size: 1.125rem; }
+.wishlist-create-view .form-field > :not(label) { grid-column: 2; }
+.wishlist-create-view > .wishlist-live-preview {
+  grid-column: 2;
+  grid-row: 1 / span 6;
+  align-self: stretch;
+  min-height: 49rem;
+  margin: 0;
+  padding: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #eaece1 url("/images/design/botanical-isolated.webp") right 2rem bottom 2rem / 17rem auto no-repeat;
+  background-blend-mode: multiply;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.wishlist-live-preview > p:first-child { text-align: start; }
+.wishlist-live-preview > img {
+  width: 13rem; height: 13rem; object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid var(--color-surface);
+  margin: 3rem auto 2rem;
+}
+.wishlist-live-preview h2 { font-size: clamp(2rem, 3vw, 3.5rem); }
+.wishlist-live-preview h2 + p { margin-block: 1rem 2rem; }
+.wishlist-live-preview .wishlist-details-note { max-width: 30ch; margin-inline: auto; }
+.wish-create-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 1.5rem 2.25rem;
+}
+.wish-create-view > * { grid-column: 1; margin-block-start: 0; }
+.wish-create-view > .back-link { justify-self: start; }
+.wish-create-view > .wish-import { display: contents; }
+.wish-create-view .wish-import__modes { grid-column: 1; margin: 0; }
+.wish-create-view .wish-import > form { grid-column: 1; margin: 0; }
+.wish-create-view .wish-import__image-panel {
+  grid-column: 2;
+  grid-row: 3 / span 7;
+  min-width: 0;
+  margin: 0;
+  align-self: start;
+}
+.wish-import__image-empty {
+  display: grid; place-items: center;
+  min-height: 28rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  color: var(--color-text-muted);
+}
+.wish-create-view > .wishlist-form {
+  padding: 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+.wish-create-view > .wishlist-form > button { min-width: 15rem; min-height: 3.5rem; font-size: 1.125rem; }
+@media (min-width: 70rem) {
+  .wish-create-view { gap: 1rem 2.25rem; }
+  .wish-create-view > .back-link { grid-row: 1; }
+  .wish-create-view > h1 { grid-row: 2; max-width: calc(100% - 19rem); }
+  .wish-create-view .wish-import__modes { grid-row: 2; justify-self: end; align-self: center; }
+  .wish-create-view .wish-import > form { grid-row: 3; }
+  .wish-create-view > .wishlist-form { grid-row: 5; }
+  .wish-create-view .wish-import__image-panel { grid-row: 3 / span 5; }
+}
+.wish-create-view .wish-image-section__preview img { max-height: 34rem; width: 100%; object-fit: contain; border-radius: var(--radius-md); }
+.wish-create-view .wish-image-section__preview { padding: 0; border: 0; }
+.wish-create-view .wish-import__image-panel .wish-image-section__preview > p { display: none; }
+.wishlist-details-view--owner .wishlist-details-layout {
+  grid-template-columns: minmax(0, 2.15fr) minmax(18rem, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: 2rem 2.75rem;
+  align-items: start;
+}
+.wishlist-details-view--owner .wishlist-details-info { grid-column: 1; padding: 0; border: 0; }
+.wishlist-details-view--owner .wishlist-details-gifts { grid-column: 1; grid-row: 2; }
+.wishlist-settings {
+  grid-column: 2; grid-row: 1 / span 2;
+  align-self: stretch;
+  margin: 0;
+  padding: 2.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: #eaece1 url("/images/design/botanical-isolated.webp") right 1rem bottom 2rem / 12rem auto no-repeat;
+  background-blend-mode: multiply;
+}
+.wishlist-settings h2 { font-size: 1.5rem; }
+.wishlist-settings .wishlist-share { border: 0; margin-block-start: 2rem; padding: 0; }
+.wishlist-settings .wishlist-share > h2 { font-size: 1.125rem; }
+.wishlist-settings textarea { min-height: 6rem; }
+.wishlist-details-view--owner .wishlist-details-actions { position: static; justify-content: end; margin-block-start: 2rem; }
+.wishlist-details-actions > .home-hero__primary-action { min-height: 3.5rem; padding-inline: 1.5rem; font-size: 1.125rem; }
+.wishlist-details-view--owner .wish-card { grid-template-columns: 10.5rem minmax(0, 1fr) auto; padding: 0.6rem; gap: 1.5rem; }
+.wishlist-details-view--owner .wish-grid { gap: 0.65rem; }
+.wishlist-details-view--owner .wishlist-settings { margin-block-start: -3.65rem; min-height: 51rem; }
+.wishlist-details-view--owner .wish-card__actions { gap: 0.25rem; }
+.wishlist-details-view--owner .wish-card__content { padding-block: 1rem; }
+.wishlist-details-view--owner .wish-card__content {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(5rem, 0.75fr) minmax(5rem, 0.75fr);
+  column-gap: 1rem;
+  align-content: center;
+}
+.wishlist-details-view--owner .wish-card__content > * { margin: 0; }
+.wishlist-details-view--owner .wish-card__content > h3 { grid-column: 1; grid-row: 1; }
+.wishlist-details-view--owner .wish-card__content > .wishlist-details-note { grid-column: 1; grid-row: 2; margin-block-start: 0.5rem; }
+.wishlist-details-view--owner .wish-card__quantity { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 0.875rem; }
+.wishlist-details-view--owner .wish-card__quantity { text-wrap: balance; }
+.wishlist-details-view--owner .wish-card__quantity span { display: block; font-size: 1.125rem; margin-block-start: 0.5rem; }
+.wishlist-details-view--owner .wish-card__price { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
+.wishlist-details-view--owner .wish-card h3 { font-size: 1.2rem; }
+.wishlist-details-view--owner .wish-card__actions .icon-action { border-color: transparent; background: transparent; }
+.wishlist-details-view--owner .wish-card__actions .icon-action:hover { background: var(--color-surface-muted); }
+@media (max-width: 70rem) {
+  .wishlist-details-view--owner .wishlist-details-layout { grid-template-columns: minmax(0, 1fr); }
+  .wishlist-details-view--owner .wishlist-settings { grid-column: 1; grid-row: 3; margin: 0; min-height: 0; }
+  .wishlist-create-view { column-gap: 2rem; }
+  .wishlist-create-view .form-field { display: block; }
+  .wishlist-create-view > .wishlist-live-preview { min-height: 35rem; }
+  .wishlist-card__content { padding: 2.5rem 1rem 1.5rem; }
+  .wishlist-card__icon { width: 2.5rem; height: 2.5rem; }
+}
+@media (max-width: 48rem) {
+  .app-main:has(> .wishlists-view)::before { display: none; }
+  .app-main:has(> :is(.wishlists-view, .wishlist-details-view--owner, .wishlist-create-view, .wish-create-view)) { padding-block-start: 1.5rem; }
+  .wishlists-view__header { padding: 0; }
+  .wishlist-create-view, .wish-create-view { display: flex; flex-direction: column; gap: 1.5rem; }
+  .wishlist-create-view > *, .wish-create-view > * { width: 100%; margin: 0; }
+  .wishlist-create-view > .back-link, .wish-create-view > .back-link { width: 44px; }
+  .wishlist-create-view > .wishlist-form { margin: 0; }
+  .wishlist-create-view > .wishlist-live-preview { min-height: 25rem; padding: 1.5rem; }
+  .wishlist-live-preview > img { width: 9rem; height: 9rem; margin: 1.5rem auto; }
+  .wish-create-view > .wish-import { display: flex; flex-direction: column; gap: 1.5rem; }
+  .wish-create-view .wish-import > form { width: 100%; }
+  .wish-create-view .wish-import__image-panel { width: 100%; }
+  .wish-import__image-empty { min-height: 10rem; }
+  .wishlist-details-view--owner .wish-card { grid-template-columns: 6rem minmax(0, 1fr); gap: 1rem; }
+  .wishlist-details-view--owner .wish-card__actions { grid-column: 1 / -1; }
+  .wishlist-details-view--owner .wish-card__content { display: flex; flex-direction: column; gap: 0.5rem; }
+  .wishlist-details-view--owner .wish-card__quantity, .wishlist-details-view--owner .wish-card__price { align-self: start; }
+  .wishlist-details-view--owner .wish-card__quantity span { display: inline; }
+  .wishlist-settings { padding: 1.5rem; }
+}
+@media (max-width: 30rem) {
+  .wishlists-grid > .wishlist-card { grid-template-columns: 35% minmax(0, 1fr); min-height: 15rem; }
+  .wishlist-card__cover { min-height: 15rem; }
+  .wishlist-card h2 { font-size: 1.2rem; }
+  .wishlist-card__icon { display: none; }
+  .wishlist-card__content { gap: 0.75rem; }
+  .wishlist-details-view--owner .wish-card { grid-template-columns: minmax(0, 1fr); }
+  .wishlist-details-view--owner .wish-card__media { width: 100%; max-height: 14rem; aspect-ratio: 1.6; }
+}

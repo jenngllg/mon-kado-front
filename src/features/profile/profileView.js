@@ -1,11 +1,9 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { DisplayNameServerMessage, validateDisplayName } from "../../auth/displayNameValidation.js";
-import { createActionLink, createAlert, createButton, createFormField, createLoadingState, disposeComponent,
+import { createAlert, createButton, createFormField, createLoadingState, disposeComponent,
   setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
-import { RoutePaths } from "../../app/routeContracts.js";
-import { createPrivacyNotice } from "../../components/legalLinks.js";
 import { createProfileImageSection } from "./profileImageSection.js";
 
 /** Creates the protected profile editor with view-owned drafts and cancellation.
@@ -22,11 +20,6 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   feedback.hidden = true;
   feedback.tabIndex = -1;
   const loading = createLoadingState({ label: "Chargement du profil…" });
-  const information = textElement("dl", "");
-  information.className = "profile-view__identity";
-  information.hidden = true;
-  const email = textElement("dd", "");
-  information.append(textElement("dt", "Adresse e-mail"), email);
   const form = document.createElement("form");
   form.noValidate = true;
   form.hidden = true;
@@ -36,8 +29,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   input.name = "displayName";
   input.type = "text";
   input.setAttribute("autocomplete", "nickname");
-  const field = createFormField({ control: input, label: "Nom d’affichage", required: true,
-    description: "Le nom que les autres verront. 80 caractères maximum." });
+  const field = createFormField({ control: input, label: "Nom d’affichage", required: true });
   const comparison = textElement("div", "");
   comparison.className = "profile-view__comparison flow";
   comparison.hidden = true;
@@ -49,13 +41,8 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   const actions = textElement("div", "");
   actions.className = "cluster";
   actions.append(submit, cancel);
-  form.append(field, comparison, createPrivacyNotice("Ton nom d’affichage sert à t’identifier dans les listes et participations. Choisis un pseudonyme si tu ne souhaites pas afficher ton nom civil."), actions);
-  view.append(title, textElement("p", "Consulte tes informations et choisis le nom que tes proches verront."),
-    feedback, loading, information, form,
-    createActionLink({ label: "Changer mon mot de passe", href: RoutePaths.PasswordChange }),
-    createActionLink({ label: "Changer mon adresse e-mail", href: RoutePaths.EmailChange }),
-    createActionLink({ label: "Gérer mon authentificateur", href: RoutePaths.Authenticator }),
-    createActionLink({ label: "Mes données personnelles", href: RoutePaths.PersonalData }));
+  form.append(field, comparison, actions);
+  view.append(title, feedback, loading, form);
 
   const lifetime = new AbortController();
   /** @type {import("./profileService.js").Profile | null} */
@@ -88,10 +75,10 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   const confirmationActions = textElement("div", ""); confirmationActions.className = "cluster"; confirmationActions.append(cancelPhoto, confirmPhoto);
   photoConfirmation.append(photoConfirmationTitle, textElement("p", "Seule ta photo sera supprimée. Ton compte et tes informations seront conservés."), confirmationActions);
   const photoSection = uploadImage && removeImage ? createProfileImageSection({ decode: decodeImage,
-    onUpload: file => { void mutatePhoto(file); }, onRemove: () => { void readPhoto("confirm"); }, onRefresh: () => { void readPhoto("recover"); } }) : null;
+    onUpload: () => { updateControls(); }, onRemove: () => { void mutatePhoto(null); } }) : null;
   if (photoSection) {
     photoSection.element.append(photoSuccess, photoFeedback, photoConfirmation);
-    form.after(photoSection.element);
+    form.append(photoSection.element, actions);
   }
 
   addComponentEventListener(view, input, "input", () => {
@@ -128,7 +115,6 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     base = null;
     photoBase = null; photoNotice = ""; photoSuccess.textContent = ""; photoFeedback.replaceChildren(); photoConfirmation.hidden = true;
     input.value = "";
-    email.textContent = "";
     currentValue.textContent = "";
     feedback.replaceChildren();
   });
@@ -172,8 +158,8 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   function updateControls() {
     setButtonLoading(submit, saving);
     input.disabled = busy || confirmingPhoto;
-    submit.disabled = busy || confirmingPhoto || needsRead || base === null || input.value.trim() === base.displayName;
-    cancel.disabled = busy || confirmingPhoto || needsRead || base === null || (!conflict && input.value === base.displayName);
+    submit.disabled = busy || confirmingPhoto || needsRead || base === null || (input.value.trim() === base.displayName && !photoSection?.getSelected());
+    cancel.disabled = busy || confirmingPhoto || needsRead || base === null || (!conflict && input.value === base.displayName && !photoSection?.getSelected());
     useCurrent.disabled = busy || confirmingPhoto || needsRead;
     form.setAttribute("aria-busy", String(busy));
     loading.hidden = !busy || saving || photoBusy;
@@ -189,6 +175,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
 
   function resetDraft() {
     if (!active() || busy || confirmingPhoto || needsRead || base === null) return;
+    photoSection?.clearSelection();
     input.value = base.displayName;
     conflict = false;
     comparison.hidden = true;
@@ -213,8 +200,6 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       base = profile;
       photoBase = profile; photoNeedsRead = false;
       needsRead = false;
-      email.textContent = profile.email;
-      information.hidden = false;
       form.hidden = false;
       clearValidation();
       conflict = mode === "conflict";
@@ -268,7 +253,11 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       input.focus();
       return;
     }
-    if (input.value.trim() === base.displayName) return;
+    const selectedPhoto = photoSection?.getSelected();
+    if (input.value.trim() === base.displayName) {
+      if (selectedPhoto) await mutatePhoto(selectedPhoto);
+      return;
+    }
     clearFeedback();
     busy = true;
     saving = true;
@@ -282,6 +271,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       busy = false;
       saving = false;
       await readProfile("saved");
+      if (selectedPhoto && active() && !needsRead) await mutatePhoto(selectedPhoto);
     } catch (error) {
       if (!active() || isAbortError(error)) return;
       busy = false;
@@ -345,7 +335,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       photoBase = fresh; photoNeedsRead = false;
       if (mode !== "confirm") {
         const hasDraft = base !== null && input.value !== base.displayName;
-        base = fresh; needsRead = false; email.textContent = fresh.email;
+        base = fresh; needsRead = false;
         conflict = hasDraft; comparison.hidden = !hasDraft;
         currentValue.textContent = hasDraft ? "Valeur actuellement enregistrée : " + fresh.displayName : "";
         if (!hasDraft) { input.value = fresh.displayName; clearValidation(); }
@@ -366,7 +356,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
 
   /** @param {Blob | null} file Null selects the explicitly confirmed deletion. */
   async function mutatePhoto(file) {
-    if (!active() || busy || needsRead || photoNeedsRead || !photoBase || !photoSection || !uploadImage || !removeImage || (!file && !confirmingPhoto)) return;
+    if (!active() || busy || needsRead || photoNeedsRead || !photoBase || !photoSection || !uploadImage || !removeImage) return;
     busy = true; photoBusy = true; photoNotice = ""; updateControls();
     photoMessage(file ? "Enregistrement de ta photo…" : "Suppression de ta photo…");
     try {

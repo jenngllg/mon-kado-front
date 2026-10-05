@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { createWishPayload, parseWishPrice, validateWishField } from "../src/features/wishes/wishValidation.js";
 
-const values = { name: "Cadeau", note: "", url: "", price: "", quantity: "1" };
+const values = { name: "Souhait", note: "", url: "", price: "", quantity: "1" };
 describe("manual gift validation", () => {
   it.each(["", " \t\n ", "x".repeat(101), "🎁".repeat(101), "a\u0000b", "a\u2028b", "a\u2029b", "a\ud800"])("rejects invalid name %j", value => {
     expect(validateWishField("name", value)).not.toBeNull();
   });
-  it.each([" 🎁 ", "🎁".repeat(100), "\u0085Cadeau\u0085", "e\u0301".repeat(50)])("accepts Unicode names before NFC %j", value => {
+  it.each([" 🎁 ", "🎁".repeat(100), "\u0085Souhait\u0085", "e\u0301".repeat(50)])("accepts Unicode names before NFC %j", value => {
     expect(validateWishField("name", value)).toBeNull();
   });
   it.each(["🎁".repeat(501), "a\u0001b", "a\udfff", "\u0000note"])("rejects malformed note %j", value => expect(validateWishField("note", value)).not.toBeNull());
@@ -24,7 +24,7 @@ describe("manual gift validation", () => {
   it("builds only the contract fields, trims Unicode whitespace but preserves internal text and normalization", () => {
     expect(createWishPayload({ ...values, ...{ ownerId: "private", image: "unused", position: "99" }, name: "\u0085e\u0301\u0085", note: " \tNote\n\tSuivante\n ", url: " https://example.test/🎁 ", price: "19,90", quantity: "2" }))
       .toEqual({ name: "e\u0301", note: "Note\n\tSuivante", url: "https://example.test/🎁", price: 19.9, quantity: 2 });
-    expect(createWishPayload(values)).toEqual({ name: "Cadeau", note: null, url: null, price: null, quantity: 1 });
+    expect(createWishPayload(values)).toEqual({ name: "Souhait", note: null, url: null, price: null, quantity: 1 });
   });
   it("aggregates safe field validation errors before preparing any transport body", () => {
     try { createWishPayload({ ...values, name: "", price: "private", quantity: "0" }); throw new Error("Expected failure"); }

@@ -4,6 +4,8 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { createActionLink, createAlert, createButton, createEmptyState, createLoadingState, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { WishlistOccasions as OccasionLabels } from "./wishlistValidation.js";
+import { createActionDisclosure } from "../../components/actionDisclosure.js";
+import { wishlistArtwork } from "./wishlistArtwork.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -20,7 +22,7 @@ export function createWishlistsView({ load, signal }) {
   introduction.className = "flow";
   const title = textElement("h1", "Mes listes");
   title.tabIndex = -1;
-  introduction.append(title, textElement("p", "Retrouve tes listes et prépare tes prochains événements."));
+  introduction.append(title);
   const create = createActionLink({ label: "Créer une liste", href: RoutePaths.NewList });
   create.classList.add("home-hero__primary-action");
   header.append(introduction, create);
@@ -59,7 +61,7 @@ export function createWishlistsView({ load, signal }) {
       const items = await load({ signal: lifetime.signal });
       if (disposed) return;
       if (items.length === 0) {
-        show(createEmptyState({ title: "Tu n’as pas encore de liste", message: "Crée ta première liste pour réunir tes idées cadeaux." }));
+        show(createEmptyState({ title: "Tu n’as pas encore de liste", message: "Crée ta première liste pour réunir tes souhaits." }));
       } else {
         const collection = textElement("ul", "");
         collection.className = "wishlists-grid";
@@ -94,30 +96,43 @@ export function createWishlistsView({ load, signal }) {
 function createCard(item) {
   const card = textElement("li", "");
   card.className = "wishlist-card";
+  const cover = document.createElement("img");
+  cover.className = "wishlist-card__cover";
+  cover.src = wishlistArtwork(item.occasion);
+  cover.alt = ""; cover.loading = "lazy";
+  const content = textElement("div", "");
+  content.className = "wishlist-card__content";
   const occasion = textElement("p", OccasionLabels[item.occasion]);
   occasion.className = "wishlist-card__occasion";
-  card.append(occasion, textElement("h2", item.name));
-  if (item.eventDate === null) card.append(textElement("p", "Sans date"));
+  const heading = textElement("h2", "");
+  const icon = document.createElement("img"); icon.alt = "";
+  icon.className = "wishlist-card__icon"; icon.src = wishlistArtwork(item.occasion).replace(".webp", "-icon.webp");
+  const open = createActionLink({ label: item.name, href: RoutePaths.ListDetails.replace(":listId", item.id) });
+  open.setAttribute("aria-label", "Ouvrir la liste « " + item.name + " »");
+  open.classList.add("wishlist-card__open");
+  heading.append(icon, open);
+  content.append(heading, occasion);
+  if (item.eventDate === null) content.append(textElement("p", "Sans date"));
   else {
     const date = textElement("time", DateFormat.format(new Date(item.eventDate + "T00:00:00Z")));
     date.dateTime = item.eventDate;
-    card.append(date);
+    content.append(date);
   }
   if (item.isSuspended) {
     const suspension = textElement("div", "");
     suspension.className = "wishlist-card__suspension";
     suspension.append(textElement("strong", "Liste suspendue"), textElement("p", "Consultation uniquement"));
-    card.append(suspension);
+    content.append(suspension);
   }
-  const open = createActionLink({ label: "Ouvrir", href: RoutePaths.ListDetails.replace(":listId", item.id) });
-  open.setAttribute("aria-label", "Ouvrir la liste « " + item.name + " »");
-  open.classList.add("wishlist-card__open");
-  const actions = textElement("div", ""); actions.className = "wishlist-card__actions cluster";
   if (!item.isSuspended) {
     const edit = createActionLink({ label: "Modifier", href: RoutePaths.EditList.replace(":listId", item.id) });
-    edit.setAttribute("aria-label", "Modifier la liste « " + item.name + " »"); actions.append(edit);
+    edit.setAttribute("aria-label", "Modifier la liste « " + item.name + " »");
+    const remove = createActionLink({ label: "Supprimer", href: RoutePaths.DeleteList.replace(":listId", item.id), variant: "danger" });
+    const actions = createActionDisclosure("⋯", "Actions de la liste « " + item.name + " »", [edit, remove]);
+    actions.classList.add("wishlist-card__actions");
+    card.append(actions);
   }
-  actions.append(open); card.append(actions);
+  card.prepend(cover, content);
   return card;
 }
 

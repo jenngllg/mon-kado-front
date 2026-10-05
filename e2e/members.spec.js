@@ -45,7 +45,7 @@ test("anonymous search → profile → shared list → wish and back preserves t
   await expect(page.locator(".member-avatar")).toHaveCount(1);
   await page.getByRole("link", { name: /Anniversaire — test navigateur/ }).click();
   await expect(page).toHaveURL(`${sharedPath}?fromMember=${memberId}`);
-  await page.getByRole("link", { name: "Voir le cadeau « Une théière »", exact: true }).click();
+  await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   await expect(page).toHaveURL(`${sharedPath}/wishes/${wishId}?fromMember=${memberId}`);
   await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
@@ -83,11 +83,13 @@ test("signing in from a discovered list retains the return to the member profile
   const api = await membersApi(context);
   await page.goto(profilePath);
   await page.getByRole("link", { name: /Anniversaire — test navigateur/ }).click();
+  await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   await page.getByRole("link", { name: "Se connecter pour poursuivre avec mon compte", exact: true }).click();
   await page.getByRole("textbox", { name: "Adresse e-mail" }).fill("test@example.test");
   await page.getByLabel(/^Mot de passe/).fill("Fixture-only-password-930!");
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
-  await expect(page.getByRole("heading", { name: api.wishlist.name })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
   await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Camille", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Se déconnecter", exact: true })).toBeVisible();

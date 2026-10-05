@@ -8,18 +8,38 @@ const page = { items: [member], currentPage: 1, pageSize: 20, totalCount: 1 };
 /** @param {unknown} [data] Response. @param {number} [status] HTTP status. */
 function setup(data = page, status = 200) {
   const request = vi.fn(async () => ({ data, status, metadata: { correlationId: "reference", etag: null, location: null, retryAfterSeconds: null } }));
-  return { ...createMemberSearchService({ request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request) }), request, signal: new AbortController().signal };
+  return { ...createMemberSearchService({ request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request) }, { apiBaseUrl: "https://api.example.test" }), request, signal: new AbortController().signal };
 }
 describe("public member search", () => {
   it.each(["", " ", "a", "e\u0301", "a\u0000b", "ab\n", "\ud800xx", "x".repeat(81)])("rejects invalid original input %j", value => {
     expect(validateMemberSearch(value)).toEqual(expect.any(String));
   });
   it.each(["ab", " 😀😀 ", "e\u0301a", "x".repeat(80)])("accepts scalar limits and NFC minimum %j", value => expect(validateMemberSearch(value)).toBeNull());
-  it("sends a public GET with exact encoded parameters and projects only immutable names and IDs", async () => {
+  it("sends a public GET with exact parameters and excludes untrusted photo URLs", async () => {
     const service = setup(); const result = await service.search("  Je & nn  ", { signal: service.signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith("/api/v1/members?displayName=Je+%26+nn&page=1&pageSize=20", { method: "GET", authentication: "none", signal: service.signal });
-    expect(result.items).toEqual([{ id, displayName: "Jenn" }]);
+    expect(result.items).toEqual([{ id, displayName: "Jenn", photo: { imageUrl: null, imageUnavailable: true } }]);
     expect(Object.isFrozen(result) && Object.isFrozen(result.items) && Object.isFrozen(result.items[0])).toBe(true);
+  });
+  it("retains each namesake's own validated public photo", async () => {
+    const secondId = id.replace(/4$/, "5");
+    const photo = (/** @type {string} */ memberId) => `https://api.example.test/api/v1/members/${memberId}/profile/image?imageId=${id}`;
+    const service = setup({ ...page, totalCount: 2, items: [id, secondId].map(memberId => ({ id: memberId, displayName: "Jenn", profileImageUrl: photo(memberId) })) });
+    const result = await service.search("Jenn", { signal: service.signal });
+    expect(result.items.map(item => item.photo?.imageUrl)).toEqual([photo(id), photo(secondId)]);
+    expect(result.items.every(item => Object.isFrozen(item.photo))).toBe(true);
+  });
+  it.each([null, undefined])("allows an absent public photo (%s)", async profileImageUrl => {
+    const service = setup({ ...page, items: [{ ...member, profileImageUrl }] });
+    expect((await service.search("Jenn", { signal: service.signal })).items[0].photo).toEqual({ imageUrl: null, imageUnavailable: false });
+  });
+  it.each([
+    `https://api.example.test/api/v1/members/${id.replace(/4$/, "5")}/profile/image?imageId=${id}`,
+    `https://api.example.test/api/v1/members/${id}/profile/image?imageId=${id}&token=secret`,
+    "javascript:alert(1)",
+  ])("does not expose an invalid or mismatched photo source %s", async profileImageUrl => {
+    const service = setup({ ...page, items: [{ ...member, profileImageUrl }] });
+    expect((await service.search("Jenn", { signal: service.signal })).items[0].photo).toEqual({ imageUrl: null, imageUnavailable: true });
   });
   it("preserves server order and accepts one-character result names", async () => {
     const service = setup({ ...page, totalCount: 2, items: [member, { id: id.replace(/4$/, "5"), displayName: "A" }] });

@@ -1,5 +1,5 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
-import { createActionLink, createAlert, createButton, createFormField, disposeComponent,
+import { createBackLink, createActionLink, createAlert, createButton, createFormField, disposeComponent,
   setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
@@ -7,16 +7,15 @@ import { RoutePaths } from "../../app/routeContracts.js";
 import { RegistrationServerMessages, validateRegistrationConfirmation, validateRegistrationField } from "./registrationValidation.js";
 import { createGoogleButton } from "../google/googleButton.js";
 import { GoogleMessages } from "../google/googleMessages.js";
-import { createPrivacyNotice } from "../../components/legalLinks.js";
 
 /** @typedef {import("./registrationValidation.js").RegistrationField} RegistrationField */
 /** @typedef {RegistrationField | "confirmation"} RegistrationFormField */
-/** @type {ReadonlyArray<{name: RegistrationFormField, label: string, type: string, autocomplete: string, description: string}>} */
+/** @type {ReadonlyArray<{name: RegistrationFormField, label: string, type: string, autocomplete: string}>} */
 const Fields = Object.freeze([
-  { name: "displayName", label: "Nom d’affichage", type: "text", autocomplete: "nickname", description: "Le nom que les autres verront. 80 caractères maximum." },
-  { name: "email", label: "Adresse e-mail", type: "email", autocomplete: "email", description: "Pour confirmer ton adresse et retrouver ton compte." },
-  { name: "password", label: "Mot de passe", type: "password", autocomplete: "new-password", description: "De 12 à 128 caractères. Tu peux utiliser une phrase de passe." },
-  { name: "confirmation", label: "Confirmer le mot de passe", type: "password", autocomplete: "new-password", description: "Saisis à nouveau exactement le même mot de passe." },
+  { name: "displayName", label: "Nom d’affichage", type: "text", autocomplete: "nickname" },
+  { name: "email", label: "Adresse e-mail", type: "email", autocomplete: "email" },
+  { name: "password", label: "Mot de passe", type: "password", autocomplete: "new-password" },
+  { name: "confirmation", label: "Confirmer le mot de passe", type: "password", autocomplete: "new-password" },
 ]);
 
 /** Creates an accessible registration view with explicit, idempotent cleanup.
@@ -59,7 +58,8 @@ export function createRegistrationView({ register, signal, startGoogle }) {
       control.spellcheck = false;
       control.setAttribute("autocapitalize", "none");
     }
-    const element = createFormField({ ...definition, control, required: true });
+    const element = createFormField({ ...definition, control, required: true,
+      description: definition.name === "password" ? "De 12 à 128 caractères." : null });
     form.append(element);
     const field = { ...definition, control, element, dirty: false, checked: false, error: /** @type {string | null} */ (null) };
     addComponentEventListener(form, control, "input", () => {
@@ -94,10 +94,13 @@ export function createRegistrationView({ register, signal, startGoogle }) {
   const submit = createButton({ label: "Créer mon compte", type: "submit" });
   form.append(submit);
   const googleButton = startGoogle ? createGoogleButton(() => { void departGoogle(); }) : null;
-  if (googleButton) form.append(textElement("p", "ou"), googleButton);
+  if (googleButton) {
+    const separator = textElement("p", "ou"); separator.className = "auth-method-separator";
+    form.append(separator, googleButton);
+  }
   const login = textElement("p", "Déjà un compte ? ");
   login.append(createActionLink({ label: "Se connecter", href: RoutePaths.Login }));
-  view.append(heading, introduction, feedback, status, form, login, createPrivacyNotice());
+  view.append(heading, introduction, feedback, status, form, login);
   addComponentEventListener(form, form, "pointerdown", event => {
     const target = event.target instanceof Element ? event.target.closest("button") : null;
     pressedAction = target instanceof HTMLButtonElement ? target : null;
@@ -230,16 +233,14 @@ export function createRegistrationView({ register, signal, startGoogle }) {
       clearInputs();
       disposeComponent(form);
       clearFeedback();
-      const title = textElement("h1", "Demande prise en compte");
+      const title = textElement("h1", "Demande reçue");
       title.tabIndex = -1;
       const actions = document.createElement("div");
       actions.className = "cluster";
       actions.append(createActionLink({ label: "Se connecter", href: RoutePaths.Login }),
-        createActionLink({ label: "Renvoyer le lien de confirmation", href: RoutePaths.ConfirmEmail }),
-        createActionLink({ label: "Retour à l’accueil", href: RoutePaths.Home }));
-      view.replaceChildren(title,
-        textElement("p", "Si un nouveau compte peut être créé avec cette adresse, tu recevras un e-mail de confirmation. Consulte aussi tes indésirables."),
-        textElement("p", "Confirme ton adresse avant de te connecter."), actions);
+        createActionLink({ label: "Renvoyer le lien de confirmation", href: RoutePaths.ConfirmEmail }));
+      view.replaceChildren(createBackLink({ label: "Retour à l’accueil", href: RoutePaths.Home }), title,
+        textElement("p", "Si l’inscription est possible, tu recevras un lien de confirmation par e-mail."), actions);
       title.focus();
     } catch (error) {
       if (disposed || lifetime.signal.aborted || isAbortError(error)) return;

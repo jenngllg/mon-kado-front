@@ -17,10 +17,10 @@ export function createReservationCreateForm({ available, create, verify, onSaved
   const root = document.createElement("section"); root.className = "flow";
   const status = document.createElement("p"); status.setAttribute("role", "status");
   const feedback = document.createElement("div");
-  const form = document.createElement("form"); form.noValidate = true; form.className = "flow"; form.setAttribute("aria-label", editing ? "Modifier ma réservation" : "Réserver ce cadeau");
+  const form = document.createElement("form"); form.noValidate = true; form.className = "flow"; form.setAttribute("aria-label", editing ? "Modifier ma réservation" : "Réserver ce souhait");
   const input = document.createElement("input"); input.type = "number"; input.name = "quantity"; input.min = "1"; input.max = String(Math.min(100, available)); input.step = "1"; input.value = String(reference?.quantity ?? 1);
-  const field = createFormField({ label: "Quantité à réserver", control: input, required: true, description: "Choisis le nombre d’exemplaires que tu souhaites offrir." });
-  const submit = createButton({ label: editing ? "Enregistrer la quantité" : "Réserver ce cadeau", type: "submit" });
+  const field = createFormField({ label: "Quantité à réserver", control: input, required: true });
+  const submit = createButton({ label: editing ? "Enregistrer la quantité" : "Réserver ce souhait", type: "submit" });
   const comparison = document.createElement("p"); comparison.hidden = true;
   const cancel = createButton({ label: "Annuler les modifications", variant: "secondary", onClick: () => {
     if (disposed || busy || blocked || done || !reference) return;
@@ -43,7 +43,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
     onBusy?.(!disposed && (busy || (blocked && !form.hidden)));
   }
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); }
-  if (blocked) { status.textContent = "Ce cadeau est entièrement réservé."; reread.hidden = false; }
+  if (blocked) { status.textContent = "Ce souhait est entièrement réservé."; reread.hidden = false; }
   controls();
   addComponentEventListener(root, input, "input", () => { dirty = true; if (touched) validate(); controls(); });
   addComponentEventListener(root, input, "blur", event => {
@@ -90,7 +90,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
       }
     } finally { if (!disposed) { busy = false; controls(); } }
     if (done && !disposed) {
-      try { onSaved(); } catch { status.textContent = `${editing ? "Réservation modifiée" : "Réservation enregistrée"}. Actualise le cadeau pour retrouver les informations à jour.`; }
+      try { onSaved(); } catch { status.textContent = `${editing ? "Réservation modifiée" : "Réservation enregistrée"}. Actualise le souhait pour retrouver les informations à jour.`; }
     }
   }
   async function check() {
@@ -101,7 +101,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
       if (editing) {
         if (current.lookup.state !== "reserved") {
           blocked = true; form.hidden = true; input.value = ""; reference = null;
-          status.textContent = "Ta réservation n’est plus reconnue. Actualise le cadeau avant de continuer.";
+          status.textContent = "Ta réservation n’est plus reconnue. Actualise le souhait avant de continuer.";
           status.tabIndex = -1; status.focus(); return;
         }
         reference = current.lookup.reservation; available = current.available + reference.quantity;
@@ -112,9 +112,9 @@ export function createReservationCreateForm({ available, create, verify, onSaved
       }
       available = current.available; input.max = String(Math.min(100, available));
       blocked = current.lookup.state !== "absent" || available === 0;
-      status.textContent = current.lookup.state === "reserved" ? "Une réservation est déjà reconnue. Actualise le cadeau pour la consulter." :
+      status.textContent = current.lookup.state === "reserved" ? "Une réservation est déjà reconnue. Actualise le souhait pour la consulter." :
         current.lookup.state === "unrecognized" ? "Ta participation n’est plus reconnue. Retourne à la liste pour participer." :
-          available === 0 ? "Ce cadeau est entièrement réservé." : "Vérification terminée. Tu peux confirmer à nouveau ta réservation.";
+          available === 0 ? "Ce souhait est entièrement réservé." : "Vérification terminée. Tu peux confirmer à nouveau ta réservation.";
       if (current.lookup.state !== "absent") { form.hidden = true; input.value = ""; }
       else { form.hidden = false; validate(); }
       reread.hidden = !blocked; status.tabIndex = -1; status.focus();

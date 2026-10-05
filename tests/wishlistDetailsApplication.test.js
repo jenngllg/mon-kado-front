@@ -7,7 +7,7 @@ import { barrier, createCoordinatorHub, createSessionTransport } from "./session
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
 const item = { id, name: "Liste privée", occasion: "birthday", eventDate: null, message: null, isSuspended: false };
-const wish = { id: wishId, wishlistId: id, name: "Cadeau privé", note: "Note privée", price: 2.99, quantity: 3,
+const wish = { id: wishId, wishlistId: id, name: "Souhait privé", note: "Note privée", price: 2.99, quantity: 3,
   position: 1024, entityTag: '"wish"', url: null, imageUrl: `http://localhost:7000/api/v1/wishlists/${id}/wishes/${wishId}/image?token=grant-fixture` };
 /** @type {Array<() => void>} */ const cleanups = [];
 afterEach(() => { cleanups.splice(0).reverse().forEach(cleanup => cleanup()); document.body.replaceChildren(); window.history.replaceState(null, "", "/"); });
@@ -44,6 +44,34 @@ function until(root, predicate) {
 function loaded(app) { return until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null); }
 
 describe("wishlist details application integration", () => {
+  it("shows confirmed share deactivation only in the shell notification region", async () => {
+    const app = setup();
+    const original = app.transport.fetch.getMockImplementation();
+    const gate = barrier();
+    app.transport.fetch.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname === `/api/v1/wishlists/${id}/share-link`) {
+        if (init?.method === "DELETE") {
+          await gate.promise;
+          return new Response(null, { status: 204 });
+        }
+        return Response.json({ id, shareUrl: `${window.location.origin}/shared-wishlists/${id}#${"A".repeat(43)}` }, { headers: { ETag: '"share"' } });
+      }
+      if (!original) throw Error("Missing transport");
+      return original(input, init);
+    });
+    await app.start(); await loaded(app);
+    await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Désactiver le partage" && !button.hidden));
+    const revoke = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Désactiver le partage");
+    revoke?.click();
+    const confirm = [...app.shell.outlet.querySelectorAll("dialog")].flatMap(dialog => [...dialog.querySelectorAll("button")]).find(button => button.textContent === "Désactiver le partage");
+    confirm?.click();
+    expect(app.shell.notificationRegion.textContent).not.toContain("Partage désactivé");
+    gate.resolve();
+    await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Partage désactivé") === true);
+    expect(app.shell.outlet.textContent).not.toContain("Partage désactivé");
+    expect(app.shell.notificationRegion.querySelectorAll(".notification")).toHaveLength(1);
+    expect(app.shell.notificationRegion.textContent).not.toContain("A".repeat(43));
+  });
   it("redirects anonymous visitors before reads and retains a protected return path", async () => {
     const app = setup(); app.transport.state.refreshStatus = 401; await app.start();
     expect(window.location.pathname).toBe("/login"); expect(new URLSearchParams(window.location.search).get("returnTo")).toBe(`/lists/${id}`);
@@ -78,6 +106,6 @@ describe("wishlist details application integration", () => {
       else { app.transport.state.user.id = "different-member"; await other.establishSession(async () => ({ data: app.transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); }
     }
     gate.resolve(); await gate.promise; expect(old?.textContent).not.toContain(item.name); expect(old?.querySelector("img")).toBeNull();
-    expect(JSON.stringify(app.hub.messages)).not.toMatch(/Cadeau privé|Note privée|grant-fixture/);
+    expect(JSON.stringify(app.hub.messages)).not.toMatch(/Souhait privé|Note privée|grant-fixture/);
   });
 });

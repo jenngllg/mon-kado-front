@@ -3,13 +3,13 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { WishlistOccasions, WishlistServerMessages } from "./wishlistValidation.js";
 
 /** @typedef {import("./wishlistValidation.js").WishlistField} WishlistField */
-/** @typedef {{name: WishlistField, label: string, description: string, required: boolean}} Definition */
+/** @typedef {{name: WishlistField, label: string, required: boolean}} Definition */
 /** @type {ReadonlyArray<Definition>} */
 const Fields = Object.freeze([
-  { name: "name", label: "Nom de la liste", description: "100 caractères maximum.", required: true },
-  { name: "occasion", label: "Occasion", description: "Choisis l’occasion de ta liste.", required: true },
-  { name: "eventDate", label: "Date de l’événement (facultatif)", description: "Aujourd’hui ou plus tard, selon le jour UTC.", required: false },
-  { name: "message", label: "Message (facultatif)", description: "500 caractères maximum. Les retours à la ligne sont autorisés.", required: false },
+  { name: "name", label: "Nom de la liste", required: true },
+  { name: "occasion", label: "Occasion", required: true },
+  { name: "eventDate", label: "Date de l’événement", required: false },
+  { name: "message", label: "Message", required: false },
 ]);
 
 /** Domain form shared by creation and editing; operations remain owned by each view.
@@ -33,8 +33,7 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
         const option = document.createElement("option"); option.value = value; option.textContent = text; control.append(option);
       }
     }
-    const description = editing && definition.name === "eventDate" ? "Tu peux conserver la date actuelle, même passée, ou choisir une date à partir d’aujourd’hui (jour UTC)." : definition.description;
-    const element = createFormField({ ...definition, description, control }); form.append(element);
+    const element = createFormField({ ...definition, control }); form.append(element);
     const field = { ...definition, element, control, dirty: false, checked: false, error: /** @type {string | null} */ (null) };
     const update = () => {
       if (disposed || inactive()) return;

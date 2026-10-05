@@ -40,13 +40,26 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   const router = createRouter({
     outlet: shell.outlet,
     routes: createApplicationRoutes({ session, google, apiBaseUrl, sharing,
-      sharingSignIn: { continuation: sharedSignIn, onSignIn: id => {
+      onWishlistShareRevoked: context => {
+        const route = router.getCurrentRoute();
+        if (disposed || context.signal.aborted || route?.name !== RouteNames.ListDetails ||
+          route.params.listId !== context.params.listId || session.getSnapshot().status !== "authenticated") return;
+        showNotification(shell.notificationRegion, { message: "Partage désactivé", variant: "success" });
+      },
+      sharingSignIn: { continuation: sharedSignIn, onSignIn: (id, wishId) => {
         const state = session.getSnapshot(), route = router.getCurrentRoute();
         if (disposed || state.status !== "anonymous" || state.authenticationPending || state.logoutPending ||
-          route?.name !== RouteNames.SharedWishlist || route.params.shareLinkId !== id || !sharedSignIn.prepare(id)) return;
+          (route?.name !== RouteNames.SharedWishlist && route?.name !== RouteNames.SharedWish) ||
+          route.params.shareLinkId !== id || (wishId !== undefined && route.params.wishId !== wishId) || !sharedSignIn.prepare(id, wishId)) return;
         void router.navigate(RoutePaths.Login).then(result => { if (result?.name !== RouteNames.Login) sharedSignIn.cancel(); });
       } },
       onWishDeleted: async context => {
+        const current = router.getCurrentRoute();
+        if (!disposed && !context.signal.aborted && current?.name === RouteNames.ListDetails &&
+          current.params.listId === context.params.listId && session.getSnapshot().status === "authenticated") {
+          showNotification(shell.notificationRegion, { message: "Souhait supprimé", variant: "success" });
+          return;
+        }
         const editPath = RoutePaths.EditWish.replace(":listId", context.params.listId).replace(":wishId", context.params.wishId);
         if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.EditWish ||
           window.location.pathname.replace(/\/+$/, "") !== editPath || session.getSnapshot().status !== "authenticated") return;
@@ -57,7 +70,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
           const route = await router.replace(destination);
           if (!disposed && epoch === protectedViewEpoch && route !== null && route === router.getCurrentRoute() &&
             route.name === RouteNames.ListDetails && window.location.pathname === destination && session.getSnapshot().status === "authenticated") {
-            showNotification(shell.notificationRegion, { message: "Cadeau supprimé", variant: "success" });
+            showNotification(shell.notificationRegion, { message: "Souhait supprimé", variant: "success" });
           }
         } finally { confirmedWishDeletion = null; }
       },
@@ -71,7 +84,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
         const route = await router.replace(destination);
         if (!disposed && epoch === protectedViewEpoch && route !== null && route === router.getCurrentRoute() &&
           route.name === RouteNames.ListDetails && window.location.pathname === destination && session.getSnapshot().status === "authenticated") {
-          showNotification(shell.notificationRegion, { message: "Cadeau ajouté", variant: "success" });
+          showNotification(shell.notificationRegion, { message: "Souhait ajouté", variant: "success" });
         }
       },
       onWishlistCreated: async (created, context) => {
@@ -125,7 +138,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
           createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists }));
       }
       if (confirmedWishDeletion?.epoch === protectedViewEpoch && session.getSnapshot().status === "authenticated") {
-        view.append(createAlert({ title: "Cadeau supprimé", message: "Ton cadeau est supprimé, mais le retour à la liste a échoué.", variant: "success" }),
+        view.append(createAlert({ title: "Souhait supprimé", message: "Ton souhait est supprimé, mais le retour à la liste a échoué.", variant: "success" }),
           createActionLink({ label: "Retour à la liste", href: confirmedWishDeletion.destination }));
       }
       return view;

@@ -17,6 +17,29 @@ function setup(hub = createCoordinatorHub(), transport = createSessionTransport(
 }
 
 describe("session management", () => {
+  it.each([false, true])("retains the trusted Google association after session restoration: %s", async isGoogleLinked => {
+    // Arrange
+    const { session, state } = setup();
+    Object.assign(state.user, { isGoogleLinked });
+    // Act
+    await session.start();
+    // Assert
+    expect(session.getSnapshot().user?.isGoogleLinked).toBe(isGoogleLinked);
+    // Act
+    await session.restore();
+    // Assert
+    expect(session.getSnapshot().user?.isGoogleLinked).toBe(isGoogleLinked);
+  });
+  it.each(["true", 1, null])("rejects an invalid Google association flag: %s", async isGoogleLinked => {
+    // Arrange
+    const { session, state } = setup();
+    Object.assign(state.user, { isGoogleLinked });
+    // Act
+    await session.start();
+    // Assert
+    expect(session.getSnapshot().status).toBe("unavailable");
+    expect(session.getSnapshot().user).toBeNull();
+  });
   it("restores once, validates identity, and exposes no credentials", async () => {
     // Arrange
     const { session, fetch } = setup();

@@ -20,6 +20,7 @@ import { createEmailConfirmationService } from "../features/emailConfirmation/em
 import { createEmailConfirmationView } from "../features/emailConfirmation/emailConfirmationView.js";
 import { createProfileService } from "../features/profile/profileService.js";
 import { createProfileView } from "../features/profile/profileView.js";
+import { createAccountLayout } from "../components/accountLayout.js";
 import { createPersonalDataService } from "../features/privacy/personalDataService.js";
 import { createPersonalDataView } from "../features/privacy/personalDataView.js";
 import { createAccountDeletionView } from "../features/privacy/accountDeletionView.js";
@@ -88,8 +89,9 @@ export {
  * @param {WishlistDeletedHandler} onWishDeleted Local gift deletion completion.
  * @param {import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext} sharing Private tab context.
  * @param {SharingSignInOptions} sharingSignIn Dedicated sign-in integration.
+ * @param {WishlistDeletedHandler} onWishlistShareRevoked Confirmed share revocation notice.
  */
-function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn) {
+function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked) {
   const memberSearchState = { query: "", page: 1 };
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
@@ -169,23 +171,23 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       path: RoutePaths.Profile,
       title: "Mon profil · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createProfileView({ ...createProfileService(session, { apiBaseUrl }), signal: context.signal }),
+        createAccountLayout(createProfileView({ ...createProfileService(session, { apiBaseUrl }), signal: context.signal }), RoutePaths.Profile, session),
     },
     {
       name: RouteNames.PasswordChange, path: RoutePaths.PasswordChange, title: "Changer mon mot de passe · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createPasswordChangeView({ ...createPasswordChangeService(session), signal: context.signal }),
+        createAccountLayout(createPasswordChangeView({ ...createPasswordChangeService(session), signal: context.signal }), RoutePaths.PasswordChange, session),
     },
     {
       name: RouteNames.PersonalData, path: RoutePaths.PersonalData, title: "Mes données personnelles · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createPersonalDataView({ service: createPersonalDataService(session), signal: context.signal }),
+        createAccountLayout(createPersonalDataView({ service: createPersonalDataService(session), signal: context.signal }), RoutePaths.PersonalData, session),
     },
     {
       name: RouteNames.Authenticator, path: RoutePaths.Authenticator, title: "Mon authentificateur · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createAuthenticatorView({ service: createAuthenticatorService(session), session, signal: context.signal,
-          onFinished: () => { void context.navigate(RoutePaths.Login); } }),
+        createAccountLayout(createAuthenticatorView({ service: createAuthenticatorService(session), session, signal: context.signal,
+          onFinished: () => { void context.navigate(RoutePaths.Login); } }), RoutePaths.Authenticator, session),
     },
     {
       name: RouteNames.ConfirmAccountDeletion, path: RoutePaths.ConfirmAccountDeletion, title: "Supprimer mon compte · MonKado",
@@ -195,7 +197,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.EmailChange, path: RoutePaths.EmailChange, title: "Changer mon adresse e-mail · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createEmailChangeView({ load: createProfileService(session).load, ...createEmailChangeService(session), signal: context.signal }),
+        createAccountLayout(createEmailChangeView({ load: createProfileService(session).load, ...createEmailChangeService(session), signal: context.signal }), RoutePaths.EmailChange, session),
     },
     {
       name: RouteNames.Lists, path: RoutePaths.Lists, title: "Mes listes · MonKado",
@@ -220,7 +222,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
           onDeleted: () => onWishlistDeleted(context) }),
     },
     {
-      name: RouteNames.NewWish, path: RoutePaths.NewWish, title: "Ajouter un cadeau · MonKado",
+      name: RouteNames.NewWish, path: RoutePaths.NewWish, title: "Ajouter un souhait · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         const wishes = createWishesService(session, { apiBaseUrl });
         return createWishCreateView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
@@ -230,9 +232,10 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       },
     },
     {
-      name: RouteNames.EditWish, path: RoutePaths.EditWish, title: "Modifier un cadeau · MonKado",
+      name: RouteNames.EditWish, path: RoutePaths.EditWish, title: "Modifier un souhait · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishEditView({ ...createWishesService(session, { apiBaseUrl }), wishlistId: context.params.listId, wishId: context.params.wishId,
+          preview: createWishImportService(session).preview,
           loadWishlist: createWishlistsService(session).loadOne, signal: context.signal, onDeleted: () => onWishDeleted(context) }),
     },
     {
@@ -244,8 +247,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.ListDetails, path: RoutePaths.ListDetails, title: "Détail de la liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
+          deletion: createWishesService(session, { apiBaseUrl }),
+          onDeleted: () => onWishDeleted(context),
           loadWishes: createWishesService(session, { apiBaseUrl }).load, reorder: createWishesService(session, { apiBaseUrl }).reorder, signal: context.signal,
           share: { ...createWishlistShareService(session, { frontendOrigin: window.location.origin }),
+            onRevoked: () => onWishlistShareRevoked(context),
             copyText: text => navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : Promise.reject(new Error("Clipboard unavailable")) } }),
     },
     {
@@ -254,36 +260,36 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         createReservationHistoryView({ ...createReservationHistoryService(session), signal: context.signal }),
     },
     {
-      name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de cadeaux partagée · MonKado",
+      name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de souhaits partagée · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         const fragment = context.consumeFragment();
         const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams, !!fragment);
         const state = sharing.enter(context.params.shareLinkId, fragment);
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
-        let resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId) ?? null;
         return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal, fromMemberId,
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
-          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load,
-          createParticipation: options => {
-            const selected = resumeAccount; resumeAccount = null;
-            return createGuestParticipationHost(session, { ...options, resumeAccount: selected, shareLinkId: context.params.shareLinkId,
-              onSignIn: sharingSignIn.onSignIn ? () => sharingSignIn.onSignIn?.(context.params.shareLinkId) : undefined,
-              ...createWishlistParticipationService(session, { context: sharing }) });
-          } }), context.signal);
+          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load }), context.signal);
       },
     },
     {
-      name: RouteNames.SharedWish, path: RoutePaths.SharedWish, title: "Cadeau partagé · MonKado",
+      name: RouteNames.SharedWish, path: RoutePaths.SharedWish, title: "Souhait partagé · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         // Only an original list link can establish access; a detail fragment is discarded.
         context.consumeFragment();
         const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams);
         const state = sharing.enter(context.params.shareLinkId, "");
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
+        const resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId);
         return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, fromMemberId,
           ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized, onVerified) => createGiftReservationSection({
-            shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized,
+            shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized, fromMemberId,
             loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
+            createIdentification: onRecognized => createGuestParticipationHost(session, {
+              shareLinkId: context.params.shareLinkId, signal: context.signal, onUnavailable, onRecognized,
+              resumeAccount,
+              onSignIn: () => sharingSignIn.onSignIn?.(context.params.shareLinkId, context.params.wishId),
+              ...createWishlistParticipationService(session, { context: sharing }),
+            }),
             onCancelled: () => onSaved("Réservation annulée"),
             createCancel: (onInvalidate, onClose) => createReservationCancelDialog({ signal: context.signal, onInvalidate, onClose, onUnavailable,
               cancel: (etag, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).cancel(context.params.shareLinkId, wish.id, { etag, signal }),
@@ -324,21 +330,21 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   ]);
 }
 
-/** @typedef {{continuation?: import("../features/sharing/sharedSignInContinuation.js").SharedSignInContinuation, onSignIn?: (id: string) => void}} SharingSignInOptions */
+/** @typedef {{continuation?: import("../features/sharing/sharedSignInContinuation.js").SharedSignInContinuation, onSignIn?: (id: string, wishId?: string) => void}} SharingSignInOptions */
 /**
  * Creates the complete frontend route catalogue.
  *
- * @param {{session: import("../auth/sessionManager.js").SessionManager, apiBaseUrl: string, sharingSignIn?: SharingSignInOptions, sharing?: import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext, consumePasswordChangeNotice?: () => boolean, onWishlistCreated?: WishlistCreatedHandler, onWishlistDeleted?: WishlistDeletedHandler, onWishCreated?: WishCreatedHandler, onWishDeleted?: WishlistDeletedHandler} & GoogleRouteOptions} options Session and local notice dependencies.
+ * @param {{session: import("../auth/sessionManager.js").SessionManager, apiBaseUrl: string, sharingSignIn?: SharingSignInOptions, sharing?: import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext, consumePasswordChangeNotice?: () => boolean, onWishlistCreated?: WishlistCreatedHandler, onWishlistDeleted?: WishlistDeletedHandler, onWishCreated?: WishCreatedHandler, onWishDeleted?: WishlistDeletedHandler, onWishlistShareRevoked?: WishlistDeletedHandler} & GoogleRouteOptions} options Session and local notice dependencies.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
-export function createApplicationRoutes({ session, apiBaseUrl, sharingSignIn = {}, sharing = createSharedWishlistContext(), consumePasswordChangeNotice = () => false, onWishlistCreated = () => {}, onWishlistDeleted = () => {}, onWishCreated = () => {}, onWishDeleted = () => {}, ...googleFlow }) {
+export function createApplicationRoutes({ session, apiBaseUrl, sharingSignIn = {}, sharing = createSharedWishlistContext(), consumePasswordChangeNotice = () => false, onWishlistCreated = () => {}, onWishlistDeleted = () => {}, onWishCreated = () => {}, onWishDeleted = () => {}, onWishlistShareRevoked = () => {}, ...googleFlow }) {
   return [
     Object.freeze({
       name: RouteNames.Home,
       path: RoutePaths.Home,
-      title: "MonKado · Les cadeaux qui font vraiment plaisir",
-      render: createHomeView,
+      title: "MonKado · Les souhaits qui font vraiment plaisir",
+      render: () => createHomeView(session),
     }),
-    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
+    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
   ];
 }

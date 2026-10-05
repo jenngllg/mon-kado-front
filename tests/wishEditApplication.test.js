@@ -6,7 +6,7 @@ import { getSafeReturnTo } from "../src/auth/sessionGuards.js";
 import { barrier, createCoordinatorHub, createSessionTransport } from "./sessionTestHelpers.js";
 
 const list = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Liste privée", occasion: "birthday", eventDate: null, message: null, isSuspended: false };
-const originalWish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: list.id, name: "Cadeau privé", note: null, url: null, price: 0.29, quantity: 2, imageUrl: null, position: "9223372036854775807" };
+const originalWish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: list.id, name: "Souhait privé", note: null, url: null, price: 0.29, quantity: 2, imageUrl: null, position: "9223372036854775807" };
 const detail = `/lists/${list.id}`, path = `${detail}/wishes/${originalWish.id}/edit`;
 /** @type {Array<() => void>} */ const cleanups = [];
 afterEach(() => { cleanups.splice(0).reverse().forEach(cleanup => cleanup()); vi.restoreAllMocks(); document.body.replaceChildren(); window.history.replaceState(null, "", "/"); });
@@ -58,10 +58,10 @@ describe("gift editing integration", () => {
     expect(window.location.pathname).toBe(path); expect(app.state.writes).toBe(1); expect(app.state.reads).toBe(1); expect(app.state.collectionReads).toBe(0);
     await app.router.navigate(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null);
     expect(app.state.parentReads).toBe(2); expect(app.state.collectionReads).toBe(1); expect(app.shell.outlet.textContent).toContain("Corrigé");
-    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.getAttribute("aria-label")).toBe("Modifier le cadeau « Corrigé »");
+    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.getAttribute("aria-label")).toBe("Modifier le souhait « Corrigé »");
     app.state.suspended = true; await app.router.replace(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(`a[href="${path}"]`) !== null);
-    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.textContent).toBe("Consulter"); await app.router.navigate(path); await ready(app);
-    expect(app.shell.outlet.textContent).toContain("Consultation uniquement"); expect([...app.shell.outlet.querySelectorAll("input,textarea")].every(control => /** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
+    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.getAttribute("title")).toBe("Consulter"); await app.router.navigate(path); await ready(app);
+    expect(app.shell.outlet.textContent).toContain("Consultation uniquement"); expect([...app.shell.outlet.querySelectorAll("input,textarea")].every(control => /** @type {HTMLInputElement} */ (control).disabled || /** @type {HTMLInputElement} */ (control).readOnly)).toBe(true);
   });
   it.each([401, 403, 404, 409, 412, 413, 428, 429, 503])("handles %s without retries or duplicate shell errors", async status => {
     const app = setup(); app.state.status = status; if (status === 409) app.state.errorCode = "WISH_QUANTITY_BELOW_RESERVED";

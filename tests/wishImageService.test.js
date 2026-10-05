@@ -6,7 +6,7 @@ const parent = "019c52dd-56c1-7cc6-8a95-243f3a032e04", id = "019c52dd-56c1-7cc6-
 const signal = new AbortController().signal;
 const file = () => new Blob([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])], { type: "image/png" });
 const imageUrl = `http://localhost:7000/api/v1/wishlists/${parent}/wishes/${id}/image?token=fixture`;
-const gift = { id, wishlistId: parent, name: "Cadeau", note: null, url: null, imageUrl, price: 12, quantity: 1, position: "9223372036854775807" };
+const gift = { id, wishlistId: parent, name: "Souhait", note: null, url: null, imageUrl, price: 12, quantity: 1, position: "9223372036854775807" };
 function setup() {
   const response = { status: 200, data: /** @type {unknown} */ (gift), metadata: { etag: /** @type {string | null} */ ('"gift"'), correlationId: "support", location: null, retryAfterSeconds: null } };
   const request = vi.fn(async (/** @type {string} */ path, /** @type {import("../src/api/apiClient.js").ApiRequestOptions} */ options) => { void path; void options; return response; });

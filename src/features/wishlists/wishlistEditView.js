@@ -2,10 +2,12 @@ import { ApiError, isAbortError } from "../../api/apiError.js";
 import { isStrongEntityTag } from "../../api/entityTag.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
+import { createBackLink, createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishlistForm } from "./wishlistForm.js";
 import { isWishlistId, isWishlistOccasion, trimWishlistText, validateWishlistEditField, WishlistOccasions, WishlistServerMessages } from "./wishlistValidation.js";
+
+const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** Creates an editor whose draft and version are owned only by this mounted view.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
@@ -15,7 +17,6 @@ import { isWishlistId, isWishlistOccasion, trimWishlistText, validateWishlistEdi
 export function createWishlistEditView({ wishlistId, loadOne, update, signal, now = () => new Date() }) {
   const view = textElement("section", ""); view.className = "wishlist-edit-view flow";
   const title = textElement("h1", "Modifier ma liste"); title.tabIndex = -1;
-  const intro = textElement("p", "Actualise les informations de ta liste."); intro.className = "registration-view__intro";
   const feedback = textElement("div", ""); feedback.hidden = true;
   const comparison = textElement("section", ""); comparison.className = "wishlist-edit-view__comparison flow"; comparison.hidden = true;
   const status = textElement("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
@@ -34,11 +35,12 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
   const reread = createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void read(true); } }); reread.hidden = true;
   const useVersion = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: useStored }); useVersion.hidden = true;
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
-  actions.append(submit, cancel, reread, useVersion); form.append(actions);
+  actions.append(submit, cancel, useVersion); form.append(actions);
   const deletion = textElement("section", ""); deletion.className = "wishlist-edit-view__deletion flow"; deletion.hidden = true;
   deletion.append(textElement("h2", "Suppression de la liste"), textElement("p", "Cette action est définitive. Les modifications non enregistrées seront abandonnées en quittant ce formulaire."),
     createActionLink({ label: "Supprimer cette liste", href: isWishlistId(wishlistId) ? RoutePaths.DeleteList.replace(":listId", wishlistId) : RoutePaths.Lists, variant: "danger" }));
-  view.append(title, intro, feedback, status, comparison, form, retry, createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists }), deletion);
+  const back = createBackLink({ label: "Retour à la liste", href: isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists });
+  view.append(back, title, feedback, status, retry, reread, comparison, form, deletion);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); base = null; editor.reset(); clearFeedback(); clearComparison(); status.textContent = "";
@@ -72,7 +74,11 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
     const suspended = base?.wishlist.isSuspended === true;
     form.hidden = base === null || terminal;
     deletion.hidden = base === null || terminal || suspended || busy || blocked;
-    for (const field of fields) field.control.disabled = busy || suspended || terminal;
+    for (const field of fields) {
+      const selectable = field.control instanceof HTMLSelectElement;
+      if (!(field.control instanceof HTMLSelectElement)) field.control.readOnly = suspended;
+      field.control.disabled = busy || terminal || (suspended && selectable);
+    }
     surpriseMode.disabled = busy || suspended || terminal;
     submit.disabled = busy || blocked || suspended || terminal || !hasChanges();
     submit.textContent = decision ? "Enregistrer ma saisie" : "Enregistrer les modifications";
@@ -93,11 +99,10 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
   function presentComparison() {
     if (!base) return;
     comparison.hidden = false; comparison.replaceChildren(textElement("h2", "Version enregistrée"),
-        textElement("p", "Ta saisie est conservée ci-dessous. « Enregistrer ma saisie » remplacera cette version, sans fusion automatique."));
+      textElement("p", "Ta saisie est conservée. L’enregistrer remplacera les informations ci-dessous."));
     const data = base.wishlist; const list = document.createElement("dl");
     for (const [label, value] of [["Nom de la liste", data.name], ["Occasion", WishlistOccasions[data.occasion]],
-        ["Date de l’événement", data.eventDate ?? "Sans date"], ["Message", data.message ?? "Sans message"],
-        ["Mode surprise", (data.surpriseMode ?? true) ? "Activé" : "Désactivé"]]) {
+      ["Date de l’événement", data.eventDate === null ? "Sans date" : DateFormat.format(new Date(data.eventDate + "T00:00:00Z"))], ["Message", data.message ?? "Sans message"], ["Mode surprise", (data.surpriseMode ?? true) ? "Activé" : "Désactivé"]]) {
       list.append(textElement("dt", label), textElement("dd", value));
     }
     comparison.append(list);
@@ -164,6 +169,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
   function focusFeedback() { /** @type {HTMLElement | null} */ (feedback.firstElementChild)?.focus(); }
   function notFound() {
     terminal = true; blocked = true; clearComparison();
+    back.href = RoutePaths.Lists; back.title = "Retour à Mes listes"; back.querySelector("span")?.replaceChildren("Retour à Mes listes");
     show({ title: "Liste introuvable", message: "Cette liste n’est pas disponible. Tu peux revenir à Mes listes." }); syncControls();
   }
   /** @param {unknown} error Failure. */

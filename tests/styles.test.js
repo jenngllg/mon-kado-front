@@ -11,6 +11,68 @@ const viewStyles = readStyleFile("../src/styles/views.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
+  it("preserves flow spacing before email-change controls", () => {
+    const controls = viewStyles.match(/\.email-change-view__controls\s*\{([^}]+)\}/)?.[1];
+    expect(controls).toContain("margin-inline: 0");
+    expect(controls).toContain("margin-block-end: 0");
+    expect(controls).not.toMatch(/(?:^|\s)margin\s*:/);
+    expect(controls).not.toContain("margin-block-start:");
+  });
+  it("bounds horizontal gutters at enlarged text sizes without reducing body text", () => {
+    expect(tokens).toContain("--content-gutter: clamp(min(1rem, 5vw), 4vw, 3.75rem)");
+    expect(componentStyles.match(/\.ui-alert\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(var(--space-4), 5vw)");
+    const theme = readStyleFile("../src/styles/site-theme.css");
+    expect(theme).toContain("font-size: clamp(1.75rem, 3.8vw, 2.5rem)");
+  });
+  it("separates recovery codes and keeps their confirmation touch accessible", () => {
+    expect(componentStyles.match(/\.recovery-codes\s*\{([^}]+)\}/)?.[1]).toContain("gap: var(--space-3)");
+    expect(componentStyles.match(/\.recovery-codes li\s*\{([^}]+)\}/)?.[1]).toContain("overflow-wrap: anywhere");
+    expect(componentStyles.match(/\.recovery-codes-confirmation\s*\{([^}]+)\}/)?.[1]).toContain("min-height: var(--control-min-size)");
+  });
+  it("keeps order comparisons readable with enlarged text on narrow screens", () => {
+    expect(viewStyles.match(/\.wish-reorder-comparison\s*\{([^}]+)\}/)?.[1]).toContain("padding-inline: min(4vw, var(--space-4))");
+    const list = viewStyles.match(/\.wish-reorder-comparison ol\s*\{([^}]+)\}/)?.[1];
+    expect(list).toContain("padding-inline-start: 0");
+    expect(list).toContain("list-style-position: inside");
+  });
+  it("leaves room for the sticky header and label when focusing a field", () => {
+    expect(componentStyles.match(/\.form-field__control\s*\{([^}]+)\}/)?.[1]).toContain("scroll-margin-block-start: 9rem");
+  });
+  it("keeps the account avatar and its navigation highlight content-sized", () => {
+    const avatar = componentStyles.match(/\.app-navigation__link \.member-avatar\s*\{([^}]+)\}/)?.[1];
+    expect(avatar).toContain("width: var(--avatar-size)");
+    expect(avatar).toContain("height: var(--avatar-size)");
+    expect(avatar).toContain("flex: 0 0 var(--avatar-size)");
+    const account = componentStyles.match(/\.app-navigation__link:has\(\.member-avatar\)\s*\{([^}]+)\}/)?.[1];
+    expect(account).toContain("width: fit-content");
+    expect(account).toContain("max-width: 100%");
+  });
+  it("aligns overview headings while keeping the search form readable", () => {
+    const theme = readStyleFile("../src/styles/site-theme.css");
+    const overview = theme.match(/:is\(\.wishlists-view, \.reservation-history-view, \.member-search-view\)\s*\{([^}]+)\}/)?.[1];
+    expect(overview).toContain("width: 100%");
+    expect(overview).toContain("max-width: 78rem");
+    const title = theme.match(/:is\(\.wishlists-view, \.reservation-history-view, \.member-search-view\) h1\s*\{([^}]+)\}/)?.[1];
+    expect(title).toContain("margin: 0");
+    expect(title).toContain("line-height: 1.15");
+    const header = theme.match(/\.wishlists-view__header\s*\{([^}]+)\}/)?.[1];
+    expect(header).toContain("min-height: 0");
+    expect(header).toContain("padding: 0");
+    expect(header).toContain("align-items: flex-start");
+    expect(theme).toContain(".member-search-view > :is(form, div) { max-width: 48rem; }");
+  });
+  it("does not add a second vertical gutter around authentication forms", () => {
+    const theme = readStyleFile("../src/styles/site-theme.css");
+    const authentication = theme.match(/:is\(\.registration-view[^{}]+\.authenticator-view\)\s*\{([^}]+)\}/)?.[1];
+    expect(authentication).toContain("width: min(100%, 36rem)");
+    expect(authentication).not.toMatch(/padding(?:-block(?:-start|-end)?)?\s*:/);
+  });
+  it("preserves the original wordmark and coral dot without a mockup override", () => {
+    expect(shellStyles.match(/\.app-brand::after\s*\{([^}]+)\}/)?.[1]).toContain('content: "."');
+    expect(shellStyles.match(/\.app-brand::after\s*\{([^}]+)\}/)?.[1]).toContain("var(--color-accent)");
+    expect(readStyleFile("../src/styles/mockup-fidelity.css")).not.toMatch(/\.app-brand\b/);
+    expect(readStyleFile("../src/styles/site-theme.css")).not.toMatch(/\.app-brand\b/);
+  });
   it("keeps all shared confirmation gutters bounded by the viewport with enlarged text", () => {
     const dialog = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1];
     expect(dialog).toContain("width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)))");
@@ -145,7 +207,9 @@ describe("graphic foundations", () => {
 
     // Assert
     expect(selectorsAreDefined).toBe(true);
-    expect(shellStyles).toContain("@media (min-width: 48rem)");
+    expect(shellStyles).toContain("@media (min-width: 80rem)");
+    expect(readStyleFile("../src/styles/mockup-fidelity.css")).toContain("@media (min-width: 80rem)");
+    expect(readStyleFile("../src/styles/mockup-fidelity.css")).toContain("grid-template-columns: clamp(10rem, 15vw, 15rem) minmax(0, 1fr)");
     expect(shellStyles).toContain('data-open="true"');
   });
 
@@ -249,7 +313,8 @@ describe("graphic foundations", () => {
     const selected = viewStyles.match(/\.wish-import__modes \[aria-pressed="true"\]\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(selected).toContain("background: var(--color-surface-sage)");
     expect(selected).toContain("color: var(--color-text)");
-    expect(selected).toContain("text-decoration: underline");
+    expect(selected).toContain("text-decoration: none");
+    expect(selected).toContain("font-weight: var(--font-weight-bold)");
   });
   it("shares readable comparison styling between list and gift drafts", () => {
     for (const suffix of ["", " h2", " dt", " dd"]) {

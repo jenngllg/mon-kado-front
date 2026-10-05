@@ -69,7 +69,7 @@ describe("createEmptyState", () => {
     // Act
     const emptyState = createEmptyState({
       title: "Aucune liste",
-      message: "Crée ta première liste de cadeaux.",
+      message: "Crée ta première liste de souhaits.",
       action,
     });
     disposeComponent(emptyState);

@@ -148,8 +148,9 @@ test("private export downloads the authenticated ZIP without a navigable remote 
   await expect(page.getByText("En attente de préparation", { exact: true })).toBeVisible();
   expect(state.exports).toBe(0);
   await page.getByRole("button", { name: "Demander mon export" }).click();
-  await expect(page.getByRole("button", { name: "Actualiser l’état" })).toBeEnabled();
-  await page.getByRole("button", { name: "Actualiser l’état" }).click();
+  await expect(page.getByRole("button", { name: "Demander mon export" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: /Actualiser/ })).toHaveCount(0);
+  await page.evaluate(() => globalThis.dispatchEvent(new Event("focus")));
   await expect(page.getByText(/Archive disponible/)).toBeVisible();
   const downloaded = page.waitForEvent("download");
   await page.getByRole("button", { name: "Télécharger mon archive" }).click();

@@ -12,7 +12,7 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 export function createReservationCancelDialog({ load, cancel, onInvalidate, onUnavailable, onClose, signal }) {
   const dialog = document.createElement("dialog"); dialog.className = "reservation-cancel-dialog flow";
   const title = document.createElement("h2"); title.textContent = "Annuler ma réservation ?"; title.id = `reservation-cancel-${crypto.randomUUID()}`; title.tabIndex = -1; title.setAttribute("autofocus", "");
-  const warning = document.createElement("p"); warning.id = `${title.id}-warning`; warning.textContent = "Ta réservation sera annulée. Le cadeau restera dans la liste et les autres réservations seront conservées.";
+  const warning = document.createElement("p"); warning.id = `${title.id}-warning`; warning.textContent = "Ta réservation sera annulée. Le souhait restera dans la liste et les autres réservations seront conservées.";
   dialog.setAttribute("aria-labelledby", title.id); dialog.setAttribute("aria-describedby", warning.id);
   const status = document.createElement("p"); status.setAttribute("role", "status");
   const feedback = document.createElement("div");
@@ -48,7 +48,7 @@ export function createReservationCancelDialog({ load, cancel, onInvalidate, onUn
       const current = await load(lifetime.signal); if (disposed) return;
       if (current.lookup.state !== "reserved") {
         version = ""; title.textContent = "Réservation indisponible";
-        status.textContent = "Aucune réservation n’est reconnue pour toi sur ce cadeau. Cela ne confirme pas le résultat d’une tentative précédente.";
+        status.textContent = "Aucune réservation n’est reconnue pour toi sur ce souhait. Cela ne confirme pas le résultat d’une tentative précédente.";
         onInvalidate(); title.focus(); return;
       }
       version = current.lookup.reservation.etag; blocked = false;

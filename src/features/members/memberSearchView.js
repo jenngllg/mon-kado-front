@@ -97,7 +97,8 @@ export function createMemberSearchView({ search, signal, state = { query: "", pa
         for (const member of page.items) {
           const item = node("li", ""); item.className = "member-search-result";
           const link = node("a", ""); link.href = `/members/${member.id}`;
-          link.append(createMemberAvatar({ memberId: member.id, imageUrl: member.photo?.imageUrl, size: 56 }), node("span", member.displayName));
+          const name = node("span", member.displayName); name.className = "member-search-result__name";
+          link.append(createMemberAvatar({ memberId: member.id, imageUrl: member.photo?.imageUrl, size: 56 }), name);
           item.append(link); collection.append(item);
         }
         results.append(collection);

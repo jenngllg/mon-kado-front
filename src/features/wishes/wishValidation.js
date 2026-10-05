@@ -5,9 +5,9 @@ import { trimWishlistText } from "../wishlists/wishlistValidation.js";
 /** @typedef {Record<WishField, string>} WishValues */
 /** @type {Readonly<Record<WishField, string>>} */
 export const WishServerMessages = Object.freeze({
-  name: "Vérifie le nom du cadeau : 100 caractères maximum, sans caractères de contrôle ni retours à la ligne.",
+  name: "Vérifie le nom du souhait : 100 caractères maximum, sans caractères de contrôle ni retours à la ligne.",
   note: "Vérifie la note : 500 caractères maximum. Les retours à la ligne et tabulations sont autorisés.",
-  url: "Indique un lien HTTP ou HTTPS valide, sans identifiants, de 2 048 caractères maximum.",
+  url: "Lien invalide",
   price: "Indique un prix entre 0,01 et 99 999 999,99 euros, avec deux décimales maximum.",
   quantity: "Indique une quantité entière entre 1 et 100.",
 });
@@ -20,7 +20,7 @@ export const WishPayloadTooLarge = "Ces informations sont trop volumineuses. Rac
 export function validateWishField(field, value) {
   const clean = trimWishlistText(value);
   if (field === "name") {
-    if (clean === "") return "Donne un nom à ton cadeau.";
+    if (clean === "") return "Donne un nom à ton souhait.";
     return /\p{Cs}/u.test(value) || /[\p{Cc}\p{Zl}\p{Zp}]/u.test(clean) || [...clean].length > 100 ? WishServerMessages.name : null;
   }
   if (field === "note") {

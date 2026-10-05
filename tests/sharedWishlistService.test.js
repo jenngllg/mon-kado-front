@@ -5,7 +5,7 @@ import { createSharedWishlistService } from "../src/features/sharing/sharedWishl
 import { barrier } from "./sessionTestHelpers.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05", listId = "019c52dd-56c1-7cc6-8a95-243f3a032e06", secret = "A".repeat(43);
 const image = `https://api.example/api/v1/shared-wishlists/${id}/wishes/${wishId}/image?token=IMAGE_GRANT`;
-const wish = { id: wishId, name: "Un cadeau", price: 12.34, quantity: 2, url: "https://shop.example/item", imageUrl: image, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 };
+const wish = { id: wishId, name: "Un souhait", price: 12.34, quantity: 2, url: "https://shop.example/item", imageUrl: image, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 };
 const data = { id: listId, name: "Anniversaire", ownerDisplayName: "Camille", occasion: "birthday", eventDate: "2024-02-29", message: "Bienvenue", wishes: [wish], currentParticipant: { displayName: "PRIVATE_PARTICIPANT" } };
 const detail = { ...wish, note: "  Note complète\n<script>texte</script>\nfin  ", currentParticipant: { displayName: "PRIVATE_PARTICIPANT" } };
 /** @param {unknown} [body] API data. @param {number} [status] Status. */

@@ -151,6 +151,17 @@ describe("email confirmation view", () => {
 });
 
 describe("confirmation resend form", () => {
+  it("keeps one owned back link across success and another address", async () => {
+    const { view } = mount();
+    expect(view.querySelectorAll(".back-link")).toHaveLength(1);
+    await submit(view);
+    expect(view.querySelectorAll(".back-link")).toHaveLength(1);
+    expect(document.activeElement).toBe(view.querySelector("h1"));
+    click(view, "Utiliser une autre adresse");
+    expect(view.querySelectorAll(".back-link")).toHaveLength(1);
+    await submit(view);
+    expect(view.querySelectorAll(".back-link")).toHaveLength(1);
+  });
   it("validates changed fields and focuses invalid email on submit", async () => {
     // Arrange
     const { view, resend } = mount(); const email = /** @type {HTMLInputElement} */ (view.querySelector("input"));

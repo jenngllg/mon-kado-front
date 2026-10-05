@@ -18,7 +18,7 @@ export const frontendOrigin = `http://localhost:${Number(process.env.MONKADO_E2E
  * @param {import('@playwright/test').BrowserContext} context
  */
 export async function controlledApi(context) {
-  const state = { authenticated: false, joins: 0, reservations: 0, reads: 0, revoked: false, listExists: true, listWrites: 0, listVersion: 1, reservedQuantity: 0, reservationVersion: 1, wishExists: true, wishWrites: 0, wishVersion: 1 };
+  const state = { authenticated: false, isGoogleLinked: false, joins: 0, reservations: 0, reads: 0, revoked: false, listExists: true, listWrites: 0, listVersion: 1, reservedQuantity: 0, reservationVersion: 1, wishExists: true, wishWrites: 0, wishVersion: 1 };
   const wishlist = { id: listId, name: "Anniversaire — test navigateur", occasion: "birthday", eventDate: "2027-12-20", message: "Liste de test", isSuspended: false };
   const wish = { id: wishId, wishlistId: listId, name: "Une théière", note: "Une note\nsur deux lignes.", url: "https://example.test/produit", price: 25, quantity: 3, position: 1, entityTag: '"wish-1"', imageUrl: null, reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null };
   /** @type {string[]} */
@@ -53,7 +53,7 @@ export async function controlledApi(context) {
       state.authenticated = false;
       return send(204, null);
     }
-    if (path === "/api/v1/auth/sessions/current") return send(200, { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", displayName: "Camille test", email: "test@example.test", roles: ["member"] }, '"identity"');
+    if (path === "/api/v1/auth/sessions/current") return send(200, { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", displayName: "Camille test", email: "test@example.test", roles: ["member"], isGoogleLinked: state.isGoogleLinked }, '"identity"');
     if (path === "/api/v1/wishlists" && method === "GET") return send(200, state.listExists ? [wishlist] : []);
     if (path === "/api/v1/wishlists" && method === "POST") {
       expect(request.headers().authorization).toBe("Bearer access-test-only");
@@ -107,7 +107,10 @@ export async function controlledApi(context) {
       if (path === `/api/v1/shared-wishlists/${shareId}/wishes/${wishId}/reservations/current` && ["GET", "PUT", "DELETE"].includes(method)) {
         const reservation = () => ({ id: "019c52dd-56c1-7cc6-8a95-243f3a032e20", wishId, quantity: state.reservedQuantity });
         const etag = () => `"reservation-${state.reservationVersion}"`;
-        if (method === "GET") return state.reservedQuantity ? send(200, reservation(), etag()) : error(404, "GIFT_RESERVATION_NOT_FOUND");
+        if (method === "GET") {
+          if (!state.authenticated) return error(401, "GUEST_SESSION_INVALID");
+          return state.reservedQuantity ? send(200, reservation(), etag()) : error(404, "GIFT_RESERVATION_NOT_FOUND");
+        }
         state.reservations++;
         expect(request.headers()["x-csrf-token"]).toBe("csrf-test-only");
         if (state.reservedQuantity && request.headers()["if-match"] !== etag()) return error(412, "GIFT_RESERVATION_VERSION_CONFLICT");

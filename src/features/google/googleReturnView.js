@@ -1,5 +1,5 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
-import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
+import { createBackLink, createActionLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { RoutePaths } from "../../app/routeContracts.js";
@@ -75,8 +75,8 @@ export function createGoogleReturnView({ google, session, consumeFragment, signa
     }
     const links = document.createElement("div");
     links.className = "cluster";
-    links.append(createActionLink({ label: "Revenir à la connexion", href: RoutePaths.Login }),
-      createActionLink({ label: "Retour à l’accueil", href: RoutePaths.Home }));
+    view.prepend(createBackLink({ label: "Revenir à la connexion", href: RoutePaths.Login }));
+    links.append(createActionLink({ label: "Accueil", href: RoutePaths.Home }));
     view.append(links);
     queueMicrotask(() => { if (!disposed) alert.focus(); });
   }

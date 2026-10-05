@@ -37,7 +37,7 @@ describe("member avatars", () => {
     const previous = /** @type {HTMLImageElement} */ (link.querySelector('img'));
     shell.setSession({...state,user:{...state.user, id, displayName:'Autre nom', email:'test@example.test',roles:['member'],profileImageUrl:null}});
     expect(document.activeElement).toBe(link); expect(menu.getAttribute('aria-expanded')).toBe('true');
-    expect(previous.hasAttribute('src')).toBe(false); expect(link.querySelector('svg')).not.toBeNull(); expect(link.textContent).toBe('Mon profil');
+    expect(previous.hasAttribute('src')).toBe(false); expect(link.querySelector('svg')).not.toBeNull(); expect(link.textContent).toBe('Mon compte');
     shell.setSession({...state,authenticationPending:true}); expect(link.querySelector('.member-avatar')).toBeNull();
     shell.setSession(state); expect(link.querySelector('img')).not.toBeNull();
     shell.setSession({...state,status:'anonymous',user:null}); expect(shell.element.querySelector('.member-avatar')).toBeNull();

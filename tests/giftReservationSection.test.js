@@ -17,6 +17,39 @@ function setup(options = {}) {
   return { view, loadCurrent, onUnavailable };
 }
 describe("current reservation section", () => {
+  it("identifies within the wish and then opens reservation without returning to the list", async () => {
+    // Arrange
+    let recognized = () => {};
+    const loadCurrent = vi.fn().mockResolvedValueOnce({ state: "unrecognized" }).mockResolvedValue({ state: "absent" });
+    const createForm = vi.fn(() => document.createElement("form"));
+    const ui = setup({ loadCurrent, createForm, createIdentification: callback => {
+      recognized = callback;
+      return document.createElement("section");
+    } });
+    await settle();
+    expect(ui.view.querySelector("a")?.hidden).toBe(true);
+    expect(createForm).not.toHaveBeenCalled();
+    // Act
+    recognized();
+    await settle();
+    // Assert
+    expect(loadCurrent).toHaveBeenCalledTimes(2);
+    expect(createForm).toHaveBeenCalledOnce();
+    expect(ui.view.querySelector("form")).not.toBeNull();
+  });
+  it.each(["unrecognized", "absent", "reserved"])("offers a secret-free participation return only when recognition is missing: %s", async state => {
+    // Arrange
+    const ui = setup({ fromMemberId: id, loadCurrent: async () => state === "reserved"
+      ? { state: "reserved", reservation: { id, wishId: id, quantity: 1, etag: '"version"' } }
+      : { state: /** @type {"absent" | "unrecognized"} */ (state) } });
+    // Act
+    await settle();
+    // Assert
+    const link = ui.view.querySelector("a");
+    expect(link?.textContent).toBe("Retour à la liste pour participer");
+    expect(link?.getAttribute("href")).toBe(`/shared-wishlists/${id}?fromMember=${id}`);
+    expect(link?.hidden).toBe(state !== "unrecognized");
+  });
   it("updates creation recognition but ignores verification from a replaced form", async () => {
     // Arrange
     /** @type {Array<(value: import("../src/features/sharing/giftReservationService.js").ReservationLookup) => void>} */
@@ -30,13 +63,13 @@ describe("current reservation section", () => {
     expect(ui.view.textContent).toContain("Tu as réservé 3");
 
     // Act
-    ui.view.querySelector("button")?.click();
+    window.dispatchEvent(new Event("focus"));
     await settle();
     callbacks[0]({ state: "unrecognized" });
 
     // Assert
     expect(callbacks).toHaveLength(2);
-    expect(ui.view.textContent).toContain("Tu n’as pas de réservation sur ce cadeau.");
+    expect(ui.view.textContent).toContain("Tu n’as pas de réservation sur ce souhait.");
     expect(ui.view.textContent).not.toContain("Aucune participation");
   });
 
@@ -51,24 +84,24 @@ describe("current reservation section", () => {
   });
   it("signals lost guest recognition without claiming cancellation or starting a new reservation", async () => {
     const lost = vi.fn(), create = vi.fn(() => document.createElement("form")), ui = setup({ onUnrecognized: lost, createForm: create }); await settle();
-    ui.loadCurrent.mockResolvedValue({ state: "unrecognized" }); ui.view.querySelector("button")?.click(); await settle();
+    ui.loadCurrent.mockResolvedValue({ state: "unrecognized" }); window.dispatchEvent(new Event("focus")); await settle();
     expect(lost).toHaveBeenCalledOnce(); expect(create).not.toHaveBeenCalled(); expect(ui.onUnavailable).not.toHaveBeenCalled(); expect(ui.view.textContent).not.toMatch(/Tu as réservé|annulée/);
   });
-  it("loads once, exposes only quantity and refreshes explicitly with focus", async () => {
+  it("loads once, exposes only quantity and refreshes on return without stealing focus", async () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Vérification"); await settle();
     expect(ui.view.textContent).toContain("Tu as réservé 2"); expect(ui.view.innerHTML).not.toContain("private-version");
-    expect(ui.loadCurrent).toHaveBeenCalledOnce(); ui.view.querySelector("button")?.click(); await settle();
-    expect(ui.loadCurrent).toHaveBeenCalledTimes(2); expect(document.activeElement).toBe(ui.view.querySelector("h2"));
+    expect(ui.loadCurrent).toHaveBeenCalledOnce(); window.dispatchEvent(new Event("focus")); await settle();
+    expect(ui.loadCurrent).toHaveBeenCalledTimes(2); expect(document.activeElement).toBe(document.body);
   });
   it.each(["absent", "unrecognized"])("distinguishes %s without offering mutations", async state => {
     const ui = setup({ loadCurrent: async () => ({ state: /** @type {"absent" | "unrecognized"} */ (state) }) }); await settle();
     expect(ui.view.textContent).toContain(state === "absent" ? "Tu n’as pas de réservation" : "Aucune participation");
-    expect(ui.view.querySelectorAll("button")).toHaveLength(1);
+    expect(ui.view.querySelectorAll("button")).toHaveLength(0);
   });
   it("preserves technical error details and blocks concurrent retry", async () => {
     const ui = setup(); await settle(); ui.loadCurrent.mockRejectedValue(new ApiError({ kind: "http", statusCode: 429, correlationId: "ref-test", retryAfterSeconds: 8 }));
-    ui.view.querySelector("button")?.click(); await settle(); expect(ui.view.textContent).toContain("ref-test"); expect(ui.view.textContent).toContain("8 seconde(s)");
-    expect(document.activeElement?.getAttribute("role")).toBe("alert");
+    window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.textContent).toContain("ref-test"); expect(ui.view.textContent).toContain("8 seconde(s)");
+    expect(ui.view.querySelector('[role="alert"]')).not.toBeNull(); expect(document.activeElement).toBe(document.body);
     const gate = barrier(); ui.loadCurrent.mockImplementation(async () => { await gate.promise; return { state: "absent" }; });
     const retry = ui.view.querySelector("button"); retry?.click(); retry?.click(); expect(ui.loadCurrent).toHaveBeenCalledTimes(3);
     gate.resolve(); await settle(); expect(ui.view.textContent).toContain("Tu n’as pas");

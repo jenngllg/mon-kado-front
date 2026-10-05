@@ -3,7 +3,7 @@ import { readAuthenticationLink } from "../../auth/authenticationLink.js";
 import { EmailServerValidationMessage, validateEmailAddress } from "../../auth/emailValidation.js";
 import { NewPasswordServerMessage, validateNewPassword } from "../../auth/newPasswordValidation.js";
 import { RoutePaths } from "../../app/routeContracts.js";
-import { createActionLink, createAlert, createButton, disposeComponent } from "../../components/index.js";
+import { createBackLink, createActionLink, createAlert, createButton, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createRecoveryForm, textElement } from "./recoveryForm.js";
 
@@ -53,8 +53,8 @@ export function createResetPasswordView({ resetPassword, consumeFragment, signal
       textElement("p", "Choisis un nouveau mot de passe pour retrouver l’accès à ton compte."),
       createAlert({ variant: "warning", title: "À savoir", message: "Une réinitialisation réussie te déconnectera de ce navigateur, même si un autre compte y est ouvert." }),
       createRecoveryForm({ title: "Choisir un nouveau mot de passe", fields: [
-        { name: "newPassword", label: "Nouveau mot de passe", type: "password", autocomplete: "new-password", help: "De 12 à 128 caractères, sans règle de composition imposée." },
-        { name: "confirmation", label: "Confirmer le mot de passe", type: "password", autocomplete: "new-password", help: "Saisis à nouveau exactement le même mot de passe." },
+        { name: "newPassword", label: "Nouveau mot de passe", type: "password", autocomplete: "new-password", help: "De 12 à 128 caractères." },
+        { name: "confirmation", label: "Confirmer le mot de passe", type: "password", autocomplete: "new-password" },
       ], submitLabel: "Enregistrer le nouveau mot de passe", loadingLabel: "Réinitialisation en cours…",
       validate: validateResetField, serverMessages: { newPassword: NewPasswordServerMessage }, uncertainResult: true,
       submit: async (values, options) => {
@@ -119,7 +119,7 @@ function replaceContent(view, title, content, focus) {
   for (const child of view.children) if (child instanceof HTMLElement) disposeComponent(child);
   const heading = textElement("h1", title);
   heading.tabIndex = -1;
-  view.replaceChildren(heading, ...content);
+  view.replaceChildren(createBackLink({ label: "Retour à la connexion", href: RoutePaths.Login }), heading, ...content);
   if (focus) heading.focus();
 }
 
@@ -128,6 +128,6 @@ function links(request) {
   const group = textElement("div", "");
   group.className = "cluster";
   if (request) group.append(createActionLink({ label: "Demander un nouveau lien", href: RoutePaths.ForgotPassword }));
-  group.append(createActionLink({ label: "Se connecter", href: RoutePaths.Login }), createActionLink({ label: "Retour à l’accueil", href: RoutePaths.Home }));
+  group.append(createActionLink({ label: "Se connecter", href: RoutePaths.Login }));
   return group;
 }

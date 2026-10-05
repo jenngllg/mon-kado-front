@@ -8,7 +8,7 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
 const signal = new AbortController().signal;
 const imageUrl = `http://localhost:7000/api/v1/wishlists/${id}/wishes/${wishId}/image?token=controlled-grant`;
-const wish = { id: wishId, wishlistId: id, name: "Cadeau", note: "Note", url: "https://shop.example/product", imageUrl,
+const wish = { id: wishId, wishlistId: id, name: "Souhait", note: "Note", url: "https://shop.example/product", imageUrl,
   price: 19.99, quantity: 2, position: "9223372036854775807", entityTag: '"wish-version"' };
 /** @param {unknown} [data] Response. @param {number} [status] Status. @param {string | null} [etag] Collection version. */
 function setup(data = { wishes: [wish] }, status = 200, etag = /** @type {string | null} */ ('"collection-version"')) {

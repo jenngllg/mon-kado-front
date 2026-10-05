@@ -3,19 +3,19 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { validateWishField, WishServerMessages } from "./wishValidation.js";
 
 /** @typedef {import("./wishValidation.js").WishField} WishField */
-/** @type {ReadonlyArray<{name: WishField, label: string, description: string, required: boolean}>} */
+/** @type {ReadonlyArray<{name: WishField, label: string, required: boolean}>} */
 const Fields = Object.freeze([
-  { name: "name", label: "Nom du cadeau", description: "100 caractères maximum.", required: true },
-  { name: "note", label: "Note (facultatif)", description: "500 caractères maximum. Les retours à la ligne sont autorisés.", required: false },
-  { name: "url", label: "Lien produit (facultatif)", description: "Lien HTTP ou HTTPS, sans identifiants. 2 048 caractères maximum.", required: false },
-  { name: "price", label: "Prix en euros (facultatif)", description: "Exemple : 19,90. Deux décimales maximum, sans séparateur de milliers.", required: false },
-  { name: "quantity", label: "Quantité souhaitée", description: "Entre 1 et 100.", required: true },
+  { name: "name", label: "Nom du produit", required: true },
+  { name: "note", label: "Note", required: false },
+  { name: "url", label: "Lien produit", required: false },
+  { name: "price", label: "Prix en euros", required: false },
+  { name: "quantity", label: "Quantité souhaitée", required: true },
 ]);
 
 /** Shared manual gift fields; each consuming view owns its operation.
  * @param {{inactive: () => boolean, onChange: () => void, label?: string}} options Lifecycle and validation feedback.
  */
-export function createWishForm({ inactive, onChange, label = "Ajouter un cadeau" }) {
+export function createWishForm({ inactive, onChange, label = "Ajouter un souhait" }) {
   const form = document.createElement("form"); form.noValidate = true; form.className = "wishlist-form flow"; form.setAttribute("aria-label", label);
   let disposed = false;
   /** @type {HTMLButtonElement | null} */ let pressedAction = null;

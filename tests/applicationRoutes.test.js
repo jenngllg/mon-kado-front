@@ -74,6 +74,26 @@ describe("application routes", () => {
     expect(view.querySelector("input")?.getAttribute("name")).toBe("displayName");
     disposeComponent(view);
   });
+  it.each([
+    [RouteNames.Profile, RoutePaths.Profile],
+    [RouteNames.PasswordChange, RoutePaths.PasswordChange],
+    [RouteNames.EmailChange, RoutePaths.EmailChange],
+    [RouteNames.Authenticator, RoutePaths.Authenticator],
+    [RouteNames.PersonalData, RoutePaths.PersonalData],
+  ])("renders %s inside the common account navigation", async (name, path) => {
+    // Arrange
+    const route = getRoute(name);
+    // Act
+    const view = await route.render(createRouteContext(path));
+    // Assert
+    expect(view.classList.contains("profile-layout")).toBe(true);
+    expect(view.querySelectorAll('nav[aria-label="Paramètres du compte"]')).toHaveLength(1);
+    expect(view.querySelector('[aria-current="page"]')?.getAttribute("href")).toBe(path === RoutePaths.Authenticator ? undefined : path);
+    expect(view.querySelector('a[href="/profile/authenticator"]')).toBeNull();
+    expect(view.querySelectorAll("h1")).toHaveLength(1);
+    expect(view.querySelector(".back-link")).toBeNull();
+    disposeComponent(view);
+  });
   it("exposes the complete route catalogue with static list routes first", () => {
     // Arrange
     const routes = createApplicationRoutes({ session: unusedSession, apiBaseUrl: "http://localhost:7000" });
@@ -112,7 +132,8 @@ describe("application routes", () => {
   it("renders the member reservation history instead of a placeholder", async () => {
     const view = await getRoute(RouteNames.Reservations).render(createRouteContext("/reservations"));
     expect(view.querySelector("h1")?.textContent).toBe("Mes réservations");
-    expect(view.textContent).toContain("Retrouve les réservations liées à ton compte");
+    expect(view.textContent).toContain("Pour modifier une réservation, rouvre le lien de partage reçu.");
+    expect(view.textContent).not.toContain("Chaque entrée présente");
     expect(view.textContent).not.toContain("Cette fonctionnalité sera disponible dans un prochain lot.");
     expect(view.querySelector("form select")?.children).toHaveLength(4);
     expect(view.textContent).toContain("Appliquer le filtre");

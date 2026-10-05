@@ -80,8 +80,11 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } 
   sessionFeedback.setAttribute("aria-label", "État de la session");
   sessionFeedback.hidden = true;
   const footer = document.createElement("footer");
-  footer.className = "container container--regular";
-  footer.append(createLegalLinks());
+  footer.className = "app-footer";
+  const footerContent = document.createElement("div");
+  footerContent.className = "container container--regular";
+  footerContent.append(createLegalLinks());
+  footer.append(footerContent);
   element.append(skipLink, header, sessionFeedback, outlet, footer, notificationRegion);
   // Native focus scrolling can leave a field behind the sticky header.
   addComponentEventListener(element, outlet, "focusin", event => {
@@ -201,9 +204,11 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } 
     }
     if (mode !== "anonymous") {
       const item = document.createElement("li");
-      item.append(mode === "member"
+      const action = mode === "member"
         ? createButton({ label: "Se déconnecter", variant: "ghost", onClick: onLogout })
-        : createLoadingState({ label: state.status === "signingOut" ? "Déconnexion…" : "Vérification de la session…" }));
+        : createLoadingState({ label: state.status === "signingOut" ? "Déconnexion…" : "Vérification de la session…" });
+      if (mode === "member") action.classList.add("app-navigation__link");
+      item.append(action);
       navigationList.append(item);
     }
     setCurrentRoute(currentRoute);

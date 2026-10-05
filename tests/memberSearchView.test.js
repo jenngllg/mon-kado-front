@@ -4,7 +4,7 @@ import { createMemberSearchView } from "../src/features/members/memberSearchView
 import { disposeComponent } from "../src/components/index.js";
 import { ApiError } from "../src/api/apiError.js";
 import { barrier } from "./sessionTestHelpers.js";
-const page = { items: [{ id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", displayName: "<img src=x>" }], currentPage: 1, pageSize: 20, totalCount: 1 };
+const page = { items: [{ id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", displayName: "<img src=x>", photo: { imageUrl: /** @type {string | null} */ (null), imageUnavailable: false } }], currentPage: 1, pageSize: 20, totalCount: 1 };
 /** @type {HTMLElement[]} */ const views = [];
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
 /** @param {AbortSignal} [signal] View lifetime. */
@@ -22,6 +22,7 @@ describe("member search presentation", () => {
   it("makes no initial request, labels the search, validates and focuses invalid input", () => {
     const { view, search, input, form, submit } = setup();
     expect(search).not.toHaveBeenCalled(); expect(form.noValidate).toBe(true); expect(input.hasAttribute("maxlength")).toBe(false);
+    expect(view.querySelector(".form-field__description")).toBeNull();
     expect(view.querySelector("label")?.htmlFor).toBe(input.id); submit(); expect(search).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(input); expect(input.getAttribute("aria-invalid")).toBe("true");
     input.value = "Jenn"; input.dispatchEvent(new Event("input")); expect(input.hasAttribute("aria-invalid")).toBe(false);
@@ -31,8 +32,19 @@ describe("member search presentation", () => {
     const { view, search, input, submit } = setup(); input.value = " Jenn "; input.dispatchEvent(new Event("input")); expect(search).not.toHaveBeenCalled();
     submit(); expect(view.textContent).toContain("Recherche de membres…"); await settle();
     expect(search).toHaveBeenCalledExactlyOnceWith("Jenn", { page: 1, signal: expect.any(AbortSignal) });
-    expect(view.querySelector("li")?.textContent).toBe("<img src=x>"); expect(view.querySelector("img")).toBeNull();
+    expect(view.querySelector(".member-search-result__name")?.textContent).toBe("<img src=x>"); expect(view.querySelector("img")).toBeNull();
     expect(view.querySelector("li a")?.getAttribute("href")).toBe(`/members/${page.items[0].id}`); expect(document.activeElement).toBe(view.querySelector("h2"));
+  });
+  it("places each namesake's photo before its name and clears photo sources on a new search", async () => {
+    const { view, search, input, submit } = setup();
+    const urls = ["https://api.example.test/photo-a", "https://api.example.test/photo-b"];
+    search.mockResolvedValue({ ...page, totalCount: 2, items: urls.map((imageUrl, i) => ({ ...page.items[0], id: page.items[0].id.slice(0, -1) + i, displayName: "Jenn", photo: { imageUrl, imageUnavailable: false } })) });
+    input.value = "Jenn"; submit(); await settle();
+    const photos = [...view.querySelectorAll(".member-avatar img")];
+    expect(photos.map(photo => photo.getAttribute("src"))).toEqual(urls);
+    expect([...view.querySelectorAll(".member-search-result a")].every(item => item.firstElementChild?.classList.contains("member-avatar"))).toBe(true);
+    search.mockResolvedValue({ ...page, items: [], totalCount: 0 }); submit(); await settle();
+    expect(photos.every(photo => !photo.hasAttribute("src"))).toBe(true);
   });
   it("keeps submitted search separate from edits across pagination then resets on submission", async () => {
     const { view, search, input, submit, click } = setup(); search.mockResolvedValue({ ...page, totalCount: 40 }); input.value = "Jenn"; submit(); await settle();

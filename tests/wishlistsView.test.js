@@ -29,7 +29,7 @@ describe("owned wishlists view", () => {
     const view = mount({ load });
     // Assert
     expect(view.querySelector("h1")?.textContent).toBe("Mes listes");
-    expect(view.textContent).toContain("Retrouve tes listes et prépare tes prochains événements.");
+    expect(view.textContent).not.toContain("Retrouve tes listes et prépare tes prochains événements.");
     expect(view.querySelector('a[href="/lists/new"]')?.textContent).toBe("Créer une liste");
     expect(view.querySelector('[role="status"]')?.textContent).toContain("Chargement de tes listes…");
     expect(view.querySelector(".wishlists-view__results")?.getAttribute("aria-busy")).toBe("true");
@@ -43,7 +43,7 @@ describe("owned wishlists view", () => {
     const view = mount({ load: async () => [] }); await Promise.resolve();
     // Assert
     expect(view.textContent).toContain("Tu n’as pas encore de liste");
-    expect(view.textContent).toContain("Crée ta première liste pour réunir tes idées cadeaux.");
+    expect(view.textContent).toContain("Crée ta première liste pour réunir tes souhaits.");
     expect(view.querySelectorAll('a[href="/lists/new"]')).toHaveLength(1);
     expect(view.querySelector("ul")).toBeNull();
   });
@@ -61,7 +61,8 @@ describe("owned wishlists view", () => {
     expect(view.textContent).toContain("Sans date");
     expect(view.textContent).toContain("Liste suspendue");
     expect(view.textContent).toContain("Consultation uniquement");
-    expect(view.querySelector("img")).toBeNull();
+    expect(view.querySelector('img[src="x"], img[onerror]')).toBeNull();
+    expect([...view.querySelectorAll("img")].every(image => image.src.includes("/images/design/") && image.alt === "")).toBe(true);
     expect(view.querySelector("a a")).toBeNull();
     const edits = [...view.querySelectorAll('a[href$="/edit"]')];
     expect(edits).toHaveLength(1);
@@ -70,7 +71,7 @@ describe("owned wishlists view", () => {
     expect(edits[0].textContent).toBe("Modifier");
     for (const card of view.querySelectorAll("li")) {
       const link = card.querySelector(".wishlist-card__open");
-      expect(link?.textContent).toBe("Ouvrir");
+      expect(link?.textContent).toBe(card.querySelector("h2")?.textContent);
       expect(link?.getAttribute("aria-label")).toContain(card.querySelector("h2")?.textContent);
       expect(link?.getAttribute("href")).toMatch(/^\/lists\/019c/);
     }

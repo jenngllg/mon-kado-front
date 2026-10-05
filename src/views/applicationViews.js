@@ -1,12 +1,15 @@
 import { RoutePaths } from "../app/routeContracts.js";
 import { createActionLink } from "../components/index.js";
+import { createBackLink } from "../components/backLink.js";
+import { registerComponentCleanup } from "../components/componentLifecycle.js";
 
 /**
  * Creates the neutral product home page.
  *
+ * @param {Pick<import("../auth/sessionManager.js").SessionManager, "getSnapshot" | "subscribe">} [session] Live session state.
  * @returns {HTMLElement} Home view.
  */
-export function createHomeView() {
+export function createHomeView(session) {
   const section = document.createElement("section");
   section.className = "home-hero";
 
@@ -40,6 +43,17 @@ export function createHomeView() {
   });
   loginLink.classList.add("home-hero__secondary-action");
   actions.append(registerLink, loginLink);
+  function updateActions() {
+    const status = session?.getSnapshot().status ?? "anonymous";
+    const authenticated = status === "authenticated";
+    actions.hidden = status !== "authenticated" && status !== "anonymous";
+    registerLink.textContent = authenticated ? "Mes listes" : "Créer un compte";
+    registerLink.href = authenticated ? RoutePaths.Lists : RoutePaths.Register;
+    loginLink.textContent = authenticated ? "Mes réservations" : "Se connecter";
+    loginLink.href = authenticated ? RoutePaths.Reservations : RoutePaths.Login;
+  }
+  updateActions();
+  if (session) registerComponentCleanup(section, session.subscribe(updateActions));
   content.append(eyebrow, heading, description, actions);
 
   const statement = document.createElement("div");
@@ -80,12 +94,12 @@ export function createPlaceholderView({ eyebrow, title, message }) {
   description.className = "placeholder-view__description";
   description.textContent = message;
 
-  const homeLink = createActionLink({
+  const homeLink = createBackLink({
     label: "Retour à l’accueil",
     href: RoutePaths.Home,
   });
   homeLink.classList.add("placeholder-view__action");
-  section.append(eyebrowElement, heading, description, homeLink);
+  section.append(homeLink, eyebrowElement, heading, description);
 
   return section;
 }

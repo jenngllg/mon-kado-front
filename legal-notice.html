@@ -7,9 +7,14 @@
     <link rel="stylesheet" href="/src/styles/legal.css" />
     <title>Mentions légales · MonKado</title>
   </head>
-  <body>
-    <header><a href="/">MonKado — accueil</a></header>
-    <main>
+  <body class="legal-page">
+    <a class="skip-link" href="#main-content">Aller au contenu</a>
+    <header class="app-header"><div class="app-header__content container"><a class="app-brand" href="/">MonKado</a></div></header>
+    <main id="main-content" class="legal-main" tabindex="-1">
+      <a class="action-link action-link--default back-link" href="/" title="Retour à l’accueil">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5m7-7-7 7 7 7"></path></svg>
+        <span>Retour à l’accueil</span>
+      </a>
       <h1>Mentions légales</h1>
       <p data-publication-draft>Brouillon de prévisualisation locale. Publication bloquée avant validation de l’éditeur et de l’hébergement.</p>
       <h2>Le service</h2>
@@ -21,6 +26,10 @@
       <h2>Hébergement</h2>
       <p>Les coordonnées contractuelles des prestataires, les lieux d’exploitation et les informations applicables aux sauvegardes restent à vérifier avant publication.</p>
     </main>
-    <footer><nav aria-label="Informations légales"><a href="/privacy-policy">Confidentialité</a><a href="/terms-of-use">Conditions d’utilisation</a></nav></footer>
+    <footer class="app-footer"><nav class="cluster container" aria-label="Informations légales">
+        <a class="action-link action-link--default" href="/legal-notice" aria-current="page">Mentions légales</a>
+        <a class="action-link action-link--default" href="/privacy-policy">Confidentialité</a>
+        <a class="action-link action-link--default" href="/terms-of-use">Conditions d’utilisation</a>
+    </nav></footer>
   </body>
 </html>

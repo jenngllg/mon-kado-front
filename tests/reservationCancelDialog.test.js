@@ -8,7 +8,7 @@ import { barrier } from "./sessionTestHelpers.js";
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
 async function settle() { for (let i = 0; i < 15; i++) await Promise.resolve(); }
 function setup() {
-  const load = vi.fn(/** @type {Parameters<typeof createReservationCancelDialog>[0]["load"]} */ (async () => ({ name: "<img> Cadeau", lookup: { state: "reserved", reservation: { id: "id", wishId: "wish", quantity: 2, etag: '"fresh"' } } })));
+  const load = vi.fn(/** @type {Parameters<typeof createReservationCancelDialog>[0]["load"]} */ (async () => ({ name: "<img> Souhait", lookup: { state: "reserved", reservation: { id: "id", wishId: "wish", quantity: 2, etag: '"fresh"' } } })));
   const cancel = vi.fn(/** @type {Parameters<typeof createReservationCancelDialog>[0]["cancel"]} */ (async () => {}));
   const onClose = vi.fn(), onInvalidate = vi.fn(), onUnavailable = vi.fn();
   const dialog = createReservationCancelDialog({ load, cancel, onClose, onInvalidate, onUnavailable }); views.push(dialog); document.body.append(dialog); dialog.showModal();
@@ -19,7 +19,7 @@ describe("reservation cancellation dialog", () => {
   it("loads before confirmation, renders text safely and keeps focus off the destructive action", async () => {
     const ui = setup(); expect(ui.button("Confirmer l’annulation").disabled).toBe(true); await settle();
     expect(ui.cancel).not.toHaveBeenCalled(); expect(ui.load).toHaveBeenCalledOnce(); expect(ui.dialog.querySelector("img")).toBeNull();
-    expect(ui.dialog.textContent).toContain("<img> Cadeau"); expect(ui.dialog.textContent).toContain("Quantité réservée : 2");
+    expect(ui.dialog.textContent).toContain("<img> Souhait"); expect(ui.dialog.textContent).toContain("Quantité réservée : 2");
     expect(document.activeElement).toBe(ui.dialog.querySelector("h2")); expect(ui.dialog.getAttribute("aria-labelledby")).toBe(ui.dialog.querySelector("h2")?.id);
     ui.button("Conserver ma réservation").click(); expect(ui.onClose).toHaveBeenCalledWith(false); expect(ui.onInvalidate).not.toHaveBeenCalled();
   });
