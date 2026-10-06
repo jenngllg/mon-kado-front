@@ -72,3 +72,23 @@ for (const width of [390, 1440]) {
     api.wishlist.isArchived = false; api.wishlist.isSuspended = true; await page.reload(); await expect(group).toHaveCount(0);
   });
 }
+
+test("Discord opens even when clipboard completion stalls", async ({ page, context }) => {
+  const api = await controlledApi(context); api.state.authenticated = true;
+  await context.route(`**/api/v1/wishlists/${listId}/share-link`, route => route.fulfill({
+    json: { id: shareId, shareUrl: `${frontendOrigin}/shared-wishlists/${shareId}#${secret}` },
+    headers: { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"share-current"' },
+  }));
+  await context.route("https://discord.com/**", route => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Discord destination</title><p>Choose recipient</p>" }));
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => new Promise(() => {}) } });
+  });
+  await page.goto(`/lists/${listId}`);
+  const popupPromise = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Partager par Discord", exact: true }).click();
+  const popup = await popupPromise;
+  await popup.waitForURL("https://discord.com/channels/@me");
+  await expect(popup.getByText("Choose recipient")).toBeVisible();
+  expect(await popup.evaluate(() => globalThis.opener)).toBeNull();
+  await popup.close();
+});

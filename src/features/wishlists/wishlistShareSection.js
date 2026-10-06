@@ -144,14 +144,10 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     busy = true; clearFeedback(); status.textContent = ""; sync();
     try {
       if (channel === "email") { openMailComposer(destination); return; }
-      pendingWindow = openShareWindow();
       const channelOptions = ShareChannels.find(item => item.id === channel);
-      if (channelOptions?.copy) {
-        await copyText(wishlistShareMessage(wishlistName, currentLink));
-        if (disposed) return;
-        status.textContent = `Message copié, colle-le dans ${channelOptions.name}.`;
-      }
-      if (disposed) return;
+      // Start clipboard access while the originating page still has focus, then navigate without awaiting it.
+      const copied = channelOptions?.copy ? copyText(wishlistShareMessage(wishlistName, currentLink)).then(() => true, () => false) : null;
+      pendingWindow = openShareWindow();
       if (pendingWindow) {
         pendingWindow.navigate(destination); pendingWindow = null;
       } else {
@@ -160,6 +156,15 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
         fallback.textContent = `Ouvrir ${ShareChannels.find(item => item.id === channel)?.name}`;
         feedback.append(fallback);
         status.textContent += `${status.textContent ? " " : ""}La fenêtre n’a pas pu être ouverte.`;
+      }
+      if (copied) {
+        const success = await copied;
+        if (disposed) return;
+        if (success) status.textContent += `${status.textContent ? " " : ""}Message copié, colle-le dans ${channelOptions?.name}.`;
+        else {
+          status.textContent += `${status.textContent ? " " : ""}La copie automatique est indisponible. Copie le lien manuellement.`;
+          input.focus(); input.select();
+        }
       }
     } catch {
       pendingWindow?.close(); pendingWindow = null;

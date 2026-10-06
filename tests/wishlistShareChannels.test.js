@@ -94,7 +94,8 @@ describe("owner channel actions", () => {
   it.each(["Facebook", "Discord", "Messenger"])("copies before opening %s and blocks duplicate clicks", async name => {
     const gate = barrier(), copyText = vi.fn(async () => { await gate.promise; }); const ui = setup({ copyText }); await settle();
     ui.click(name); ui.click(name); window.dispatchEvent(new Event("focus"));
-    expect(ui.openShareWindow).toHaveBeenCalledOnce(); expect(ui.navigate).not.toHaveBeenCalled(); expect(ui.load).toHaveBeenCalledOnce();
+    expect(ui.openShareWindow).toHaveBeenCalledOnce(); expect(ui.navigate).toHaveBeenCalledOnce(); expect(ui.load).toHaveBeenCalledOnce();
+    expect(copyText.mock.invocationCallOrder[0]).toBeLessThan(ui.openShareWindow.mock.invocationCallOrder[0]);
     expect(copyText).toHaveBeenCalledExactlyOnceWith(wishlistShareMessage("Été & Noël", link.shareUrl));
     expect([...ui.view.querySelectorAll("button")].every(item => item.disabled)).toBe(true);
     gate.resolve(); await settle(); expect(ui.navigate).toHaveBeenCalledOnce(); expect(ui.close).not.toHaveBeenCalled();
@@ -107,15 +108,16 @@ describe("owner channel actions", () => {
     expect(new URL(fallback.href).searchParams.get("u")).toBe(link.shareUrl);
     window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("a")).toBeNull();
   });
-  it.each(["Facebook", "Discord", "Messenger"])("closes an unused %s window and selects the link when copying fails", async name => {
+  it.each(["Facebook", "Discord", "Messenger"])("still opens %s and selects the link when copying fails", async name => {
     const ui = setup({ copyText: async () => { throw Error(link.shareUrl); } }); await settle(); ui.click(name); await settle();
-    expect(ui.close).toHaveBeenCalledOnce(); expect(ui.navigate).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.input);
+    expect(ui.close).not.toHaveBeenCalled(); expect(ui.navigate).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(ui.input);
     expect(ui.input.selectionEnd).toBe(link.shareUrl.length); expect(ui.view.textContent).not.toContain(link.shareUrl);
   });
-  it("closes pending windows on disposal without opening after late completion", async () => {
+  it("opens immediately and ignores late clipboard completion after disposal", async () => {
     const gate = barrier(); const ui = setup({ copyText: async () => { await gate.promise; } }); await settle(); ui.click("Messenger");
     disposeComponent(ui.view); gate.resolve(); await settle();
-    expect(ui.close).toHaveBeenCalledOnce(); expect(ui.navigate).not.toHaveBeenCalled();
+    expect(ui.close).not.toHaveBeenCalled(); expect(ui.navigate).toHaveBeenCalledOnce();
+    expect(ui.view.textContent).not.toContain("Message copié");
     expect(/** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-share__channels")).hidden).toBe(true);
   });
   it("hides channels for private lists and after failed refresh", async () => {
