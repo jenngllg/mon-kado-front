@@ -14,9 +14,25 @@ describe("MFA response boundaries", () => {
   });
   it.each([null, { flow: undefined }, { flow: 3 }, { flow: "invalid" }, { requiredAction: "disable" },
     { expiresAt: null }, { expiresAt: "invalidZ" }, { expiresAt: "1970-01-01T00:21:40+00:00" },
-    { expiresAt: new Date(1_000_000).toISOString() }, { expiresAt: new Date(1_300_001).toISOString() }])("rejects malformed or expired proofs", override => {
+    { expiresAt: new Date(1_000_000).toISOString() }, { expiresAt: new Date(1_305_001).toISOString() }])("rejects malformed or expired proofs", override => {
     // Arrange / Act / Assert
     expect(() => readTwoFactorProof(override === null ? null : { ...challenge(), ...override }, 1_000_000)).toThrow();
+  });
+  it.each([54, 1_000, 5_000])("accepts initial clock skew of %i milliseconds without changing expiration", skew => {
+    // Arrange
+    const value = challenge("enroll");
+    // Act
+    const result = readTwoFactorProof(value, 1_000_000 - skew);
+    // Assert
+    expect(result.expiresAt).toBe(value.expiresAt);
+    expect(result.requiredAction).toBe("enroll");
+  });
+  it("does not apply initial clock tolerance to a continuing proof", () => {
+    // Arrange
+    const value = challenge("replace");
+    const deadline = Date.parse(value.expiresAt) - 54;
+    // Act / Assert
+    expect(() => readTwoFactorProof(value, 1_000_000, deadline)).toThrow();
   });
   it("does not extend an earlier deadline", () => {
     // Arrange / Act / Assert
