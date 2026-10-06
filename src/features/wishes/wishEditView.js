@@ -1,4 +1,5 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
+import { withWishSort } from "./wishSorting.js";
 import { isStrongEntityTag } from "../../api/entityTag.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
@@ -15,11 +16,11 @@ import { createWishPayload, parseWishPrice, WishPayloadTooLarge, WishServerMessa
  * @param {{wishlistId: string, wishId: string, loadWishlist: import("../wishlists/wishlistsService.js").LoadWishlist,
  * loadOne: import("./wishesService.js").LoadWish, update: import("./wishesService.js").UpdateWish,
  * remove?: import("./wishesService.js").RemoveWish, onDeleted?: () => void | Promise<void>, signal?: AbortSignal,
- * preview?: import("./wishImportService.js").PreviewWish,
+ * preview?: import("./wishImportService.js").PreviewWish, returnSort?: string | null,
  * uploadImage?: import("./wishesService.js").UploadWishImage, removeImage?: import("./wishesService.js").RemoveWishImage}} options Owner operations.
  * @returns {HTMLElement} Disposable protected view.
  */
-export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, update, signal, uploadImage, removeImage, preview }) {
+export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, update, signal, uploadImage, removeImage, preview, returnSort }) {
   const view = element("section", ""); view.className = "wish-edit-view flow";
   const title = element("h1", "Modifier un souhait"); title.tabIndex = -1;
   const feedback = element("div", ""); feedback.className = "flow"; feedback.hidden = true;
@@ -53,7 +54,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   const reread = createButton({ label: "Relire le souhait", variant: "secondary", onClick: () => { void read(true); } });
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } });
   actions.append(submit, useVersion); form.append(actions);
-  const destination = isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists;
+  const destination = isWishlistId(wishlistId) ? withWishSort(RoutePaths.ListDetails.replace(":listId", wishlistId), returnSort) : RoutePaths.Lists;
   const imageSection = createWishImageSection({ onUpload: () => { sync(); }, onRemove: () => { void deleteImage(); } });
   view.append(createBackLink({ label: "Retour à la liste", href: destination }), title, feedback, reread, retry, status, comparison, form);
   if (uploadImage && removeImage) form.append(imageNotice, imageSection.element, actions);

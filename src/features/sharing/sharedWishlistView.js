@@ -4,16 +4,19 @@ import { createBackLink, createAlert, createButton, createEmptyState, createLoad
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { WishlistOccasions } from "../wishlists/wishlistValidation.js";
 import { createWishCard } from "../wishes/wishCard.js";
+import { createWishSortControl } from "../wishes/wishSortControl.js";
+import { hasVisibleAvailability, sortWishes, withWishSort } from "../wishes/wishSorting.js";
 import { memberOriginQuery, memberProfileHref } from "../members/memberNavigation.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const MillisecondsPerDay = 86_400_000;
 /** Public collection; only its transport retains access to a bearer context.
  * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null,
+ * initialSort?: string | null, onSortChange?: (sort: import("../wishes/wishSorting.js").WishSort) => void,
  * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishlistView({ shareLinkId, load, signal, accessSignal, createParticipation, fromMemberId }) {
+export function createSharedWishlistView({ shareLinkId, load, signal, accessSignal, createParticipation, fromMemberId, initialSort, onSortChange = () => {} }) {
   const view = element("section", ""); view.className = "wishlist-details-view shared-wishlist-view flow";
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
   const information = element("section", ""); information.className = "wishlist-details-info flow";
@@ -27,11 +30,15 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
   const filterControls = element("div", ""); filterControls.className = "flow"; filterControls.hidden = true;
   filterControls.append(filterLabel);
   const resultStatus = element("p", ""); resultStatus.setAttribute("role", "status");
-  gifts.append(element("h2", "Les souhaits de cette liste"), filterControls, resultStatus, results); gifts.hidden = true;
+  const toolbar = element("div", ""); toolbar.className = "section-toolbar";
+  const sorting = createWishSortControl({ initialSort, onChange: value => { onSortChange(value); renderWishes(); } });
+  toolbar.append(element("h2", "Les souhaits de cette liste"), sorting.element);
+  gifts.append(toolbar, filterControls, resultStatus, results); gifts.hidden = true;
   information.append(title, details); layout.append(information, gifts);
   view.append(fromMemberId ? createBackLink({ label: "Retour au profil", href: memberProfileHref(fromMemberId) }) : createBackLink({ label: "Retour à l’accueil", href: "/" }), layout);
   let disposed = false, busy = false, terminal = false;
   let availableOnly = false;
+  /** @type {import("./sharedWishlistService.js").SharedWishlist | null} */ let currentList = null;
   addComponentEventListener(view, filter, "change", () => {
     if (disposed || busy || terminal) { filter.checked = availableOnly; return; }
     availableOnly = filter.checked; void read(true, true);
@@ -46,7 +53,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
   /** @param {boolean} explicit User-initiated reread. @param {boolean} [filterChange] Keep focus on the filter after its activation. */
   async function read(explicit, filterChange = false) {
     if (disposed || busy || terminal) return;
-    busy = true; clear(details); clear(results); gifts.hidden = filterControls.hidden; filter.disabled = true; resultStatus.textContent = "";
+    busy = true; currentList = null; sorting.select.disabled = true; clear(details); clear(results); gifts.hidden = filterControls.hidden; filter.disabled = true; resultStatus.textContent = "";
     title.textContent = "Liste de souhaits partagée"; details.setAttribute("aria-busy", "true"); details.append(createLoadingState({ label: "Chargement de la liste…" }));
     try {
       const list = await load(shareLinkId, { signal: lifetime.signal, availableOnly });
@@ -68,15 +75,9 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
       }
       if (list.message) { const message = element("p", list.message); message.className = "wishlist-details-note"; details.append(message); }
       gifts.hidden = false; filterControls.hidden = false;
-      if (!list.wishes.length) results.append(createEmptyState({ title: availableOnly ? "Aucun souhait ne correspond à ce filtre" : "Cette liste ne contient pas encore de souhait", message: availableOnly ? "Décoche le filtre pour consulter tous les souhaits de cette liste." : "Les souhaits apparaîtront ici." }));
-      else {
-        const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
-        for (const wish of list.wishes) {
-          const card = createWishCard(wish, false, { editable: false, detailHref: `/shared-wishlists/${shareLinkId}/wishes/${wish.id}${memberOriginQuery(fromMemberId)}` });
-          cards.append(card);
-        }
-        results.append(cards);
-      }
+      currentList = list;
+      sorting.update({ allowAvailability: hasVisibleAvailability(list.wishes), disabled: true });
+      onSortChange(sorting.value()); renderWishes();
       if (explicit) resultStatus.textContent = `${list.wishes.length} souhait${list.wishes.length > 1 ? "s" : ""} affiché${list.wishes.length > 1 ? "s" : ""}.`;
       if (explicit && !filterChange) title.focus();
       if (createParticipation) details.append(createParticipation({ onUnavailable: unavailable, signal: lifetime.signal }));
@@ -95,7 +96,18 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
         const alert = createAlert({ ...translated, detail: extra.join(" ") || null, variant: "error" }); alert.tabIndex = -1;
         details.append(alert, createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } })); if (explicit) alert.focus();
       }
-    } finally { busy = false; if (!disposed) { details.setAttribute("aria-busy", "false"); filter.disabled = terminal; if (filterChange && !terminal && resultStatus.textContent) filter.focus(); } }
+    } finally { busy = false; if (!disposed) { sorting.select.disabled = terminal || !currentList; details.setAttribute("aria-busy", "false"); filter.disabled = terminal; if (filterChange && !terminal && resultStatus.textContent) filter.focus(); } }
+  }
+  function renderWishes() {
+    if (!currentList || disposed || terminal) return;
+    clear(results);
+    if (!currentList.wishes.length) results.append(createEmptyState({ title: availableOnly ? "Aucun souhait ne correspond à ce filtre" : "Cette liste ne contient pas encore de souhait", message: availableOnly ? "Décoche le filtre pour consulter tous les souhaits de cette liste." : "Les souhaits apparaîtront ici." }));
+    else {
+      const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
+      for (const wish of sortWishes(currentList.wishes, sorting.value())) cards.append(createWishCard(wish, false, { editable: false,
+        detailHref: withWishSort(`/shared-wishlists/${shareLinkId}/wishes/${wish.id}${memberOriginQuery(fromMemberId)}`, sorting.value()) }));
+      results.append(cards);
+    }
   }
   function unavailable() {
     if (disposed || terminal) return;

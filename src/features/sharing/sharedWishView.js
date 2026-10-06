@@ -1,4 +1,5 @@
 import { refreshOnReturn } from "../../components/refreshOnReturn.js";
+import { withWishSort } from "../wishes/wishSorting.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { memberOriginQuery } from "../members/memberNavigation.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
@@ -10,13 +11,13 @@ import { createSharedWishQuantities } from "./sharedWishQuantities.js";
 const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
 /** A fresh public detail, without participant information or owner actions.
- * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null,
+ * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null, returnSort?: string | null,
  * createReservation?: (onUnavailable: () => void, wish: import("./sharedWishlistService.js").SharedWishDetail, onSaved: (message?: string) => void, onBusy: (busy: boolean) => void, onUnrecognized: () => void, onVerified: (wish: import("./sharedWishlistService.js").SharedWishDetail) => void) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal, createReservation, fromMemberId }) {
+export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal, createReservation, fromMemberId, returnSort }) {
   const view = element("section", ""); view.className = "shared-wish-view flow";
-  const back = createBackLink({ label: "Retour à la liste", href: `/shared-wishlists/${shareLinkId}${memberOriginQuery(fromMemberId)}` });
+  const back = createBackLink({ label: "Retour à la liste", href: withWishSort(`/shared-wishlists/${shareLinkId}${memberOriginQuery(fromMemberId)}`, returnSort) });
   const title = element("h1", "Souhait partagé"); title.tabIndex = -1;
   const results = element("div", ""); results.className = "shared-wish-results flow";
   const notice = element("p", ""); notice.setAttribute("role", "status"); notice.hidden = true;

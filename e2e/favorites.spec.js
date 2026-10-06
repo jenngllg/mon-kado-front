@@ -10,6 +10,7 @@ for (const width of [390, 1440]) {
     await expect(favorite).toBeVisible();
     await expect(favorite).toHaveAttribute("aria-pressed", "false");
     await expect(favorite).toHaveCSS("width", "44px"); await expect(favorite).toHaveCSS("height", "44px");
+    await favorite.scrollIntoViewIfNeeded();
     const position = api.wish.position; const before = await favorite.boundingBox();
     await favorite.hover(); expect(await favorite.boundingBox()).toEqual(before);
     await favorite.focus(); await favorite.press("Enter");

@@ -1,4 +1,5 @@
 import { isAbortError } from "../../api/apiError.js";
+import { withWishSort } from "./wishSorting.js";
 import { createBackLink } from "../../components/backLink.js";
 import { createActionLink, createAlert, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
@@ -8,12 +9,12 @@ import { createWishFavoriteIndicator } from "./wishFavoriteIndicator.js";
 import { createSharedWishQuantities } from "../sharing/sharedWishQuantities.js";
 
 /** Read-only owner detail. Quantities are projected and protected by the API.
- * @param {{wishlistId: string, wishId: string, loadOne: import("./wishesService.js").LoadWish, signal?: AbortSignal}} options Dependencies.
+ * @param {{wishlistId: string, wishId: string, loadOne: import("./wishesService.js").LoadWish, signal?: AbortSignal, returnSort?: string | null}} options Dependencies.
  * @returns {HTMLElement} Disposable detail with fresh reads on return.
  */
-export function createWishDetailsView({ wishlistId, wishId, loadOne, signal }) {
+export function createWishDetailsView({ wishlistId, wishId, loadOne, signal, returnSort }) {
   const view = document.createElement("section"); view.className = "shared-wish-view wish-owner-detail flow";
-  const back = createBackLink({ label: "Retour à la liste", href: `/lists/${wishlistId}` });
+  const back = createBackLink({ label: "Retour à la liste", href: withWishSort(`/lists/${wishlistId}`, returnSort) });
   const content = document.createElement("div"); content.className = "flow";
   view.append(back, content);
   let disposed = false;

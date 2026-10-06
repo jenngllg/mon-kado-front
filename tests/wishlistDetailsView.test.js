@@ -26,6 +26,60 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
 describe("wishlist owner detail", () => {
+  it.each(["availableFirst"])("retains URL availability sort %s until the visible collection has loaded", async initialSort => {
+    // Arrange
+    const gate = barrier(); const onSortChange = vi.fn();
+    const ui = setup({ initialSort, onSortChange, loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, surpriseMode: false } }),
+      loadWishes: async () => { await gate.promise; return { ...collection, wishes: [{ ...wish, reservedQuantity: 0, availableQuantity: 2 }] }; } });
+    await settle();
+    const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select"));
+    // Act
+    expect(select.value).toBe(initialSort); expect(select.disabled).toBe(true);
+    gate.resolve(); await settle();
+    // Assert
+    expect(select.value).toBe(initialSort); expect(select.disabled).toBe(false);
+    expect(onSortChange).toHaveBeenLastCalledWith(initialSort);
+  });
+  it("sorts loaded wishes locally, preserves return links and restores manual reordering", async () => {
+    // Arrange
+    const wishes = [wish, { ...wish, id, name: "Album", price: null, availableQuantity: 0 }, { ...wish, id: "019c52dd-56c1-7cc6-8a95-243f3a032e06", name: "Zéro", price: 0, availableQuantity: 1 }].map(item => ({ ...item, reservedQuantity: 0, availableQuantity: item.availableQuantity ?? 2 }));
+    const loadWishes = vi.fn(async () => ({ ...collection, wishes })); const onSortChange = vi.fn();
+    const ui = setup({ loadWishes, initialSort: "nameAsc", onSortChange, reorder: vi.fn() }); await settle();
+    const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector(".wish-sort-control select"));
+    // Act
+    select.value = "priceAsc"; select.dispatchEvent(new Event("change"));
+    // Assert
+    expect([...ui.view.querySelectorAll(".wish-card h3")].map(item => item.textContent)).toEqual(["Zéro", wish.name, "Album"]);
+    expect(loadWishes).toHaveBeenCalledOnce(); expect(onSortChange).toHaveBeenLastCalledWith("priceAsc");
+    expect(ui.view.querySelector(".wish-card h3 a")?.getAttribute("href")).toContain("?sort=priceAsc");
+    expect([...ui.view.querySelectorAll("button")].find(item => item.textContent === "Réorganiser les souhaits")?.hidden).toBe(true);
+    select.value = "listOrder"; select.dispatchEvent(new Event("change"));
+    expect([...ui.view.querySelectorAll(".wish-card h3")].map(item => item.textContent)).toEqual(wishes.map(item => item.name));
+    expect([...ui.view.querySelectorAll("button")].find(item => item.textContent === "Réorganiser les souhaits")?.hidden).toBe(false);
+  });
+  it("removes hidden reservation sorts and normalizes a surprise preference", async () => {
+    // Arrange
+    const onSortChange = vi.fn();
+    const ui = setup({ initialSort: "availableFirst", onSortChange });
+    // Act
+    await settle();
+    // Assert
+    const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select"));
+    expect(select.value).toBe("listOrder"); expect(select.querySelector('[value="availableFirst"]')).toBeNull();
+    expect(onSortChange).toHaveBeenLastCalledWith("listOrder");
+  });
+  it("keeps sorting disabled while reading and does not replace a loading or failed collection", async () => {
+    // Arrange
+    const gate = barrier(); const onSortChange = vi.fn();
+    const ui = setup({ initialSort: "nameAsc", onSortChange, loadWishes: async () => { await gate.promise; throw new ApiError({ kind: "http", statusCode: 503 }); } });
+    await settle(); const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select"));
+    // Act
+    select.value = "priceDesc"; select.dispatchEvent(new Event("change"));
+    // Assert
+    expect(select.disabled).toBe(true); expect(select.value).toBe("nameAsc"); expect(onSortChange).not.toHaveBeenCalled();
+    gate.resolve(); await settle();
+    expect(select.disabled).toBe(true); expect(ui.view.querySelector('[role="alert"]')).not.toBeNull();
+  });
   it("shows a favorite conflict without replaying the mutation", async () => {
     const current = { wish, etag: '"fresh"', values: { name: wish.name, note: "", url: "", price: "19,99", quantity: "2" } };
     const favorite = { loadOne: vi.fn(async () => current), setFavorite: vi.fn(async () => { throw new ApiError({ kind: "http", statusCode: 412, errorCode: "WISH_VERSION_CONFLICT" }); }) };
@@ -43,11 +97,13 @@ describe("wishlist owner detail", () => {
     const button = /** @type {HTMLButtonElement} */ (ui.view.querySelector(".wish-favorite-button"));
     button.click(); await settle();
     window.dispatchEvent(new Event("focus")); await settle();
+    expect(ui.view.querySelector("select")?.disabled).toBe(true);
     expect(ui.loadWishes).toHaveBeenCalledOnce();
     expect(button.isConnected).toBe(true); expect(button.disabled).toBe(true);
     gate.resolve(); await settle();
     expect(favorite.setFavorite).toHaveBeenCalledOnce();
     expect(ui.loadWishes).toHaveBeenCalledTimes(2);
+    expect(ui.view.querySelector("select")?.disabled).toBe(false);
   });
   it("places add, edit, delete and archive icons beside the title without a disclosure", async () => {
     const ui = setup({ setArchived: vi.fn() }); await settle();

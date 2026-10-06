@@ -17,6 +17,17 @@ function setup(data = { wishes: [wish] }, status = 200, etag = /** @type {string
 }
 
 describe("owned gift collection service", () => {
+  it.each([[0, 2], [1, 1], [2, 0], [3, 0], [null, null]])("projects reservation quantities %s / %s without participant data", async (reservedQuantity, availableQuantity) => {
+    // Arrange
+    const service = setup({ wishes: [{ ...wish, reservedQuantity, availableQuantity }] });
+    // Act
+    const result = await service.load(id, { signal });
+    // Assert
+    expect(result.wishes[0]).toMatchObject({ reservedQuantity, availableQuantity });
+  });
+  it.each([{ reservedQuantity: 1 }, { availableQuantity: 1 }, { reservedQuantity: -1, availableQuantity: 3 }, { reservedQuantity: 1.5, availableQuantity: 0.5 }, { reservedQuantity: 1, availableQuantity: 0 }, { reservedQuantity: "1", availableQuantity: 1 }])("rejects inconsistent collection quantities", async change => {
+    await expect(setup({ wishes: [{ ...wish, ...change }] }).load(id, { signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it.each([false, true])("PATCHes only the favorite preference %s with the supplied version", async isFavorite => {
     const service = setup({ ...wish, isFavorite }, 200, '"saved"');
     const saved = await service.setFavorite(id, wishId, isFavorite, { etag: '"fresh"', signal });
@@ -37,12 +48,12 @@ describe("owned gift collection service", () => {
     await expect(setup({ ...wish, isFavorite: "true" }).loadOne(id, wishId, { signal })).rejects.toMatchObject({ kind: "invalidResponse" });
   });
   it("GETs the complete collection with required authentication, exact signal and all three independent versions", async () => {
-    const service = setup({ wishes: [{ ...wish, reservedQuantity: 2, participants: ["private"], createdAt: "unused" }] });
+    const service = setup({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, participants: ["private"], createdAt: "unused" }] });
     const result = await service.load(id, { signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes`, { method: "GET", authentication: "required", signal });
-    expect(result).toEqual({ wishes: [{ ...wish, isFavorite: false, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
+    expect(result).toEqual({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, isFavorite: false, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wishes)).toBe(true); expect(Object.isFrozen(result.wishes[0])).toBe(true);
-    expect(JSON.stringify(result)).not.toMatch(/reservedQuantity|participants|createdAt|private/);
+    expect(JSON.stringify(result)).not.toMatch(/participants|createdAt|private/);
   });
   it("accepts empty collections and preserves server order independently of positions", async () => {
     expect(await setup({ wishes: [] }).load(id, { signal })).toEqual({ wishes: [], etag: '"collection-version"' });
@@ -64,7 +75,7 @@ describe("owned gift collection service", () => {
   it.each([
     { id: "bad" }, { wishlistId: wishId }, { name: " " }, { name: null }, { note: undefined }, { note: [] },
     { imageUrl: undefined }, { imageUrl: {} }, { url: undefined }, { url: 4 }, { quantity: undefined }, { quantity: "2" },
-    { quantity: 0 }, { quantity: 101 }, { quantity: 1.5 }, { price: undefined }, { price: -1 }, { price: 0 },
+    { quantity: 0 }, { quantity: 101 }, { quantity: 1.5 }, { price: undefined }, { price: -1 },
     { price: 100000000 }, { price: 12.345 }, { price: "NaN" }, { price: "12 EUR" }, { price: Infinity },
     { position: 9007199254740992 }, { position: "9223372036854775808" }, { position: "-9223372036854775809" },
     { position: null }, { position: 1.1 }, { position: "1e3" }, { entityTag: null }, { entityTag: 'W/"weak"' },
@@ -72,7 +83,7 @@ describe("owned gift collection service", () => {
     const error = await setup({ wishes: [{ ...wish, ...change }] }).load(id, { signal }).catch(error => error);
     expect(error).toMatchObject({ kind: "invalidResponse" }); expect(JSON.stringify(error)).not.toContain("controlled-grant");
   });
-  it.each([null, "0.01", 0.01, "99999999.99", 99999999.99])("normalizes EUR price %s", async price => {
+  it.each([null, "0", 0, "0.01", 0.01, "99999999.99", 99999999.99])("normalizes EUR price %s", async price => {
     const result = await setup({ wishes: [{ ...wish, price }] }).load(id, { signal }); expect(result.wishes[0].price).toBe(price === null ? null : Number(price));
   });
   it.each(["-9223372036854775808", "9223372036854775807", -1, Number.MAX_SAFE_INTEGER, "00020"])("retains exact Int64 position %s", async position => {

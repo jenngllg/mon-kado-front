@@ -1,11 +1,12 @@
 import { RoutePaths } from "../../app/routeContracts.js";
+import { withWishSort } from "./wishSorting.js";
 import { createWishImage } from "./wishImage.js";
 import { createActionLink, createButton } from "../../components/index.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { createWishFavoriteIndicator } from "./wishFavoriteIndicator.js";
 const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-/** @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable" | "isFavorite"> & {note?: string | null, wishlistId?: string}} item Safe minimal model. @param {boolean} suspended Read-only parent. @param {{editable?: boolean, detailHref?: string, onDelete?: (trigger: HTMLButtonElement) => void, favoriteButton?: HTMLButtonElement}} [options] Card actions. @returns {HTMLLIElement} Gift card without reservation information. */
-export function createWishCard(item, suspended, { editable = true, detailHref, onDelete, favoriteButton } = {}) {
+/** @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable" | "isFavorite"> & {note?: string | null, wishlistId?: string}} item Safe minimal model. @param {boolean} suspended Read-only parent. @param {{editable?: boolean, detailHref?: string, onDelete?: (trigger: HTMLButtonElement) => void, favoriteButton?: HTMLButtonElement, returnSort?: string}} [options] Card actions. @returns {HTMLLIElement} Gift card without reservation information. */
+export function createWishCard(item, suspended, { editable = true, detailHref, onDelete, favoriteButton, returnSort } = {}) {
   const card = element("li", ""); card.className = "wish-card";
   const media = createWishImage(item);
   if (!editable && detailHref) {
@@ -22,7 +23,7 @@ export function createWishCard(item, suspended, { editable = true, detailHref, o
   content.append(element("h3", item.name));
   if (editable && item.wishlistId) {
     const title = content.querySelector("h3");
-    title?.replaceChildren(createActionLink({ label: item.name, href: RoutePaths.WishDetails.replace(":listId", item.wishlistId).replace(":wishId", item.id) }));
+    title?.replaceChildren(createActionLink({ label: item.name, href: withWishSort(RoutePaths.WishDetails.replace(":listId", item.wishlistId).replace(":wishId", item.id), returnSort) }));
   }
   if (item.isFavorite && (!favoriteButton || suspended)) content.querySelector("h3")?.append(createWishFavoriteIndicator());
   if (!suspended && favoriteButton) actions.append(favoriteButton);
@@ -43,7 +44,7 @@ export function createWishCard(item, suspended, { editable = true, detailHref, o
     if (editable) applyActionIcon(link, "view", "Voir le produit (nouvel onglet)");
   } else if (item.productUnavailable) content.append(element("p", "Lien produit indisponible"));
   if (editable && item.wishlistId) {
-    const edit = createActionLink({ label: suspended ? "Consulter" : "Modifier", href: RoutePaths.EditWish.replace(":listId", item.wishlistId).replace(":wishId", item.id) });
+    const edit = createActionLink({ label: suspended ? "Consulter" : "Modifier", href: withWishSort(RoutePaths.EditWish.replace(":listId", item.wishlistId).replace(":wishId", item.id), returnSort) });
     edit.setAttribute("aria-label", `${suspended ? "Consulter" : "Modifier"} le souhait « ${item.name} »`); actions.append(edit);
     applyActionIcon(edit, suspended ? "view" : "edit", suspended ? "Consulter" : "Modifier");
     if (!suspended && onDelete) {

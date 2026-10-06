@@ -1,5 +1,7 @@
 import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { createWishCard } from "../wishes/wishCard.js";
+import { createWishSortControl } from "../wishes/wishSortControl.js";
+import { hasVisibleAvailability, sortWishes } from "../wishes/wishSorting.js";
 import { createWishFavoriteButton } from "../wishes/wishFavoriteButton.js";
 import { createWishDeleteDialog } from "../wishes/wishDeleteDialog.js";
 import { createWishlistShareSection } from "./wishlistShareSection.js";
@@ -18,6 +20,7 @@ const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "lo
 
 /** Mounts owner-only list details and independently refreshable gifts.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
+ * initialSort?: string | null, onSortChange?: (sort: import("../wishes/wishSorting.js").WishSort) => void,
  * setArchived?: import("./wishlistsService.js").SetArchivedWishlist,
  * favorite?: {loadOne: import("../wishes/wishesService.js").LoadWish, setFavorite: import("../wishes/wishesService.js").SetWishFavorite},
  * loadWishes: import("../wishes/wishesService.js").LoadWishes, reorder?: import("../wishes/wishesService.js").ReorderWishes,
@@ -25,7 +28,7 @@ const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "lo
  * share?: {load: import("./wishlistShareService.js").LoadWishlistShare, create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, copyText: (text: string) => Promise<void>, onRevoked?: () => void}, signal?: AbortSignal}} options View dependencies.
  * @returns {HTMLElement} Routed component, with explicit disposal.
  */
-export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, favorite, loadWishes, reorder, share, deletion, signal, onDeleted = () => {} }) {
+export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, favorite, loadWishes, reorder, share, deletion, signal, initialSort, onSortChange = () => {}, onDeleted = () => {} }) {
   const view = element("section", ""); view.className = "wishlist-details-view wishlist-details-view--owner flow";
   const back = createBackLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
@@ -48,7 +51,8 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, fa
   const reorderHost = element("div", ""); reorderHost.hidden = true;
   const giftToolbar = element("div", ""); giftToolbar.className = "section-toolbar";
   const giftActions = element("div", ""); giftActions.className = "section-toolbar__actions";
-  giftActions.append(organize); giftToolbar.append(heading, giftActions);
+  const sorting = createWishSortControl({ initialSort, onChange: value => { onSortChange(value); renderGifts(); } });
+  giftActions.append(sorting.element, organize); giftToolbar.append(heading, giftActions);
   gifts.append(giftToolbar, results, reorderHost); layout.append(information, gifts, settings); view.append(back, notice, layout);
   const lifetime = new AbortController();
   /** @type {AbortController | null} */ let giftRead = null;
@@ -89,14 +93,15 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, fa
     deletionDialog = modal;
     modal.addEventListener("close", () => {
       deletionDialog = null;
+      if (!disposed) updateSorting();
       if (!disposed && trigger.isConnected) trigger.focus();
     }, { once: true, signal: lifetime.signal });
-    view.append(modal); modal.showModal();
+    view.append(modal); updateSorting(); modal.showModal();
   }
 
   function enterReorder() {
-    if (!reorder || disposed || busy || favoritePending || terminal || reordering || !list || list.wishlist.isSuspended || !collection || collection.wishes.length < 2) return;
-    reordering = true; organize.hidden = true; clear(notice); notice.hidden = true;
+    if (!reorder || disposed || busy || favoritePending || terminal || reordering || !list || list.wishlist.isSuspended || list.wishlist.isArchived || sorting.value() !== "listOrder" || !collection || collection.wishes.length < 2) return;
+    reordering = true; organize.hidden = true; updateSorting(); clear(notice); notice.hidden = true;
     clear(results); results.hidden = true; renderList(); reorderHost.hidden = false;
     reorderHost.append(createWishesReorderView({ wishlistId, loadWishlist: loadOne, loadWishes, reorder, signal: lifetime.signal,
       onSaved: () => exitReorder(true), onCancel: () => exitReorder(false) }));
@@ -113,7 +118,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, fa
   async function readList(explicit) {
     if (disposed || busy || favoritePending || terminal || reordering) return;
     if (!isWishlistId(wishlistId)) { notFound(); return; }
-    busy = true; information.setAttribute("aria-busy", "true"); clear(actions); clear(listContent);
+    busy = true; sorting.select.disabled = true; information.setAttribute("aria-busy", "true"); clear(actions); clear(listContent);
     listContent.append(createLoadingState({ label: "Chargement de ta liste…" }));
     try {
       const loaded = await loadOne(wishlistId, { signal: lifetime.signal });
@@ -124,7 +129,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, fa
       if (disposed || isAbortError(error)) return;
       if (error instanceof ApiError && error.statusCode === 404) { notFound(); if (explicit) title.focus(); }
       else showError(listContent, error, () => { void readList(true); }, explicit);
-    } finally { busy = false; if (!disposed) information.setAttribute("aria-busy", "false"); }
+    } finally { busy = false; if (!disposed) { information.setAttribute("aria-busy", "false"); updateSorting(); } }
     if (!disposed && listLoaded && !terminal) await readGifts(false);
   }
   function renderList() {
@@ -175,36 +180,23 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, fa
     list = { ...list, wishlist: Object.freeze({ ...list.wishlist, isSuspended: true }) };
     renderList(); organize.hidden = true;
     if (collection?.wishes.length) {
-      clear(results); const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
-      for (const item of collection.wishes) cards.append(createWishCard(item, true)); results.append(cards);
+      renderGifts();
     } else if (!collection) { clear(results); gifts.hidden = true; }
     results.setAttribute("aria-busy", "false");
+    updateSorting();
     title.focus();
   }
   /** @param {boolean} explicit Explicit retry or refresh. */
   async function readGifts(explicit) {
     if (disposed || busy || favoritePending || terminal || reordering || !listLoaded) return;
-    busy = true; collection = null; organize.hidden = true; gifts.hidden = false;
+    busy = true; collection = null; organize.hidden = true; gifts.hidden = false; sorting.select.disabled = true;
     results.setAttribute("aria-busy", "true"); clear(results);
     results.append(createLoadingState({ label: "Chargement de tes souhaits…" }));
     const operation = new AbortController(); giftRead = operation;
     try {
       const loaded = await loadWishes(wishlistId, { signal: AbortSignal.any([lifetime.signal, operation.signal]) });
       if (disposed || terminal || operation.signal.aborted || lifetime.signal.aborted) return;
-      collection = loaded; clear(results);
-      if (collection.wishes.length === 0) { const empty = element("p", "Aucun souhait pour le moment"); empty.className = "wishlist-details-empty"; results.append(empty); }
-      else {
-        const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
-        for (const item of collection.wishes) cards.append(createWishCard(item, list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true, {
-          favoriteButton: favorite && !list?.wishlist.isSuspended && !list?.wishlist.isArchived ? createWishFavoriteButton({ wish: item, ...favorite, signal: lifetime.signal,
-            onBusy: pending => { favoritePending += pending ? 1 : -1; organize.disabled = favoritePending > 0; },
-            onUpdated: async () => { await readGifts(false); },
-            onError: error => { const translated = toUserFacingError(error); clear(notice); notice.hidden = false; notice.append(createAlert({ ...translated, variant: "error" })); },
-          }) : undefined,
-          onDelete: deletion ? trigger => deleteWish(item.id, trigger) : undefined,
-        })); results.append(cards);
-      }
-      organize.hidden = !reorder || list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true || collection.wishes.length < 2;
+      collection = loaded; updateSorting(); onSortChange(sorting.value()); renderGifts();
       if (explicit) heading.focus();
     } catch (error) {
       if (disposed || terminal || operation.signal.aborted || isAbortError(error)) return;
@@ -212,7 +204,29 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, fa
       if (error instanceof ApiError && error.statusCode === 404) { notFound(); if (explicit) title.focus(); }
       else if (error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED") shareUnavailable("suspended");
       else showError(results, error, () => { void readGifts(true); }, explicit);
-    } finally { if (giftRead === operation) { giftRead = null; busy = false; if (!disposed) { results.setAttribute("aria-busy", "false"); } } }
+    } finally { if (giftRead === operation) { giftRead = null; busy = false; if (!disposed) { results.setAttribute("aria-busy", "false"); updateSorting(); } } }
+  }
+  function updateSorting() {
+    if (!collection) { sorting.select.disabled = true; return; }
+    sorting.update({ allowAvailability: list?.wishlist.surpriseMode !== true && hasVisibleAvailability(collection.wishes), disabled: busy || favoritePending > 0 || reordering || terminal || !!deletionDialog });
+  }
+  function renderGifts() {
+      if (!collection || disposed) return;
+      clear(results);
+      if (collection.wishes.length === 0) { const empty = element("p", "Aucun souhait pour le moment"); empty.className = "wishlist-details-empty"; results.append(empty); }
+      else {
+        const cards = element("ul", ""); cards.className = "wish-grid"; cards.setAttribute("role", "list");
+        for (const item of sortWishes(collection.wishes, sorting.value())) cards.append(createWishCard(item, list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true, {
+          returnSort: sorting.value(),
+          favoriteButton: favorite && !list?.wishlist.isSuspended && !list?.wishlist.isArchived ? createWishFavoriteButton({ wish: item, ...favorite, signal: lifetime.signal,
+            onBusy: pending => { favoritePending += pending ? 1 : -1; organize.disabled = favoritePending > 0; updateSorting(); },
+            onUpdated: async () => { await readGifts(false); },
+            onError: error => { const translated = toUserFacingError(error); clear(notice); notice.hidden = false; notice.append(createAlert({ ...translated, variant: "error" })); },
+          }) : undefined,
+          onDelete: deletion ? trigger => deleteWish(item.id, trigger) : undefined,
+        })); results.append(cards);
+      }
+      organize.hidden = !reorder || sorting.value() !== "listOrder" || list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true || collection.wishes.length < 2;
   }
   function notFound() {
     terminal = true; lifetime.abort(); giftRead?.abort(); giftRead = null; list = null; collection = null; listLoaded = false;

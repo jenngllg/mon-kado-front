@@ -14842,6 +14842,11 @@ export interface components {
         /** @description Represents one gift wish inside a versioned collection response. */
         readonly WishCollectionItemResponse: {
             /**
+             * Format: int32
+             * @description Gets the remaining quantity, or null when hidden by surprise mode.
+             */
+            readonly availableQuantity?: null | number | string;
+            /**
              * Format: date-time
              * @description Gets the UTC creation date and time.
              */
@@ -14876,6 +14881,11 @@ export interface components {
              * @description Gets the total desired quantity, independently of reservations.
              */
             readonly quantity?: number;
+            /**
+             * Format: int32
+             * @description Gets the reserved quantity, or null when hidden by surprise mode.
+             */
+            readonly reservedQuantity?: null | number | string;
             /**
              * Format: date-time
              * @description Gets the optional UTC update date and time.
