@@ -36,7 +36,11 @@ for (const width of [390, 1440]) {
     await select.selectOption("merchantDesc");
     await expect(page).toHaveURL(`/lists/${listId}?sort=merchantDesc`);
     await expect(select).toHaveCSS("min-height", "44px");
-    await select.focus(); expect(await select.evaluate(node => node === globalThis.document.activeElement)).toBe(true);
+    await select.focus(); await select.press("Home"); await expect(select).toHaveValue("listOrder");
+    await select.press("End"); await expect(select).toHaveValue("merchantDesc");
+    await expect(page).toHaveURL(`/lists/${listId}?sort=merchantDesc`);
+    expect(reads).toBe(initialReads); expect(api.state.wishWrites).toBe(0);
+    expect(await select.evaluate(node => node === globalThis.document.activeElement)).toBe(true);
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("owner-sort.png"), fullPage: true });
     await page.reload(); await expect(select).toHaveValue("merchantDesc");
