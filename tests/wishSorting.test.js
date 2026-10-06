@@ -15,7 +15,7 @@ describe("wish sorting", () => {
   it.each([
     ["listOrder", [0, 1, 2]], ["nameAsc", [2, 1, 0]], ["nameDesc", [0, 1, 2]],
     ["priceAsc", [1, 2, 0]], ["priceDesc", [2, 1, 0]], ["favoriteFirst", [1, 0, 2]],
-    ["availableFirst", [1, 2, 0]], ["reservedFirst", [0, 1, 2]], ["merchantAsc", [2, 1, 0]],
+    ["availableFirst", [1, 2, 0]], ["merchantAsc", [2, 1, 0]],
     ["merchantDesc", [1, 2, 0]],
   ])("orders %s without mutating the input", (sort, order) => {
     const original = [...items];
@@ -24,18 +24,18 @@ describe("wish sorting", () => {
   });
   it("preserves manual order for equal criteria", () => {
     const equal = items.map(item => ({ ...item, name: "Article", price: null, url: null, isFavorite: true, availableQuantity: 1 }));
-    for (const sort of ["nameAsc", "nameDesc", "priceAsc", "priceDesc", "merchantAsc", "merchantDesc", "favoriteFirst", "availableFirst", "reservedFirst"]) {
+    for (const sort of ["nameAsc", "nameDesc", "priceAsc", "priceDesc", "merchantAsc", "merchantDesc", "favoriteFirst", "availableFirst"]) {
       expect(sortWishes(equal, normalizeWishSort(sort))).toEqual(equal);
     }
   });
-  it.each([null, undefined, "unknown", "__proto__", ""])("normalizes invalid preferences %s", value => {
+  it.each([null, undefined, "unknown", "__proto__", "", "reservedFirst"])("normalizes invalid preferences %s", value => {
     expect(normalizeWishSort(value)).toBe("listOrder");
   });
   it("never uses hidden reservations or guesses from quantities", () => {
     const hidden = items.map(item => ({ ...item, availableQuantity: null, quantity: 1 }));
     expect(hasVisibleAvailability(hidden)).toBe(false);
     expect(sortWishes(hidden, "availableFirst")).toEqual(hidden);
-    expect(normalizeWishSort("reservedFirst", false)).toBe("listOrder");
+    expect(normalizeWishSort("availableFirst", false)).toBe("listOrder");
     expect(normalizeWishSort("nameAsc", false)).toBe("nameAsc");
     expect(hasVisibleAvailability([])).toBe(false);
   });

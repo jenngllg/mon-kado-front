@@ -7,7 +7,7 @@ const names = ["Une théière", "Album", "Zéro"];
 const orders = [
   ["listOrder", [0, 1, 2]], ["nameAsc", [1, 0, 2]], ["nameDesc", [2, 0, 1]],
   ["priceAsc", [2, 0, 1]], ["priceDesc", [0, 2, 1]], ["favoriteFirst", [1, 0, 2]],
-  ["availableFirst", [0, 2, 1]], ["reservedFirst", [1, 0, 2]],
+  ["availableFirst", [0, 2, 1]],
   ["merchantAsc", [1, 0, 2]], ["merchantDesc", [0, 1, 2]],
 ];
 
@@ -43,9 +43,10 @@ for (const width of [390, 1440]) {
     expect(await select.evaluate(node => node === globalThis.document.activeElement)).toBe(true);
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("owner-sort.png"), fullPage: true });
-    await select.selectOption("reservedFirst");
-    await page.reload(); await expect(select).toHaveValue("reservedFirst");
-    await expect(page.locator(".wish-card h3")).toHaveText([names[1], names[0], names[2]]);
+    await expect(select.locator('option[value="reservedFirst"]')).toHaveCount(0);
+    await select.selectOption("availableFirst");
+    await page.reload(); await expect(select).toHaveValue("availableFirst");
+    await expect(page.locator(".wish-card h3")).toHaveText([names[0], names[2], names[1]]);
     await select.selectOption("merchantDesc");
     await page.reload(); await expect(select).toHaveValue("merchantDesc");
     await page.getByRole("link", { name: names[0], exact: true }).click();
@@ -56,7 +57,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByText("Liste archivée", { exact: true })).toBeVisible();
     await expect(select).toHaveValue("merchantDesc");
     await select.selectOption("nameAsc"); await expect(page.locator(".wish-card h3")).toHaveText([names[1], names[0], names[2]]);
-    await page.goto(`/lists/${listId}?sort=unsupported&source=sorting-test`);
+    await page.goto(`/lists/${listId}?sort=reservedFirst&source=sorting-test`);
     await expect(select).toHaveValue("listOrder");
     await expect(page).toHaveURL(`/lists/${listId}?source=sorting-test`);
     await expect(page.locator(".wish-card h3")).toHaveText(names);
@@ -88,7 +89,7 @@ for (const width of [390, 1440]) {
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("shared-sort.png"), fullPage: true });
     hidden = true;
-    await select.selectOption("reservedFirst");
+    await select.selectOption("availableFirst");
     await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
     await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
     await expect(select).toHaveValue("listOrder");

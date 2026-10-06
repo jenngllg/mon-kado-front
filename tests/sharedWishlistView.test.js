@@ -38,7 +38,7 @@ describe("shared wishlist presentation", () => {
   it("normalizes hidden availability sorting without inferring from desired quantities", async () => {
     // Arrange
     const onSortChange = vi.fn();
-    const ui = setup({ initialSort: "reservedFirst", onSortChange, load: async () => ({ ...list, wishes: list.wishes.map(item => ({ ...item, reservedQuantity: null, availableQuantity: null })) }) });
+    const ui = setup({ initialSort: "availableFirst", onSortChange, load: async () => ({ ...list, wishes: list.wishes.map(item => ({ ...item, reservedQuantity: null, availableQuantity: null })) }) });
     // Act
     await settle();
     // Assert

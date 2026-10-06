@@ -1,4 +1,4 @@
-/** @typedef {"listOrder" | "nameAsc" | "nameDesc" | "priceAsc" | "priceDesc" | "favoriteFirst" | "availableFirst" | "reservedFirst" | "merchantAsc" | "merchantDesc"} WishSort */
+/** @typedef {"listOrder" | "nameAsc" | "nameDesc" | "priceAsc" | "priceDesc" | "favoriteFirst" | "availableFirst" | "merchantAsc" | "merchantDesc"} WishSort */
 /** @typedef {{name: string, price: number | null, url: string | null, isFavorite?: boolean, availableQuantity?: number | null}} SortableWish */
 
 export const WishSortOptions = Object.freeze([
@@ -9,7 +9,6 @@ export const WishSortOptions = Object.freeze([
   { value: "priceDesc", label: "Prix décroissant" },
   { value: "favoriteFirst", label: "Coups de cœur d’abord" },
   { value: "availableFirst", label: "Disponibles d’abord" },
-  { value: "reservedFirst", label: "Entièrement réservés d’abord" },
   { value: "merchantAsc", label: "Marchand : A–Z" },
   { value: "merchantDesc", label: "Marchand : Z–A" },
 ]);
@@ -25,7 +24,7 @@ export function withWishSort(href, value) {
 }
 
 /** @param {string} value Selected sort. @returns {boolean} Whether the sort needs reservation visibility. */
-export function isAvailabilitySort(value) { return value === "availableFirst" || value === "reservedFirst"; }
+export function isAvailabilitySort(value) { return value === "availableFirst"; }
 
 /** @param {unknown} value Untrusted URL preference. @param {boolean} [allowAvailability] Reservation visibility. @returns {WishSort} Supported preference. */
 export function normalizeWishSort(value, allowAvailability = true) {
@@ -70,7 +69,7 @@ function compare(left, right, sort) {
   if (sort === "favoriteFirst") return Number(right.isFavorite === true) - Number(left.isFavorite === true);
   if (isAvailabilitySort(sort)) {
     const difference = Number(left.availableQuantity === 0) - Number(right.availableQuantity === 0);
-    return sort === "availableFirst" ? difference : -difference;
+    return difference;
   }
   if (sort === "merchantAsc" || sort === "merchantDesc") {
     const first = wishMerchant(left.url), second = wishMerchant(right.url);

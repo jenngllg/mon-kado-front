@@ -26,7 +26,7 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
 describe("wishlist owner detail", () => {
-  it.each(["availableFirst", "reservedFirst"])("retains URL availability sort %s until the visible collection has loaded", async initialSort => {
+  it.each(["availableFirst"])("retains URL availability sort %s until the visible collection has loaded", async initialSort => {
     // Arrange
     const gate = barrier(); const onSortChange = vi.fn();
     const ui = setup({ initialSort, onSortChange, loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, surpriseMode: false } }),
@@ -60,12 +60,12 @@ describe("wishlist owner detail", () => {
   it("removes hidden reservation sorts and normalizes a surprise preference", async () => {
     // Arrange
     const onSortChange = vi.fn();
-    const ui = setup({ initialSort: "reservedFirst", onSortChange });
+    const ui = setup({ initialSort: "availableFirst", onSortChange });
     // Act
     await settle();
     // Assert
     const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select"));
-    expect(select.value).toBe("listOrder"); expect(select.querySelector('[value="reservedFirst"]')).toBeNull();
+    expect(select.value).toBe("listOrder"); expect(select.querySelector('[value="availableFirst"]')).toBeNull();
     expect(onSortChange).toHaveBeenLastCalledWith("listOrder");
   });
   it("keeps sorting disabled while reading and does not replace a loading or failed collection", async () => {
