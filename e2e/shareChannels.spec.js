@@ -17,7 +17,7 @@ for (const width of [390, 1440]) {
       if (!active) { await route.fulfill({ status: 404, json: { statusCode: 404, errorCode: "WISHLIST_SHARE_LINK_NOT_FOUND" }, headers }); return; }
       await route.fulfill({ json: { id: shareId, shareUrl: shareUrl() }, headers });
     });
-    await context.route(/^https:\/\/(wa\.me|www\.facebook\.com|discord\.com|www\.messenger\.com)\//, async route => {
+    await context.route(/^https:\/\/(wa\.me|www\.facebook\.com|www\.messenger\.com)\//, async route => {
       destinations.push(route.request().url());
       expect(route.request().headers().referer).toBeUndefined();
       await route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Controlled destination</title><p>Choose recipient</p>" });
@@ -29,7 +29,8 @@ for (const width of [390, 1440]) {
     });
     await page.goto(`/lists/${listId}`);
     const group = page.getByRole("group", { name: "Partager la liste sur un canal" });
-    await expect(group).toBeVisible(); await expect(group.getByRole("button")).toHaveCount(5);
+    await expect(group).toBeVisible(); await expect(group.getByRole("button")).toHaveCount(4);
+    await expect(page.getByRole("button", { name: "Partager par Discord", exact: true })).toHaveCount(0);
     expect(destinations).toEqual([]); expect(shareWrites).toBe(0);
     for (const icon of await group.locator("img").all()) expect(await icon.evaluate(node => /** @type {HTMLImageElement} */ (node).naturalWidth)).toBeGreaterThan(0);
     const input = page.getByRole("textbox", { name: "Lien de partage" });
@@ -40,7 +41,7 @@ for (const width of [390, 1440]) {
     expect(after).toEqual(before); expect(before?.width).toBe(44); expect(before?.height).toBe(44);
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("share-channels.png"), fullPage: true });
-    for (const name of ["WhatsApp", "Facebook", "Discord", "Messenger"]) {
+    for (const name of ["WhatsApp", "Facebook", "Messenger"]) {
       const popupPromise = page.waitForEvent("popup");
       await group.getByRole("button", { name: `Partager par ${name}`, exact: true }).click();
       const popup = await popupPromise; await popup.waitForURL(/^https:/);
@@ -51,7 +52,6 @@ for (const width of [390, 1440]) {
     }
     expect(shareWrites).toBe(0); expect(api.state.wishWrites).toBe(0);
     expect(await page.evaluate(() => Reflect.get(globalThis, "copiedShareMessages"))).toEqual([
-      `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`,
       `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`,
       `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`,
     ]);
@@ -73,21 +73,21 @@ for (const width of [390, 1440]) {
   });
 }
 
-test("Discord opens even when clipboard completion stalls", async ({ page, context }) => {
+test("Messenger opens even when clipboard completion stalls", async ({ page, context }) => {
   const api = await controlledApi(context); api.state.authenticated = true;
   await context.route(`**/api/v1/wishlists/${listId}/share-link`, route => route.fulfill({
     json: { id: shareId, shareUrl: `${frontendOrigin}/shared-wishlists/${shareId}#${secret}` },
     headers: { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"share-current"' },
   }));
-  await context.route("https://discord.com/**", route => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Discord destination</title><p>Choose recipient</p>" }));
+  await context.route("https://www.messenger.com/**", route => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Messenger destination</title><p>Choose recipient</p>" }));
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => new Promise(() => {}) } });
   });
   await page.goto(`/lists/${listId}`);
   const popupPromise = page.waitForEvent("popup");
-  await page.getByRole("button", { name: "Partager par Discord", exact: true }).click();
+  await page.getByRole("button", { name: "Partager par Messenger", exact: true }).click();
   const popup = await popupPromise;
-  await popup.waitForURL("https://discord.com/channels/@me");
+  await popup.waitForURL("https://www.messenger.com/");
   await expect(popup.getByText("Choose recipient")).toBeVisible();
   expect(await popup.evaluate(() => globalThis.opener)).toBeNull();
   await popup.close();

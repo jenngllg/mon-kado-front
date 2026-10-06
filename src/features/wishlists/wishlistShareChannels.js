@@ -1,10 +1,9 @@
-/** @typedef {"whatsapp" | "facebook" | "discord" | "messenger" | "email"} ShareChannel */
+/** @typedef {"whatsapp" | "facebook" | "messenger" | "email"} ShareChannel */
 /** @typedef {{navigate: (url: string) => void, close: () => void}} ShareWindow */
 
 export const ShareChannels = Object.freeze([
   { id: "whatsapp", name: "WhatsApp", icon: "whatsapp.svg", copy: false },
   { id: "facebook", name: "Facebook", icon: "facebook.png", copy: true },
-  { id: "discord", name: "Discord", icon: "discord.svg", copy: true },
   { id: "messenger", name: "Messenger", icon: "messenger.svg", copy: true },
   { id: "email", name: "mail", icon: "email.svg", copy: false },
 ]);
@@ -20,7 +19,6 @@ export function wishlistShareDestination(channel, name, link) {
   const message = wishlistShareMessage(name, link);
   if (channel === "whatsapp") return `https://wa.me/?text=${encodeURIComponent(message)}`;
   if (channel === "facebook") return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`;
-  if (channel === "discord") return "https://discord.com/channels/@me";
   if (channel === "messenger") return "https://www.messenger.com/";
   const subject = `Ma liste${name ? ` « ${name} »` : ""} sur MonKado`;
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;

@@ -23,8 +23,8 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("share channel destinations", () => {
-  it("offers exactly five agreed channels", () => {
-    expect(ShareChannels.map(channel => channel.id)).toEqual(["whatsapp", "facebook", "discord", "messenger", "email"]);
+  it("offers exactly four agreed channels without Discord", () => {
+    expect(ShareChannels.map(channel => channel.id)).toEqual(["whatsapp", "facebook", "messenger", "email"]);
   });
   it.each([undefined, "Été & Noël ? #1\n"])("encodes the complete link and name %s", name => {
     const message = wishlistShareMessage(name, link.shareUrl);
@@ -37,7 +37,7 @@ describe("share channel destinations", () => {
     expect(mail.protocol).toBe("mailto:"); expect(mail.pathname).toBe(""); expect(mail.searchParams.get("body")).toBe(message);
     expect(mail.searchParams.get("subject")).toBe(`Ma liste${name ? ` « ${name} »` : ""} sur MonKado`);
   });
-  it.each(["discord", "messenger"])("never sends the secret to the %s opening URL", channel => {
+  it.each(["messenger"])("never sends the secret to the %s opening URL", channel => {
     const destination = wishlistShareDestination(/** @type {import("../src/features/wishlists/wishlistShareChannels.js").ShareChannel} */ (channel), "Ma liste", link.shareUrl);
     expect(destination).not.toContain(link.shareUrl); expect(new URL(destination).hash).toBe("");
   });
@@ -46,14 +46,14 @@ describe("share channel destinations", () => {
     const document = globalThis.document.implementation.createHTMLDocument();
     const popup = { opener: window, document, close };
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(/** @this {HTMLAnchorElement} */ function () {
-      expect(this.href).toBe("https://discord.com/channels/@me"); expect(this.rel).toBe("noopener noreferrer");
+      expect(this.href).toBe("https://www.messenger.com/"); expect(this.rel).toBe("noopener noreferrer");
       expect(this.referrerPolicy).toBe("no-referrer"); expect(this.target).toBe("_self");
     });
     const open = vi.spyOn(window, "open").mockReturnValue(/** @type {Window} */ (/** @type {unknown} */ (popup)));
     const result = openWishlistShareWindow();
     expect(open).toHaveBeenCalledExactlyOnceWith("about:blank", "_blank"); expect(popup.opener).toBeNull();
     expect(document.querySelector('meta[name="referrer"]')?.getAttribute("content")).toBe("no-referrer");
-    expect(click).not.toHaveBeenCalled(); result?.navigate("https://discord.com/channels/@me"); result?.close();
+    expect(click).not.toHaveBeenCalled(); result?.navigate("https://www.messenger.com/"); result?.close();
     expect(click).toHaveBeenCalledOnce(); expect(close).toHaveBeenCalledOnce(); expect(document.querySelector("a")).toBeNull();
   });
   it("reports a blocked popup", () => {
@@ -72,7 +72,8 @@ describe("owner channel actions", () => {
     const channels = /** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-share__channels"));
     expect(channels.hidden).toBe(true); expect([...channels.querySelectorAll("button")].every(button => button.disabled)).toBe(true);
     gate.resolve(); await settle(); expect(channels.hidden).toBe(false); expect(channels.previousElementSibling?.contains(ui.input)).toBe(true);
-    expect([...channels.querySelectorAll("button")].map(button => button.getAttribute("aria-label"))).toEqual(["Partager par WhatsApp", "Partager par Facebook", "Partager par Discord", "Partager par Messenger", "Partager par mail"]);
+    expect([...channels.querySelectorAll("button")].map(button => button.getAttribute("aria-label"))).toEqual(["Partager par WhatsApp", "Partager par Facebook", "Partager par Messenger", "Partager par mail"]);
+    expect(ui.view.querySelector('[aria-label="Partager par Discord"]')).toBeNull();
     expect([...channels.querySelectorAll("img")].every(image => image.getAttribute("src")?.startsWith("/images/share/") && image.alt === "")).toBe(true);
     expect(ui.create).not.toHaveBeenCalled(); expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.openShareWindow).not.toHaveBeenCalled();
   });
@@ -91,7 +92,7 @@ describe("owner channel actions", () => {
     expect(ui.openShareWindow).not.toHaveBeenCalled(); expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
     expect(ui.view.textContent).not.toContain("envoyé");
   });
-  it.each(["Facebook", "Discord", "Messenger"])("copies before opening %s and blocks duplicate clicks", async name => {
+  it.each(["Facebook", "Messenger"])("copies before opening %s and blocks duplicate clicks", async name => {
     const gate = barrier(), copyText = vi.fn(async () => { await gate.promise; }); const ui = setup({ copyText }); await settle();
     ui.click(name); ui.click(name); window.dispatchEvent(new Event("focus"));
     expect(ui.openShareWindow).toHaveBeenCalledOnce(); expect(ui.navigate).toHaveBeenCalledOnce(); expect(ui.load).toHaveBeenCalledOnce();
@@ -108,7 +109,7 @@ describe("owner channel actions", () => {
     expect(new URL(fallback.href).searchParams.get("u")).toBe(link.shareUrl);
     window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("a")).toBeNull();
   });
-  it.each(["Facebook", "Discord", "Messenger"])("still opens %s and selects the link when copying fails", async name => {
+  it.each(["Facebook", "Messenger"])("still opens %s and selects the link when copying fails", async name => {
     const ui = setup({ copyText: async () => { throw Error(link.shareUrl); } }); await settle(); ui.click(name); await settle();
     expect(ui.close).not.toHaveBeenCalled(); expect(ui.navigate).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(ui.input);
     expect(ui.input.selectionEnd).toBe(link.shareUrl.length); expect(ui.view.textContent).not.toContain(link.shareUrl);
