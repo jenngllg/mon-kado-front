@@ -16,8 +16,17 @@ describe("explicit temporary publication", () => {
     expect(documents).toEqual(LegalDocuments.map(() => document));
   });
 
+  it("preserves an explicitly enabled revision setting without claiming legal approval", () => {
+    const enabled = { ...configuration, googleEnabled: true };
+    expect(verifyTemporaryPublication(enabled, documents)).toBe(true);
+    expect(enabled.legalApproved).toBe(false);
+    expect(enabled.legalVersion).toBeNull();
+    expect(verifyTemporaryPublication(configuration, documents)).toBe(false);
+  });
+
   it.each([null, [], 1, {}, { ...configuration, extra: true }, { ...configuration, schemaVersion: 2 },
-    { ...configuration, apiOrigin: "https://other.invalid" }, { ...configuration, googleEnabled: true },
+    { ...configuration, apiOrigin: "https://other.invalid" }, { ...configuration, googleEnabled: "true" },
+    { ...configuration, googleEnabled: null }, { ...configuration, googleEnabled: 1 },
     { ...configuration, legalApproved: true }, { ...configuration, legalVersion: "2026-10-06" }])(
     "rejects unrelated configuration changes %j", value => {
       expect(() => verifyTemporaryPublication(value, documents)).toThrow("PUBLICATION_REVIEW_REQUIRED");
@@ -34,6 +43,13 @@ describe("explicit temporary publication", () => {
     const print = vi.fn();
     expect(checkPublication(read, print, temporaryTest)).toBe(temporaryTest ? 0 : 1);
     expect(print).toHaveBeenCalledExactlyOnceWith(temporaryTest ? "googleEnabled=false" : "PUBLICATION_REVIEW_REQUIRED");
+  });
+
+  it.each([false, true])("keeps Google-enabled drafts behind the explicit exception %s", temporaryTest => {
+    const read = vi.fn(path => path === "publication.json" ? JSON.stringify({ ...configuration, googleEnabled: true }) : document);
+    const print = vi.fn();
+    expect(checkPublication(read, print, temporaryTest)).toBe(temporaryTest ? 0 : 1);
+    expect(print).toHaveBeenCalledExactlyOnceWith(temporaryTest ? "googleEnabled=true" : "PUBLICATION_REVIEW_REQUIRED");
   });
 
   it("keeps the exception opt-in and all technical publication gates", () => {
