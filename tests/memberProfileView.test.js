@@ -39,7 +39,7 @@ describe("public member profile", () => {
     expect(view.querySelectorAll(".member-profile-list")).toHaveLength(1);
   });
   it.each(["birthday", "christmas", "wedding", "birth", "other"])("uses local decorative artwork for %s", occasion => {
-    expect(wishlistArtwork(occasion)).toBe(`/images/design/${["birthday", "christmas", "wedding"].includes(occasion) ? occasion : "other"}.webp`);
+    expect(wishlistArtwork(occasion)).toBe(`/src/assets/design/${["birthday", "christmas", "wedding"].includes(occasion) ? occasion : "other"}.webp`);
   });
   it("keeps a cancelled request silent", async () => {
     const { view } = setup({ load: async () => { throw new DOMException("Aborted", "AbortError"); } });

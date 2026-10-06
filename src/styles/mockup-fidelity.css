@@ -19,7 +19,7 @@
   content: "";
   position: absolute; left: 0; top: 6.4rem;
   width: 8.6rem; height: 11rem;
-  background: url("/images/design/corner-leaf-isolated.webp") left top / contain no-repeat;
+  background: url("../assets/design/corner-leaf-isolated.webp") left top / contain no-repeat;
   mix-blend-mode: multiply;
   pointer-events: none;
 }
@@ -101,7 +101,7 @@
   padding: 2rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: #eaece1 url("/images/design/botanical-isolated.webp") right 2rem bottom 2rem / 17rem auto no-repeat;
+  background: #eaece1 url("../assets/design/botanical-isolated.webp") right 2rem bottom 2rem / 17rem auto no-repeat;
   background-blend-mode: multiply;
   text-align: center;
   overflow-wrap: anywhere;
@@ -175,7 +175,7 @@
   padding: 2.25rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: #eaece1 url("/images/design/botanical-isolated.webp") right 1rem bottom 2rem / 12rem auto no-repeat;
+  background: #eaece1 url("../assets/design/botanical-isolated.webp") right 1rem bottom 2rem / 12rem auto no-repeat;
   background-blend-mode: multiply;
 }
 .wishlist-settings h2 { font-size: 1.5rem; }

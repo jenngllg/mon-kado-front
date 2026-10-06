@@ -72,7 +72,7 @@ describe("owned wishlists view", () => {
     expect(view.textContent).toContain("Liste suspendue");
     expect(view.textContent).toContain("Consultation uniquement");
     expect(view.querySelector('img[src="x"], img[onerror]')).toBeNull();
-    expect([...view.querySelectorAll("img")].every(image => image.src.includes("/images/design/") && image.alt === "")).toBe(true);
+    expect([...view.querySelectorAll("img")].every(image => image.src.includes("/src/assets/design/") && image.alt === "")).toBe(true);
     expect(view.querySelector("a a")).toBeNull();
     const edits = [...view.querySelectorAll('a[href$="/edit"]')];
     expect(edits).toHaveLength(1);

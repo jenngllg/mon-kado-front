@@ -33,6 +33,23 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:coverage
       - run: pnpm build
+      - name: Check the reviewed production archive contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: jenngllg/mon-kado
+          ref: a3491b9eb2cc4b6355898ecd8c29edb20c1cc77d
+          path: .publication-backend
+          persist-credentials: false
+      - name: Package the build using the production allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          configuration_hash=$(python3 .publication-backend/deployments/production/release_manifest.py hash)
+          google_enabled=$(node --input-type=module -e 'import p from "./publication.json" with { type: "json" }; console.log(String(p.googleEnabled))')
+          python3 .publication-backend/src/Operations.Frontend/frontend_cli.py package \
+            --dist dist --output "$RUNNER_TEMP/frontend-quality-package" --revision "$GITHUB_SHA" \
+            --backend-revision a3491b9eb2cc4b6355898ecd8c29edb20c1cc77d \
+            --configuration-hash "$configuration_hash" --google-enabled "$google_enabled"
       - name: Validate deployed Caddy configuration
         run: >-
           docker run --rm --network none

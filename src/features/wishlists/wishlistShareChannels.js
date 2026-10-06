@@ -1,11 +1,16 @@
+import whatsapp from "../../assets/share/whatsapp.svg";
+import facebook from "../../assets/share/facebook.png";
+import messenger from "../../assets/share/messenger.svg";
+import email from "../../assets/share/email.svg";
+
 /** @typedef {"whatsapp" | "facebook" | "messenger" | "email"} ShareChannel */
 /** @typedef {{navigate: (url: string) => void, close: () => void}} ShareWindow */
 
 export const ShareChannels = Object.freeze([
-  { id: "whatsapp", name: "WhatsApp", icon: "whatsapp.svg", copy: false },
-  { id: "facebook", name: "Facebook", icon: "facebook.png", copy: true },
-  { id: "messenger", name: "Messenger", icon: "messenger.svg", copy: true },
-  { id: "email", name: "mail", icon: "email.svg", copy: false },
+  { id: "whatsapp", name: "WhatsApp", icon: whatsapp, copy: false },
+  { id: "facebook", name: "Facebook", icon: facebook, copy: true },
+  { id: "messenger", name: "Messenger", icon: messenger, copy: true },
+  { id: "email", name: "mail", icon: email, copy: false },
 ]);
 
 /** @param {string | undefined} name List name. @param {string} link Complete validated bearer link. @returns {string} Plain message. */

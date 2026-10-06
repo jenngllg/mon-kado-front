@@ -60,7 +60,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: none;
-  background: var(--color-surface-muted) url("/images/design/botanical-isolated.webp") right bottom / 12rem auto no-repeat;
+  background: var(--color-surface-muted) url("../assets/design/botanical-isolated.webp") right bottom / 12rem auto no-repeat;
 }
 .home-hero h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
 
@@ -157,7 +157,7 @@
   padding: 4rem 2rem;
   min-height: 42rem;
   text-align: center;
-  background: var(--color-surface-sage) url("/images/design/corner-leaf-isolated.webp") left top / 9rem auto no-repeat;
+  background: var(--color-surface-sage) url("../assets/design/corner-leaf-isolated.webp") left top / 9rem auto no-repeat;
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
 }
