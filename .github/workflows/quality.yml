@@ -86,9 +86,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: jenngllg/mon-kado
-          # This frontend PR depends on mon-kado#116. Other PRs and develop/main
+          # Social preview types depend on mon-kado#117; sorting depends on #116.
+          # Other PRs and develop/main
           # continue checking backend develop; production checks the deployed API.
-          ref: ${{ github.head_ref == 'codex/MK-981-wish-sorting' && '00cc1c61190e11e26360b7bb9af0f83f8dc3a0d1' || 'develop' }}
+          ref: ${{ github.head_ref == 'codex/MK-983-share-channels' && '171c4c79f372a3451f11632708d7d151703e201d' || github.head_ref == 'codex/MK-981-wish-sorting' && '00cc1c61190e11e26360b7bb9af0f83f8dc3a0d1' || 'develop' }}
           path: .backend
           persist-credentials: false
       - name: Record backend revision and generate disposable key

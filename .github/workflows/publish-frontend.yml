@@ -2,6 +2,12 @@ name: Publish approved frontend
 
 on:
   workflow_dispatch:
+    inputs:
+      temporary_test:
+        description: 'Explicit temporary production test with unapproved draft documents; take the site offline after testing'
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -65,7 +71,15 @@ jobs:
         run: pnpm build
       - name: Require approved legal documents and revision-bound Google setting
         id: publication
-        run: node tools/publication/checkPublication.js >> "$GITHUB_OUTPUT"
+        env:
+          TEMPORARY_TEST: ${{ inputs.temporary_test }}
+        run: |
+          if [ "$TEMPORARY_TEST" = true ]; then
+            node tools/publication/checkPublication.js --temporary-test >> "$GITHUB_OUTPUT"
+            echo 'Temporary test explicitly authorized: legal documents remain unapproved drafts. Take the site offline after testing.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            node tools/publication/checkPublication.js >> "$GITHUB_OUTPUT"
+          fi
       - name: Package only static build files
         env:
           BACKEND_REVISION: ${{ steps.backend.outputs.revision }}

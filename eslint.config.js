@@ -53,6 +53,7 @@ export default [
       "tests/wishlistDeleteApplication.test.js",
       "tests/wishlistDetailsView.test.js",
       "tests/wishlistShareSection.test.js",
+      "tests/wishlistShareChannels.test.js",
       "tests/wishlistShareRenewDialog.test.js",
       "tests/wishlistShareRevokeDialog.test.js",
       "tests/sharedWishlistView.test.js",

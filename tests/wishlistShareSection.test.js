@@ -25,7 +25,7 @@ describe("owner share section", () => {
     const gate = barrier(); const revoke = vi.fn(async () => { await gate.promise; }); const renew = vi.fn(async () => link);
     const ui = setup({ load: async () => link, revoke, renew, wishlistName: '<img src=x onerror=alert(1)>' }); await settle();
     ui.button("Désactiver le partage").click(); ui.button("Renouveler le lien").click(); expect(ui.view.querySelectorAll("dialog")).toHaveLength(1);
-    expect(ui.view.querySelector("dialog h2")?.textContent).toContain('<img src=x onerror=alert(1)>'); expect(ui.view.querySelector("img")).toBeNull(); expect(revoke).not.toHaveBeenCalled();
+    expect(ui.view.querySelector("dialog h2")?.textContent).toContain('<img src=x onerror=alert(1)>'); expect(ui.view.querySelector('img[src="x"]')).toBeNull(); expect(revoke).not.toHaveBeenCalled();
     ui.button("Annuler").click(); expect(ui.input.value).toBe(link.shareUrl); expect(document.activeElement).toBe(ui.button("Désactiver le partage"));
     ui.button("Désactiver le partage").click(); /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Désactiver le partage")).click();
     expect(ui.input.value).toBe(""); expect(ui.button("Créer le lien de partage").hidden).toBe(true); expect(ui.view.querySelector(':scope > [role=status]')?.textContent).not.toBe("Partage désactivé");

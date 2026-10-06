@@ -5,14 +5,16 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishlistShareRenewDialog } from "./wishlistShareRenewDialog.js";
 import { createWishlistShareRevokeDialog } from "./wishlistShareRevokeDialog.js";
+import { openWishlistMailComposer, openWishlistShareWindow, ShareChannels, wishlistShareDestination, wishlistShareMessage } from "./wishlistShareChannels.js";
 
 /** Owner-only share section, independent of the gift collection.
  * @param {{wishlistId: string, wishlistName?: string, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, load: import("./wishlistShareService.js").LoadWishlistShare,
  * create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, copyText: (text: string) => Promise<void>,
- * onUnavailable: (state: "wishlistMissing" | "suspended") => void, onRevoked?: () => void, signal?: AbortSignal}} options Dependencies.
+ * onUnavailable: (state: "wishlistMissing" | "suspended") => void, onRevoked?: () => void, signal?: AbortSignal,
+ * openShareWindow?: () => import("./wishlistShareChannels.js").ShareWindow | null, openMailComposer?: (url: string) => void}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, onRevoked, signal }) {
+export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, onRevoked, signal, openShareWindow = openWishlistShareWindow, openMailComposer = openWishlistMailComposer }) {
   const section = document.createElement("section"); section.className = "wishlist-share flow";
   const title = document.createElement("h2"); title.textContent = "Partager ma liste"; title.tabIndex = -1;
   const help = document.createElement("p"); help.textContent = "Une liste partagée est visible sur ton profil et accessible à tous.";
@@ -21,17 +23,28 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
   const empty = document.createElement("p"); empty.textContent = "Aucun lien de partage créé";
   const input = document.createElement("textarea"); input.readOnly = true; input.rows = 4; input.spellcheck = false; input.autocomplete = "off";
   const field = createFormField({ label: "Lien de partage", control: input });
+  const channels = document.createElement("div"); channels.className = "wishlist-share__channels";
+  channels.setAttribute("role", "group"); channels.setAttribute("aria-label", "Partager la liste sur un canal");
+  const channelButtons = ShareChannels.map(channel => {
+    const button = createButton({ label: `Partager par ${channel.name}`, variant: "secondary", onClick: () => { void shareOn(/** @type {import("./wishlistShareChannels.js").ShareChannel} */ (channel.id)); } });
+    button.classList.add("icon-action"); button.title = button.getAttribute("aria-label") ?? `Partager par ${channel.name}`;
+    button.setAttribute("aria-label", `Partager par ${channel.name}`);
+    const icon = document.createElement("img"); icon.src = `/images/share/${channel.icon}`; icon.alt = ""; icon.width = 24; icon.height = 24;
+    button.replaceChildren(icon); channels.append(button);
+    return button;
+  });
   const actions = document.createElement("div"); actions.className = "wishlist-share__actions";
   const generate = createButton({ label: "Créer le lien de partage", onClick: () => { void perform(true, true); } });
   const copy = createButton({ label: "Copier le lien", onClick: () => { void copyLink(); } });
   const renewButton = createButton({ label: "Renouveler le lien", variant: "secondary", onClick: openRenewal });
   const revokeButton = createButton({ label: "Désactiver le partage", variant: "danger", onClick: openRevocation });
-  actions.append(generate, copy, renewButton, revokeButton); section.append(title, help, feedback, status, empty, field, actions);
+  actions.append(generate, copy, renewButton, revokeButton); section.append(title, help, feedback, status, empty, field, channels, actions);
   const lifetime = new AbortController();
   let disposed = false; let busy = false; let terminal = false; let absent = false;
   /** @type {import("./wishlistShareService.js").WishlistShareLink | null} */ let link = null;
   /** @type {HTMLDialogElement | null} */ let dialog = null;
-  registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); wishlistName = undefined; dialog = null; link = null; input.value = ""; clearFeedback(); status.textContent = ""; sync(); });
+  /** @type {import("./wishlistShareChannels.js").ShareWindow | null} */ let pendingWindow = null;
+  registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); pendingWindow?.close(); pendingWindow = null; wishlistName = undefined; dialog = null; link = null; input.value = ""; clearFeedback(); status.textContent = ""; sync(); });
   if (signal) {
     addComponentEventListener(section, signal, "abort", () => disposeComponent(section), { once: true });
     if (signal.aborted) disposeComponent(section);
@@ -45,9 +58,10 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     generate.hidden = !absent || terminal || disposed; copy.hidden = !link || terminal || disposed;
     empty.hidden = !absent || terminal || disposed;
     field.hidden = !link || terminal || disposed;
+    channels.hidden = !link || terminal || disposed;
     renewButton.hidden = !renew || !link || busy || terminal || disposed;
     revokeButton.hidden = !revoke || !wishlistName || !link || busy || terminal || disposed;
-    for (const button of [generate, copy, renewButton, revokeButton]) button.disabled = busy || terminal || disposed || dialog !== null;
+    for (const button of [generate, copy, renewButton, revokeButton, ...channelButtons]) button.disabled = busy || terminal || disposed || dialog !== null || (channelButtons.includes(button) && !link);
   }
   function openRevocation() {
     if (!revoke || !wishlistName || !link || disposed || terminal || busy || dialog) return;
@@ -118,6 +132,44 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     } catch {
       if (!disposed) {
         status.textContent = "La copie automatique est indisponible. Sélectionne le lien puis copie-le manuellement.";
+        input.focus(); input.select();
+      }
+    } finally { busy = false; if (!disposed) sync(); }
+  }
+  /** @param {import("./wishlistShareChannels.js").ShareChannel} channel Explicitly selected channel. */
+  async function shareOn(channel) {
+    if (disposed || terminal || busy || dialog || !link) return;
+    const currentLink = link.shareUrl;
+    const destination = wishlistShareDestination(channel, wishlistName, currentLink);
+    busy = true; clearFeedback(); status.textContent = ""; sync();
+    try {
+      if (channel === "email") { openMailComposer(destination); return; }
+      const channelOptions = ShareChannels.find(item => item.id === channel);
+      // Start clipboard access while the originating page still has focus, then navigate without awaiting it.
+      const copied = channelOptions?.copy ? copyText(wishlistShareMessage(wishlistName, currentLink)).then(() => true, () => false) : null;
+      pendingWindow = openShareWindow();
+      if (pendingWindow) {
+        pendingWindow.navigate(destination); pendingWindow = null;
+      } else {
+        const fallback = document.createElement("a"); fallback.href = destination; fallback.target = "_blank"; fallback.rel = "noopener noreferrer";
+        fallback.className = "action-link action-link--secondary";
+        fallback.textContent = `Ouvrir ${ShareChannels.find(item => item.id === channel)?.name}`;
+        feedback.append(fallback);
+        status.textContent += `${status.textContent ? " " : ""}La fenêtre n’a pas pu être ouverte.`;
+      }
+      if (copied) {
+        const success = await copied;
+        if (disposed) return;
+        if (success) status.textContent += `${status.textContent ? " " : ""}Message copié, colle-le dans ${channelOptions?.name}.`;
+        else {
+          status.textContent += `${status.textContent ? " " : ""}La copie automatique est indisponible. Copie le lien manuellement.`;
+          input.focus(); input.select();
+        }
+      }
+    } catch {
+      pendingWindow?.close(); pendingWindow = null;
+      if (!disposed) {
+        status.textContent = "Le partage automatique est indisponible. Copie le lien manuellement.";
         input.focus(); input.select();
       }
     } finally { busy = false; if (!disposed) sync(); }
