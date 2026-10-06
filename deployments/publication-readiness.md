@@ -21,6 +21,14 @@ Never package that test directory. Browser routes abort unexpected destinations.
 
 ## Legal approval is a human decision
 
+For the explicitly authorized temporary social-preview production test only,
+the protected publication workflow accepts `temporary_test: true`. This exception
+does not modify `legalApproved`, dates or draft markers and cannot enable Google.
+The default workflow still refuses draft documents; quality, API compatibility,
+environment approval, artifact validation and installed configuration checks remain
+mandatory. The operator must take the public site offline after the test through
+the server console; this input does not schedule or guarantee automatic removal.
+
 The three French documents are substantive **drafts**, not a compliance
 certification or published terms. The public contact approved for this work is
 `monkado.app@gmail.com`. Do not derive the operator's civil name or address from
