@@ -80,7 +80,9 @@ describe("owner channel actions", () => {
     const ui = setup(); await settle(); ui.click(name); await settle();
     expect(ui.openShareWindow).toHaveBeenCalledOnce(); expect(ui.navigate).toHaveBeenCalledOnce();
     expect([...new URL(ui.navigate.mock.calls[0][0]).searchParams.values()].join(" ")).toContain(link.shareUrl);
-    expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled(); expect(ui.close).not.toHaveBeenCalled();
+    if (name === "Facebook") expect(ui.copyText).toHaveBeenCalledExactlyOnceWith(wishlistShareMessage("Été & Noël", link.shareUrl));
+    else expect(ui.copyText).not.toHaveBeenCalled();
+    expect(ui.create).not.toHaveBeenCalled(); expect(ui.close).not.toHaveBeenCalled();
     expect(ui.view.textContent).not.toContain("envoyé");
   });
   it("opens the mail composer without a popup or server message", async () => {
@@ -89,7 +91,7 @@ describe("owner channel actions", () => {
     expect(ui.openShareWindow).not.toHaveBeenCalled(); expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
     expect(ui.view.textContent).not.toContain("envoyé");
   });
-  it.each(["Discord", "Messenger"])("copies before opening %s and blocks duplicate clicks", async name => {
+  it.each(["Facebook", "Discord", "Messenger"])("copies before opening %s and blocks duplicate clicks", async name => {
     const gate = barrier(), copyText = vi.fn(async () => { await gate.promise; }); const ui = setup({ copyText }); await settle();
     ui.click(name); ui.click(name); window.dispatchEvent(new Event("focus"));
     expect(ui.openShareWindow).toHaveBeenCalledOnce(); expect(ui.navigate).not.toHaveBeenCalled(); expect(ui.load).toHaveBeenCalledOnce();
@@ -105,8 +107,8 @@ describe("owner channel actions", () => {
     expect(new URL(fallback.href).searchParams.get("u")).toBe(link.shareUrl);
     window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("a")).toBeNull();
   });
-  it("closes an unused window and selects the link when copying fails", async () => {
-    const ui = setup({ copyText: async () => { throw Error(link.shareUrl); } }); await settle(); ui.click("Discord"); await settle();
+  it.each(["Facebook", "Discord", "Messenger"])("closes an unused %s window and selects the link when copying fails", async name => {
+    const ui = setup({ copyText: async () => { throw Error(link.shareUrl); } }); await settle(); ui.click(name); await settle();
     expect(ui.close).toHaveBeenCalledOnce(); expect(ui.navigate).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.input);
     expect(ui.input.selectionEnd).toBe(link.shareUrl.length); expect(ui.view.textContent).not.toContain(link.shareUrl);
   });

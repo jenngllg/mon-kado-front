@@ -53,6 +53,7 @@ for (const width of [390, 1440]) {
     expect(await page.evaluate(() => Reflect.get(globalThis, "copiedShareMessages"))).toEqual([
       `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`,
       `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`,
+      `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`,
     ]);
     await page.getByRole("button", { name: "Renouveler le lien", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Renouveler le lien", exact: true }).click();
@@ -61,6 +62,7 @@ for (const width of [390, 1440]) {
     const renewedPopupPromise = page.waitForEvent("popup"); await button.click();
     const renewedPopup = await renewedPopupPromise; await renewedPopup.waitForURL(/^https:/);
     expect(new URL(renewedPopup.url()).searchParams.get("u")).toBe(shareUrl()); await renewedPopup.close();
+    expect(await page.evaluate(() => Reflect.get(globalThis, "copiedShareMessages")).then(messages => messages.at(-1))).toBe(`Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`);
     await page.getByRole("button", { name: "Désactiver le partage", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Désactiver le partage", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);

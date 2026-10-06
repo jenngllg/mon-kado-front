@@ -145,10 +145,11 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     try {
       if (channel === "email") { openMailComposer(destination); return; }
       pendingWindow = openShareWindow();
-      if (channel === "discord" || channel === "messenger") {
+      const channelOptions = ShareChannels.find(item => item.id === channel);
+      if (channelOptions?.copy) {
         await copyText(wishlistShareMessage(wishlistName, currentLink));
         if (disposed) return;
-        status.textContent = `Message copié, colle-le dans ${channel === "discord" ? "Discord" : "Messenger"}.`;
+        status.textContent = `Message copié, colle-le dans ${channelOptions.name}.`;
       }
       if (disposed) return;
       if (pendingWindow) {

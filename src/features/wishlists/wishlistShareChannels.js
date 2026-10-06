@@ -3,7 +3,7 @@
 
 export const ShareChannels = Object.freeze([
   { id: "whatsapp", name: "WhatsApp", icon: "whatsapp.svg", copy: false },
-  { id: "facebook", name: "Facebook", icon: "facebook.png", copy: false },
+  { id: "facebook", name: "Facebook", icon: "facebook.png", copy: true },
   { id: "discord", name: "Discord", icon: "discord.svg", copy: true },
   { id: "messenger", name: "Messenger", icon: "messenger.svg", copy: true },
   { id: "email", name: "mail", icon: "email.svg", copy: false },
