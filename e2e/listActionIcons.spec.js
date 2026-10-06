@@ -33,6 +33,7 @@ for (const width of [390, 1440]) {
       await expect(control).toHaveCSS("height", "44px");
       await expect(control).toHaveCSS("border-top-width", "1px");
       await expect(control).toHaveCSS("border-top-color", borderColor);
+      await control.scrollIntoViewIfNeeded();
       const before = await control.boundingBox();
       await control.hover();
       expect(await control.boundingBox()).toEqual(before);

@@ -93,7 +93,7 @@ function projectWish(wish, id, base, invalid, includeCurrent) {
   if (!hidden && (typeof reserved !== "number" || !Number.isSafeInteger(reserved) || reserved < 0 || reserved > 2147483647 ||
     typeof available !== "number" || available !== Math.max(0, wish.quantity - reserved) ||
     !(current === null || (typeof current === "number" && Number.isInteger(current) && current >= 0 && current <= 100 && current <= reserved)))) throw invalid();
-  if (price !== null && (typeof price !== "number" || !/^\d{1,8}(?:\.\d{1,2})?$/.test(String(price)) || price <= 0 || price > 99999999.99)) throw invalid();
+  if (price !== null && (typeof price !== "number" || !/^\d{1,8}(?:\.\d{1,2})?$/.test(String(price)) || price < 0 || price > 99999999.99)) throw invalid();
   const url = wish.url === null ? null : safeHttpUrl(wish.url);
   const candidate = wish.imageUrl === null ? null : safeHttpUrl(wish.imageUrl);
   const path = `${base.pathname.replace(/\/$/, "")}/api/v1/shared-wishlists/${id}/wishes/${wish.id}/image`;

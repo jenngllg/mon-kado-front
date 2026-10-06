@@ -135,13 +135,7 @@ function editable(response, wishlistId, wishId, base) {
   const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
   if (response.status !== 200 || !data || Array.isArray(data) || !isStrongEntityTag(response.metadata.etag)) throw invalid();
   const quantity = typeof data.quantity === "string" && /^\d+$/.test(data.quantity) ? Number(data.quantity) : data.quantity;
-  const projected = projectWish({ ...data, quantity, entityTag: response.metadata.etag }, wishlistId, base, invalid);
-  const reserved = data.reservedQuantity ?? null;
-  const available = data.availableQuantity ?? null;
-  if (!(reserved === null && available === null) &&
-      (typeof reserved !== "number" || !Number.isSafeInteger(reserved) || reserved < 0 ||
-       typeof available !== "number" || available !== Math.max(0, projected.quantity - reserved))) throw invalid();
-  const wish = Object.freeze({ ...projected, reservedQuantity: reserved, availableQuantity: available });
+  const wish = projectWish({ ...data, quantity, entityTag: response.metadata.etag }, wishlistId, base, invalid);
   if (wish.id.toLowerCase() !== wishId.toLowerCase()) throw invalid();
   // Navigation uses the safe projection; editing must not silently rewrite the original URL.
   const values = Object.freeze({ name: wish.name, note: wish.note ?? "", url: data.url ?? "",
@@ -159,13 +153,17 @@ function projectWish(value, wishlistId, base, invalid) {
   const position = exactPosition(item.position); const price = readPrice(item.price);
   if (item.isFavorite !== undefined && typeof item.isFavorite !== "boolean") throw invalid();
   if (position === null || price === undefined) throw invalid();
+  const reservedQuantity = item.reservedQuantity ?? null, availableQuantity = item.availableQuantity ?? null;
+  if (!(reservedQuantity === null && availableQuantity === null) &&
+      (typeof reservedQuantity !== "number" || !Number.isSafeInteger(reservedQuantity) || reservedQuantity < 0 ||
+       typeof availableQuantity !== "number" || availableQuantity !== Math.max(0, item.quantity - reservedQuantity))) throw invalid();
   const url = item.url === null ? null : safeHttpUrl(item.url);
   const candidateImage = item.imageUrl === null ? null : safeHttpUrl(item.imageUrl);
   const expectedPath = `${base.pathname.replace(/\/$/, "")}/api/v1/wishlists/${wishlistId}/wishes/${item.id}/image`;
   const image = candidateImage && candidateImage.origin === base.origin && !candidateImage.hash && candidateImage.pathname.toLowerCase() === expectedPath.toLowerCase() &&
     candidateImage.searchParams.getAll("token").length === 1 && !!candidateImage.searchParams.get("token") && [...candidateImage.searchParams.keys()].every(key => key === "token") ? candidateImage : null;
   return Object.freeze({ id: item.id, wishlistId: item.wishlistId, name: item.name, note: item.note, price, quantity: item.quantity, isFavorite: item.isFavorite === true, position,
-    entityTag: item.entityTag, url: url?.href ?? null, imageUrl: image?.href ?? null,
+    entityTag: item.entityTag, url: url?.href ?? null, imageUrl: image?.href ?? null, reservedQuantity, availableQuantity,
     productUnavailable: item.url !== null && url === null, imageUnavailable: item.imageUrl !== null && image === null });
 }
 
@@ -184,5 +182,5 @@ function readPrice(value) {
   if (value === null) return null;
   if (!(typeof value === "number" || typeof value === "string") || !/^\d{1,8}(?:\.\d{1,2})?$/.test(String(value))) return undefined;
   const price = Number(value);
-  return Number.isFinite(price) && price > 0 && price <= 99999999.99 ? price : undefined;
+  return Number.isFinite(price) && price >= 0 && price <= 99999999.99 ? price : undefined;
 }

@@ -35,6 +35,33 @@ afterEach(() => {
 });
 
 describe("fragment consumption", () => {
+  it("replaces a display preference without remounting, losing focus or adding history", async () => {
+    // Arrange
+    window.history.replaceState({ marker: "keep" }, "", "/?fromMember=fixture#anchor");
+    const historyLength = window.history.length;
+    /** @type {{context?: import("../src/router/router.js").RouteContext}} */ const observed = {};
+    const button = createButton({ label: "Keep focus" });
+    const render = vi.fn(context => { observed.context = context; return button; });
+    const { router } = createTestRouter([createRoute("home", "/", "Home", render), createRoute("other", "/other", "Other")]);
+    await router.start(); button.focus();
+    const active = observed.context; if (!active) throw new Error("Missing active context");
+    // Act
+    active.replaceSearchParameter("sort", "nameAsc");
+    // Assert
+    expect(window.location.search).toBe("?fromMember=fixture&sort=nameAsc");
+    expect(window.location.hash).toBe("#anchor");
+    expect(active.searchParams.get("sort")).toBe("nameAsc");
+    expect(router.getCurrentRoute()?.url.searchParams.get("sort")).toBe("nameAsc");
+    expect(window.history.state).toEqual({ marker: "keep" });
+    expect(window.history.length).toBe(historyLength); expect(document.activeElement).toBe(button);
+    expect(render).toHaveBeenCalledOnce();
+    active.replaceSearchParameter("sort", null);
+    expect(window.location.search).toBe("?fromMember=fixture");
+    expect(active.searchParams.has("sort")).toBe(false);
+    await router.navigate("/other");
+    expect(() => active.replaceSearchParameter("sort", "priceAsc")).toThrow();
+    expect(window.location.pathname).toBe("/other");
+  });
   it("replaces the URL and sanitizes context and snapshots before publishing", async () => {
     // Arrange
     window.history.replaceState({ marker: "keep" }, "", "/confirm?from=email#token=secret-fixture");

@@ -235,18 +235,20 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.EditWish, path: RoutePaths.EditWish, title: "Modifier un souhait · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishEditView({ ...createWishesService(session, { apiBaseUrl }), wishlistId: context.params.listId, wishId: context.params.wishId,
+          returnSort: context.searchParams.get("sort"),
           preview: createWishImportService(session).preview,
           loadWishlist: createWishlistsService(session).loadOne, signal: context.signal, onDeleted: () => onWishDeleted(context) }),
     },
     {
       name: RouteNames.WishDetails, path: RoutePaths.WishDetails, title: "Détail du souhait · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishDetailsView({ ...createWishesService(session, { apiBaseUrl }), wishlistId: context.params.listId, wishId: context.params.wishId, signal: context.signal }),
+        createWishDetailsView({ ...createWishesService(session, { apiBaseUrl }), wishlistId: context.params.listId, wishId: context.params.wishId, signal: context.signal, returnSort: context.searchParams.get("sort") }),
     },
     {
       name: RouteNames.ListDetails, path: RoutePaths.ListDetails, title: "Détail de la liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
+          initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           setArchived: createWishlistsService(session).setArchived,
           favorite: createWishesService(session, { apiBaseUrl }),
           deletion: createWishesService(session, { apiBaseUrl }),
@@ -292,6 +294,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const state = sharing.enter(context.params.shareLinkId, fragment);
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
         return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal, fromMemberId,
+          initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           load: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load }), context.signal);
       },
@@ -306,6 +309,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
         const resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId);
         return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, fromMemberId,
+          returnSort: context.searchParams.get("sort"),
           ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized, onVerified) => createGiftReservationSection({
             shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized, fromMemberId,
             loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,

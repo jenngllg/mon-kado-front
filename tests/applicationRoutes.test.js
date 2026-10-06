@@ -218,6 +218,7 @@ function createRouteContext(target) {
     searchParams: new URLSearchParams(url.search),
     signal: new AbortController().signal,
     navigate: async () => null,
+    replaceSearchParameter: () => {},
     consumeFragment: () => { const fragment = url.hash; url.hash = ""; return fragment; },
   });
 }

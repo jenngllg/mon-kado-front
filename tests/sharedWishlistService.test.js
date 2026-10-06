@@ -98,10 +98,20 @@ describe("shared wishlist service", () => {
     const empty = setup({ ...data, wishes: [] }); expect((await empty.load(id, empty.options)).wishes).toEqual([]);
     const service = setup({ ...data, wishes: [{ ...wish, id: listId }, wish] }); expect((await service.load(id, service.options)).wishes.map(item => item.id)).toEqual([listId, wishId]);
   });
+  it("keeps a zero price for collection and detail sorting", async () => {
+    // Arrange
+    const collection = setup({ ...data, wishes: [{ ...wish, price: 0 }] });
+    const single = setup({ ...detail, price: 0 });
+    // Act
+    const loaded = await collection.load(id, collection.options);
+    const product = await single.loadOne(id, wishId, single.options);
+    // Assert
+    expect(loaded.wishes[0].price).toBe(0); expect(product.price).toBe(0);
+  });
   it.each([null, [], { ...data, id: "bad" }, { ...data, name: " " }, { ...data, ownerDisplayName: "" }, { ...data, occasion: "unknown" }, { ...data, eventDate: "2025-02-29" }, { ...data, message: 12 }, { ...data, wishes: null }, { ...data, wishes: [wish, wish] }, { ...data, wishes: [null] }])("rejects malformed collection without retaining its body", async body => {
     const service = setup(body); const error = await service.load(id, service.options).catch(value => value); expect(error).toMatchObject({ kind: "invalidResponse", correlationId: "support" }); expect(JSON.stringify(error)).not.toMatch(/PRIVATE_PARTICIPANT|IMAGE_GRANT/);
   });
-  it.each([{ id: "bad" }, { name: " " }, { price: -1 }, { price: 0 }, { price: 1.234 }, { price: 100000000 }, { price: "12.00" }, { quantity: "1" }, { quantity: 0 }, { quantity: 101 }, { quantity: 1.5 }, { url: 12 }, { imageUrl: {} }])("rejects malformed gift %o", changes => {
+  it.each([{ id: "bad" }, { name: " " }, { price: -1 }, { price: 1.234 }, { price: 100000000 }, { price: "12.00" }, { quantity: "1" }, { quantity: 0 }, { quantity: 101 }, { quantity: 1.5 }, { url: 12 }, { imageUrl: {} }])("rejects malformed gift %o", changes => {
     const service = setup({ ...data, wishes: [{ ...wish, ...changes }] }); return expect(service.load(id, service.options)).rejects.toMatchObject({ kind: "invalidResponse" });
   });
   it.each([201, 202, 204])("requires 200, not %s", status => {

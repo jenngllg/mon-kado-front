@@ -18,6 +18,34 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it("sorts the loaded filter results without transport and keeps member origin on wish links", async () => {
+    // Arrange
+    const wishes = [list.wishes[0], { ...list.wishes[0], id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", name: "Album", availableQuantity: 0 }];
+    const load = vi.fn(async () => ({ ...list, wishes })); const onSortChange = vi.fn();
+    const ui = setup({ load, initialSort: "nameAsc", onSortChange, fromMemberId: id }); await settle();
+    const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector(".wish-sort-control select"));
+    // Act
+    select.value = "availableFirst"; select.dispatchEvent(new Event("change"));
+    // Assert
+    expect([...ui.view.querySelectorAll(".wish-card h3")].map(item => item.textContent)).toEqual(["Un souhait", "Album"]);
+    expect(load).toHaveBeenCalledOnce(); expect(onSortChange).toHaveBeenLastCalledWith("availableFirst");
+    const href = ui.view.querySelector(".wish-card a")?.getAttribute("href") ?? "";
+    expect(href).toContain("sort=availableFirst"); expect(href).toContain(id);
+    const filter = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="checkbox"]'));
+    filter.click(); await settle();
+    expect(select.value).toBe("availableFirst"); expect(load).toHaveBeenCalledTimes(2);
+  });
+  it("normalizes hidden availability sorting without inferring from desired quantities", async () => {
+    // Arrange
+    const onSortChange = vi.fn();
+    const ui = setup({ initialSort: "reservedFirst", onSortChange, load: async () => ({ ...list, wishes: list.wishes.map(item => ({ ...item, reservedQuantity: null, availableQuantity: null })) }) });
+    // Act
+    await settle();
+    // Assert
+    const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select"));
+    expect(select.value).toBe("listOrder"); expect(select.querySelector('[value="availableFirst"]')).toBeNull();
+    expect(onSortChange).toHaveBeenLastCalledWith("listOrder");
+  });
   it.each([
     ["2027-01-18", "104 jours restants"],
     ["2026-10-07", "1 jour restant"],
