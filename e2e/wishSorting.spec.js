@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { controlledApi, listId, sharedPath, wishId, secret } from "./controlledApi.js";
+import { controlledApi, frontendOrigin, listId, sharedPath, wishId, secret } from "./controlledApi.js";
 
 const otherId = "019c52dd-56c1-7cc6-8a95-243f3a032e30";
 const lastId = "019c52dd-56c1-7cc6-8a95-243f3a032e31";
@@ -23,7 +23,7 @@ for (const width of [390, 1440]) {
     await context.route(`**/api/v1/wishlists/${listId}/wishes`, async route => {
       if (route.request().method() === "OPTIONS") return route.fallback();
       expect(route.request().method()).toBe("GET"); reads++;
-      await route.fulfill({ json: { wishes }, headers: { "Access-Control-Allow-Origin": "http://localhost:5173", "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"collection-sort"' } });
+      await route.fulfill({ json: { wishes }, headers: { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"collection-sort"' } });
     });
     await page.goto(`/lists/${listId}`);
     const select = page.getByRole("combobox", { name: "Trier par", exact: true });
@@ -43,6 +43,10 @@ for (const width of [390, 1440]) {
     expect(await select.evaluate(node => node === globalThis.document.activeElement)).toBe(true);
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("owner-sort.png"), fullPage: true });
+    await select.selectOption("reservedFirst");
+    await page.reload(); await expect(select).toHaveValue("reservedFirst");
+    await expect(page.locator(".wish-card h3")).toHaveText([names[1], names[0], names[2]]);
+    await select.selectOption("merchantDesc");
     await page.reload(); await expect(select).toHaveValue("merchantDesc");
     await page.getByRole("link", { name: names[0], exact: true }).click();
     await expect(page).toHaveURL(`/lists/${listId}/wishes/${wishId}?sort=merchantDesc`);
@@ -52,6 +56,10 @@ for (const width of [390, 1440]) {
     await expect(page.getByText("Liste archivée", { exact: true })).toBeVisible();
     await expect(select).toHaveValue("merchantDesc");
     await select.selectOption("nameAsc"); await expect(page.locator(".wish-card h3")).toHaveText([names[1], names[0], names[2]]);
+    await page.goto(`/lists/${listId}?sort=unsupported&source=sorting-test`);
+    await expect(select).toHaveValue("listOrder");
+    await expect(page).toHaveURL(`/lists/${listId}?source=sorting-test`);
+    await expect(page.locator(".wish-card h3")).toHaveText(names);
     expect(api.unexpected).toEqual([]);
   });
 
@@ -66,7 +74,7 @@ for (const width of [390, 1440]) {
       reads++;
       const wishes = [api.wish, { ...api.wish, id: otherId, name: "Album", isFavorite: true }]
         .map((wish, index) => ({ ...wish, reservedQuantity: hidden ? null : index, availableQuantity: hidden ? null : 3 - index }));
-      await route.fulfill({ json: { ...api.wishlist, ownerDisplayName: "Camille", wishes }, headers: { "Access-Control-Allow-Origin": "http://localhost:5173", "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag" } });
+      await route.fulfill({ json: { ...api.wishlist, ownerDisplayName: "Camille", wishes }, headers: { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag" } });
     });
     await page.goto(`${sharedPath}#${secret}`);
     const select = page.getByRole("combobox", { name: "Trier par", exact: true });

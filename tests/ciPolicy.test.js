@@ -18,7 +18,7 @@ describe("frontend CI contract", () => {
 
   it("checks a clean backend revision with disposable resources and no worker", () => {
     expect(workflow).toContain("repository: jenngllg/mon-kado");
-    expect(workflow).toContain("ref: ${{ github.head_ref == 'codex/user-feedback-archives-favorites' && '1785887ab5d11f9ca0ff9c4fad016815bf203d5d' || 'develop' }}");
+    expect(workflow).toContain("ref: ${{ github.head_ref == 'codex/MK-981-wish-sorting' && 'a768e9093d2a78229f7465aa7d591bbbefce444c' || 'develop' }}");
     expect(workflow).toContain("git -C .backend rev-parse HEAD");
     expect(workflow).toContain("up --detach caddy");
     expect(workflow).toContain("down --volumes --remove-orphans");

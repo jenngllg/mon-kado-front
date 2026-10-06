@@ -207,7 +207,8 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, fa
     } finally { if (giftRead === operation) { giftRead = null; busy = false; if (!disposed) { results.setAttribute("aria-busy", "false"); updateSorting(); } } }
   }
   function updateSorting() {
-    sorting.update({ allowAvailability: !!collection && list?.wishlist.surpriseMode !== true && hasVisibleAvailability(collection.wishes), disabled: busy || favoritePending > 0 || reordering || terminal || !collection || !!deletionDialog });
+    if (!collection) { sorting.select.disabled = true; return; }
+    sorting.update({ allowAvailability: list?.wishlist.surpriseMode !== true && hasVisibleAvailability(collection.wishes), disabled: busy || favoritePending > 0 || reordering || terminal || !!deletionDialog });
   }
   function renderGifts() {
       if (!collection || disposed) return;

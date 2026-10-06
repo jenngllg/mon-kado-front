@@ -26,6 +26,20 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
 describe("wishlist owner detail", () => {
+  it.each(["availableFirst", "reservedFirst"])("retains URL availability sort %s until the visible collection has loaded", async initialSort => {
+    // Arrange
+    const gate = barrier(); const onSortChange = vi.fn();
+    const ui = setup({ initialSort, onSortChange, loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, surpriseMode: false } }),
+      loadWishes: async () => { await gate.promise; return { ...collection, wishes: [{ ...wish, reservedQuantity: 0, availableQuantity: 2 }] }; } });
+    await settle();
+    const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select"));
+    // Act
+    expect(select.value).toBe(initialSort); expect(select.disabled).toBe(true);
+    gate.resolve(); await settle();
+    // Assert
+    expect(select.value).toBe(initialSort); expect(select.disabled).toBe(false);
+    expect(onSortChange).toHaveBeenLastCalledWith(initialSort);
+  });
   it("sorts loaded wishes locally, preserves return links and restores manual reordering", async () => {
     // Arrange
     const wishes = [wish, { ...wish, id, name: "Album", price: null, availableQuantity: 0 }, { ...wish, id: "019c52dd-56c1-7cc6-8a95-243f3a032e06", name: "Zéro", price: 0, availableQuantity: 1 }].map(item => ({ ...item, reservedQuantity: 0, availableQuantity: item.availableQuantity ?? 2 }));
