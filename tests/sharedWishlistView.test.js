@@ -8,7 +8,7 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 /** @type {import("../src/features/sharing/sharedWishlistService.js").SharedWishlist} */
 const list = { id, name: "Une belle liste", ownerDisplayName: "Camille", occasion: "birthday", eventDate: "2024-02-29", message: "Message\nmultiligne", wishes: [{ id, name: "Un souhait", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: null }] };
 /** @type {HTMLElement[]} */ const views = [];
-afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
+afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); vi.useRealTimers(); });
 /** @param {Partial<Parameters<typeof createSharedWishlistView>[0]>} [options] Injectable options. */
 function setup(options = {}) {
   const load = vi.fn(/** @type {import("../src/features/sharing/sharedWishlistService.js").LoadSharedWishlist} */ (async () => list));
@@ -18,6 +18,36 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it.each([
+    ["2027-01-18", "104 jours restants"],
+    ["2026-10-07", "1 jour restant"],
+    ["2026-10-06", "Aujourd’hui"],
+    ["2026-10-05", null],
+    [null, null],
+  ])("shows calendar-day countdown for event %s immediately after its date", async (eventDate, expected) => {
+    // Arrange
+    vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 9, 6, 23, 59));
+    const ui = setup({ load: async () => ({ ...list, eventDate }) });
+    // Act
+    await settle();
+    // Assert
+    const countdown = ui.view.querySelector(".wishlist-event-countdown");
+    expect(countdown?.textContent ?? null).toBe(expected);
+    if (expected) expect(ui.view.querySelector("time")?.nextElementSibling).toBe(countdown);
+  });
+  it.each([
+    [2028, 1, 28, "2028-03-01"],
+    [2026, 2, 28, "2026-03-30"],
+    [2026, 9, 24, "2026-10-26"],
+  ])("counts calendar days across leap-day and daylight-saving boundaries %s-%s-%s", async (year, month, day, eventDate) => {
+    // Arrange
+    vi.useFakeTimers(); vi.setSystemTime(new Date(year, month, day, 23, 59));
+    const ui = setup({ load: async () => ({ ...list, eventDate }) });
+    // Act
+    await settle();
+    // Assert
+    expect(ui.view.querySelector(".wishlist-event-countdown")?.textContent).toBe("2 jours restants");
+  });
   it("filters through fresh reads without local exclusion, retains own full gifts, and restores the full collection", async () => {
     const ui = setup(); await settle();
     const filter = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="checkbox"]'));

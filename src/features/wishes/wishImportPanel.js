@@ -116,7 +116,7 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   }
   function applyPending() {
     if (!pending || analyzing || disabled || disposed) return;
-    const old = getValues(); apply({ name: pending.name, price: pending.price, url: pending.url, note: old.note, quantity: old.quantity });
+    const old = getValues(); apply({ ...old, name: pending.name, price: pending.price, url: pending.url });
     discardApplied(); appliedBlob = pending.image; appliedUrl = pendingUrl; pendingUrl = null;
     if (appliedUrl) { const image = document.createElement("img"); image.alt = "Image proposée pour le souhait"; image.src = appliedUrl; imageHost.append(image); }
     pending = null; pendingImage.replaceChildren(); suggestions.replaceChildren(); sync();

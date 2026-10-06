@@ -3,7 +3,7 @@ import { ApiError } from "../src/api/apiError.js";
 import { createWishlistsService } from "../src/features/wishlists/wishlistsService.js";
 
 const signal = new AbortController().signal;
-const item = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Anniversaire", occasion: "birthday", eventDate: "2028-02-29", isSuspended: false, surpriseMode: true };
+const item = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Anniversaire", occasion: "birthday", eventDate: "2028-02-29", isSuspended: false, surpriseMode: true, isArchived: false };
 /** @param {unknown} [data] JSON body. @param {number} [status] Status. */
 function setup(data = [item], status = 200) {
   const request = vi.fn(async () => ({ data, status,
@@ -12,6 +12,26 @@ function setup(data = [item], status = 200) {
 }
 
 describe("owned wishlists service", () => {
+  it("requests archived lists with an explicit filter", async () => {
+    const ui = setup([{ ...item, isArchived: true }]);
+    const result = await ui.load({ signal, isArchived: true });
+    expect(ui.request).toHaveBeenCalledExactlyOnceWith("/api/v1/wishlists?isArchived=true", { method: "GET", authentication: "required", signal });
+    expect(result[0].isArchived).toBe(true);
+  });
+  it("patches only archive state with the exact supplied version", async () => {
+    const data = { ...item, message: null, isArchived: true };
+    const request = vi.fn(async () => ({ data, status: 200, metadata: { correlationId: "archive-test", etag: '"next"', location: null, retryAfterSeconds: null } }));
+    const service = createWishlistsService({ request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request) });
+    const result = await service.setArchived(item.id, true, { etag: '"current"', signal });
+    expect(request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${item.id}`, { method: "PATCH", authentication: "required", body: { isArchived: true }, ifMatch: '"current"', signal });
+    expect(result.wishlist.isArchived).toBe(true); expect(result.etag).toBe('"next"');
+  });
+  it("rejects an invalid archive flag or missing ETag before any transport call", async () => {
+    const ui = setup();
+    await expect(ui.setArchived(item.id, /** @type {boolean} */ (/** @type {unknown} */ ("true")), { etag: '"v1"', signal })).rejects.toBeInstanceOf(TypeError);
+    await expect(ui.setArchived(item.id, true, { etag: "", signal })).rejects.toMatchObject({ statusCode: 428 });
+    expect(ui.request).not.toHaveBeenCalled();
+  });
   it("requests only the owned collection with required authentication and the exact signal, without ETag", async () => {
     // Arrange
     const { load, request } = setup();
@@ -33,7 +53,7 @@ describe("owned wishlists service", () => {
     source[0].name = "changed";
     // Assert
     expect(result.map(row => row.name)).toEqual(["Z", "A"]);
-    expect(Object.keys(result[0])).toEqual(["id", "name", "occasion", "eventDate", "isSuspended", "surpriseMode"]);
+    expect(Object.keys(result[0])).toEqual(["id", "name", "occasion", "eventDate", "isSuspended", "surpriseMode", "isArchived"]);
     expect(JSON.stringify(result)).not.toContain("private");
     expect(result[1].eventDate).toBeNull();
   });

@@ -8,7 +8,7 @@ import { ParticipationRightsMessage } from "./participationMessages.js";
 import { createPrivacyNotice } from "../../components/legalLinks.js";
 
 /** @typedef {{shareLinkId: string, loadCurrent: import("./wishlistParticipationService.js").LoadCurrentParticipant,
- * joinGuest: import("./wishlistParticipationService.js").JoinGuest, onUnavailable: () => void, onRecognized?: () => void, onSignIn?: () => void, signal?: AbortSignal}} ParticipationOptions */
+ * joinGuest: import("./wishlistParticipationService.js").JoinGuest, onUnavailable: () => void, onRecognized?: (userInitiated?: boolean) => void, onSignIn?: () => void, signal?: AbortSignal}} ParticipationOptions */
 
 /** An explicit guest join, never a cookie reader or a reservation UI.
  * @param {ParticipationOptions} options Injectable operations.

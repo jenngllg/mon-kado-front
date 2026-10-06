@@ -64,14 +64,13 @@ describe("wishlist editor", () => {
     expect(ui.view.querySelector(".back-link")?.getAttribute("href")).toBe("/lists");
     expect(ui.view.querySelector(".back-link")?.textContent).toBe("Retour à Mes listes");
   });
-  it("saves a mode-only change and resets cancellation to the persisted setting", async () => {
+  it("saves a mode-only change with Enregistrer", async () => {
     const initial = { ...original, wishlist: { ...original.wishlist, surpriseMode: false } };
     const ui = setup({}, initial); await settle();
     const mode = /** @type {HTMLInputElement} */ (ui.view.querySelector('[role="switch"]'));
     expect(mode.checked).toBe(false); expect(ui.submit.disabled).toBe(true);
     mode.click(); expect(ui.submit.disabled).toBe(false);
-    ui.button("Annuler les modifications").click(); expect(mode.checked).toBe(false);
-    mode.click(); ui.send(); await settle();
+    expect(ui.submit.textContent).toBe("Enregistrer"); ui.send(); await settle();
     expect(ui.update.mock.calls[0][1].surpriseMode).toBe(true);
   });
   it("loads fresh, leaves initial focus to the router, uses four labelled fields and prevents unchanged writes", async () => {
@@ -81,10 +80,12 @@ describe("wishlist editor", () => {
     for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.hasAttribute("maxlength")).toBe(false); }
     ui.input(0, " Liste initiale "); ui.input(3, " Message initial\n "); expect(ui.submit.disabled).toBe(true);
   });
-  it("cancels locally, including errors and deferred blur, without another read", async () => {
+  it("does not offer cancellation or deletion in the edit form and preserves its draft", async () => {
     const ui = setup(); await settle(); ui.input(0, ""); ui.fields[0].dispatchEvent(new FocusEvent("blur"));
-    ui.button("Annuler les modifications").click(); expect(ui.fields[0].value).toBe("Liste initiale"); expect(ui.fields[0].hasAttribute("aria-invalid")).toBe(false);
-    expect(ui.submit.disabled).toBe(true); expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.update).not.toHaveBeenCalled();
+    expect(ui.view.textContent).not.toContain("Annuler les modifications"); expect(ui.view.textContent).not.toContain("Suppression de la liste");
+    expect(ui.view.querySelector('a[href$="/delete"]')).toBeNull(); expect(ui.submit.textContent).toBe("Enregistrer");
+    expect(ui.fields[0].value).toBe(""); expect(ui.fields[0].getAttribute("aria-invalid")).toBe("true");
+    expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.update).not.toHaveBeenCalled();
   });
   it("validates modified fields, preserves button activation and focuses the first error", async () => {
     const ui = setup(); await settle(); ui.fields[0].dispatchEvent(new FocusEvent("blur")); expect(ui.fields[0].hasAttribute("aria-invalid")).toBe(false);
@@ -125,14 +126,14 @@ describe("wishlist editor", () => {
     ui.loadOne.mockResolvedValue({ ...original, wishlist: { ...original.wishlist, name: "Nouvelle base", eventDate: "2021-01-01" }, etag: '"v2"' });
     ui.button("Relire la liste").click(); await settle(); ui.send(); expect(ui.update).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(ui.fields[2]);
     ui.button("Utiliser la version enregistrée").click(); expect(ui.fields[0].value).toBe("Nouvelle base"); expect(ui.fields[2].value).toBe("2021-01-01"); expect(ui.submit.disabled).toBe(true);
-    ui.input(0, "Encore"); ui.button("Annuler les modifications").click(); expect(ui.fields[0].value).toBe("Nouvelle base"); expect(ui.loadOne).toHaveBeenCalledTimes(2);
+    ui.input(0, "Encore"); expect(ui.fields[0].value).toBe("Encore"); expect(ui.loadOne).toHaveBeenCalledTimes(2);
   });
   it("keeps drafts blocked over failed re-reads and prevents duplicate reads", async () => {
     const ui = setup(); await settle(); await conflict(ui); const gate = barrier();
     ui.loadOne.mockImplementation(async () => { await gate.promise; throw new ApiError({ kind: "network" }); });
     ui.button("Relire la liste").click(); ui.button("Relire la liste").click(); expect(ui.loadOne).toHaveBeenCalledTimes(2);
     gate.resolve(); await settle(); expect(ui.fields[0].value).toBe(" Mon brouillon "); expect(ui.submit.disabled).toBe(true);
-    ui.button("Annuler les modifications").click(); expect(ui.submit.disabled).toBe(true); ui.input(0, "Nouveau brouillon"); ui.send(); expect(ui.update).toHaveBeenCalledOnce();
+    expect(ui.submit.disabled).toBe(true); ui.input(0, "Nouveau brouillon"); ui.send(); expect(ui.update).toHaveBeenCalledOnce();
   });
   it.each([new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "English" }] }),
     new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })])("requires re-read after precondition or suspension failure", async error => {
@@ -154,7 +155,7 @@ describe("wishlist editor", () => {
         field.focus(); expect(document.activeElement).toBe(field);
       }
     }
-    expect(ui.button("Annuler les modifications").disabled).toBe(true);
+    expect(ui.submit.disabled).toBe(true);
     ui.send(); expect(ui.update).not.toHaveBeenCalled();
   });
   it("keeps suspended fields readable after a failed re-read and restores editing only after a valid read", async () => {

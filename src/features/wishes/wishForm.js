@@ -43,6 +43,10 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un souhait
     });
     return field;
   });
+  const favorite = document.createElement("input"); favorite.type = "checkbox"; favorite.name = "isFavorite";
+  const favoriteLabel = document.createElement("label"); favoriteLabel.className = "wish-favorite-choice";
+  favoriteLabel.append(favorite, document.createTextNode("Coup de cœur")); form.append(favoriteLabel);
+  addComponentEventListener(form, favorite, "change", () => { if (!disposed && !inactive()) onChange(); });
   addComponentEventListener(form, form, "pointerdown", event => {
     const target = event.target instanceof Element ? event.target.closest("button") : null;
     pressedAction = target instanceof HTMLButtonElement ? target : null;
@@ -53,8 +57,8 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un souhait
   });
   addComponentEventListener(form, document, "pointercancel", () => { pressedAction = null; flushBlur(); });
   registerComponentCleanup(form, () => { disposed = true; deferredBlur = null; pressedAction = null; clear(); });
-  return { form, fields, validate, clear, reset, discardDeferredBlur: () => { deferredBlur = null; },
-    getValues: () => /** @type {import("./wishValidation.js").WishValues} */ (Object.fromEntries(fields.map(field => [field.name, field.control.value]))) };
+  return { form, fields, favorite, validate, clear, reset, discardDeferredBlur: () => { deferredBlur = null; },
+    getValues: () => /** @type {import("./wishValidation.js").WishValues} */ ({ ...Object.fromEntries(fields.map(field => [field.name, field.control.value])), isFavorite: favorite.checked }) };
 
   function flushBlur() { const check = deferredBlur; deferredBlur = null; check?.(); }
   /** @param {typeof fields[number]} field Validated field. */
@@ -63,7 +67,7 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un souhait
     field.error = field.control.validity.badInput ? WishServerMessages[field.name] : validateWishField(field.name, field.control.value);
     setFormFieldValidation(field.element, field.error);
   }
-  function clear() { for (const field of fields) { field.control.value = ""; field.dirty = false; field.checked = false; field.error = null; setFormFieldValidation(field.element, null); } }
+  function clear() { favorite.checked = false; for (const field of fields) { field.control.value = ""; field.dirty = false; field.checked = false; field.error = null; setFormFieldValidation(field.element, null); } }
   /** @param {Readonly<import("./wishValidation.js").WishValues>} values Latest server values. */
-  function reset(values) { clear(); for (const field of fields) field.control.value = values[field.name]; }
+  function reset(values) { clear(); favorite.checked = values.isFavorite === true; for (const field of fields) field.control.value = values[field.name]; }
 }

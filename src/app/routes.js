@@ -14,6 +14,7 @@ import { createMemberProfileView } from "../features/members/memberProfileView.j
 import { createMemberNavigation } from "../features/members/memberNavigation.js";
 import { createReservationHistoryService } from "../features/reservations/reservationHistoryService.js";
 import { createReservationHistoryView } from "../features/reservations/reservationHistoryView.js";
+import { registerComponentCleanup } from "../components/componentLifecycle.js";
 import { createRegistrationService } from "../features/registration/registrationService.js";
 import { createRegistrationView } from "../features/registration/registrationView.js";
 import { createEmailConfirmationService } from "../features/emailConfirmation/emailConfirmationService.js";
@@ -38,7 +39,6 @@ import { createEmailChangeView } from "../features/emailChange/emailChangeView.j
 import { createEmailChangeConfirmationView } from "../features/emailChange/emailChangeConfirmationView.js";
 import { createGoogleReturnView } from "../features/google/googleReturnView.js";
 import { createGoogleLinkView } from "../features/google/googleLinkView.js";
-import { getLoginDestination } from "../auth/sessionGuards.js";
 import { createWishlistsService } from "../features/wishlists/wishlistsService.js";
 import { createWishlistShareService } from "../features/wishlists/wishlistShareService.js";
 import { createWishImportService } from "../features/wishes/wishImportService.js";
@@ -114,7 +114,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         createLoginView({ login: createLoginService(session), session, signal: context.signal,
           sharedReturn: sharingSignIn.continuation?.bindLogin(context.signal),
           passwordChanged: consumePasswordChangeNotice(), startGoogle: google?.enabled ? google.start : undefined,
-          returnTo: getLoginDestination(context.searchParams) }),
+          returnTo: RoutePaths.Lists }),
     },
     {
       name: RouteNames.LinkGoogle, path: RoutePaths.LinkGoogle, title: "Associer Google · MonKado",
@@ -202,7 +202,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.Lists, path: RoutePaths.Lists, title: "Mes listes · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishlistsView({ ...createWishlistsService(session), signal: context.signal }),
+        createWishlistsView({ ...createWishlistsService(session), isArchived: context.searchParams.get("isArchived") === "true", signal: context.signal }),
     },
     {
       name: RouteNames.NewList, path: RoutePaths.NewList, title: "Créer une liste · MonKado",
@@ -247,6 +247,8 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.ListDetails, path: RoutePaths.ListDetails, title: "Détail de la liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
+          setArchived: createWishlistsService(session).setArchived,
+          favorite: createWishesService(session, { apiBaseUrl }),
           deletion: createWishesService(session, { apiBaseUrl }),
           onDeleted: () => onWishDeleted(context),
           loadWishes: createWishesService(session, { apiBaseUrl }).load, reorder: createWishesService(session, { apiBaseUrl }).reorder, signal: context.signal,
@@ -257,7 +259,30 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.Reservations, path: RoutePaths.Reservations, title: "Mes réservations · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createReservationHistoryView({ ...createReservationHistoryService(session), signal: context.signal }),
+        createReservationHistoryView({ ...createReservationHistoryService(session, { apiBaseUrl }), signal: context.signal,
+          createCancel: (item, callbacks) => {
+            const access = createSharedWishlistContext();
+            const target = new URL(item.wishHref ?? "", window.location.origin);
+            const [, , shareLinkId, , wishId] = target.pathname.split("/");
+            access.enter(shareLinkId, target.hash);
+            const reservations = createGiftReservationService(session, { context: access, authentication: "required" });
+            const wishes = createSharedWishlistService(session, { apiBaseUrl, context: access, authentication: "required" });
+            const dialog = createReservationCancelDialog({ ...callbacks, signal: context.signal,
+              cancel: (etag, signal) => reservations.cancel(shareLinkId, wishId, { etag, signal }),
+              load: async signal => {
+                const wish = await wishes.loadOne(shareLinkId, wishId, { signal });
+                const lookup = await reservations.loadCurrent(shareLinkId, wishId, { signal });
+                return { name: wish.name, lookup };
+              },
+            });
+            registerComponentCleanup(dialog, () => access.dispose());
+            return dialog;
+          },
+          onOpenWish: href => {
+            const target = new URL(href, window.location.origin);
+            const shareLinkId = target.pathname.split("/")[2];
+            if (sharing.enter(shareLinkId, target.hash) === "ready") void context.navigate(target.pathname);
+          } }),
     },
     {
       name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de souhaits partagée · MonKado",
@@ -300,7 +325,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
                 return { name: fresh.name, lookup };
               },
             }),
-            editForm: (reservation, onBusy, showLookup) => createReservationEditForm({ reservation, available: wish.availableQuantity ?? 0, signal: context.signal, onSaved: () => onSaved("Réservation modifiée"), onUnavailable, onBusy,
+            editForm: wish.quantity === 1 ? undefined : (reservation, onBusy, showLookup) => createReservationEditForm({ reservation, available: wish.availableQuantity ?? 0, signal: context.signal, onSaved: () => onSaved("Réservation modifiée"), onUnavailable, onBusy,
               update: (quantity, etag, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).update(context.params.shareLinkId, wish.id, quantity, { etag, signal }),
               verify: async signal => {
                 const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
@@ -311,7 +336,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
                 return { available: fresh.availableQuantity, lookup };
               },
             }),
-            createForm: (onBusy, showLookup) => createReservationCreateForm({ available: wish.availableQuantity ?? 0, signal: context.signal, onSaved, onUnavailable, onBusy,
+            createForm: (onBusy, showLookup, reserveImmediately) => createReservationCreateForm({ available: wish.availableQuantity ?? 0, singleItem: wish.quantity === 1, submitOnReady: reserveImmediately, signal: context.signal, onSaved, onUnavailable, onBusy,
               create: (quantity, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).create(context.params.shareLinkId, wish.id, quantity, { signal }),
               verify: async signal => {
                 const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });

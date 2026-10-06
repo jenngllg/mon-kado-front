@@ -22,7 +22,7 @@ function setup() {
       else {
         state.writes++; expect(init?.method).toBe("PUT"); const headers = new Headers(init?.headers);
         expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("If-Match")).toBe(`"gift-${state.version}"`); expect(headers.has("X-CSRF-TOKEN")).toBe(false); expect(init?.credentials).toBe("include");
-        const payload = JSON.parse(String(init?.body)); expect(Object.keys(payload).sort()).toEqual(["name", "note", "price", "quantity", "url"]);
+        const payload = JSON.parse(String(init?.body)); expect(Object.keys(payload).sort()).toEqual(["isFavorite", "name", "note", "price", "quantity", "url"]);
         await state.beforeWrite();
         if (state.status !== 200) return Response.json({ statusCode: state.status, errorCode: state.errorCode, title: "ENGLISH_PRIVATE", message: "BACKEND_PRIVATE" }, { status: state.status, headers: { "Retry-After": "13" } });
         state.wish = { ...state.wish, ...payload }; state.version++;

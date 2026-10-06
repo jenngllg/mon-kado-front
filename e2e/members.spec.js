@@ -34,6 +34,12 @@ async function membersApi(context) {
 
 test("anonymous search → profile → shared list → wish and back preserves the submitted search page", async ({ page, context }) => {
   const api = await membersApi(context);
+  const imageUrl = `http://localhost:7000/api/v1/shared-wishlists/${sharedPath.split("/").at(-1)}/wishes/${wishId}/image?token=test-image`;
+  api.wish.imageUrl = imageUrl;
+  await context.route(imageUrl, route => route.fulfill({
+    status: 200, contentType: "image/png",
+    body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jSeoAAAAASUVORK5CYII=", "base64"),
+  }));
   await page.goto("/members");
   await page.getByRole("searchbox", { name: /Nom d’affichage/ }).fill("Camille");
   await page.getByRole("button", { name: "Rechercher", exact: true }).click();
@@ -48,6 +54,14 @@ test("anonymous search → profile → shared list → wish and back preserves t
   await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   await expect(page).toHaveURL(`${sharedPath}/wishes/${wishId}?fromMember=${memberId}`);
   await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
+  const image = page.locator(".shared-wish-layout img");
+  await expect(image).toBeVisible();
+  await expect(image).toHaveAttribute("src", imageUrl);
+  await expect.poll(() => image.evaluate(node => node instanceof globalThis.HTMLImageElement && node.naturalWidth > 0)).toBe(true);
+  await expect(page.locator(".shared-wish-information .wish-card__price")).toHaveText(/25,00\s*€/);
+  await expect(page.locator(".shared-wish-information .wish-card__price")).toBeVisible();
+  await expect(page.locator(".wishlist-details-note")).toHaveText(api.wish.note);
+  await expect(page.getByRole("link", { name: /Voir le produit/ })).toHaveAttribute("href", api.wish.url);
   await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
   await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
   await page.getByRole("link", { name: "Retour à la recherche", exact: true }).click();
@@ -79,7 +93,7 @@ test("profile rereads active lists and deep links never bypass the share token",
   expect(api.unexpected).toEqual([]);
 });
 
-test("signing in from a discovered list retains the return to the member profile", async ({ page, context }) => {
+test("signing in from a discovered list opens the member's own lists", async ({ page, context }) => {
   const api = await membersApi(context);
   await page.goto(profilePath);
   await page.getByRole("link", { name: /Anniversaire — test navigateur/ }).click();
@@ -88,10 +102,8 @@ test("signing in from a discovered list retains the return to the member profile
   await page.getByRole("textbox", { name: "Adresse e-mail" }).fill("test@example.test");
   await page.getByLabel(/^Mot de passe/).fill("Fixture-only-password-930!");
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
-  await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Camille", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/lists$/);
+  await expect(page.getByRole("heading", { name: "Mes listes", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Se déconnecter", exact: true })).toBeVisible();
   expect(api.state.joins).toBe(0);
   expect(api.state.reservations).toBe(0);

@@ -95,11 +95,14 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
       if (!isStrongEntityTag(gift.etag)) throw new ApiError({ kind: "invalidResponse" });
       current = gift; clearDetails(); clearFeedback(); parentName.textContent = list.wishlist.name;
       title.textContent = imageOnly ? subjectTitle : `Supprimer définitivement « ${gift.wish.name} » ?`;
-      for (const [label, value] of [["Nom", gift.values.name], ["Note", gift.values.note || "Sans note"], ["Lien produit", gift.values.url || "Sans lien"],
-        ["Prix", gift.wish.price === null ? "Prix non renseigné" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(gift.wish.price)], ["Quantité souhaitée", gift.values.quantity]]) {
+      /** @type {[string, string | null][]} */
+      const rows = [["Nom", gift.values.name], ["Note", gift.values.note || "Sans note"], ["Lien produit", gift.values.url || "Sans lien"],
+        ["Prix", gift.wish.price === null ? null : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(gift.wish.price)], ["Quantité souhaitée", gift.values.quantity]];
+      for (const [label, value] of rows) {
+        if (value === null) continue;
         details.append(element("dt", label), element("dd", value));
       }
-      blocked = list.wishlist.isSuspended;
+      blocked = list.wishlist.isSuspended || !!list.wishlist.isArchived;
       if (blocked) unavailable("suspended");
       else if (imageOnly && !gift.wish.imageUrl && !gift.wish.imageUnavailable) imageMissing();
       if (explicit && dialog.open) { if (blocked) focusError(); else title.focus(); }

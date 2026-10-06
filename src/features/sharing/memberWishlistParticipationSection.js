@@ -8,7 +8,7 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 /** @typedef {{displayName: string, shareLinkId: string,
  * loadCurrentMember: import("./wishlistParticipationService.js").LoadCurrentParticipant,
  * joinMember: import("./wishlistParticipationService.js").JoinMember,
- * onUnavailable: () => void, onRecognized?: () => void, continueAfterSignIn?: boolean, signal?: AbortSignal}} MemberParticipationOptions */
+ * onUnavailable: () => void, onRecognized?: (userInitiated?: boolean) => void, continueAfterSignIn?: boolean, signal?: AbortSignal}} MemberParticipationOptions */
 
 /** Account participation is explicit; the server owns any guest attachment.
  * @param {MemberParticipationOptions} options Disposable account-bound dependencies.
@@ -21,9 +21,11 @@ export function createMemberWishlistParticipationSection({ displayName, shareLin
   const explanation = node("p", "Ta participation invitée pourra être liée à ton compte.");
   const status = node("p", ""); status.setAttribute("role", "status");
   const feedback = node("div", ""); feedback.hidden = true;
-  const join = createButton({ label: onRecognized ? "Continuer avec mon compte" : continueAfterSignIn ? "Poursuivre avec mon compte" : "Participer avec mon compte", onClick: () => { void run(true); } });
+  const join = createButton({ label: onRecognized ? "Je réserve ce cadeau" : continueAfterSignIn ? "Poursuivre avec mon compte" : "Participer avec mon compte", onClick: () => { void run(true); } });
   const refresh = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void run(false, true); } });
-  section.append(title, identity, explanation, status, feedback, join, refresh);
+  section.append(title);
+  if (!onRecognized) section.append(identity);
+  section.append(explanation, status, feedback, join, refresh);
   const lifetime = new AbortController();
   let disposed = false, busy = false, mustRead = true, joined = false, owner = false;
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); feedback.hidden = true; }
@@ -54,7 +56,7 @@ export function createMemberWishlistParticipationSection({ displayName, shareLin
         joined = true; title.textContent = "Tu participes à cette liste"; identity.textContent = participant.displayName;
         refresh.hidden = true;
         if (mutation) announcement = "created" in participant && participant.created ? "Participation enregistrée" : "Participation reconnue";
-        onRecognized?.();
+        onRecognized?.(mutation);
       }
       if (mutation || explicit) title.focus();
     } catch (error) {

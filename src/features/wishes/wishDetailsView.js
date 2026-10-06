@@ -4,6 +4,7 @@ import { createActionLink, createAlert, createLoadingState, disposeComponent } f
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishImage } from "./wishImage.js";
+import { createWishFavoriteIndicator } from "./wishFavoriteIndicator.js";
 import { createSharedWishQuantities } from "../sharing/sharedWishQuantities.js";
 
 /** Read-only owner detail. Quantities are projected and protected by the API.
@@ -37,6 +38,7 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, signal }) {
       if (disposed || active.signal.aborted) return;
       disposeComponent(content); content.replaceChildren();
       const title = document.createElement("h1"); title.textContent = wish.name;
+      if (wish.isFavorite) title.append(createWishFavoriteIndicator());
       const information = document.createElement("div"); information.className = "flow";
       for (const text of [wish.note, wish.price === null ? null : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(wish.price), `Quantité souhaitée : ${wish.quantity}`]) {
         if (!text) continue;

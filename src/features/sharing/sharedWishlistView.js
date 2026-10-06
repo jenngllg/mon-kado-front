@@ -7,6 +7,7 @@ import { createWishCard } from "../wishes/wishCard.js";
 import { memberOriginQuery, memberProfileHref } from "../members/memberNavigation.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+const MillisecondsPerDay = 86_400_000;
 /** Public collection; only its transport retains access to a bearer context.
  * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null,
  * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
@@ -53,7 +54,18 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
       clear(details); title.textContent = list.name;
       details.append(element("p", `Par ${list.ownerDisplayName}`), element("p", WishlistOccasions[list.occasion]));
       if (list.eventDate === null) details.append(element("p", "Sans date"));
-      else { const date = element("time", DateFormat.format(new Date(list.eventDate + "T00:00:00Z"))); date.dateTime = list.eventDate; details.append(date); }
+      else {
+        const eventTime = new Date(list.eventDate + "T00:00:00Z");
+        const date = element("time", DateFormat.format(eventTime)); date.dateTime = list.eventDate; details.append(date);
+        const today = new Date();
+        // Compare calendar days, not elapsed hours, so daylight-saving changes cannot skew the count.
+        const remaining = Math.round((eventTime.getTime() - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / MillisecondsPerDay);
+        if (remaining >= 0) {
+          const countdown = element("p", remaining === 0 ? "Aujourd’hui" : `${remaining} jour${remaining > 1 ? "s" : ""} restant${remaining > 1 ? "s" : ""}`);
+          countdown.className = "wishlist-event-countdown";
+          details.append(countdown);
+        }
+      }
       if (list.message) { const message = element("p", list.message); message.className = "wishlist-details-note"; details.append(message); }
       gifts.hidden = false; filterControls.hidden = false;
       if (!list.wishes.length) results.append(createEmptyState({ title: availableOnly ? "Aucun souhait ne correspond à ce filtre" : "Cette liste ne contient pas encore de souhait", message: availableOnly ? "Décoche le filtre pour consulter tous les souhaits de cette liste." : "Les souhaits apparaîtront ici." }));

@@ -36,11 +36,10 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   const currentValue = textElement("p", "");
   const useCurrent = createButton({ label: "Utiliser la valeur enregistrée", variant: "secondary", onClick: resetDraft });
   comparison.append(currentValue, useCurrent);
-  const submit = createButton({ label: "Enregistrer les modifications", type: "submit" });
-  const cancel = createButton({ label: "Annuler les modifications", variant: "ghost", onClick: resetDraft });
+  const submit = createButton({ label: "Enregistrer", type: "submit" });
   const actions = textElement("div", "");
   actions.className = "cluster";
-  actions.append(submit, cancel);
+  actions.append(submit);
   form.append(field, comparison, actions);
   view.append(title, feedback, loading, form);
 
@@ -90,7 +89,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   // A blur error must not move the pressed action between pointer-down and click.
   addComponentEventListener(view, form, "pointerdown", event => {
     const target = event.target instanceof Element ? event.target.closest("button") : null;
-    pressedAction = target === submit || target === cancel || target === useCurrent ? target : null;
+    pressedAction = target === submit || target === useCurrent ? target : null;
   });
   addComponentEventListener(view, input, "blur", event => {
     if (!dirty) return;
@@ -159,7 +158,6 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     setButtonLoading(submit, saving);
     input.disabled = busy || confirmingPhoto;
     submit.disabled = busy || confirmingPhoto || needsRead || base === null || (input.value.trim() === base.displayName && !photoSection?.getSelected());
-    cancel.disabled = busy || confirmingPhoto || needsRead || base === null || (!conflict && input.value === base.displayName && !photoSection?.getSelected());
     useCurrent.disabled = busy || confirmingPhoto || needsRead;
     form.setAttribute("aria-busy", String(busy));
     loading.hidden = !busy || saving || photoBusy;
@@ -169,7 +167,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     cancelPhoto.disabled = busy;
     if (!saving) {
       const label = submit.querySelector(".ui-button__label");
-      if (label) label.textContent = conflict ? "Enregistrer ma saisie" : "Enregistrer les modifications";
+      if (label) label.textContent = "Enregistrer";
     }
   }
 

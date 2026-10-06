@@ -4,6 +4,14 @@ import { createSharedSignInContinuation } from "../src/features/sharing/sharedSi
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", secret = "A".repeat(43);
 function setup() { const context = createSharedWishlistContext(); context.enter(id, "#" + secret); return { context, continuation: createSharedSignInContinuation(context), login: new AbortController() }; }
 describe("private shared sign-in intent", () => {
+  it("does not bind a login after its shared access was revoked", () => {
+    const { context, continuation, login } = setup(); continuation.prepare(id); context.enter(id, "#bad");
+    expect(continuation.bindLogin(login.signal)).toBeNull(); expect(continuation.consume("account")).toBeNull();
+  });
+  it("cannot transfer an account-bound ticket to a different share", () => {
+    const { context, continuation, login } = setup(); continuation.prepare(id); continuation.bindLogin(login.signal); continuation.consume("account");
+    expect(continuation.takeResume("another-share")).toBeNull(); expect(continuation.takeResume(id)).toBeNull(); expect(context.observe(id)?.aborted).toBe(false);
+  });
   it("observes without changing or exposing the bearer context", () => { const { context } = setup(); const lease = context.observe(id); expect(lease).toBeInstanceOf(AbortSignal); expect(context.observe("other")).toBeNull(); expect(context.observe(id)).toBe(lease); expect(JSON.stringify(lease)).not.toContain(secret); });
   it("binds and consumes once, then takes the account-bound resume once", () => {
     const { continuation, login } = setup(); expect(continuation.prepare(id)).toBe(true); expect(continuation.consume("account")).toBeNull(); continuation.prepare(id); expect(continuation.bindLogin(login.signal)?.href).toBe(`/shared-wishlists/${id}`); expect(continuation.consume("account")).toBe(`/shared-wishlists/${id}`); expect(continuation.consume("account")).toBeNull(); expect(continuation.takeResume(id)).toBe("account"); expect(continuation.takeResume(id)).toBeNull();

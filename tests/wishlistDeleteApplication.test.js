@@ -56,10 +56,11 @@ describe("wishlist deletion integration", () => {
   it.each(["/lists/not-guid/delete", "/lists/00000000-0000-0000-0000-000000000000/delete", "/lists/%2f/delete", path + "/extra", "//evil.test" + path])("rejects invalid deletion return destination %s", target => {
     expect(getSafeReturnTo(target)).toBe("/lists");
   });
-  it("exposes deletion outside the edit form and cancel returns to the list without DELETE", async () => {
+  it("keeps deletion out of the edit page and confirmation cancel returns to the list without DELETE", async () => {
     const app = setup(); await app.start(); await loaded(app); await app.router.navigate(`/lists/${item.id}/edit`);
-    await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wishlist-edit-view__deletion")?.getAttribute("hidden") === null);
-    const link = app.shell.outlet.querySelector(`a[href="${path}"]`); expect(link?.textContent).toBe("Supprimer cette liste"); expect(link?.closest("form")).toBeNull();
+    await until(app.shell.outlet, () => app.shell.outlet.querySelector("form")?.hidden === false);
+    expect(app.shell.outlet.querySelector(".wishlist-edit-view__deletion")).toBeNull();
+    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)).toBeNull();
     await app.router.navigate(path); await loaded(app);
     const cancel = [...app.shell.outlet.querySelectorAll("a")].find(link => link.textContent === "Annuler"); cancel?.click();
     await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wishlist-details-info h1")?.textContent === item.name);

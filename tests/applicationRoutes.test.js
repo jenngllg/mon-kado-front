@@ -132,11 +132,11 @@ describe("application routes", () => {
   it("renders the member reservation history instead of a placeholder", async () => {
     const view = await getRoute(RouteNames.Reservations).render(createRouteContext("/reservations"));
     expect(view.querySelector("h1")?.textContent).toBe("Mes réservations");
-    expect(view.textContent).toContain("Pour modifier une réservation, rouvre le lien de partage reçu.");
+    expect(view.textContent).not.toContain("Pour modifier une réservation, rouvre le lien de partage reçu.");
     expect(view.textContent).not.toContain("Chaque entrée présente");
     expect(view.textContent).not.toContain("Cette fonctionnalité sera disponible dans un prochain lot.");
-    expect(view.querySelector("form select")?.children).toHaveLength(4);
-    expect(view.textContent).toContain("Appliquer le filtre");
+    expect(view.querySelector("select")?.children).toHaveLength(4);
+    expect(view.textContent).not.toContain("Appliquer le filtre");
   });
 
   it("renders the registration form without making an API call", async () => {

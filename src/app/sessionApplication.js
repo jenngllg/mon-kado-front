@@ -1,5 +1,5 @@
 import { createSessionManager } from "../auth/sessionManager.js";
-import { createLoginTarget, getLoginDestination, isProtectedRoute } from "../auth/sessionGuards.js";
+import { createLoginTarget, isProtectedRoute } from "../auth/sessionGuards.js";
 import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, showNotification } from "../components/index.js";
 import { createApplicationShell } from "./applicationShell.js";
 import { createApplicationRoutes } from "./routes.js";
@@ -168,9 +168,9 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       // Clear credentials entered in this tab before the protected guard yields.
       disposeComponent(shell.outlet);
       shell.outlet.replaceChildren(createLoadingState({ label: "Vérification de la session…" }));
-      const destination = current.name === RouteNames.Login
-        ? (state.user && sharedSignIn.consume(state.user.id)) || getLoginDestination(current.url.searchParams) : RoutePaths.Lists;
-      void router.replace(destination).then(result => { if (result?.url.pathname !== destination) sharedSignIn.discardResume(); });
+      sharedSignIn.cancel();
+      sharedSignIn.discardResume();
+      void router.replace(RoutePaths.Lists);
     }
     const showingNewRecoveryCodes = state.endReason === "authenticatorChanged" && current?.name === RouteNames.Authenticator &&
       window.location.pathname === RoutePaths.Authenticator;
@@ -234,7 +234,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     if (!googleVerified || disposed || router.getCurrentRoute()?.name !== googleFlowRoute ||
       window.location.pathname.replace(/\/+$/, "") !== (googleFlowRoute === RouteNames.LinkGoogle ? RoutePaths.LinkGoogle : RoutePaths.GoogleReturn) ||
       googleDestination === null || session.getSnapshot().status !== "authenticated") return;
-    const destination = googleDestination;
+    const destination = RoutePaths.Lists;
     const linked = googleFlowRoute === RouteNames.LinkGoogle;
     googleDestination = null;
     googleVerified = false;

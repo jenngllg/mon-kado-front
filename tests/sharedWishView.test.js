@@ -80,10 +80,11 @@ describe("shared gift presentation", () => {
     const product = ui.view.querySelector('a[target="_blank"]'); expect(product?.getAttribute("rel")).toBe("noopener noreferrer"); expect(product?.getAttribute("aria-label")).toContain(wish.name);
     expect(ui.view.querySelector(`a[href="/shared-wishlists/${shareLinkId}"]`)?.textContent).toBe("Retour à la liste"); expect(ui.view.querySelector("img")?.referrerPolicy).toBe("no-referrer");
     expect([...ui.view.querySelectorAll("a")].every(link => !link.hash && !link.search)).toBe(true);
+    expect(ui.view.querySelector('a[href="/"]')).toBeNull();
   });
   it.each([false, true])("renders absent note and unavailable media state %s", async unavailable => {
     const ui = setup({ loadOne: async () => ({ ...wish, note: null, price: null, imageUrl: null, url: null, imageUnavailable: unavailable, productUnavailable: unavailable }) }); await settle();
-    expect(ui.view.querySelector(".wishlist-details-note")).toBeNull(); expect(ui.view.textContent).toContain("Prix non renseigné"); expect(ui.view.textContent).toContain(unavailable ? "Image indisponible" : "Sans image"); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
+    expect(ui.view.querySelector(".wishlist-details-note")).toBeNull(); expect(ui.view.querySelector(".wish-card__price")).toBeNull(); expect(ui.view.textContent).toContain(unavailable ? "Image indisponible" : "Sans image"); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
   });
   it("removes an expired image source without losing the detail or retrying automatically", async () => {
     const ui = setup(); await settle(); const img = ui.view.querySelector("img"); img?.dispatchEvent(new Event("error")); await settle(); expect(img?.getAttribute("src")).toBeNull(); expect(ui.view.textContent).toContain("Image indisponible"); expect(ui.view.textContent).toContain(wish.name); expect(ui.loadOne).toHaveBeenCalledOnce();

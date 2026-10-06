@@ -12,6 +12,18 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  WISHLIST_ARCHIVED: {
+    title: "Liste archivée",
+    message: "Désarchive la liste pour la modifier.",
+  },
+  WISHLIST_SUSPENDED: {
+    title: "Liste suspendue",
+    message: "Consultation uniquement.",
+  },
+  WISHLIST_VERSION_CONFLICT: {
+    title: "Liste modifiée ailleurs",
+    message: "Reviens à la liste pour consulter son état actuel avant de recommencer.",
+  },
   CLIENT_TWO_FACTOR_MANAGEMENT_REQUIRED: {
     title: "Vérification nécessaire",
     message: "Recommence la vérification de ton authentificateur avant cette opération.",

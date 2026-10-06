@@ -15,7 +15,8 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await page.screenshot({ path: testInfo.outputPath("shared-list.png"), fullPage: true });
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Ma réservation", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Réservation", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ma réservation", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Actualiser/ })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath("shared-wish.png"), fullPage: true });
     api.state.authenticated = true;

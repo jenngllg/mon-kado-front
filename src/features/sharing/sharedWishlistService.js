@@ -6,7 +6,7 @@ import { safeHttpUrl } from "../wishes/wishValidation.js";
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["SharedWishResponse"]} SharedWishResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["SharedWishDetailResponse"]} SharedWishDetailResponse */
 /** @typedef {Readonly<{id: string, name: string, price: number | null, quantity: number, url: string | null,
- * imageUrl: string | null, productUnavailable: boolean, imageUnavailable: boolean,
+ * imageUrl: string | null, isFavorite?: boolean, productUnavailable: boolean, imageUnavailable: boolean,
  * reservedQuantity: number | null, availableQuantity: number | null, currentParticipantReservedQuantity: number | null}>} SharedWish */
 /** @typedef {Readonly<{id: string, name: string, ownerDisplayName: string, occasion: import("../wishlists/wishlistValidation.js").WishlistOccasion,
  * eventDate: string | null, message: string | null, wishes: ReadonlyArray<SharedWish>}>} SharedWishlist */
@@ -87,6 +87,7 @@ function projectWish(wish, id, base, invalid, includeCurrent) {
   if (!wish || !isWishlistId(wish.id) || !name(wish.name) || !text(wish.url) || !text(wish.imageUrl) ||
     typeof wish.quantity !== "number" || !Number.isInteger(wish.quantity) || wish.quantity < 1 || wish.quantity > 100) throw invalid();
   const price = wish.price;
+  if (wish.isFavorite !== undefined && typeof wish.isFavorite !== "boolean") throw invalid();
   const reserved = wish.reservedQuantity, available = wish.availableQuantity, current = wish.currentParticipantReservedQuantity;
   const hidden = reserved === null && available === null && current === null;
   if (!hidden && (typeof reserved !== "number" || !Number.isSafeInteger(reserved) || reserved < 0 || reserved > 2147483647 ||
@@ -98,7 +99,7 @@ function projectWish(wish, id, base, invalid, includeCurrent) {
   const path = `${base.pathname.replace(/\/$/, "")}/api/v1/shared-wishlists/${id}/wishes/${wish.id}/image`;
   const image = candidate && candidate.origin === base.origin && candidate.pathname.toLowerCase() === path.toLowerCase() && !candidate.hash &&
     candidate.searchParams.getAll("token").length === 1 && !!candidate.searchParams.get("token") && [...candidate.searchParams.keys()].every(key => key === "token") ? candidate : null;
-  return Object.freeze({ id: wish.id, name: wish.name, price, quantity: wish.quantity, url: url?.href ?? null, imageUrl: image?.href ?? null,
+  return Object.freeze({ id: wish.id, name: wish.name, price, quantity: wish.quantity, isFavorite: wish.isFavorite === true, url: url?.href ?? null, imageUrl: image?.href ?? null,
     reservedQuantity: reserved, availableQuantity: available, currentParticipantReservedQuantity: includeCurrent ? current : null,
     productUnavailable: wish.url !== null && !url, imageUnavailable: wish.imageUrl !== null && !image });
 }

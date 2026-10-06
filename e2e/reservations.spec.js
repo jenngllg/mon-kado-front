@@ -1,6 +1,22 @@
 import { test, expect } from "@playwright/test";
 import { controlledApi, sharedPath, secret } from "./controlledApi.js";
 
+test("single-item wishes reserve in one click without quantity selection", async ({ page, context }) => {
+  const api = await controlledApi(context);
+  api.state.authenticated = true; api.wish.quantity = 1;
+  await page.goto(`${sharedPath}#${secret}`);
+  await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
+  const reserve = page.getByRole("button", { name: "Je réserve ce cadeau", exact: true });
+  await expect(reserve).toBeVisible();
+  await expect(page.getByRole("spinbutton")).toHaveCount(0);
+  expect(api.state.reservations).toBe(0);
+  await reserve.click();
+  await expect(page.getByRole("button", { name: "Annuler ma réservation", exact: true })).toBeVisible();
+  await expect(page.getByRole("spinbutton")).toHaveCount(0);
+  expect(api.state.reservations).toBe(1); expect(api.state.reservedQuantity).toBe(1);
+  expect(api.unexpected).toEqual([]);
+});
+
 test("reserve, preserve a draft after conflict, then explicitly cancel in the native dialog", async ({ page, context }) => {
   const api = await controlledApi(context);
   api.state.authenticated = true;

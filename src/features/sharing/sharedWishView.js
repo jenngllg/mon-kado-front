@@ -20,7 +20,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
   const title = element("h1", "Souhait partagé"); title.tabIndex = -1;
   const results = element("div", ""); results.className = "shared-wish-results flow";
   const notice = element("p", ""); notice.setAttribute("role", "status"); notice.hidden = true;
-  view.append(back, title, notice, results, createActionLink({ label: "Accueil", href: "/" }));
+  view.append(back, title, notice, results);
   let disposed = false, busy = false, terminal = false, mutationBusy = false;
   const lifetime = new AbortController();
   registerComponentCleanup(view, () => {
@@ -55,15 +55,18 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
       const wish = await loadOne(shareLinkId, wishId, { signal: lifetime.signal });
       if (disposed || terminal || lifetime.signal.aborted) return;
       clear(); title.textContent = wish.name;
+      if (wish.isFavorite) title.append(createWishFavoriteIndicator());
       const layout = element("div", ""); layout.className = "shared-wish-layout";
       const information = element("div", ""); information.className = "shared-wish-information flow";
       if (wish.note !== null && wish.note !== "") {
         const note = element("p", wish.note); note.className = "wishlist-details-note"; information.append(note);
       }
-      const price = element("p", wish.price === null ? "Prix non renseigné" : PriceFormat.format(wish.price)); price.className = "wish-card__price";
+      if (wish.price !== null) {
+        const price = element("p", PriceFormat.format(wish.price)); price.className = "wish-card__price"; information.append(price);
+      }
       const desired = element("p", `Quantité souhaitée : ${wish.quantity}`);
       let quantities = createSharedWishQuantities(wish);
-      information.append(price, desired, quantities);
+      information.append(desired, quantities);
       if (wish.url) {
         const product = createActionLink({ label: "Voir le produit", href: wish.url }); product.target = "_blank"; product.rel = "noopener noreferrer";
         product.setAttribute("aria-label", `Voir le produit « ${wish.name} » (nouvel onglet)`); information.append(product);
@@ -117,3 +120,4 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
 
 /** @template {keyof HTMLElementTagNameMap} T @param {T} tag Element tag. @param {string} text Safe content. @returns {HTMLElementTagNameMap[T]} Element. */
 function element(tag, text) { const node = document.createElement(tag); node.textContent = text; return node; }
+import { createWishFavoriteIndicator } from "../wishes/wishFavoriteIndicator.js";
