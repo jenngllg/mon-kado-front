@@ -29,7 +29,7 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     const button = createButton({ label: `Partager par ${channel.name}`, variant: "secondary", onClick: () => { void shareOn(/** @type {import("./wishlistShareChannels.js").ShareChannel} */ (channel.id)); } });
     button.classList.add("icon-action"); button.title = button.getAttribute("aria-label") ?? `Partager par ${channel.name}`;
     button.setAttribute("aria-label", `Partager par ${channel.name}`);
-    const icon = document.createElement("img"); icon.src = `/images/share/${channel.icon}`; icon.alt = ""; icon.width = 24; icon.height = 24;
+    const icon = document.createElement("img"); icon.src = channel.icon; icon.alt = ""; icon.width = 24; icon.height = 24;
     button.replaceChildren(icon); channels.append(button);
     return button;
   });

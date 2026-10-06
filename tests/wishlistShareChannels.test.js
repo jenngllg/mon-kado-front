@@ -74,7 +74,8 @@ describe("owner channel actions", () => {
     gate.resolve(); await settle(); expect(channels.hidden).toBe(false); expect(channels.previousElementSibling?.contains(ui.input)).toBe(true);
     expect([...channels.querySelectorAll("button")].map(button => button.getAttribute("aria-label"))).toEqual(["Partager par WhatsApp", "Partager par Facebook", "Partager par Messenger", "Partager par mail"]);
     expect(ui.view.querySelector('[aria-label="Partager par Discord"]')).toBeNull();
-    expect([...channels.querySelectorAll("img")].every(image => image.getAttribute("src")?.startsWith("/images/share/") && image.alt === "")).toBe(true);
+    expect([...channels.querySelectorAll("img")].map(image => image.getAttribute("src"))).toEqual(ShareChannels.map(channel => channel.icon));
+    expect([...channels.querySelectorAll("img")].every(image => image.alt === "")).toBe(true);
     expect(ui.create).not.toHaveBeenCalled(); expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.openShareWindow).not.toHaveBeenCalled();
   });
   it.each(["WhatsApp", "Facebook"])("opens %s only on explicit click without a link mutation", async name => {

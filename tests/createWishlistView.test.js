@@ -55,7 +55,7 @@ describe("create wishlist form", () => {
     expect(preview?.querySelector("h2")?.textContent).toBe("Noël en famille");
     expect(preview?.textContent).toContain("25 décembre 2028");
     expect(preview?.textContent).toContain("Nos idées");
-    expect(preview?.querySelector("img")?.getAttribute("src")).toBe("/images/design/christmas.webp");
+    expect(preview?.querySelector("img")?.getAttribute("src")).toBe("/src/assets/design/christmas.webp");
     expect(ui.create).not.toHaveBeenCalled();
     disposeComponent(ui.view);
     expect(preview?.textContent).toBe("");
