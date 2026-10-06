@@ -9361,6 +9361,518 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/shared-wishlists/{shareLinkId}/preview": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Returns crawler-readable HTML containing only public preview metadata. */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    /** @description The active share-link identifier. */
+                    readonly shareLinkId: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "text/html": string;
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        /** Returns crawler-readable HTML containing only public preview metadata. */
+        readonly head: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    /** @description The active share-link identifier. */
+                    readonly shareLinkId: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "text/html": string;
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/shared-wishlists/{shareLinkId}/preview/image": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Returns a bounded collage of current public-preview images. */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    /** @description The active share-link identifier. */
+                    readonly shareLinkId: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "image/jpeg": string;
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        /** Returns a bounded collage of current public-preview images. */
+        readonly head: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    /** @description The active share-link identifier. */
+                    readonly shareLinkId: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "image/jpeg": string;
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/shared-wishlists/{shareLinkId}/reports": {
         readonly parameters: {
             readonly query?: never;
