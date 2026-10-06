@@ -19,6 +19,35 @@ function setup(options = {}) {
   return { view, create, verify, onSaved, onUnavailable, onBusy, form, input, submit, reread };
 }
 describe("reservation creation", () => {
+  it("reserves one item with one action and no quantity field", async () => {
+    const ui = setup({ available: 1, singleItem: true }); await settle();
+    expect(ui.view.querySelector("input")).toBeNull();
+    expect(ui.create).not.toHaveBeenCalled();
+    expect(ui.view.querySelector('button[type="submit"]')?.textContent).toBe("Je réserve ce cadeau");
+    ui.submit(); ui.submit(); await settle();
+    expect(ui.create).toHaveBeenCalledExactlyOnceWith("1", expect.any(AbortSignal));
+    expect(ui.onSaved).toHaveBeenCalledOnce();
+  });
+  it("completes an explicit single-item reservation intent after identification", async () => {
+    const ui = setup({ available: 1, singleItem: true, submitOnReady: true }); await settle();
+    expect(ui.create).toHaveBeenCalledExactlyOnceWith("1", expect.any(AbortSignal));
+    expect(ui.onSaved).toHaveBeenCalledOnce();
+  });
+  it.each([{ available: 0, dispose: false }, { available: 1, dispose: true }])("never submits blocked or disposed single-item intents: %o", async ({ available, dispose }) => {
+    const ui = setup({ available, singleItem: true, submitOnReady: true });
+    if (dispose) disposeComponent(ui.view);
+    await settle(); expect(ui.create).not.toHaveBeenCalled();
+  });
+  it("does not replay an uncertain single-item reservation", async () => {
+    const create = vi.fn(async () => { throw new ApiError({ kind: "network" }); });
+    const ui = setup({ available: 1, singleItem: true, submitOnReady: true, create }); await settle();
+    ui.submit(); await settle(); expect(create).toHaveBeenCalledOnce();
+    expect(ui.view.textContent).toContain("ne peut pas être confirmée");
+  });
+  it("keeps multiple-item selection explicit after identification", async () => {
+    const ui = setup({ submitOnReady: true }); await settle();
+    expect(ui.input).not.toBeNull(); expect(ui.create).not.toHaveBeenCalled();
+  });
   it("defers blur validation until the pressed submit activates", async () => {
     const ui = setup(); const submit = /** @type {HTMLButtonElement} */ (ui.view.querySelector('button[type="submit"]'));
     ui.input.value = "9"; ui.input.dispatchEvent(new Event("input", { bubbles: true }));

@@ -19,8 +19,8 @@ export const frontendOrigin = `http://localhost:${Number(process.env.MONKADO_E2E
  */
 export async function controlledApi(context) {
   const state = { authenticated: false, isGoogleLinked: false, joins: 0, reservations: 0, reads: 0, revoked: false, listExists: true, listWrites: 0, listVersion: 1, reservedQuantity: 0, reservationVersion: 1, wishExists: true, wishWrites: 0, wishVersion: 1 };
-  const wishlist = { id: listId, name: "Anniversaire — test navigateur", occasion: "birthday", eventDate: "2027-12-20", message: "Liste de test", isSuspended: false };
-  const wish = { id: wishId, wishlistId: listId, name: "Une théière", note: "Une note\nsur deux lignes.", url: "https://example.test/produit", price: 25, quantity: 3, position: 1, entityTag: '"wish-1"', imageUrl: null, reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null };
+  const wishlist = { id: listId, name: "Anniversaire — test navigateur", occasion: "birthday", eventDate: "2027-12-20", message: "Liste de test", isSuspended: false, isArchived: false };
+  const wish = { id: wishId, wishlistId: listId, name: "Une théière", note: "Une note\nsur deux lignes.", url: "https://example.test/produit", price: 25, quantity: 3, isFavorite: false, position: 1, entityTag: '"wish-1"', imageUrl: /** @type {string | null} */ (null), reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null };
   /** @type {string[]} */
   const unexpected = [];
   await context.route("**/*", async route => {
@@ -66,11 +66,12 @@ export async function controlledApi(context) {
     if (path === `/api/v1/wishlists/${listId}`) {
       if (!state.listExists) return error(404, "WISHLIST_NOT_FOUND");
       if (method === "GET") return send(200, wishlist, `"list-${state.listVersion}"`);
-      if (["PUT", "DELETE"].includes(method)) {
+      if (["PUT", "DELETE", "PATCH"].includes(method)) {
         state.listWrites++;
         expect(request.headers().authorization).toBe("Bearer access-test-only");
         if (request.headers()["if-match"] !== `"list-${state.listVersion}"`) return error(412, "WISHLIST_VERSION_CONFLICT");
         if (method === "DELETE") { state.listExists = false; return send(204, null); }
+        if (method === "PATCH") expect(Object.keys(request.postDataJSON())).toEqual(["isArchived"]);
         Object.assign(wishlist, request.postDataJSON());
         state.listVersion++;
         return send(200, wishlist, `"list-${state.listVersion}"`);
@@ -79,7 +80,7 @@ export async function controlledApi(context) {
     if (path === `/api/v1/wishlists/${listId}/wishes`) {
       if (method === "GET") return send(200, { wishes: state.wishExists ? [wish] : [] }, '"collection-1"');
       if (method === "POST") {
-        expect(Object.keys(request.postDataJSON()).sort()).toEqual(["name", "note", "price", "quantity", "url"]);
+        expect(Object.keys(request.postDataJSON()).sort()).toEqual(["isFavorite", "name", "note", "price", "quantity", "url"]);
         expect(request.headers()["if-match"]).toBeUndefined();
         Object.assign(wish, request.postDataJSON());
         state.wishExists = true; state.wishWrites++;
@@ -89,10 +90,11 @@ export async function controlledApi(context) {
     if (path === `/api/v1/wishlists/${listId}/wishes/${wishId}`) {
       if (!state.wishExists) return error(404, "WISH_NOT_FOUND");
       if (method === "GET") return send(200, wish, `"wish-${state.wishVersion}"`);
-      if (["PUT", "DELETE"].includes(method)) {
+      if (["PUT", "DELETE", "PATCH"].includes(method)) {
         state.wishWrites++;
         expect(request.headers()["if-match"]).toBe(`"wish-${state.wishVersion}"`);
         if (method === "DELETE") { state.wishExists = false; return send(204, null); }
+        if (method === "PATCH") expect(Object.keys(request.postDataJSON())).toEqual(["isFavorite"]);
         Object.assign(wish, request.postDataJSON());
         state.wishVersion++; wish.entityTag = `"wish-${state.wishVersion}"`;
         return send(200, wish, wish.entityTag);

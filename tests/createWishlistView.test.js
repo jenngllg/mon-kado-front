@@ -28,6 +28,26 @@ function setup(options = {}) {
 async function settle() { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); }
 
 describe("create wishlist form", () => {
+  it("shows the surprise explanation on information hover, focus or click without changing the switch", () => {
+    const ui = setup();
+    const button = /** @type {HTMLButtonElement} */ (ui.form.querySelector('[aria-label="À propos du mode surprise"]'));
+    const hint = /** @type {HTMLElement} */ (ui.form.querySelector('[role="tooltip"]'));
+    const information = /** @type {HTMLElement} */ (button.parentElement);
+    const mode = /** @type {HTMLInputElement} */ (ui.form.querySelector('[role="switch"]'));
+    expect(hint.hidden).toBe(true);
+    expect(button.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(hint.textContent).toBe("Masquer les réservations sur mes souhaits.");
+    information.dispatchEvent(new Event("pointerenter")); expect(hint.hidden).toBe(false);
+    information.dispatchEvent(new Event("pointerleave")); expect(hint.hidden).toBe(true);
+    button.focus(); expect(hint.hidden).toBe(false);
+    information.dispatchEvent(new Event("pointerleave")); expect(hint.hidden).toBe(false);
+    button.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" })); expect(hint.hidden).toBe(false);
+    button.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); expect(hint.hidden).toBe(true);
+    button.click(); expect(hint.hidden).toBe(false);
+    button.blur(); expect(hint.hidden).toBe(true);
+    expect(mode.checked).toBe(true);
+    expect(ui.create).not.toHaveBeenCalled();
+  });
   it("updates the visual preview from actual form values without creating a list", () => {
     const ui = setup();
     ui.input(0, "Noël en famille"); ui.input(1, "christmas"); ui.input(2, "2028-12-25"); ui.input(3, "Nos idées");

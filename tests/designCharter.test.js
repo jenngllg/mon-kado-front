@@ -1,7 +1,17 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("interface charter", () => {
+  it("keeps removed modification-action labels out of every application screen", () => {
+    // Arrange
+    const root = new URL("../src/", import.meta.url);
+    const sources = readdirSync(root, { recursive: true }).filter(path => typeof path === "string" && path.endsWith(".js"));
+    // Act / Assert
+    for (const path of sources) {
+      const source = readFileSync(new URL(String(path).replaceAll("\\", "/"), root), "utf8");
+      expect(source, String(path)).not.toMatch(/Annuler les modifications|Enregistrer les modifications/);
+    }
+  });
   it.each(["legal-notice", "privacy-policy", "terms-of-use"])("keeps %s themed, navigable without JavaScript and publication-blocked", page => {
     // Arrange
     const html = readFileSync(new URL(`../${page}.html`, import.meta.url), "utf8");

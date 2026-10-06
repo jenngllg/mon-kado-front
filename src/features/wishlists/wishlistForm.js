@@ -56,8 +56,26 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
   const surpriseLabel = document.createElement("label"); surpriseLabel.className = "wishlist-surprise-switch";
   const surpriseText = document.createElement("span"); surpriseText.textContent = "Mode surprise";
   surpriseLabel.append(surpriseMode, surpriseText);
-  const surpriseHint = document.createElement("p"); surpriseHint.textContent = "Masquer les réservations sur mes souhaits.";
-  form.append(surpriseLabel, surpriseHint);
+  const surpriseRow = document.createElement("div"); surpriseRow.className = "wishlist-surprise-control";
+  const information = document.createElement("span"); information.className = "wishlist-surprise-information";
+  const informationButton = document.createElement("button"); informationButton.type = "button";
+  informationButton.className = "wishlist-surprise-information__button";
+  informationButton.setAttribute("aria-label", "À propos du mode surprise");
+  const informationIcon = document.createElement("span"); informationIcon.textContent = "i";
+  informationIcon.setAttribute("aria-hidden", "true"); informationButton.append(informationIcon);
+  const surpriseHint = document.createElement("span"); surpriseHint.textContent = "Masquer les réservations sur mes souhaits.";
+  surpriseHint.className = "wishlist-surprise-information__tooltip";
+  surpriseHint.id = `${fields[0].control.id}-surprise-hint`;
+  surpriseHint.setAttribute("role", "tooltip"); surpriseHint.hidden = true;
+  informationButton.setAttribute("aria-describedby", surpriseHint.id);
+  information.append(informationButton, surpriseHint); surpriseRow.append(surpriseLabel, information); form.append(surpriseRow);
+  const showHint = () => { surpriseHint.hidden = false; };
+  addComponentEventListener(form, information, "pointerenter", showHint);
+  addComponentEventListener(form, information, "pointerleave", () => { if (document.activeElement !== informationButton) surpriseHint.hidden = true; });
+  addComponentEventListener(form, informationButton, "focus", showHint);
+  addComponentEventListener(form, informationButton, "blur", () => { surpriseHint.hidden = true; });
+  addComponentEventListener(form, informationButton, "click", showHint);
+  addComponentEventListener(form, informationButton, "keydown", event => { if (/** @type {KeyboardEvent} */ (event).key === "Escape") surpriseHint.hidden = true; });
   addComponentEventListener(form, surpriseMode, "change", () => { if (!disposed && !inactive()) onChange(); });
   addComponentEventListener(form, form, "pointerdown", event => {
     const target = event.target instanceof Element ? event.target.closest("button") : null;

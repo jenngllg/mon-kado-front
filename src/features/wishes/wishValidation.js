@@ -2,7 +2,7 @@ import { ApiError } from "../../api/apiError.js";
 import { trimWishlistText } from "../wishlists/wishlistValidation.js";
 
 /** @typedef {"name" | "note" | "url" | "price" | "quantity"} WishField */
-/** @typedef {Record<WishField, string>} WishValues */
+/** @typedef {Record<WishField, string> & {isFavorite?: boolean}} WishValues */
 /** @type {Readonly<Record<WishField, string>>} */
 export const WishServerMessages = Object.freeze({
   name: "Vérifie le nom du souhait : 100 caractères maximum, sans caractères de contrôle ni retours à la ligne.",
@@ -54,6 +54,7 @@ export function createWishPayload(values) {
   if (errors.length) throw new ApiError({ kind: "http", statusCode: 400, validationErrors: errors.map(propertyName => ({ propertyName, errorMessage: null })) });
   const body = { name: trimWishlistText(values.name), note: trimWishlistText(values.note) || null,
     url: trimWishlistText(values.url) || null, price: parseWishPrice(values.price) ?? null, quantity: Number(trimWishlistText(values.quantity)) };
+  if (values.isFavorite !== undefined) Object.assign(body, { isFavorite: values.isFavorite });
   if (new TextEncoder().encode(JSON.stringify(body)).byteLength > 4096) throw new ApiError({ kind: "http", statusCode: 413 });
   return body;
 }

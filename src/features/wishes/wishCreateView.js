@@ -23,7 +23,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   const status = element("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   let disposed = false; let busy = false; let blocked = true; let terminal = false; let completed = false; let validationSummary = false;
-  const { form, fields, validate, getValues, clear, reset, discardDeferredBlur } = createWishForm({ inactive: () => disposed || busy || blocked || terminal || completed,
+  const { form, fields, favorite, validate, getValues, clear, reset, discardDeferredBlur } = createWishForm({ inactive: () => disposed || busy || blocked || terminal || completed,
     onChange: () => { if (validationSummary && fields.every(field => field.error === null)) clearFeedback(); } });
   const submit = createButton({ label: "Ajouter", type: "submit" }); form.append(submit);
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
@@ -47,6 +47,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   /** @param {Parameters<typeof createAlert>[0]} options Safe local copy. */
   function show(options) { clearFeedback(); feedback.hidden = false; const alert = createAlert({ variant: "error", ...options }); alert.tabIndex = -1; feedback.append(alert); return alert; }
   function syncControls() {
+    favorite.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
     form.hidden = disposed || blocked || terminal || completed;
     for (const field of fields) {
       field.control.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
@@ -66,8 +67,9 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
     try {
       const loaded = await loadOne(wishlistId, { signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
-      clearFeedback(); blocked = loaded.wishlist.isSuspended;
-      if (blocked) suspended();
+      clearFeedback(); blocked = loaded.wishlist.isSuspended || !!loaded.wishlist.isArchived;
+      if (loaded.wishlist.isArchived) show({ title: "Liste archivée", message: "Désarchive la liste pour ajouter un souhait.", variant: "warning" });
+      else if (blocked) suspended();
       busy = false; syncControls(); if (explicit) { if (blocked) focusFeedback(); else title.focus(); }
     } catch (error) {
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) { presentFailure(error, false); if (explicit) focusFeedback(); }

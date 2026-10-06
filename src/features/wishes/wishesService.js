@@ -7,7 +7,7 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionResponse"]} WishCollectionResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"]} WishCollectionItemResponse */
 /** @typedef {Readonly<{id: string, wishlistId: string, name: string, note: string | null, price: number | null,
- * quantity: number, position: string, entityTag: string, url: string | null, imageUrl: string | null,
+ * quantity: number, isFavorite?: boolean, position: string, entityTag: string, url: string | null, imageUrl: string | null,
  * productUnavailable: boolean, imageUnavailable: boolean, reservedQuantity?: number | null, availableQuantity?: number | null}>} Wish */
 /** @typedef {Readonly<{wishes: ReadonlyArray<Wish>, etag: string}>} WishCollection */
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishCollection>} LoadWishes */
@@ -16,6 +16,7 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** @typedef {Readonly<CreatedWish & {values: Readonly<import("./wishValidation.js").WishValues>}>} EditableWish */
 /** @typedef {(wishlistId: string, wishId: string, options: {signal: AbortSignal}) => Promise<EditableWish>} LoadWish */
 /** @typedef {(wishlistId: string, wishId: string, values: import("./wishValidation.js").WishValues, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} UpdateWish */
+/** @typedef {(wishlistId: string, wishId: string, isFavorite: boolean, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} SetWishFavorite */
 /** @typedef {(wishlistId: string, wishId: string, options: {etag: string, signal: AbortSignal}) => Promise<void>} RemoveWish */
 /** @typedef {Readonly<{wishes: ReadonlyArray<Readonly<{id: string, position: string, entityTag: string}>>, etag: string}>} WishOrder */
 /** @typedef {(wishlistId: string, wishIds: ReadonlyArray<string>, options: {etag: string, signal: AbortSignal}) => Promise<WishOrder>} ReorderWishes */
@@ -25,12 +26,19 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** Reads the complete private collection; grants and versions belong to the caller's view.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{apiBaseUrl: string}} options Trusted API configuration.
- * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish, remove: RemoveWish, reorder: ReorderWishes, uploadImage: UploadWishImage, removeImage: RemoveWishImage}} Injectable owner operations.
+ * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish, setFavorite: SetWishFavorite, remove: RemoveWish, reorder: ReorderWishes, uploadImage: UploadWishImage, removeImage: RemoveWishImage}} Injectable owner operations.
  */
 export function createWishesService(session, { apiBaseUrl }) {
   const base = safeHttpUrl(apiBaseUrl);
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
-  return { uploadImage: async (wishlistId, wishId, file, { etag, signal }) => {
+  return { setFavorite: async (wishlistId, wishId, isFavorite, { etag, signal }) => {
+    const path = itemPath(wishlistId, wishId);
+    if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+    if (typeof isFavorite !== "boolean") throw new TypeError("A boolean favorite preference is required.");
+    const body = { isFavorite };
+    const response = await session.request(path, { method: "PATCH", authentication: "required", body, ifMatch: etag, signal });
+    return editable(response, wishlistId, wishId, base);
+  }, uploadImage: async (wishlistId, wishId, file, { etag, signal }) => {
     const path = itemPath(wishlistId, wishId) + "/image";
     if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
     const mediaType = await validateWishImageFile(file);
@@ -137,7 +145,7 @@ function editable(response, wishlistId, wishId, base) {
   if (wish.id.toLowerCase() !== wishId.toLowerCase()) throw invalid();
   // Navigation uses the safe projection; editing must not silently rewrite the original URL.
   const values = Object.freeze({ name: wish.name, note: wish.note ?? "", url: data.url ?? "",
-    price: wish.price === null ? "" : wish.price.toFixed(2).replace(".", ","), quantity: String(wish.quantity) });
+    price: wish.price === null ? "" : wish.price.toFixed(2).replace(".", ","), quantity: String(wish.quantity), isFavorite: wish.isFavorite === true });
   return Object.freeze({ wish, etag: response.metadata.etag, values });
 }
 
@@ -149,13 +157,14 @@ function projectWish(value, wishlistId, base, invalid) {
     typeof item.name !== "string" || item.name.trim() === "" || !nullableText(item.note) || !nullableText(item.url) || !nullableText(item.imageUrl) || !isStrongEntityTag(item.entityTag) ||
     typeof item.quantity !== "number" || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100) throw invalid();
   const position = exactPosition(item.position); const price = readPrice(item.price);
+  if (item.isFavorite !== undefined && typeof item.isFavorite !== "boolean") throw invalid();
   if (position === null || price === undefined) throw invalid();
   const url = item.url === null ? null : safeHttpUrl(item.url);
   const candidateImage = item.imageUrl === null ? null : safeHttpUrl(item.imageUrl);
   const expectedPath = `${base.pathname.replace(/\/$/, "")}/api/v1/wishlists/${wishlistId}/wishes/${item.id}/image`;
   const image = candidateImage && candidateImage.origin === base.origin && !candidateImage.hash && candidateImage.pathname.toLowerCase() === expectedPath.toLowerCase() &&
     candidateImage.searchParams.getAll("token").length === 1 && !!candidateImage.searchParams.get("token") && [...candidateImage.searchParams.keys()].every(key => key === "token") ? candidateImage : null;
-  return Object.freeze({ id: item.id, wishlistId: item.wishlistId, name: item.name, note: item.note, price, quantity: item.quantity, position,
+  return Object.freeze({ id: item.id, wishlistId: item.wishlistId, name: item.name, note: item.note, price, quantity: item.quantity, isFavorite: item.isFavorite === true, position,
     entityTag: item.entityTag, url: url?.href ?? null, imageUrl: image?.href ?? null,
     productUnavailable: item.url !== null && url === null, imageUnavailable: item.imageUrl !== null && image === null });
 }

@@ -40,9 +40,9 @@ describe("Google session/router integration", () => {
     expect(JSON.stringify([observe.mock.calls, window.history.state, app.shell.element.textContent])).not.toContain(Flow);
     expect(f.state.refreshCount).toBe(0);
     // Act
-    release.resolve(); await routed(app, "reservations");
+    release.resolve(); await routed(app, "lists");
     // Assert
-    expect(window.location.pathname).toBe("/reservations"); expect(window.location.search).toBe("");
+    expect(window.location.pathname).toBe("/lists"); expect(window.location.search).toBe("");
     expect(app.session.getSnapshot().status).toBe("authenticated"); expect(f.posts()).toHaveLength(1);
   });
   it("never redirects late after the user leaves the callback", async () => {
@@ -109,10 +109,10 @@ describe("Google session/router integration", () => {
     const password = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector("input")); password.value = "short";
     // Act
     /** @type {HTMLButtonElement} */ (app.shell.outlet.querySelector('button[type="submit"]')).click();
-    await routed(app, "reservations");
+    await routed(app, "lists");
     await vi.waitFor(() => expect(app.shell.notificationRegion.textContent).toContain("Compte Google associé"));
     // Assert
-    expect(replace).toHaveBeenCalled(); expect(window.location.pathname).toBe("/reservations");
+    expect(replace).toHaveBeenCalled(); expect(window.location.pathname).toBe("/lists");
     expect(app.shell.notificationRegion.querySelectorAll("article")).toHaveLength(1); expect(password.value).toBe("");
     expect(JSON.stringify([observe.mock.calls, window.history.state])).not.toMatch(/AAAAA|short|jwt-fixture/); expect(f.linkPosts()).toHaveLength(1);
     replace.mockRestore();

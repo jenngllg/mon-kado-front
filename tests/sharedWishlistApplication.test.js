@@ -18,6 +18,16 @@ function setup(target = path + "#" + secret) {
   transport.fetch.mockImplementation(async (input, init) => {
     expect(window.location.hash).toBe("");
     const pathname = new URL(String(input)).pathname;
+    if (pathname === "/api/v1/members/current/reservations") {
+      expect(new Headers(init?.headers).has("Authorization")).toBe(true);
+      return Response.json({ currentPage: 1, pageSize: 20, totalCount: 1, items: [{
+        id, wishlistId: data.id, shareLinkId: id, wishlistName: data.name, wishName: wish.name, quantity: state.reservationQuantity,
+        status: state.reserved ? "active" : "cancelled", createdAt: "2026-10-01T10:00:00Z", lastActivityAt: "2026-10-06T10:00:00Z",
+        endedAt: state.reserved ? null : "2026-10-06T10:00:00Z", ownerDisplayName: data.ownerDisplayName,
+        shareUrl: `${window.location.origin}${path}#${secret}`, imageUrl: null,
+        wishId: wish.id,
+      }] });
+    }
     if (pathname.endsWith("/reservations/current")) {
       if (init?.method === "DELETE") {
         state.reservationDeletes++; expect(init.body).toBeUndefined(); expect(new Headers(init.headers).get("X-CSRF-TOKEN")).not.toBeNull();
@@ -63,6 +73,27 @@ function setup(target = path + "#" + secret) {
 /** @param {() => boolean} predicate DOM milestone. */
 function observe(predicate) { if (predicate()) return Promise.resolve(); return new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(document.body, { childList: true, subtree: true, characterData: true }); }); }
 describe("public shared wishlist integration", () => {
+  it("cancels from history with a fresh version, refreshes the card and opens its wish", async () => {
+    // Arrange
+    const { app, state } = setup("/reservations");
+    await app.start(); await untilSession(app.session, value => value.status === "authenticated");
+    await observe(() => app.shell.outlet.querySelector(".icon-action--danger") !== null);
+    // Act
+    app.shell.outlet.querySelector(".icon-action--danger")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await observe(() => app.shell.outlet.querySelector("dialog")?.textContent?.includes("Quantité réservée : 1") === true);
+    expect(state.reservationDeletes).toBe(0);
+    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Confirmer l’annulation")?.click();
+    await observe(() => app.shell.outlet.textContent?.includes("Statut : Annulée") === true);
+    // Assert
+    expect(state.reservationDeletes).toBe(1);
+    expect(state.reservationReads).toBe(1);
+    expect(app.shell.outlet.querySelector("dialog, .icon-action--danger")).toBeNull();
+    expect(window.location.pathname).toBe("/reservations");
+    app.shell.outlet.querySelector("h2 a")?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+    await observe(() => app.shell.outlet.querySelector(".shared-wish-view") !== null);
+    expect(window.location.pathname).toBe(detailPath);
+    expect(state.joins).toBe(0);
+  });
   it("does not offer list participation or load a participant on the list", async () => {
     // Arrange
     const { app, state } = setup();
@@ -86,7 +117,7 @@ describe("public shared wishlist integration", () => {
     expect(state.filters.at(-1)).toBeNull(); expect(/** @type {HTMLInputElement} */ (app.shell.outlet.querySelector('input[type="checkbox"]')).checked).toBe(false);
   });
   it.each([false, true])("cancels explicitly and ignores a late DELETE after logout=%s", async logout => {
-    const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated");
+    const { app, state } = setup(); state.quantity = 5; await app.start(); await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => app.shell.outlet.querySelector(".wish-card") !== null); await app.router.navigate(detailPath);
     await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Annuler ma réservation"));
     const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector("input[name=quantity]")); input.value = "5";
@@ -106,7 +137,7 @@ describe("public shared wishlist integration", () => {
     await observe(() => app.shell.outlet.querySelector(".wish-card") !== null); await app.router.navigate(detailPath);
     await observe(() => app.shell.outlet.querySelector('form[aria-label="Réserver ce souhait"]') !== null);
     expect(state.reservationWrites).toBe(0); const gate = barrier(), started = barrier(); state.beforeReserve = async () => { started.resolve(); await gate.promise; };
-    const submit = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Réserver ce souhait"); submit?.click(); submit?.click(); await started.promise;
+    const submit = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Je réserve ce cadeau"); submit?.click(); submit?.click(); await started.promise;
     expect(state.reservationWrites).toBe(1);
     expect([...app.shell.outlet.querySelectorAll("button")].filter(button => button.textContent?.startsWith("Actualiser")).every(button => button.disabled)).toBe(true);
     if (logout) await app.session.logout(); gate.resolve();
@@ -135,19 +166,14 @@ describe("public shared wishlist integration", () => {
     await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null);
     expect(app.shell.element.querySelectorAll('[role="alert"]')).toHaveLength(1);
   });
-  it.each([false, true])("returns from dedicated sign-in without joining, existing=%s", async existing => {
+  it.each([false, true])("opens own lists after dedicated sign-in without joining, existing=%s", async existing => {
     const { app, state, transport } = setup(); transport.state.refreshStatus = 401; state.memberRecognized = false; state.reserved = existing; await app.start(); await observe(() => app.shell.outlet.querySelector(".wish-card") !== null); await app.router.navigate(detailPath); await observe(() => [...app.shell.outlet.querySelectorAll("a")].some(link => link.textContent === "Se connecter pour poursuivre avec mon compte" && !link.hidden));
     [...app.shell.outlet.querySelectorAll("a")].find(link => link.textContent === "Se connecter pour poursuivre avec mon compte")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Retour à la liste sans se connecter") === true);
     expect(window.location.pathname).toBe("/login"); expect(window.location.search).toBe(""); expect(app.shell.outlet.innerHTML).not.toContain(secret);
     state.joined = existing;
     await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } }));
-    await observe(() => existing ? app.shell.outlet.textContent?.includes("Tu as réservé 1") === true : [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Continuer avec mon compte" && !button.disabled));
-    expect(window.location.pathname).toBe(detailPath); expect(state.reads).toBe(3); expect(state.joins).toBe(0);
-    if (!existing) {
-      [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Continuer avec mon compte")?.click();
-      await observe(() => app.shell.outlet.querySelector('form[aria-label="Réserver ce souhait"]') !== null);
-      expect(state.joins).toBe(1); expect(state.reads).toBe(3); expect(state.reservationWrites).toBe(0);
-    }
+    await observe(() => window.location.pathname === "/lists");
+    expect(state.reads).toBe(2); expect(state.joins).toBe(0); expect(state.reservationWrites).toBe(0);
   });
   it.each(["/", "/forgot-password", "/register"])("cancels dedicated return after leaving for %s", async target => {
     const { app, transport } = setup(); transport.state.refreshStatus = 401; await app.start(); await observe(() => app.shell.outlet.querySelector(".wish-card") !== null); await app.router.navigate(detailPath); await observe(() => [...app.shell.outlet.querySelectorAll("a")].some(link => link.textContent === "Se connecter pour poursuivre avec mon compte" && !link.hidden));
@@ -158,14 +184,17 @@ describe("public shared wishlist integration", () => {
     const { app, transport } = setup(); transport.state.refreshStatus = 401; await app.start(); await untilSession(app.session, value => value.status === "anonymous"); await app.router.navigate("/login"); expect(app.shell.outlet.textContent).not.toContain("Après connexion, tu retrouveras");
     await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); await observe(() => window.location.pathname === "/lists");
   });
-  it("joins with JWT and CSRF without a body or another collection read", async () => {
+  it("reserves a single item after explicit account identification using JWT and CSRF", async () => {
     const { app, state } = setup(); state.memberRecognized = false; state.reserved = false;
     await app.start(); await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => app.shell.outlet.querySelector(".wish-card") !== null); await app.router.navigate(detailPath);
-    await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Continuer avec mon compte" && !button.disabled));
-    expect(state.joins).toBe(0); [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Continuer avec mon compte")?.click();
-    await observe(() => app.shell.outlet.querySelector('form[aria-label="Réserver ce souhait"]') !== null);
-    expect(state.joins).toBe(1); expect(state.reads).toBe(2); expect(state.filters).toEqual([null, null]); expect(state.reservationWrites).toBe(0);
+    await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Je réserve ce cadeau" && !button.disabled));
+    expect(state.joins).toBe(0); expect(state.reservationWrites).toBe(0);
+    const reserve = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Je réserve ce cadeau");
+    reserve?.click(); reserve?.click();
+    await observe(() => app.shell.outlet.textContent?.includes("Tu as réservé 1") === true);
+    expect(state.joins).toBe(1); expect(state.reservationWrites).toBe(1); expect(state.reservationQuantity).toBe(1);
+    expect(app.shell.outlet.querySelector("input[name=quantity]")).toBeNull();
   });
   it.each([503])("keeps the existing session after public read failure %s without a duplicate shell alert", async status => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true);

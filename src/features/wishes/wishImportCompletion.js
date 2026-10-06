@@ -67,6 +67,7 @@ export function createWishImportCompletion({ wishlistId, created, image, uploadI
     try {
       const list = await loadWishlist(wishlistId, { signal }); if (disposed || signal.aborted) return;
       if (list.wishlist.isSuspended) throw new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" });
+      if (list.wishlist.isArchived) throw new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_ARCHIVED" });
       const fresh = await loadWish(wishlistId, reference.wish.id, { signal }); if (disposed || signal.aborted) return;
       if (!isStrongEntityTag(fresh.etag)) throw new ApiError({ kind: "invalidResponse" });
       reference = fresh; disposeComponent(current); current.replaceChildren(createWishImage(fresh.wish)); blocked = false;

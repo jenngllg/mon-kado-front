@@ -34,6 +34,15 @@ function setup(options = {}) {
   return { view, form, analysis, input, values, analyze, submit, create, loadOne, loadWish, uploadImage, preview, onCreated };
 }
 describe("unified creation and suggestions", () => {
+  it("preserves the favorite choice during URL import and saves it only on Add", async () => {
+    const ui = setup(); await settle();
+    const favorite = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="isFavorite"]'));
+    favorite.checked = true; favorite.dispatchEvent(new Event("input", { bubbles: true }));
+    await ui.analyze();
+    expect(favorite.checked).toBe(true); expect(ui.create).not.toHaveBeenCalled();
+    await ui.submit();
+    expect(ui.create).toHaveBeenCalledWith(id, expect.objectContaining({ isFavorite: true }), expect.anything());
+  });
   it.each(["invalid", "unreadable", "aborted"])("preserves the current image after a failed local replacement: %s", async failure => {
     // Arrange
     const ui = setup(); await settle(); await ui.analyze();
@@ -159,7 +168,7 @@ describe("unified creation and suggestions", () => {
   });
   it("prefills a virgin form and waits for explicit creation before uploading with its individual tag", async () => {
     const ui = setup(); await settle(); await ui.analyze(); expect(ui.values.name.value).toBe("Théière"); expect(ui.values.price.value).toBe("19,99"); expect(ui.values.quantity.value).toBe("1"); expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
-    await ui.submit(); expect(ui.create.mock.calls[0][1]).toEqual({ name: "Théière", note: "", price: "19,99", url, quantity: "1" }); expect(ui.uploadImage.mock.calls[0][3].etag).toBe('"created"'); expect(ui.onCreated).toHaveBeenCalledTimes(1); expect(revoke).toHaveBeenCalledTimes(1);
+    await ui.submit(); expect(ui.create.mock.calls[0][1]).toEqual({ name: "Théière", note: "", price: "19,99", url, quantity: "1", isFavorite: false }); expect(ui.uploadImage.mock.calls[0][3].etag).toBe('"created"'); expect(ui.onCreated).toHaveBeenCalledTimes(1); expect(revoke).toHaveBeenCalledTimes(1);
     await ui.submit(); expect(ui.create).toHaveBeenCalledTimes(1);
   });
   it("requires explicit application over drafts while retaining note and quantity", async () => {
@@ -171,7 +180,8 @@ describe("unified creation and suggestions", () => {
   });
   it("removes the optional image without changing the creation request", async () => {
     const ui = setup(); await settle(); await ui.analyze();
-    expect(ui.view.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(ui.view.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
+    expect(ui.view.querySelector('input[name="isFavorite"]')).not.toBeNull();
     const remove = /** @type {HTMLButtonElement} */ (ui.view.querySelector('button[aria-label="Supprimer l’image"]'));
     remove.click();
     expect(ui.form.querySelector("img")).toBeNull(); expect(remove.hidden).toBe(true);
@@ -213,6 +223,15 @@ describe("unified creation and suggestions", () => {
   });
 });
 describe("confirmed gift and recoverable image", () => {
+  it.each(["abort", "departed-error"])("does not replay a confirmed creation after image upload cancellation: %s", async outcome => {
+    const gate = barrier(); const ui = setup(); await settle(); await ui.analyze();
+    ui.uploadImage.mockImplementation(async () => { await gate.promise; throw outcome === "abort" ? new DOMException("Aborted", "AbortError") : new Error("late private failure"); });
+    await ui.submit();
+    if (outcome === "departed-error") disposeComponent(ui.view);
+    gate.resolve(); await settle();
+    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce(); expect(ui.onCreated).not.toHaveBeenCalled();
+    expect(ui.view.textContent).not.toContain("late private failure");
+  });
   it.each([
     [new ApiError({ kind: "http", statusCode: 429, retryAfterSeconds: 7, correlationId: "reference" }), "Réessaie dans 7"],
     [new ApiError({ kind: "http", statusCode: 413 }), "10 Mio"],

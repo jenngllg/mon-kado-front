@@ -17,11 +17,30 @@ function setup(data = { wishes: [wish] }, status = 200, etag = /** @type {string
 }
 
 describe("owned gift collection service", () => {
+  it.each([false, true])("PATCHes only the favorite preference %s with the supplied version", async isFavorite => {
+    const service = setup({ ...wish, isFavorite }, 200, '"saved"');
+    const saved = await service.setFavorite(id, wishId, isFavorite, { etag: '"fresh"', signal });
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes/${wishId}`, { method: "PATCH", authentication: "required", body: { isFavorite }, ifMatch: '"fresh"', signal });
+    expect(saved.wish.isFavorite).toBe(isFavorite); expect(saved.values.isFavorite).toBe(isFavorite); expect(saved.etag).toBe('"saved"');
+  });
+  it.each([null, "", 'W/"weak"'])("rejects an absent or weak favorite version %s before transport", async etag => {
+    const service = setup();
+    await expect(service.setFavorite(id, wishId, true, { etag: /** @type {string} */ (etag), signal })).rejects.toMatchObject({ statusCode: 428 });
+    expect(service.request).not.toHaveBeenCalled();
+  });
+  it("rejects a non-boolean favorite preference before transport", async () => {
+    const service = setup();
+    await expect(service.setFavorite(id, wishId, /** @type {boolean} */ (/** @type {unknown} */ ("true")), { etag: '"fresh"', signal })).rejects.toBeInstanceOf(TypeError);
+    expect(service.request).not.toHaveBeenCalled();
+  });
+  it("rejects an invalid favorite response", async () => {
+    await expect(setup({ ...wish, isFavorite: "true" }).loadOne(id, wishId, { signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("GETs the complete collection with required authentication, exact signal and all three independent versions", async () => {
     const service = setup({ wishes: [{ ...wish, reservedQuantity: 2, participants: ["private"], createdAt: "unused" }] });
     const result = await service.load(id, { signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes`, { method: "GET", authentication: "required", signal });
-    expect(result).toEqual({ wishes: [{ ...wish, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
+    expect(result).toEqual({ wishes: [{ ...wish, isFavorite: false, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wishes)).toBe(true); expect(Object.isFrozen(result.wishes[0])).toBe(true);
     expect(JSON.stringify(result)).not.toMatch(/reservedQuantity|participants|createdAt|private/);
   });

@@ -19,7 +19,7 @@ function setup(options = {}) {
   const onCreated = vi.fn(/** @type {(result: import("../src/features/wishes/wishesService.js").CreatedWish) => Promise<void>} */ (async () => {}));
   const view = createWishCreateView({ wishlistId: id, loadOne, create, onCreated, ...options }); views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const fields = /** @type {[HTMLInputElement, HTMLTextAreaElement, HTMLInputElement, HTMLInputElement, HTMLInputElement]} */ ([...form.querySelectorAll("input,textarea")]);
+  const fields = /** @type {[HTMLInputElement, HTMLTextAreaElement, HTMLInputElement, HTMLInputElement, HTMLInputElement]} */ ([...form.querySelectorAll('input:not([type="checkbox"]),textarea')]);
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   /** @param {number} index Field index. @param {string} value Raw value. */
   function input(index, value) { fields[index].value = value; fields[index].dispatchEvent(new Event("input", { bubbles: true })); }

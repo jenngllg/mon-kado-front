@@ -21,6 +21,16 @@ function deferred() {
 }
 
 describe("owned wishlists view", () => {
+  it("selects the archived URL category and omits editing from archived card menus", async () => {
+    const load = vi.fn(async () => [{ ...item, isArchived: true }]);
+    const view = mount({ load, isArchived: true });
+    await Promise.resolve(); await Promise.resolve();
+    expect(view.querySelector('[aria-current="page"]')?.textContent).toBe("Archivées");
+    expect(view.querySelector('[aria-current="page"]')?.getAttribute("href")).toBe("/lists?isArchived=true");
+    expect(load).toHaveBeenCalledExactlyOnceWith({ isArchived: true, signal: expect.any(AbortSignal) });
+    expect(view.querySelector('a[href$="/edit"]')).toBeNull();
+    expect(view.querySelector('a[href$="/delete"]')).not.toBeNull();
+  });
   it("keeps the heading and creation link while loading without stealing initial focus", async () => {
     // Arrange
     const pending = deferred(); const load = vi.fn(() => pending.promise);

@@ -135,7 +135,7 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
       const loaded = await loadWishes(wishlistId, { signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
       if (!validCollection(loaded)) throw new ApiError({ kind: "invalidResponse" });
-      suspended = list.wishlist.isSuspended; needsRead = suspended; clear(feedback);
+      suspended = list.wishlist.isSuspended || !!list.wishlist.isArchived; needsRead = suspended; clear(feedback);
       if (!base) { base = loaded; draft = loaded.wishes.map(item => item.id.toLowerCase()); }
       else {
         latest = loaded; const ids = new Set(loaded.wishes.map(item => item.id.toLowerCase()));

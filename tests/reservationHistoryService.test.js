@@ -13,6 +13,26 @@ function setup(data = page, status = 200) {
   return { ...service, request, signal: new AbortController().signal };
 }
 describe("member reservation history contract", () => {
+  it("projects only trusted current sharing links and signed image URLs with the owner", async () => {
+    const secret = "A".repeat(43);
+    const imageUrl = `http://localhost/api/v1/shared-wishlists/${id}/wishes/${id}/image?token=image-test`;
+    const service = setup({ ...page, items: [{ ...item, ownerId: id, ownerDisplayName: "Camille", shareUrl: `http://localhost/shared-wishlists/${id}#${secret}`, imageUrl }] });
+    const result = await service.load({ signal: service.signal });
+    expect(result.items[0]).toMatchObject({ ownerHref: `/members/${id}`, ownerDisplayName: "Camille", imageUrl, imageUnavailable: false, wishHref: `/shared-wishlists/${id}/wishes/${id}#${secret}` });
+    expect(result.items[0]).not.toHaveProperty("shareUrl");
+  });
+  it.each(["https://untrusted.test", "http://localhost@untrusted.test", "javascript:alert(1)"])("rejects untrusted sharing navigation %s", async origin => {
+    const service = setup({ ...page, items: [{ ...item, shareUrl: `${origin}/shared-wishlists/${id}#${"A".repeat(43)}` }] });
+    await expect(service.load({ signal: service.signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
+  it.each(["http://other.test/image?token=secret", "http://localhost/api/v1/shared-wishlists/other/wishes/other/image?token=secret", "http://localhost/api/v1/shared-wishlists/test/wishes/test/image"])("does not load an invalid image grant %s", async imageUrl => {
+    const service = setup({ ...page, items: [{ ...item, shareUrl: `http://localhost/shared-wishlists/${id}#${"A".repeat(43)}`, imageUrl }] });
+    expect((await service.load({ signal: service.signal })).items[0]).toMatchObject({ imageUrl: null, imageUnavailable: true });
+  });
+  it("keeps revoked links and absent owner or media null", async () => {
+    const service = setup({ ...page, items: [{ ...item, shareLinkId: null, ownerId: null, ownerDisplayName: null, shareUrl: null, imageUrl: null }] });
+    expect((await service.load({ signal: service.signal })).items[0]).toMatchObject({ ownerHref: null, ownerDisplayName: null, wishHref: null, imageUrl: null, imageUnavailable: false });
+  });
   it("sends the selected page, size and filter without sorting or extra requests", async () => {
     const service = setup({ ...page, currentPage: 2, pageSize: 1, totalCount: 3, totalPages: 3, hasPreviousPage: true, hasNextPage: true });
     const result = await service.load({ signal: service.signal, page: 2, pageSize: 1, status: "active" });
@@ -50,7 +70,7 @@ describe("member reservation history contract", () => {
     { ...page, hasPreviousPage: true }, { ...page, items: [item, item], totalCount: 2 }])("rejects invalid pages without retaining payload %#", async data => {
     const service = setup(data); await expect(service.load({ signal: service.signal })).rejects.toMatchObject({ kind: "invalidResponse", correlationId: "reference" });
   });
-  it.each([{ id: "bad" }, { wishlistId: null }, { wishId: "bad" }, { shareLinkId: "secret" }, { wishlistName: " " },
+  it.each([{ id: "bad" }, { ownerId: "bad" }, { wishlistId: null }, { wishId: "bad" }, { shareLinkId: "secret" }, { wishlistName: " " },
     { wishName: "bad\nname" }, { wishName: "\ud800" }, { quantity: "2" }, { quantity: 0 }, { quantity: 101 },
     { status: "other" }, { createdAt: "2026-02-30T00:00:00Z" }, { lastActivityAt: "2026-09-01T24:00:00Z" },
     { endedAt: "invalid" }, { endedAt: item.lastActivityAt }, { status: "unavailable" }])("rejects malformed lifecycle %#", async changes => {

@@ -133,7 +133,7 @@ describe("shared gift detail service", () => {
   it("reads only the public detail with a combined signal, no ETag and an immutable safe projection", async () => {
     const service = setup(detail); const result = await service.loadOne(id, wishId, service.options);
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/wishes/${wishId}`, { method: "GET", authentication: "none", shareToken: secret, signal: expect.any(AbortSignal) });
-    expect(result).toEqual({ id: wishId, name: wish.name, note: detail.note, price: 12.34, quantity: 2, url: wish.url, imageUrl: image, imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 });
+    expect(result).toEqual({ id: wishId, name: wish.name, note: detail.note, price: 12.34, quantity: 2, isFavorite: false, url: wish.url, imageUrl: image, imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 });
     expect(Object.isFrozen(result)).toBe(true); expect(JSON.stringify(result)).not.toMatch(/"currentParticipant"|position|etag|PRIVATE|AAAA/i);
   });
   it.each([null, ""])("preserves absent or empty note %s", async note => {

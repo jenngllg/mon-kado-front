@@ -17,7 +17,6 @@ test("create then delete a list with an explicit confirmation and individual ver
   await expect(page).toHaveURL(`/lists/${listId}`);
   await expect(page.getByRole("heading", { name: "Liste créée par le test", exact: true })).toBeVisible();
   expect(api.state.listWrites).toBe(1);
-  await page.getByLabel("Actions de la liste", { exact: true }).click();
   await page.getByRole("link", { name: "Supprimer cette liste", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Supprimer définitivement « Liste créée par le test » ?", exact: true })).toBeVisible();
   expect(api.state.listWrites).toBe(1);
@@ -34,6 +33,8 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   api.state.wishExists = false;
   await page.goto(`/lists/${listId}`);
   await page.getByRole("link", { name: "Ajouter un souhait", exact: true }).click();
+  await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-width", "1px");
+  await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-style", "solid");
   await page.getByRole("textbox", { name: /Nom du produit/ }).fill("Carnet test");
   await page.getByRole("textbox", { name: /Prix en euros/ }).fill("19,90");
   await page.getByRole("button", { name: "Ajouter", exact: true }).click();
@@ -42,7 +43,8 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   await page.getByRole("link", { name: "Modifier le souhait « Carnet test »", exact: true }).click();
   await expect(page.getByRole("textbox", { name: /Nom du produit/ })).toHaveValue("Carnet test");
   await page.getByRole("textbox", { name: /Nom du produit/ }).fill("Carnet corrigé");
-  await page.getByRole("button", { name: "Enregistrer les modifications", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Annuler les modifications", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Modifications enregistrées", exact: true })).toBeVisible();
   expect(api.state.wishWrites).toBe(2);
   await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();

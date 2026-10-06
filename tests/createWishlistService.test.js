@@ -3,7 +3,7 @@ import { ApiError } from "../src/api/apiError.js";
 import { createWishlistsService } from "../src/features/wishlists/wishlistsService.js";
 
 const signal = new AbortController().signal;
-const item = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Liste 🎁", occasion: "birthday", eventDate: "2028-02-29", message: "Un message", isSuspended: false, surpriseMode: true };
+const item = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Liste 🎁", occasion: "birthday", eventDate: "2028-02-29", message: "Un message", isSuspended: false, isArchived: false, surpriseMode: true };
 /** @type {import("../src/features/wishlists/wishlistsService.js").WishlistValues} */
 const values = { name: " \u0085Liste 🎁 ", occasion: "birthday", eventDate: "2028-02-29", message: " Un message \n " };
 /** @param {unknown} [data] Body. @param {number} [status] HTTP status. @param {string | null} [etag] Tag. @param {string | null} [location] Optional backend destination. */

@@ -7,19 +7,19 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 
 /** Isolated reservation lookup: a technical failure never hides the public gift.
  * @param {{shareLinkId: string, wishId: string, loadCurrent: import("./giftReservationService.js").LoadReservation,
- * onUnavailable: () => void, createForm?: (onBusy: (busy: boolean) => void, onVerified: (lookup: import("./giftReservationService.js").ReservationLookup) => void) => HTMLElement,
+ * onUnavailable: () => void, createForm?: (onBusy: (busy: boolean) => void, onVerified: (lookup: import("./giftReservationService.js").ReservationLookup) => void, reserveImmediately: boolean) => HTMLElement,
  * editForm?: (reservation: import("./giftReservationService.js").CurrentReservation, onBusy: (busy: boolean) => void, onVerified: (lookup: import("./giftReservationService.js").ReservationLookup) => void) => HTMLElement,
  * createCancel?: (onInvalidate: () => void, onClose: (confirmed: boolean) => void) => HTMLDialogElement,
- * createIdentification?: (onRecognized: () => void) => HTMLElement,
+ * createIdentification?: (onRecognized: (userInitiated?: boolean) => void) => HTMLElement,
  * onCancelled?: () => void, onUnrecognized?: () => void, fromMemberId?: string | null,
  * onBusy?: (busy: boolean) => void, signal?: AbortSignal}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
 export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, createCancel, createIdentification, onCancelled, onBusy, onUnrecognized, signal, fromMemberId }) {
   const section = document.createElement("section"); section.className = "reservation-panel flow";
-  const title = document.createElement("h2"); title.textContent = "Ma réservation"; title.tabIndex = -1;
+  section.tabIndex = -1; section.setAttribute("aria-label", "Réservation");
   const content = document.createElement("div"); content.className = "flow";
-  section.append(title, content);
+  section.append(content);
   const lifetime = new AbortController();
   let disposed = false, busy = false, mutationBusy = false, needsGiftRead = false;
   registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); disposeComponent(content); content.replaceChildren(); });
@@ -31,8 +31,8 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
   if (!disposed) refreshOnReturn(section, () => { void read(false); });
   return section;
 
-  /** @param {boolean} explicit User-initiated lookup. */
-  async function read(explicit) {
+  /** @param {boolean} explicit User-initiated lookup. @param {boolean} [reserveImmediately] Explicit single-item reservation intent. */
+  async function read(explicit, reserveImmediately = false) {
     if (disposed || busy || mutationBusy || needsGiftRead) return;
     busy = true; disposeComponent(content); content.replaceChildren(createLoadingState({ label: "Vérification de ta réservation…" }));
     content.setAttribute("aria-busy", "true");
@@ -52,8 +52,8 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
       }
       content.append(message, returnToList);
       showLookup(result);
-      if (result.state === "unrecognized" && createIdentification) content.append(createIdentification(() => { void read(false); }));
-      if (result.state === "absent" && createForm) content.append(createForm(value => { mutationBusy = value; onBusy?.(value); }, showLookup));
+      if (result.state === "unrecognized" && createIdentification) content.append(createIdentification(userInitiated => { void read(false, userInitiated === true); }));
+      if (result.state === "absent" && createForm) content.append(createForm(value => { mutationBusy = value; onBusy?.(value); }, showLookup, reserveImmediately));
       if (result.state === "reserved") {
         const group = document.createElement("fieldset"); group.className = "reservation-edit-group";
         /** @type {HTMLButtonElement | null} */ let cancelButton = null;
@@ -72,7 +72,7 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
             }, confirmed => {
               open = false; mutationBusy = false; onBusy?.(false);
               if (disposed) return;
-              if (confirmed) onCancelled?.(); else if (cancelButton?.isConnected) cancelButton.focus(); else title.focus();
+              if (confirmed) onCancelled?.(); else if (cancelButton?.isConnected) cancelButton.focus(); else section.focus();
             });
             content.append(dialog); if (!dialog.isConnected || disposed) { disposeComponent(dialog); return; }
             dialog.showModal(); dialog.querySelector("h2")?.focus();
@@ -80,7 +80,7 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
           content.append(cancelButton);
         }
       }
-      if (explicit) title.focus();
+      if (explicit) section.focus();
     } catch (error) {
       if (disposed || isAbortError(error)) return;
       if (error instanceof ApiError && error.statusCode === 404) { onUnavailable(); return; }

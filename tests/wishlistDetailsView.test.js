@@ -26,6 +26,39 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
 describe("wishlist owner detail", () => {
+  it("shows a favorite conflict without replaying the mutation", async () => {
+    const current = { wish, etag: '"fresh"', values: { name: wish.name, note: "", url: "", price: "19,99", quantity: "2" } };
+    const favorite = { loadOne: vi.fn(async () => current), setFavorite: vi.fn(async () => { throw new ApiError({ kind: "http", statusCode: 412, errorCode: "WISH_VERSION_CONFLICT" }); }) };
+    const ui = setup({ favorite }); await settle();
+    const button = /** @type {HTMLButtonElement} */ (ui.view.querySelector(".wish-favorite-button"));
+    button.click(); await settle();
+    expect(ui.view.querySelector('[role="alert"]')).not.toBeNull();
+    expect(favorite.setFavorite).toHaveBeenCalledOnce(); expect(ui.loadWishes).toHaveBeenCalledOnce(); expect(button.disabled).toBe(false);
+  });
+  it("does not abort a favorite mutation when the window regains focus", async () => {
+    const gate = barrier();
+    const current = { wish: { ...wish, isFavorite: false }, etag: '"fresh"', values: { name: wish.name, note: "", url: "", price: "19,99", quantity: "2", isFavorite: false } };
+    const favorite = { loadOne: vi.fn(async () => current), setFavorite: vi.fn(async () => { await gate.promise; return { ...current, wish: { ...wish, isFavorite: true } }; }) };
+    const ui = setup({ favorite }); await settle();
+    const button = /** @type {HTMLButtonElement} */ (ui.view.querySelector(".wish-favorite-button"));
+    button.click(); await settle();
+    window.dispatchEvent(new Event("focus")); await settle();
+    expect(ui.loadWishes).toHaveBeenCalledOnce();
+    expect(button.isConnected).toBe(true); expect(button.disabled).toBe(true);
+    gate.resolve(); await settle();
+    expect(favorite.setFavorite).toHaveBeenCalledOnce();
+    expect(ui.loadWishes).toHaveBeenCalledTimes(2);
+  });
+  it("places add, edit, delete and archive icons beside the title without a disclosure", async () => {
+    const ui = setup({ setArchived: vi.fn() }); await settle();
+    const header = ui.view.querySelector(".wishlist-details-header");
+    if (!header) throw new Error("Missing list title toolbar");
+    expect(header?.querySelector("h1")?.textContent).toBe(list.wishlist.name);
+    expect([...header.querySelectorAll(".icon-action")].map(control => control.getAttribute("aria-label")))
+      .toEqual(["Ajouter un souhait", "Modifier les informations", "Supprimer cette liste", "Archiver"]);
+    expect(header.querySelectorAll("svg")).toHaveLength(4);
+    expect(header.querySelector("details")).toBeNull();
+  });
   it("confirms card deletion and refreshes the wishes without opening the editor", async () => {
     const remove = vi.fn(async () => {});
     const loadOne = vi.fn(async () => ({ wish, etag: '"fresh"', values: { name: wish.name, note: "", url: "", price: "19,99", quantity: "2" } }));
@@ -101,8 +134,8 @@ describe("wishlist owner detail", () => {
     expect(ui.loadWishes).toHaveBeenCalledExactlyOnceWith(id, { signal: expect.any(AbortSignal) });
     expect(ui.view.querySelector("h1")?.textContent).toBe(list.wishlist.name); expect(document.activeElement).toBe(document.body);
     expect(ui.view.querySelector("time")?.dateTime).toBe("2020-02-29"); expect(ui.view.textContent).toContain("29 février 2020");
-    expect(ui.view.querySelector(`a[href="/lists/${id}/edit"]`)?.textContent).toBe("Modifier les informations");
-    expect(ui.view.querySelector(`a[href="/lists/${id}/delete"]`)?.textContent).toBe("Supprimer cette liste");
+    expect(ui.view.querySelector(`a[href="/lists/${id}/edit"]`)?.getAttribute("aria-label")).toBe("Modifier les informations");
+    expect(ui.view.querySelector(`a[href="/lists/${id}/delete"]`)?.getAttribute("aria-label")).toBe("Supprimer cette liste");
   });
   it("shows a semantic full collection with exact copy, notes, price, desired quantity and safe product links", async () => {
     const ui = setup(); await settle();
@@ -122,14 +155,14 @@ describe("wishlist owner detail", () => {
   it("shows an empty state with the implemented manual creation action", async () => {
     const ui = setup({ loadWishes: async () => ({ wishes: [], etag: '"empty"' }) }); await settle();
     expect(ui.view.textContent).toContain("Aucun souhait pour le moment"); expect(ui.view.querySelectorAll("li")).toHaveLength(0);
-    expect(ui.view.querySelector(`a[href="/lists/${id}/wishes/new"]`)?.textContent).toBe("Ajouter un souhait"); expect(ui.view.textContent).not.toContain("Actualiser les souhaits");
+    expect(ui.view.querySelector(`a[href="/lists/${id}/wishes/new"]`)?.getAttribute("aria-label")).toBe("Ajouter un souhait"); expect(ui.view.textContent).not.toContain("Actualiser les souhaits");
     expect([...ui.view.querySelectorAll("button")].find(button => button.textContent === "Réorganiser les souhaits")?.hidden).toBe(true);
   });
   it.each([["birthday", "Anniversaire"], ["christmas", "Noël"], ["wedding", "Mariage"], ["birth", "Naissance"], ["other", "Autre"]])("supports occasion %s and optional date/message/price/note/image", async (occasion, label) => {
     const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, occasion: /** @type {typeof list.wishlist.occasion} */ (occasion), eventDate: null, message: null } }),
       loadWishes: async () => ({ ...collection, wishes: [{ ...wish, price: null, note: null, imageUrl: null, url: null }] }) }); await settle();
     expect(ui.view.querySelector(".wishlist-details-metadata span")?.textContent).toBe(label);
-    expect(ui.view.textContent).not.toContain("Sans date"); expect(ui.view.textContent).toContain("Prix non renseigné"); expect(ui.view.textContent).toContain("Sans image");
+    expect(ui.view.textContent).not.toContain("Sans date"); expect(ui.view.querySelector(".wish-card__price")).toBeNull(); expect(ui.view.textContent).toContain("Sans image");
     expect(ui.view.querySelector("img,time")).toBeNull(); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
   });
   it("allows suspended-list consultation without mutation links or private moderation details", async () => {

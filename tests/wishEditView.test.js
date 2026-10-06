@@ -22,7 +22,7 @@ function setup(options = {}) {
   const update = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").UpdateWish} */ (async () => stored("Mis à jour", '"next"')));
   const view = createWishEditView({ wishlistId: id, wishId, loadWishlist, loadOne, update, ...options }); views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const fields = /** @type {Array<HTMLInputElement | HTMLTextAreaElement>} */ ([...form.querySelectorAll("input,textarea")]);
+  const fields = /** @type {Array<HTMLInputElement | HTMLTextAreaElement>} */ ([...form.querySelectorAll('input:not([type="checkbox"]),textarea')]);
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   /** @param {number} index Field. @param {string} value Raw value. */
   function input(index, value) { fields[index].value = value; fields[index].dispatchEvent(new Event("input", { bubbles: true })); }
@@ -89,10 +89,12 @@ describe("gift editor", () => {
     expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(Object.values(stored().values));
     for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.hasAttribute("aria-describedby")).toBe(false); expect(field.hasAttribute("maxlength")).toBe(false); }
   });
-  it("compares serialized meanings and cancels locally without rereading", async () => {
+  it("compares serialized meanings and offers only Enregistrer for an edited draft", async () => {
     const ui = setup(); await settle(); ui.input(0, " Souhait "); ui.input(3, "0.29"); ui.input(4, "02"); expect(ui.submit.disabled).toBe(true);
-    ui.input(1, "Brouillon"); expect(ui.submit.disabled).toBe(false); ui.click("Annuler les modifications");
-    expect(ui.fields.map(field => field.value)).toEqual(Object.values(stored().values)); expect(ui.loadOne).toHaveBeenCalledTimes(1); expect(ui.update).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
+    ui.input(1, "Brouillon"); expect(ui.submit.disabled).toBe(false);
+    expect(ui.submit.textContent).toBe("Enregistrer"); expect(ui.view.textContent).not.toContain("Annuler les modifications");
+    expect([...ui.form.querySelectorAll("button")].filter(button => !button.hidden)).toEqual([ui.submit]);
+    expect(ui.fields[1].value).toBe("Brouillon"); expect(ui.loadOne).toHaveBeenCalledTimes(1); expect(ui.update).not.toHaveBeenCalled();
   });
   it("validates dirty fields, corrections, submit focus and pointer blur without moving an activation", async () => {
     const ui = setup(); await settle(); ui.fields[0].dispatchEvent(new FocusEvent("blur")); expect(ui.fields[0].getAttribute("aria-invalid")).not.toBe("true");
@@ -108,7 +110,7 @@ describe("gift editor", () => {
   it("sends once, disables controls, adopts the response and uses its ETag for the next edit", async () => {
     const gate = barrier(); const operation = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").UpdateWish} */ (async () => { await gate.promise; return stored("Normalisé", '"new"'); }));
     const ui = setup({ update: operation }); await settle(); ui.input(0, " nouveau "); ui.send(); ui.send();
-    expect(operation).toHaveBeenCalledExactlyOnceWith(id, wishId, { ...stored().values, name: " nouveau " }, { etag: '"gift"', signal: expect.any(AbortSignal) });
+    expect(operation).toHaveBeenCalledExactlyOnceWith(id, wishId, { ...stored().values, name: " nouveau ", isFavorite: false }, { etag: '"gift"', signal: expect.any(AbortSignal) });
     expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.view.textContent).toContain("Enregistrement de ton souhait…");
     gate.resolve(); await settle(); expect(ui.fields[0].value).toBe("Normalisé"); expect(ui.submit.disabled).toBe(true); expect(ui.view.textContent).toContain("Modifications enregistrées"); expect(ui.loadOne).toHaveBeenCalledTimes(1);
     ui.input(0, "Encore"); ui.send(); await settle(); expect(operation.mock.calls[1][3].etag).toBe('"new"');
@@ -127,7 +129,7 @@ describe("gift editor", () => {
     expect(comparison?.querySelectorAll("dt")).toHaveLength(5);
     expect(comparison?.querySelectorAll("dd")).toHaveLength(5);
     expect(comparison?.contains(ui.form)).toBe(false);
-    ui.click("Enregistrer ma saisie"); await settle(); expect(ui.update.mock.calls[1][3].etag).toBe('"conflict-2"'); expect(ui.submit.disabled).toBe(true);
+    ui.click("Enregistrer"); await settle(); expect(ui.update.mock.calls[1][3].etag).toBe('"conflict-2"'); expect(ui.submit.disabled).toBe(true);
     ui.loadOne.mockResolvedValue(stored("Version finale", '"conflict-3"')); ui.click("Relire le souhait"); await settle(); ui.click("Utiliser la version enregistrée");
     expect(ui.fields.map(field => field.value)).toEqual(Object.values(stored("Version finale").values)); expect(ui.submit.disabled).toBe(true); expect(ui.update).toHaveBeenCalledTimes(2); expect(ui.loadWishlist).toHaveBeenCalledTimes(4);
   });

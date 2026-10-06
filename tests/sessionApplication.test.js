@@ -26,6 +26,17 @@ function mount(path = "/", transport = createSessionTransport(), hub = createCoo
 }
 
 describe("session routes and shell", () => {
+  it.each(["", "?returnTo=/profile", "?returnTo=/reservations", "?returnTo=/lists/another-member"])("opens own lists after e-mail authentication regardless of the previous destination %s", async query => {
+    // Arrange
+    const transport = createSessionTransport(); transport.state.refreshStatus = 401;
+    const app = mount(`/login${query}`, transport); await app.start();
+    // Act
+    await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } }));
+    await waitRoute(app, "/lists");
+    // Assert
+    expect(window.location.pathname).toBe("/lists"); expect(window.location.search).toBe("");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes");
+  });
   it.each(["/profile/email", "/profile/password"])("redirects Google-linked members away from %s before mounting a credential form", async path => {
     // Arrange
     const transport = createSessionTransport();
@@ -78,7 +89,7 @@ describe("session routes and shell", () => {
       await app.start(); await observe(() => app.shell.outlet.textContent?.includes("Private gift") === true);
       expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes réservations");
       await app.router.navigate("/"); await app.router.navigate("/reservations"); await observe(() => app.shell.outlet.textContent?.includes("Private gift") === true); expect(reads).toBe(2);
-      await other.start(); delay = true; app.shell.outlet.querySelector("button")?.click(); await started.promise;
+      await other.start(); delay = true; app.shell.outlet.querySelector("select")?.dispatchEvent(new Event("change")); await started.promise;
       await other.logout(); gate.resolve(); await observe(() => app.shell.outlet.textContent?.includes("Chargement de tes réservations") === false);
       expect(app.shell.outlet.textContent).not.toMatch(/Private gift|Private list/); expect(app.session.getSnapshot().user).toBeNull(); expect(JSON.stringify(hub.messages)).not.toContain("Private");
     } finally { gate.resolve(); other.dispose(); }

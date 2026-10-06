@@ -19,6 +19,23 @@ function setup(overrides = {}) {
   return { view, loadCurrentMember, joinMember, onUnavailable, button };
 }
 describe("member participation", () => {
+  it("omits the account name from wish identification and exposes the requested reservation action", async () => {
+    const onRecognized = vi.fn();
+    const ui = setup({ onRecognized }); await settle();
+    expect(ui.view.textContent).not.toContain("Compte actuel");
+    expect(ui.button("Je réserve ce cadeau").disabled).toBe(false);
+    expect(ui.joinMember).not.toHaveBeenCalled();
+    ui.button("Je réserve ce cadeau").click(); await settle();
+    expect(ui.joinMember).toHaveBeenCalledOnce();
+    expect(onRecognized).toHaveBeenCalledOnce();
+    expect(onRecognized).toHaveBeenCalledWith(true);
+    expect(ui.view.textContent).not.toContain(participant.displayName);
+  });
+  it("never treats an existing participation lookup as a reservation intent", async () => {
+    const onRecognized = vi.fn();
+    setup({ onRecognized, loadCurrentMember: async () => participant }); await settle();
+    expect(onRecognized).toHaveBeenCalledExactlyOnceWith(false);
+  });
   it("keeps attachment copy hidden outside the sign-in continuation", async () => {
     const load = vi.fn(/** @type {import("../src/features/sharing/wishlistParticipationService.js").LoadCurrentParticipant} */ (async () => null)).mockResolvedValueOnce(participant);
     const ui = setup({ loadCurrentMember: load }); await settle();

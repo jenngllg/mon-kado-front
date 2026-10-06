@@ -24,7 +24,7 @@ function setup() {
       }
       state.writes++; expect(init?.method).toBe("POST"); const headers = new Headers(init?.headers);
       expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("Content-Type")).toBe("application/json"); expect(headers.has("If-Match")).toBe(false); expect(headers.has("X-CSRF-TOKEN")).toBe(false); expect(init?.credentials).toBe("include");
-      expect(JSON.parse(String(init?.body))).toEqual({ name: wish.name, note: null, url: null, price: 0.29, quantity: 2 });
+      expect(JSON.parse(String(init?.body))).toEqual({ name: wish.name, note: null, url: null, price: 0.29, quantity: 2, isFavorite: false });
       await state.beforeWrite(); state.saved = state.status === 201;
       return Response.json(state.saved ? wish : { statusCode: state.status, title: "PRIVATE_ENGLISH", message: "PRIVATE_MESSAGE", errorCode: state.suspended ? "WISHLIST_SUSPENDED" : null }, { status: state.status, headers: { ETag: '"gift"' } });
     }
@@ -68,7 +68,7 @@ describe("manual gift creation integration", () => {
   it("offers creation from empty and populated details but not suspended lists", async () => {
     const app = setup(); await app.start(); await app.router.navigate(detail);
     await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Aucun souhait pour le moment"));
-    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.textContent).toBe("Ajouter un souhait");
+    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.getAttribute("aria-label")).toBe("Ajouter un souhait");
     expect(app.shell.outlet.querySelector(`a[href="${path}?mode=url"]`)).toBeNull();
     expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.closest("details")).toBeNull();
     app.state.saved = true; await app.router.replace(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null); expect(app.shell.outlet.querySelector(`a[href="${path}"]`)).not.toBeNull();

@@ -70,6 +70,8 @@ export default [
       "tests/sharedWishlistApplication.test.js",
       "tests/wishlistDetailsApplication.test.js",
       "tests/wishCreateView.test.js",
+      "tests/wishFavoriteButton.test.js",
+      "tests/wishCard.test.js",
       "tests/wishCreateApplication.test.js",
       "tests/wishEditView.test.js",
       "tests/wishEditApplication.test.js",

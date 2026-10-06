@@ -17,6 +17,15 @@ function setup(options = {}) {
   return { view, loadCurrent, onUnavailable };
 }
 describe("current reservation section", () => {
+  it.each([true, false])("carries only an explicit identification action into reservation creation: %s", async explicit => {
+    /** @type {(userInitiated?: boolean) => void} */ let recognized = () => {};
+    const loadCurrent = vi.fn().mockResolvedValueOnce({ state: "unrecognized" }).mockResolvedValue({ state: "absent" });
+    const createForm = vi.fn(() => document.createElement("form"));
+    setup({ loadCurrent, createForm, createIdentification: callback => { recognized = callback; return document.createElement("section"); } });
+    await settle(); expect(createForm).not.toHaveBeenCalled();
+    recognized(explicit); await settle();
+    expect(createForm).toHaveBeenCalledExactlyOnceWith(expect.any(Function), expect.any(Function), explicit);
+  });
   it("identifies within the wish and then opens reservation without returning to the list", async () => {
     // Arrange
     let recognized = () => {};
@@ -80,7 +89,7 @@ describe("current reservation section", () => {
     verified({ state: "reserved", reservation: { id, wishId: id, quantity: 3, etag: '"new"' } });
     expect(ui.view.textContent).toContain("Tu as réservé 3"); expect(ui.view.textContent).not.toContain("Tu as réservé 2"); expect(input.value).toBe("1"); expect(ui.view.querySelector("input")).toBe(input);
     verified({ state: "unrecognized" }); expect(ui.view.textContent).not.toContain("Tu as réservé");
-    disposeComponent(ui.view); verified({ state: "absent" }); expect(ui.view.textContent).toBe("Ma réservation");
+    disposeComponent(ui.view); verified({ state: "absent" }); expect(ui.view.textContent).toBe("");
   });
   it("signals lost guest recognition without claiming cancellation or starting a new reservation", async () => {
     const lost = vi.fn(), create = vi.fn(() => document.createElement("form")), ui = setup({ onUnrecognized: lost, createForm: create }); await settle();
@@ -110,7 +119,7 @@ describe("current reservation section", () => {
     const gate = barrier(); let received = /** @type {AbortSignal | null} */ (null);
     const ui = setup({ loadCurrent: async (_id, _wish, { signal }) => { received = signal; await gate.promise; if (rejected) throw new ApiError({ kind: "network" }); return { state: "absent" }; } });
     disposeComponent(ui.view); disposeComponent(ui.view); gate.resolve(); await settle();
-    expect(/** @type {AbortSignal | null} */ (received)?.aborted).toBe(true); expect(ui.view.querySelector("button")).toBeNull(); expect(ui.view.textContent).toBe("Ma réservation");
+    expect(/** @type {AbortSignal | null} */ (received)?.aborted).toBe(true); expect(ui.view.querySelector("button")).toBeNull(); expect(ui.view.textContent).toBe("");
   });
   it("signals a terminal gift refusal without retry", async () => {
     const ui = setup({ loadCurrent: async () => { throw new ApiError({ kind: "http", statusCode: 404, errorCode: "SHARED_WISH_NOT_FOUND" }); } });

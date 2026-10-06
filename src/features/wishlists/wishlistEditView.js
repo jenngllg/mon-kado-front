@@ -2,7 +2,7 @@ import { ApiError, isAbortError } from "../../api/apiError.js";
 import { isStrongEntityTag } from "../../api/entityTag.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createBackLink, createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
+import { createBackLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishlistForm } from "./wishlistForm.js";
 import { isWishlistId, isWishlistOccasion, trimWishlistText, validateWishlistEditField, WishlistOccasions, WishlistServerMessages } from "./wishlistValidation.js";
@@ -30,17 +30,13 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
   });
   const { form, fields, surpriseMode } = editor; form.hidden = true;
   const actions = textElement("div", ""); actions.className = "wishlist-form__actions cluster";
-  const submit = createButton({ label: "Enregistrer les modifications", type: "submit" });
-  const cancel = createButton({ label: "Annuler les modifications", variant: "secondary", onClick: useStored });
+  const submit = createButton({ label: "Enregistrer", type: "submit" });
   const reread = createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void read(true); } }); reread.hidden = true;
   const useVersion = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: useStored }); useVersion.hidden = true;
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
-  actions.append(submit, cancel, useVersion); form.append(actions);
-  const deletion = textElement("section", ""); deletion.className = "wishlist-edit-view__deletion flow"; deletion.hidden = true;
-  deletion.append(textElement("h2", "Suppression de la liste"), textElement("p", "Cette action est définitive. Les modifications non enregistrées seront abandonnées en quittant ce formulaire."),
-    createActionLink({ label: "Supprimer cette liste", href: isWishlistId(wishlistId) ? RoutePaths.DeleteList.replace(":listId", wishlistId) : RoutePaths.Lists, variant: "danger" }));
+  actions.append(submit, useVersion); form.append(actions);
   const back = createBackLink({ label: "Retour à la liste", href: isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists });
-  view.append(back, title, feedback, status, retry, reread, comparison, form, deletion);
+  view.append(back, title, feedback, status, retry, reread, comparison, form);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); base = null; editor.reset(); clearFeedback(); clearComparison(); status.textContent = "";
@@ -71,9 +67,8 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
   }
   function syncControls() {
     if (disposed) return;
-    const suspended = base?.wishlist.isSuspended === true;
+    const suspended = base?.wishlist.isSuspended === true || base?.wishlist.isArchived === true;
     form.hidden = base === null || terminal;
-    deletion.hidden = base === null || terminal || suspended || busy || blocked;
     for (const field of fields) {
       const selectable = field.control instanceof HTMLSelectElement;
       if (!(field.control instanceof HTMLSelectElement)) field.control.readOnly = suspended;
@@ -81,9 +76,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
     }
     surpriseMode.disabled = busy || suspended || terminal;
     submit.disabled = busy || blocked || suspended || terminal || !hasChanges();
-    submit.textContent = decision ? "Enregistrer ma saisie" : "Enregistrer les modifications";
-    cancel.disabled = busy || suspended || terminal || !base;
-    cancel.hidden = decision;
+    submit.textContent = "Enregistrer";
     reread.hidden = !blocked || base === null || terminal;
     reread.disabled = busy;
     useVersion.hidden = !decision; useVersion.disabled = busy;
@@ -122,9 +115,9 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
       if (!isStrongEntityTag(loaded.etag)) throw new ApiError({ kind: "invalidResponse" });
       base = loaded; busy = false; clearFeedback(); clearComparison();
       if (!preserve) editor.reset(loaded.wishlist);
-      if (loaded.wishlist.isSuspended) {
+      if (loaded.wishlist.isSuspended || loaded.wishlist.isArchived) {
         blocked = true; decision = false;
-        show({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" });
+        show({ title: loaded.wishlist.isArchived ? "Liste archivée" : "Liste suspendue", message: "Consultation uniquement", variant: "warning" });
       } else {
         blocked = false; decision = preserve;
         if (preserve) {

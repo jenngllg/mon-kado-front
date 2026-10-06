@@ -5,7 +5,7 @@ import { validateWishlistEditField, validateWishlistField } from "../src/feature
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const signal = new AbortController().signal;
-const item = { id, name: "Liste", occasion: "birthday", eventDate: "2020-02-29", message: "Message", isSuspended: false, surpriseMode: true };
+const item = { id, name: "Liste", occasion: "birthday", eventDate: "2020-02-29", message: "Message", isSuspended: false, isArchived: false, surpriseMode: true };
 /** @type {import("../src/features/wishlists/wishlistsService.js").WishlistValues} */
 const values = { name: " \u0085Liste ", occasion: "birthday", eventDate: "2020-02-29", message: " Message\n " };
 /** @param {unknown} [data] JSON. @param {number} [status] Status. @param {string | null} [etag] Tag. */

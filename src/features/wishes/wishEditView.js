@@ -48,12 +48,11 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     });
   }
   const actions = element("div", ""); actions.className = "wishlist-form__actions cluster";
-  const submit = createButton({ label: "Enregistrer les modifications", type: "submit" });
-  const cancel = createButton({ label: "Annuler les modifications", variant: "secondary", onClick: useStored });
+  const submit = createButton({ label: "Enregistrer", type: "submit" });
   const useVersion = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: useStored });
   const reread = createButton({ label: "Relire le souhait", variant: "secondary", onClick: () => { void read(true); } });
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } });
-  actions.append(submit, cancel, useVersion); form.append(actions);
+  actions.append(submit, useVersion); form.append(actions);
   const destination = isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists;
   const imageSection = createWishImageSection({ onUpload: () => { sync(); }, onRemove: () => { void deleteImage(); } });
   view.append(createBackLink({ label: "Retour à la liste", href: destination }), title, feedback, reread, retry, status, comparison, form);
@@ -112,19 +111,19 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       const field = /** @type {"name" | "note" | "url"} */ (key);
       return trimWishlistText(values[field]) !== trimWishlistText(stored[field]);
     }) || parseWishPrice(values.price) !== parseWishPrice(stored.price) ||
-      Number(values.quantity) !== Number(stored.quantity) || values.quantity.trim() === "" || fields[4].control.validity.badInput;
+      Number(values.quantity) !== Number(stored.quantity) || values.quantity.trim() === "" || fields[4].control.validity.badInput || !!values.isFavorite !== !!stored.isFavorite;
   }
-  function hasTextDraft() { const values = editor.getValues(); return !!base && fields.some(field => values[field.name] !== base?.values[field.name]); }
+  function hasTextDraft() { const values = editor.getValues(); return !!base && (fields.some(field => values[field.name] !== base?.values[field.name]) || !!values.isFavorite !== !!base.values.isFavorite); }
   function clearImageNotice() { disposeComponent(imageNotice); imageNotice.replaceChildren(); imageNotice.hidden = true; }
   function sync() {
+    editor.favorite.disabled = disposed || terminal || busy || suspended || blocked;
     form.hidden = disposed || terminal || base === null;
     for (const field of fields) {
       field.control.readOnly = suspended;
       field.control.disabled = disposed || terminal || busy;
     }
     submit.disabled = disposed || terminal || busy || analyzing || blocked || suspended || (!changed() && !imageSection.getSelected());
-    if (!busy) submit.textContent = decision ? "Enregistrer ma saisie" : "Enregistrer les modifications";
-    cancel.hidden = decision; cancel.disabled = disposed || terminal || busy || suspended || !base;
+    if (!busy) submit.textContent = "Enregistrer";
     useVersion.hidden = !decision; useVersion.disabled = disposed || terminal || busy || suspended;
     reread.hidden = disposed || terminal || !base || !blocked; reread.disabled = busy;
     retry.hidden = disposed || terminal || base !== null || busy; retry.disabled = busy;
@@ -226,11 +225,11 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       const loaded = await loadOne(wishlistId, wishId, { signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
       if (!isStrongEntityTag(loaded.etag)) throw new ApiError({ kind: "invalidResponse" });
-      base = loaded; suspended = list.wishlist.isSuspended; clearFeedback();
+      base = loaded; suspended = list.wishlist.isSuspended || !!list.wishlist.isArchived; clearFeedback();
       imageReadPending = false;
       if (!preserve) editor.reset(loaded.values);
       blocked = suspended; decision = preserve && !suspended;
-      if (suspended) show({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" });
+      if (suspended) show({ title: list.wishlist.isArchived ? "Liste archivée" : "Liste suspendue", message: "Consultation uniquement", variant: "warning" });
       else if (preserve) { compare(); for (const field of fields) if (field.checked) editor.validate(field); }
       busy = false; sync(); if (explicit) title.focus();
     } catch (error) {
