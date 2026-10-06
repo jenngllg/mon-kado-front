@@ -748,7 +748,8 @@
 .wishlist-details-view--owner .wish-card__actions { padding: 0; max-width: 16rem; }
 .wish-card__actions .icon-action,
 .wishlist-details-actions .icon-action,
-.reservation-history-card__actions .icon-action {
+.reservation-history-card__actions .icon-action,
+.wishlist-share__channels .icon-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -919,6 +920,8 @@
 .wishlist-share { border-block-start: 1px solid var(--color-border); padding-block-start: var(--space-5); overflow-wrap: anywhere; }
 .wishlist-share textarea { inline-size: 100%; min-inline-size: 0; resize: vertical; }
 .wishlist-share__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.wishlist-share__channels { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.wishlist-share__channels img { width: 24px; height: 24px; object-fit: contain; }
 
 @media (min-width: 64rem) {
   .wishlist-details-layout {
