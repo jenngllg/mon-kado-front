@@ -1832,6 +1832,35 @@ n’est rejoué automatiquement ; quitter la page ne garantit pas son annulation
 côté serveur. Le renouvellement, la désactivation et la consultation publique sont
 décrits ci-dessous.
 
+## Partage Messenger direct (#983)
+
+Le bouton Messenger ouvre le dialogue Meta `/dialog/send` sur ordinateur, avec
+le lien complet (suffixe secret inclus) et le choix du destinataire. Il ne copie
+plus le message et n'ouvre plus simplement la page d'accueil Messenger. Sur Android
+et iOS, les URI de partage suivent l'implémentation `sdk.openMessenger` du
+[SDK officiel Meta](https://connect.facebook.net/en_US/sdk/debug.js).
+Aucun SDK externe n'est chargé et aucun message n'est envoyé par le backend.
+L'utilisateur choisit le destinataire et confirme dans Messenger ; ouvrir la
+fenêtre ne prouve jamais qu'un envoi a eu lieu. Les autres canaux sont inchangés.
+
+`src/config/metaSharing.js` versionne uniquement l'App ID public MonKado
+`1072330919122670` et le retour fixe `https://www.monkado.fr/`. Aucun App Secret,
+jeton ni droit d'accès aux conversations n'est utilisé. Le lien secret figure
+uniquement dans le paramètre `link` du dialogue ou dans l'URI mobile, jamais dans
+le retour fixe. Le transfert du lien à Meta est déclenché seulement par un clic
+explicite sur une liste effectivement partagée. Aucun stockage ou log n'est ajouté.
+
+Avant une utilisation publique, configurer l'application Meta pour le site
+`https://www.monkado.fr/` et les domaines MonKado correspondants, puis vérifier
+le dialogue avec le compte administrateur de l'application et avec un compte
+non administrateur après publication de l'application. Les restrictions et les
+éventuelles exigences de Meta doivent être examinées dans son tableau de bord.
+Les tests locaux interceptent les destinations : ils ne prouvent pas l'acceptation
+par Meta. La connexion à Messenger sur le PC ne garantit pas une session Web Meta ;
+le dialogue peut encore demander une connexion dans le navigateur. Sur mobile,
+Messenger doit être installé et autorisé à ouvrir ses liens ; aucun renvoi
+automatique vers une boutique d'applications n'est effectué.
+
 ## Renouvellement du lien (#896)
 
 « Actualiser le lien » effectue seulement une lecture. « Renouveler le lien »

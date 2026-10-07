@@ -5,16 +5,17 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishlistShareRenewDialog } from "./wishlistShareRenewDialog.js";
 import { createWishlistShareRevokeDialog } from "./wishlistShareRevokeDialog.js";
-import { openWishlistMailComposer, openWishlistShareWindow, ShareChannels, wishlistShareDestination, wishlistShareMessage } from "./wishlistShareChannels.js";
+import { openWishlistMailComposer, openWishlistMessengerComposer, openWishlistShareWindow, ShareChannels, wishlistShareDestination, wishlistShareMessage } from "./wishlistShareChannels.js";
 
 /** Owner-only share section, independent of the gift collection.
  * @param {{wishlistId: string, wishlistName?: string, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, load: import("./wishlistShareService.js").LoadWishlistShare,
  * create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, copyText: (text: string) => Promise<void>,
  * onUnavailable: (state: "wishlistMissing" | "suspended") => void, onRevoked?: () => void, signal?: AbortSignal,
- * openShareWindow?: () => import("./wishlistShareChannels.js").ShareWindow | null, openMailComposer?: (url: string) => void}} options Dependencies.
+ * openShareWindow?: () => import("./wishlistShareChannels.js").ShareWindow | null, openMailComposer?: (url: string) => void,
+ * openMessengerComposer?: (url: string) => void}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, onRevoked, signal, openShareWindow = openWishlistShareWindow, openMailComposer = openWishlistMailComposer }) {
+export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, onRevoked, signal, openShareWindow = openWishlistShareWindow, openMailComposer = openWishlistMailComposer, openMessengerComposer = openWishlistMessengerComposer }) {
   const section = document.createElement("section"); section.className = "wishlist-share flow";
   const title = document.createElement("h2"); title.textContent = "Partager ma liste"; title.tabIndex = -1;
   const help = document.createElement("p"); help.textContent = "Une liste partagée est visible sur ton profil et accessible à tous.";
@@ -140,10 +141,14 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
   async function shareOn(channel) {
     if (disposed || terminal || busy || dialog || !link) return;
     const currentLink = link.shareUrl;
-    const destination = wishlistShareDestination(channel, wishlistName, currentLink);
     busy = true; clearFeedback(); status.textContent = ""; sync();
     try {
+      const destination = wishlistShareDestination(channel, wishlistName, currentLink);
       if (channel === "email") { openMailComposer(destination); return; }
+      if (channel === "messenger" && !destination.startsWith("https:")) {
+        openMessengerComposer(destination);
+        return;
+      }
       const channelOptions = ShareChannels.find(item => item.id === channel);
       // Start clipboard access while the originating page still has focus, then navigate without awaiting it.
       const copied = channelOptions?.copy ? copyText(wishlistShareMessage(wishlistName, currentLink)).then(() => true, () => false) : null;
@@ -151,7 +156,7 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
       if (pendingWindow) {
         pendingWindow.navigate(destination); pendingWindow = null;
       } else {
-        const fallback = document.createElement("a"); fallback.href = destination; fallback.target = "_blank"; fallback.rel = "noopener noreferrer";
+        const fallback = document.createElement("a"); fallback.href = destination; fallback.target = "_blank"; fallback.rel = "noopener noreferrer"; fallback.referrerPolicy = "no-referrer";
         fallback.className = "action-link action-link--secondary";
         fallback.textContent = `Ouvrir ${ShareChannels.find(item => item.id === channel)?.name}`;
         feedback.append(fallback);
