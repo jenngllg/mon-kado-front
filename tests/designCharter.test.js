@@ -2,6 +2,12 @@ import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("interface charter", () => {
+  it("keeps report dates separate from actions and reduces nested padding on small screens", () => {
+    const css = readFileSync(new URL("../src/styles/views.css", import.meta.url), "utf8");
+    expect(css).toMatch(/\.reported-wishlist > time,\s*\.reported-wishlist-report > time\s*\{ display: block; \}/);
+    expect(css).toMatch(/@media \(max-width: 30rem\)\s*\{\s*\.reported-wishlist \{ padding: var\(--space-3\); \}\s*\.reported-wishlist-report \{ padding: var\(--space-2\); \}/);
+    expect(css).toContain('.app-navigation__list:has(a[href="/admin/reported-wishlists"]) { gap: var(--space-2); }');
+  });
   it("keeps removed modification-action labels out of every application screen", () => {
     // Arrange
     const root = new URL("../src/", import.meta.url);

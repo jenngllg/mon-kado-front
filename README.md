@@ -2155,6 +2155,23 @@ Une perte d’accès retire la liste et invalide le contexte. Aucun secret, moti
 ou précision n’est conservé dans un stockage, une notification inter-onglets
 ou un journal applicatif.
 
+### Consulter les listes signalées (#956)
+
+La route protégée `/admin/reported-wishlists` est proposée uniquement au compte
+administrateur stable. Le backend reste l’autorité d’accès. Les filtres de statut
+(en attente par défaut), de motif et de suspension relisent les résultats ; les
+comptages et dates correspondent aux filtres sélectionnés, pas à tous les signalements.
+
+Une liste à la fois peut dévoiler ses signalements anonymes : motif, précisions,
+date et statut. Les listes et leurs signalements ont des paginations indépendantes
+de 20 éléments. Aucun souhait, image, auteur du signalement, note de traitement
+ou historique de modération n’est exposé, et aucune mutation n’est proposée.
+
+Un refus administrateur retire toute la file ; une liste introuvable retire son
+entrée et permet de recharger explicitement les résultats. Un changement de
+compte, de rôle ou de session nettoie les lectures et ignore les réponses tardives.
+Les erreurs techniques restent locales, avec récupération explicite sans rejeu.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US
