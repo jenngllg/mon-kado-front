@@ -17,7 +17,7 @@ for (const width of [390, 1440]) {
       if (!active) { await route.fulfill({ status: 404, json: { statusCode: 404, errorCode: "WISHLIST_SHARE_LINK_NOT_FOUND" }, headers }); return; }
       await route.fulfill({ json: { id: shareId, shareUrl: shareUrl() }, headers });
     });
-    await context.route(/^https:\/\/(wa\.me|www\.facebook\.com|www\.messenger\.com)\//, async route => {
+    await context.route(/^https:\/\/(wa\.me|www\.facebook\.com)\//, async route => {
       destinations.push(route.request().url());
       expect(route.request().headers().referer).toBeUndefined();
       await route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Controlled destination</title><p>Choose recipient</p>" });
@@ -48,11 +48,17 @@ for (const width of [390, 1440]) {
       expect(await popup.evaluate(() => globalThis.opener)).toBeNull();
       if (name === "WhatsApp") expect(new URL(popup.url()).searchParams.get("text")).toContain(shareUrl());
       if (name === "Facebook") expect(new URL(popup.url()).searchParams.get("u")).toBe(shareUrl());
+      if (name === "Messenger") {
+        const dialog = new URL(popup.url());
+        expect(dialog.pathname).toBe("/dialog/send");
+        expect(dialog.searchParams.get("link")).toBe(shareUrl());
+        expect(dialog.searchParams.get("app_id")).toBe("1072330919122670");
+        expect(dialog.searchParams.get("redirect_uri")).toBe("https://www.monkado.fr/");
+      }
       await popup.close(); await expect(group).toBeVisible();
     }
     expect(shareWrites).toBe(0); expect(api.state.wishWrites).toBe(0);
     expect(await page.evaluate(() => Reflect.get(globalThis, "copiedShareMessages"))).toEqual([
-      `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`,
       `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`,
     ]);
     await page.getByRole("button", { name: "Renouveler le lien", exact: true }).click();
@@ -63,6 +69,11 @@ for (const width of [390, 1440]) {
     const renewedPopup = await renewedPopupPromise; await renewedPopup.waitForURL(/^https:/);
     expect(new URL(renewedPopup.url()).searchParams.get("u")).toBe(shareUrl()); await renewedPopup.close();
     expect(await page.evaluate(() => Reflect.get(globalThis, "copiedShareMessages")).then(messages => messages.at(-1))).toBe(`Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`);
+    const messengerPopupPromise = page.waitForEvent("popup");
+    await group.getByRole("button", { name: "Partager par Messenger", exact: true }).click();
+    const messengerPopup = await messengerPopupPromise; await messengerPopup.waitForURL(/^https:/);
+    expect(new URL(messengerPopup.url()).searchParams.get("link")).toBe(shareUrl());
+    await messengerPopup.close();
     await page.getByRole("button", { name: "Désactiver le partage", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Désactiver le partage", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -73,22 +84,67 @@ for (const width of [390, 1440]) {
   });
 }
 
-test("Messenger opens even when clipboard completion stalls", async ({ page, context }) => {
+test("Messenger opens its recipient dialog without clipboard access", async ({ page, context }) => {
   const api = await controlledApi(context); api.state.authenticated = true;
   await context.route(`**/api/v1/wishlists/${listId}/share-link`, route => route.fulfill({
     json: { id: shareId, shareUrl: `${frontendOrigin}/shared-wishlists/${shareId}#${secret}` },
     headers: { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"share-current"' },
   }));
-  await context.route("https://www.messenger.com/**", route => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Messenger destination</title><p>Choose recipient</p>" }));
+  await context.route("https://www.facebook.com/dialog/send?**", route => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Messenger destination</title><p>Choose recipient</p>" }));
   await page.addInitScript(() => {
-    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => new Promise(() => {}) } });
+    Reflect.set(globalThis, "messengerClipboardCalls", 0);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => {
+      Reflect.set(globalThis, "messengerClipboardCalls", Reflect.get(globalThis, "messengerClipboardCalls") + 1);
+      return new Promise(() => {});
+    } } });
   });
   await page.goto(`/lists/${listId}`);
   const popupPromise = page.waitForEvent("popup");
-  await page.getByRole("button", { name: "Partager par Messenger", exact: true }).click();
+  await page.getByRole("button", { name: "Partager par Messenger", exact: true }).focus();
+  await page.keyboard.press("Enter");
   const popup = await popupPromise;
-  await popup.waitForURL("https://www.messenger.com/");
+  await popup.waitForURL("https://www.facebook.com/dialog/send?**");
   await expect(popup.getByText("Choose recipient")).toBeVisible();
+  expect(new URL(popup.url()).searchParams.get("link")).toBe(`${frontendOrigin}/shared-wishlists/${shareId}#${secret}`);
+  expect(await page.evaluate(() => Reflect.get(globalThis, "messengerClipboardCalls"))).toBe(0);
+  await expect(page.getByRole("button", { name: "Partager par Messenger", exact: true })).toBeEnabled();
   expect(await popup.evaluate(() => globalThis.opener)).toBeNull();
   await popup.close();
 });
+
+for (const platform of ["Android", "iPhone"]) {
+  test(`Messenger uses native ${platform} sharing without opening a blank tab`, async ({ page, context }) => {
+    const api = await controlledApi(context); api.state.authenticated = true;
+    const link = `${frontendOrigin}/shared-wishlists/${shareId}#${secret}`;
+    await context.route(`**/api/v1/wishlists/${listId}/share-link`, route => route.fulfill({
+      json: { id: shareId, shareUrl: link },
+      headers: { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"share-current"' },
+    }));
+    // Capture application URIs before the browser can launch an external program during the test.
+    await page.addInitScript(userAgent => {
+      Object.defineProperty(navigator, "userAgent", { configurable: true, get: () => userAgent });
+      Reflect.set(globalThis, "nativeMessengerDestinations", []);
+      globalThis.document.addEventListener("click", event => {
+        const anchor = event.target;
+        if (!(anchor instanceof globalThis.HTMLAnchorElement) || !/^(intent|fb-messenger):/.test(anchor.href)) return;
+        event.preventDefault();
+        Reflect.get(globalThis, "nativeMessengerDestinations").push(anchor.href);
+      }, true);
+    }, platform);
+    await page.goto(`/lists/${listId}`);
+    await page.getByRole("button", { name: "Partager par Messenger", exact: true }).click();
+    const destinations = await page.evaluate(() => Reflect.get(globalThis, "nativeMessengerDestinations"));
+    expect(destinations).toHaveLength(1);
+    if (platform === "Android") {
+      expect(destinations[0]).toContain(`S.android.intent.extra.TEXT=${encodeURIComponent(link)};`);
+      expect(destinations[0]).toContain("package=com.facebook.orca;");
+    } else {
+      const destination = new URL(destinations[0]);
+      expect(destination.protocol).toBe("fb-messenger:");
+      expect(destination.searchParams.get("link")).toBe(link);
+    }
+    expect(context.pages()).toHaveLength(1);
+    expect(api.state.wishWrites).toBe(0); expect(api.unexpected).toEqual([]);
+    await expect(page.getByRole("button", { name: "Partager par Messenger", exact: true })).toBeEnabled();
+  });
+}
