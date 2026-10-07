@@ -2138,6 +2138,23 @@ Le renouvellement ou la révocation à distance se constate à la prochaine requ
 polling ni promesse de propagation instantanée. L’historique membre est retiré
 à la déconnexion et relu pour le compte suivant, sans repli invité.
 
+### Signaler une liste partagée (#954)
+
+Après une lecture valide, « Signaler cette liste » ouvre une confirmation native,
+sans créer de participation. Le motif est obligatoire ; « Autre » exige des
+précisions. Les précisions sont limitées à 1 000 caractères Unicode et le corps
+JSON à 4 096 octets UTF-8, sans troncature. Le POST public utilise le contexte de
+partage en mémoire et la protection antiforgery commune, sans JWT ni version.
+
+Un succès confirmé annonce « Signalement envoyé » sans relire les souhaits.
+Après un résultat incertain, la saisie reste dans la modale et une nouvelle
+tentative exige un clic explicite, avec avertissement du risque de doublon.
+Aucun endpoint ne permet de vérifier la réception. Fermer ou quitter efface
+le brouillon ; cela ne garantit pas l’annulation d’un envoi reçu par le serveur.
+Une perte d’accès retire la liste et invalide le contexte. Aucun secret, motif
+ou précision n’est conservé dans un stockage, une notification inter-onglets
+ou un journal applicatif.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US

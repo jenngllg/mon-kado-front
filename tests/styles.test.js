@@ -74,7 +74,7 @@ describe("graphic foundations", () => {
     expect(readStyleFile("../src/styles/site-theme.css")).not.toMatch(/\.app-brand\b/);
   });
   it("keeps all shared confirmation gutters bounded by the viewport with enlarged text", () => {
-    const dialog = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1];
+    const dialog = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-report-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1];
     expect(dialog).toContain("width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)))");
     expect(dialog).toContain("padding-inline: min(var(--space-6), 4vw)");
     expect(dialog).toContain("max-width: 100%");
@@ -288,7 +288,7 @@ describe("graphic foundations", () => {
     expect(viewStyles.match(/\.wish-reorder-commands button\s*\{([^}]+)\}/)?.[1]).toContain("white-space: normal");
   });
   it("bounds the native gift modal to the viewport with internal scrolling and token-based presentation", () => {
-    const modal = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1] ?? "";
+    const modal = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-report-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(modal).toContain("width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)))");
     expect(modal).toContain("max-height: calc(100dvh - var(--space-6))");
     expect(modal).toContain("overflow: auto");

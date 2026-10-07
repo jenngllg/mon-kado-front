@@ -53,6 +53,7 @@ import { createWishEditView } from "../features/wishes/wishEditView.js";
 import { createWishDetailsView } from "../features/wishes/wishDetailsView.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
 import { createSharedWishlistService } from "../features/sharing/sharedWishlistService.js";
+import { createWishlistReportService } from "../features/sharing/wishlistReportService.js";
 import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
 import { createSharedWishView } from "../features/sharing/sharedWishView.js";
 import { createSharedSessionView } from "../features/sharing/sharedSessionView.js";
@@ -296,6 +297,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal, fromMemberId,
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
+          report: createWishlistReportService(session, { context: sharing }).report,
           load: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load }), context.signal);
       },
     },

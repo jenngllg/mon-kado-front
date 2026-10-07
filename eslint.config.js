@@ -55,6 +55,7 @@ export default [
       "tests/wishlistShareSection.test.js",
       "tests/wishlistShareChannels.test.js",
       "tests/wishlistShareRenewDialog.test.js",
+      "tests/wishlistReportDialog.test.js",
       "tests/wishlistShareRevokeDialog.test.js",
       "tests/sharedWishlistView.test.js",
       "tests/reservationHistoryView.test.js",
