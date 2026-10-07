@@ -91,6 +91,8 @@ describe("owned wishlists view", () => {
     const view = mount({ load: async () => [{ ...item, occasion }] }); await Promise.resolve();
     // Assert
     expect(view.querySelector(".wishlist-card__occasion")?.textContent).toBe(label);
+    const artwork = ["birthday", "christmas", "wedding"].includes(occasion) ? occasion : "other";
+    expect(view.querySelector(".wishlist-card__icon")?.getAttribute("src")).toBe(`/src/assets/design/${artwork}-icon.webp`);
   });
   it("uses UTC explicitly so a calendar date never moves to the previous day", async () => {
     // Arrange

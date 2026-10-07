@@ -5,7 +5,7 @@ import { createActionLink, createAlert, createButton, createEmptyState, createLo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { WishlistOccasions as OccasionLabels } from "./wishlistValidation.js";
 import { createActionDisclosure } from "../../components/actionDisclosure.js";
-import { wishlistArtwork } from "./wishlistArtwork.js";
+import { wishlistArtwork, wishlistOccasionIcon } from "./wishlistArtwork.js";
 import { createWishlistArchiveButton } from "./wishlistArchiveButton.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -120,7 +120,7 @@ function createCard(item, archive) {
   occasion.className = "wishlist-card__occasion";
   const heading = textElement("h2", "");
   const icon = document.createElement("img"); icon.alt = "";
-  icon.className = "wishlist-card__icon"; icon.src = wishlistArtwork(item.occasion).replace(".webp", "-icon.webp");
+  icon.className = "wishlist-card__icon"; icon.src = wishlistOccasionIcon(item.occasion);
   const open = createActionLink({ label: item.name, href: RoutePaths.ListDetails.replace(":listId", item.id) });
   open.setAttribute("aria-label", "Ouvrir la liste « " + item.name + " »");
   open.classList.add("wishlist-card__open");
