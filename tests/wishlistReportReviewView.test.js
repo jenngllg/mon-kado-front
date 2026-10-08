@@ -30,6 +30,7 @@ describe("review page", () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Chargement du signalement…"); expect(ui.form.hidden).toBe(true); ui.submit(); expect(ui.update).not.toHaveBeenCalled(); await settle();
     expect(ui.loadOne).toHaveBeenCalledExactlyOnceWith(wishlistId, reportId, { signal: expect.any(AbortSignal) }); expect(ui.view.querySelector("script")).toBeNull(); expect(ui.view.textContent).toContain(record.details); expect(ui.form.noValidate).toBe(true); expect(ui.note.hasAttribute("maxlength")).toBe(false); expect(ui.button("Enregistrer").disabled).toBe(true);
     expect(ui.view.querySelector("a")?.getAttribute("href")).toBe("/admin/reported-wishlists"); expect(ui.view.textContent).toContain("ne suspend pas la liste");
+    expect(ui.view.querySelector('a[href$="/history"]')?.getAttribute("href")).toBe(`/admin/reported-wishlists/${wishlistId}/reports/${reportId}/history`);
   });
   it("treats explicitly, adopts the returned ETag and allows correcting the private note", async () => {
     const ui = setup(); await settle(); ui.draft(); ui.submit(); await settle(); expect(ui.update).toHaveBeenCalledExactlyOnceWith(wishlistId, reportId, { status: "upheld", reviewNote: "Decision" }, { etag: record.etag, signal: expect.any(AbortSignal) });

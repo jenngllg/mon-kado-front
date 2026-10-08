@@ -2,6 +2,7 @@ import { ApiError, createAbortError } from "../../api/apiError.js";
 import { isUtcTimestamp } from "../../api/utcTimestamp.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { ReportReasons } from "../sharing/wishlistReportValidation.js";
+import { isAdminPage, isAdminPageInteger as integer } from "./adminPagination.js";
 
 export const ReportStatuses = Object.freeze({ pending: "En attente", upheld: "Retenu", dismissed: "Classé sans suite", all: "Tous les statuts" });
 /** @typedef {{status?: keyof typeof ReportStatuses, reason?: string, isSuspended?: boolean, page?: number, signal: AbortSignal}} ReportQuery */
@@ -37,9 +38,8 @@ export function createReportedWishlistsService(session) {
     const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
     /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["PaginatedResponseOfReportedWishlistSummary"] & import("../../api/generated/openapi.js").components["schemas"]["PaginatedResponseOfWishlistReportDetails"]> | null} */
     const data = response.data;
-    if (response.status !== 200 || !data || !integer(data.totalCount, 0) || data.currentPage !== page || data.pageSize !== 20 || !Array.isArray(data.items)) throw invalid();
-    const totalPages = Math.ceil(data.totalCount / 20), expected = Math.min(20, Math.max(0, data.totalCount - (page - 1) * 20));
-    if (data.totalPages !== totalPages || data.hasNextPage !== (page < totalPages) || data.hasPreviousPage !== (totalPages > 0 && page > 1) || data.items.length !== expected) throw invalid();
+    if (response.status !== 200 || !data || !isAdminPage(data, page)) throw invalid();
+    const totalPages = data.totalPages;
     const seen = new Set();
     const items = data.items.map(raw => {
       const item = /** @type {import("../../api/generated/openapi.js").components["schemas"]["ReportedWishlistSummary"] & import("../../api/generated/openapi.js").components["schemas"]["WishlistReportDetails"]} */ (raw);
@@ -59,7 +59,5 @@ export function createReportedWishlistsService(session) {
     return /** @type {ReportPage<T extends true ? Report : ReportedList>} */ (Object.freeze({ items: Object.freeze(items), currentPage: page, totalPages, totalCount: data.totalCount }));
   }
 }
-/** @param {unknown} value Candidate. @param {number} minimum Lower bound. @returns {value is number} Safe int32. */
-function integer(value, minimum) { return typeof value === "number" && Number.isInteger(value) && value >= minimum && value <= 2147483647; }
 /** @param {unknown} value Display name. @returns {value is string} Safe text. */
 function text(value) { return typeof value === "string" && value.trim() !== "" && !/[\p{Cs}\p{Cc}\p{Zl}\p{Zp}]/u.test(value); }

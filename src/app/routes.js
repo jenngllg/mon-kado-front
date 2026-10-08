@@ -12,6 +12,8 @@ import { createWishlistReportReviewService } from "../features/admin/wishlistRep
 import { createWishlistReportReviewView } from "../features/admin/wishlistReportReviewView.js";
 import { createWishlistModerationService } from "../features/admin/wishlistModerationService.js";
 import { createWishlistModerationView } from "../features/admin/wishlistModerationView.js";
+import { createWishlistHistoryService } from "../features/admin/wishlistHistoryService.js";
+import { createWishlistReportHistoryView, createWishlistModerationHistoryView } from "../features/admin/wishlistHistoryView.js";
 import { createReportedWishlistsService } from "../features/admin/reportedWishlistsService.js";
 import { createMemberSearchService } from "../features/members/memberSearchService.js";
 import { createMemberSearchView } from "../features/members/memberSearchView.js";
@@ -103,6 +105,18 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
+    {
+      name: RouteNames.WishlistReportHistory, path: RoutePaths.WishlistReportHistory, title: "Historique du signalement · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+        signal: context.signal, createView: () => createWishlistReportHistoryView({ wishlistId: context.params.wishlistId, reportId: context.params.reportId, ...createWishlistHistoryService(session), signal: context.signal }),
+      }),
+    },
+    {
+      name: RouteNames.WishlistModerationHistory, path: RoutePaths.WishlistModerationHistory, title: "Historique de modération · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+        signal: context.signal, createView: () => createWishlistModerationHistoryView({ wishlistId: context.params.wishlistId, ...createWishlistHistoryService(session), signal: context.signal }),
+      }),
+    },
     {
       name: RouteNames.WishlistModeration, path: RoutePaths.WishlistModeration, title: "Suspension de la liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {

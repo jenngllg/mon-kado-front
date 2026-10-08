@@ -984,6 +984,8 @@
 .report-review-view { max-inline-size: var(--content-narrow); }
 .report-review-view > .wishlist-details-header { align-items: flex-start; }
 .report-review-view h2 { font-size: var(--font-size-xl); }
+.admin-history-list { list-style: none; padding: 0; margin: 0; }
+.admin-history-list > li { min-inline-size: 0; overflow-wrap: anywhere; }
 .reported-wishlists-view h3,
 .reported-wishlists-view h4 { font-size: var(--font-size-lg); }
 

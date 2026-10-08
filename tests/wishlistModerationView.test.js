@@ -53,6 +53,7 @@ describe("moderation page", () => {
   it("requires a fresh read before writing and keeps the route protected without extending returnTo", async () => {
     const ui = setup(); expect(ui.form.hidden).toBe(true); ui.submit(); expect(ui.update).not.toHaveBeenCalled(); await settle(); expect(ui.load).toHaveBeenCalledExactlyOnceWith(wishlistId, { signal: expect.any(AbortSignal) }); expect(ui.form.noValidate).toBe(true); expect(ui.reason.hasAttribute("maxlength")).toBe(false); expect(ui.button("Suspendre la liste").disabled).toBe(true);
     expect(isProtectedRoute(RouteNames.WishlistModeration)).toBe(true); expect(getSafeReturnTo(`/admin/reported-wishlists/${wishlistId}/moderation`)).toBe("/lists");
+    expect(ui.view.querySelector('a[href$="/history"]')?.getAttribute("href")).toBe(`/admin/reported-wishlists/${wishlistId}/moderation/history`);
   });
   it("opens one native confirmation with ARIA and no request, then cancels with preserved draft", async () => {
     const ui = setup(); await settle(); ui.draft("  <script>Motif</script>  "); ui.submit(); ui.submit(); const modal = /** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog")); expect(ui.view.querySelectorAll("dialog")).toHaveLength(1); expect(modal.open).toBe(true); expect(modal.getAttribute("aria-labelledby")).toBe(modal.querySelector("h2")?.id); expect(modal.getAttribute("aria-describedby")).toBe(modal.querySelector("p")?.id); expect(document.activeElement).toBe(modal.querySelector("h2")); expect(ui.update).not.toHaveBeenCalled();

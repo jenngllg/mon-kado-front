@@ -1,6 +1,6 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createAlert, createBackLink, createButton, createLoadingState, disposeComponent, setFormFieldValidation } from "../../components/index.js";
+import { createAlert, createBackLink, createActionLink, createButton, createLoadingState, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { ReportReasons, ReportDetailsMessage } from "../sharing/wishlistReportValidation.js";
 import { createModerationAccessDeniedView } from "./moderationAccessView.js";
@@ -17,7 +17,9 @@ export function createWishlistReportReviewView({ wishlistId, reportId, loadOne, 
   const view = node("section", ""); view.className = "report-review-view flow";
   const title = node("h1", "Examiner un signalement"); title.tabIndex = -1;
   const back = createBackLink({ label: "Retour aux listes signalées", href: "/admin/reported-wishlists" });
-  const header = node("div", ""); header.className = "wishlist-details-header"; header.append(title, back);
+  const history = createActionLink({ label: "Historique du signalement", href: `/admin/reported-wishlists/${wishlistId}/reports/${reportId}/history` });
+  const toolbar = node("div", ""); toolbar.className = "cluster"; toolbar.append(back, history);
+  const header = node("div", ""); header.className = "wishlist-details-header"; header.append(title, toolbar);
   const content = node("div", ""); content.className = "flow";
   const feedback = node("div", ""); const comparison = node("section", ""); comparison.className = "report-review-comparison flow"; comparison.hidden = true;
   const announcement = node("p", ""); announcement.setAttribute("role", "status");
@@ -136,7 +138,7 @@ export function createWishlistReportReviewView({ wishlistId, reportId, loadOne, 
   /** @param {unknown} error Terminal resource or permission refusal. */
   function unavailable(error) {
     if (!(error instanceof ApiError) || ![403, 404].includes(error.statusCode ?? 0)) return false;
-    terminal = true; lifetime.abort(); erase(); disposeComponent(editor.form); editor.form.remove(); recovery.remove(); comparison.remove();
+    terminal = true; lifetime.abort(); erase(); disposeComponent(editor.form); editor.form.remove(); recovery.remove(); comparison.remove(); history.remove();
     if (error.statusCode === 403) { const denied = createModerationAccessDeniedView(); view.replaceChildren(denied); denied.querySelector("h1")?.focus(); }
     else { title.textContent = "Signalement introuvable"; title.focus(); }
     return true;
