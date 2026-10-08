@@ -34,6 +34,11 @@ function button(root, label) {
 async function idle(view) { await vi.waitFor(() => expect(button(view, "Demander mon export").disabled).toBe(false)); }
 
 describe("personal data lifecycle UI", () => {
+  it("uses the shared coral primary style for requesting the deletion link", async () => {
+    const f = fixture(); const view = f.mount(); await idle(view);
+    expect(button(view, "Recevoir le lien de suppression").classList.contains("ui-button--primary")).toBe(true);
+    expect(f.service.requestDeletion).not.toHaveBeenCalled();
+  });
   it("announces export submission and puts the loading indicator on the activated action", async () => {
     // Arrange
     const f = fixture(); const view = f.mount(); await idle(view);

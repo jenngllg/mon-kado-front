@@ -136,8 +136,10 @@ describe("shared wishlist presentation", () => {
     expect(filter.closest("label")?.textContent).toContain("Afficher uniquement les souhaits disponibles");
     expect(filter.hasAttribute("aria-describedby")).toBe(false);
     expect(ui.view.textContent).not.toContain("déjà réservés");
+    expect(ui.view.querySelector(".wish-gallery__reservation")?.textContent.trim()).toBe("1 sur 2 réservé 1 disponible");
     ui.load.mockResolvedValue({ ...list, wishes: [{ ...list.wishes[0], availableQuantity: 0, reservedQuantity: 2, currentParticipantReservedQuantity: 1 }] });
     filter.click(); await settle();
+    expect(ui.view.querySelector(".wish-gallery__reservation")?.textContent.trim()).toBe("Réservé");
     expect(ui.load.mock.calls[1][1].availableOnly).toBe(true); expect(ui.view.querySelectorAll("li")).toHaveLength(1);
     expect(document.activeElement).toBe(filter); expect(ui.view.textContent).not.toMatch(/souhaits? affichés?/);
     expect(ui.view.querySelector('.wishlist-details-gifts [role="status"]')).toBeNull();
@@ -188,7 +190,7 @@ describe("shared wishlist presentation", () => {
     expect(ui.view.querySelector(".section-toolbar .shared-wishlist-filter input")).not.toBeNull();
     expect(ui.view.querySelector("ul")?.getAttribute("role")).toBe("list"); expect(ui.view.querySelector("h3")?.textContent).toBe("Un souhait"); expect(ui.view.textContent).not.toContain("Quantité");
     expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
-    const detail = ui.view.querySelector(`.wish-gallery__photo[href="/shared-wishlists/${id}/wishes/${id}"]`); expect(detail?.getAttribute("aria-label")).toBe("Voir le souhait « Un souhait »"); expect(detail?.querySelector("a")).toBeNull();
+    const detail = ui.view.querySelector(`.wish-gallery__photo[href="/shared-wishlists/${id}/wishes/${id}"]`); expect(detail?.getAttribute("aria-label")).toBe("Voir le souhait « Un souhait » — 1 sur 2 réservé, 1 disponible"); expect(detail?.querySelector("a")).toBeNull();
     expect(ui.view.querySelector(".wish-card h3 a")?.getAttribute("href")).toBe(detail?.getAttribute("href"));
     expect(ui.view.querySelector(".wish-grid--gallery .wish-card--gallery")).not.toBeNull();
     expect(detail?.querySelector("img")).not.toBeNull();

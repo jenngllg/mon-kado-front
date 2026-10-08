@@ -3,6 +3,7 @@ import { isAbortError } from "../../api/apiError.js";
 import { createAlert, createButton, disposeComponent, setButtonLoading } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
+import { createAccountIcon } from "../../components/accountIcon.js";
 
 const StatusLabels = Object.freeze({ queued: "En attente de préparation", processing: "Préparation en cours", ready: "Archive disponible",
   failed: "La préparation a échoué", expired: "Archive expirée" });
@@ -13,11 +14,14 @@ const StatusLabels = Object.freeze({ queued: "En attente de préparation", proce
  */
 export function createPersonalDataView({ service, signal }) {
   const view = document.createElement("section");
-  view.className = "flow";
+  view.className = "personal-data-view flow";
   const heading = document.createElement("h1"); heading.textContent = "Mes données personnelles";
   const explanation = document.createElement("p");
+  const exportTitle = document.createElement("h2"); exportTitle.textContent = "Exporter mes données";
   explanation.textContent = "Télécharge les données encore conservées pour ton compte. L’archive est personnelle : garde-la dans un endroit sûr. Elle ne permet pas de restaurer le compte.";
+  const statusPanel = document.createElement("div"); statusPanel.className = "personal-data-view__status";
   const status = document.createElement("p"); status.setAttribute("role", "status");
+  statusPanel.append(createAccountIcon("information"), status);
   const feedback = document.createElement("div"); feedback.tabIndex = -1;
   const lifetime = new AbortController();
   /** @type {import("./personalDataService.js").PersonalExport | null} */ let archive = null;
@@ -42,16 +46,16 @@ export function createPersonalDataView({ service, signal }) {
   actions.append(request, download);
   const note = document.createElement("p");
   note.textContent = "Reviens sur cette page pour consulter ton export.";
-  const deletion = document.createElement("section"); deletion.className = "flow";
+  const deletion = document.createElement("section"); deletion.className = "personal-data-view__deletion flow";
   const deletionTitle = document.createElement("h2"); deletionTitle.textContent = "Supprimer mon compte";
-  const deletionNote = document.createElement("p"); deletionNote.textContent = "La suppression nécessite une confirmation par e-mail. Télécharge ton export avant de confirmer.";
+  const deletionNote = document.createElement("p"); deletionNote.textContent = "La suppression nécessite une confirmation par e-mail. N'oublie pas de télécharger ton export avant de confirmer.";
   const deletionStatus = document.createElement("p"); deletionStatus.setAttribute("role", "status");
-  const deletionButton = createButton({ label: "Recevoir le lien de suppression", variant: "secondary", onClick: () => { void execute(async () => {
+  const deletionButton = createButton({ label: "Recevoir le lien de suppression", onClick: () => { void execute(async () => {
     await service.requestDeletion({ signal: lifetime.signal });
     if (!disposed) deletionStatus.textContent = "La demande est enregistrée. Consulte tes e-mails pour confirmer la suppression.";
   }, "deletion"); } });
   deletion.append(deletionTitle, deletionNote, deletionButton, deletionStatus);
-  view.append(heading, explanation, status, feedback, actions, note, deletion);
+  view.append(heading, exportTitle, explanation, statusPanel, feedback, actions, note, deletion);
   registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); releaseDownload(); archive = null; feedback.replaceChildren(); status.textContent = ""; deletionStatus.textContent = ""; });
   if (signal) {
     addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });

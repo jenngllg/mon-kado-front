@@ -24,7 +24,7 @@ for (const width of [390, 1440]) {
     await expect(selected).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator('.wish-card h3 [aria-label="Coup de cœur"]')).toHaveCount(0);
     expect(api.wish.position).toBe(position); expect(api.state.wishWrites).toBe(1);
-    await expect(selected.locator("svg")).toHaveCSS("fill", "rgb(255, 103, 87)");
+    await expect(selected.locator("svg")).toHaveCSS("fill", "rgb(185, 62, 50)");
     await page.mouse.move(0, 0); await page.locator(".app-main").focus();
     await expect(selected).toHaveCSS("opacity", "1");
     await expect(selected).toHaveCSS("pointer-events", "auto");

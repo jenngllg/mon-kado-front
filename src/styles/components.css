@@ -83,9 +83,10 @@
 
 .action-link {
   padding-inline: var(--space-2);
-  color: var(--color-text);
   text-decoration: none;
 }
+
+:where(.action-link:not(.ui-button)) { color: var(--color-text); }
 
 .action-link:not(.ui-button):not([aria-disabled="true"]):hover { background-color: var(--color-surface-muted); }
 

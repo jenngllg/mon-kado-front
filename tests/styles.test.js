@@ -13,6 +13,45 @@ const mockupStyles = readStyleFile("../src/styles/mockup-fidelity.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
+  it("preserves white primary button labels for action links too", () => {
+    expect(tokens).toContain("--color-text-on-accent: #ffffff");
+    expect(componentStyles).toContain("color: var(--color-text-on-accent)");
+    const linkRule = componentStyles.match(/\n\.action-link\s*\{([^}]+)\}/)?.[1];
+    expect(linkRule).not.toMatch(/\bcolor\s*:/);
+    expect(componentStyles).toContain(":where(.action-link:not(.ui-button)) { color: var(--color-text); }");
+    expect(viewStyles).toMatch(/\.home-hero__primary-action\s*\{[^}]*color: var\(--color-text-on-accent\)/);
+  });
+  it("keeps only the subtle surface for every active main navigation link", () => {
+    const activeRules = [...shellStyles.matchAll(/\.app-navigation__link\[aria-current="page"\]\s*\{([^}]+)\}/g)];
+    expect(activeRules.some(([, rule]) => rule.includes("background: var(--color-surface-muted)"))).toBe(true);
+    expect(activeRules.some(([, rule]) => rule.includes("box-shadow: none"))).toBe(true);
+    expect(shellStyles).not.toContain("box-shadow: inset");
+  });
+  it("uses a straight coral selection marker in account navigation", () => {
+    const theme = readStyleFile("../src/styles/site-theme.css");
+    const active = theme.match(/\.profile-view__settings a\[aria-current="page"\]\s*\{([^}]+)\}/)?.[1];
+    expect(active).toContain("border-inline-start-color: var(--color-accent)");
+    expect(active).toContain("border-radius: 0");
+  });
+  it("centers complete compact form views without moving account navigation", () => {
+    for (const family of ["wishlist", "wish"]) {
+      const rule = mockupStyles.match(new RegExp(`:is\\(\\.${family}-create-view, \\.${family}-edit-view\\)\\s*\\{([^}]+)\\}`))?.[1];
+      expect(rule).toContain(`max-width: var(--form-width-${family === "wishlist" ? "list" : "wish"})`);
+      expect(rule).toContain("margin-inline: auto");
+    }
+    expect(readStyleFile("../src/styles/site-theme.css")).toContain(".profile-layout > h1 { grid-column: 1 / -1;");
+  });
+  it("uses compact form tokens and pairs wish fields only above the mobile breakpoint", () => {
+    expect(tokens).toContain("--form-width-auth: 30rem");
+    expect(tokens).toContain("--form-width-list: 45rem");
+    expect(tokens).toContain("--form-width-wish: 37.5rem");
+    expect(tokens).toContain("--form-width-account: 35rem");
+    const theme = readStyleFile("../src/styles/site-theme.css");
+    expect(theme).toContain("width: min(100%, var(--form-width-auth))");
+    expect(mockupStyles).toMatch(/@media \(min-width: 48\.001rem\)[\s\S]*\.wish-form > :is\(\.wish-form__price, \.wish-form__quantity\) \{ grid-column: auto; \}/);
+    expect(mockupStyles).toContain(".wish-form > .wishlist-form__actions { justify-self: start; }");
+    expect(mockupStyles).not.toContain("min-width: min(100%, 15rem)");
+  });
   it("lets field information use the full control width without forcing a single line", () => {
     const information = componentStyles.match(/\.form-field__description--info\s*\{([^}]+)\}/)?.[1];
     expect(information).toContain("max-width: none");
@@ -36,7 +75,8 @@ describe("graphic foundations", () => {
   it("shares the unboxed paired-field layout and wrapping footer between list creation and editing", () => {
     const form = mockupStyles.match(/:is\(\.wishlist-create-view, \.wishlist-edit-view\) > \.wishlist-form\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(form).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
-    expect(form).toContain("var(--space-6) var(--space-7)");
+    expect(form).toContain("var(--space-5) var(--space-5)");
+    expect(form).toContain("width: min(100%, var(--form-width-list))");
     expect(mockupStyles).toContain(":is(.wishlist-create-view, .wishlist-edit-view) .wishlist-form > * { grid-column: 1 / -1");
     expect(mockupStyles).toContain(".wishlist-form__occasion, .wishlist-form__eventDate) { grid-column: auto");
     expect(mockupStyles).toMatch(/@media \(max-width: 48rem\)[\s\S]*:is\(\.wishlist-create-view, \.wishlist-edit-view\) > \.wishlist-form\s*\{\s*grid-template-columns: minmax\(0, 1fr\)/);
@@ -46,7 +86,7 @@ describe("graphic foundations", () => {
   it("uses one readable wish form column without reserving a missing preview track", () => {
     const layout = mockupStyles.match(/:is\(\.wish-create-view, \.wish-edit-view\)\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(layout).toContain("grid-template-columns: minmax(0, 1fr)");
-    expect(mockupStyles).toContain(":is(.wish-create-view, .wish-edit-view) > :is(.wishlist-form, .wish-import) { width: min(100%, var(--content-narrow))");
+    expect(mockupStyles).toContain(":is(.wish-create-view, .wish-edit-view) > :is(.wishlist-form, .wish-import) { width: min(100%, var(--form-width-wish))");
     expect(mockupStyles).not.toContain("minmax(0, 1.7fr)");
     expect(mockupStyles).not.toContain("max-width: calc(100% - 19rem)");
     expect(mockupStyles).toContain(".wish-create-view > .wish-import { border: 0; padding: 0; }");
@@ -55,9 +95,9 @@ describe("graphic foundations", () => {
   it("aligns the account frame with site gutters without widening its readable forms", () => {
     const theme = readStyleFile("../src/styles/site-theme.css");
     const layout = theme.match(/\.profile-layout\s*\{([^}]+)\}/)?.[1] ?? "";
-    expect(layout).toContain("width: 100%");
+    expect(layout).toContain("width: min(100%, 56rem)");
     expect(layout).toContain("max-width: none");
-    expect(theme).toContain(".profile-layout .recovery-form { max-width: 42rem; }");
+    expect(theme).toContain(".profile-layout .recovery-form { max-width: var(--form-width-account); }");
     expect(viewStyles).toMatch(/@media \(max-width: 48rem\)\s*\{\s*\.profile-layout\s*\{[^}]*max-width: none/);
   });
   it("fills the available gallery width with at most four equal tracks and reveals commands without moving content", () => {
@@ -183,7 +223,7 @@ describe("graphic foundations", () => {
   it("does not add a second vertical gutter around authentication forms", () => {
     const theme = readStyleFile("../src/styles/site-theme.css");
     const authentication = theme.match(/:is\(\.registration-view[^{}]+\.authenticator-view\)\s*\{([^}]+)\}/)?.[1];
-    expect(authentication).toContain("width: min(100%, 36rem)");
+    expect(authentication).toContain("width: min(100%, var(--form-width-auth))");
     expect(authentication).not.toMatch(/padding(?:-block(?:-start|-end)?)?\s*:/);
   });
   it("preserves the original wordmark and coral dot without a mockup override", () => {

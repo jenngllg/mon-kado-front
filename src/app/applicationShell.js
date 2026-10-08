@@ -289,7 +289,7 @@ function createMenuButton(navigationIdentifier) {
 function getActiveNavigationRoute(routeName) {
   if (routeName === RouteNames.WishlistReportReview || routeName === RouteNames.WishlistModeration || routeName === RouteNames.WishlistReportHistory || routeName === RouteNames.WishlistModerationHistory) return RouteNames.ReportedWishlists;
   if (routeName === RouteNames.MemberProfile) return RouteNames.Members;
-  if (routeName === RouteNames.PasswordChange || routeName === RouteNames.EmailChange) return RouteNames.Profile;
+  if ([RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.PersonalData, RouteNames.Authenticator].some(name => name === routeName)) return RouteNames.Profile;
   if (
     routeName === RouteNames.Lists ||
     routeName === RouteNames.NewList ||

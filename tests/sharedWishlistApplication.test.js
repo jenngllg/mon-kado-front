@@ -262,7 +262,7 @@ describe("public shared gift integration", () => {
   });
   it("opens accessible detail links, reloads each direction and never publishes credentials", async () => {
     const { app, state, hub } = setup(); await app.start(); await observe(() => app.shell.outlet.querySelector(`a[href="${detailPath}"]`) !== null);
-    const link = /** @type {HTMLAnchorElement} */ (app.shell.outlet.querySelector(`a[href="${detailPath}"]`)); expect(link.getAttribute("aria-label")).toBe(`Voir le souhait « ${wish.name} »`); link.click();
+    const link = /** @type {HTMLAnchorElement} */ (app.shell.outlet.querySelector(`a[href="${detailPath}"]`)); expect(link.getAttribute("aria-label")).toBe(`Voir le souhait « ${wish.name} » — Réservé`); link.click();
     await observe(() => app.shell.outlet.querySelector("h1")?.textContent === wish.name); expect(state.reads).toBe(2); expect(state.detailReads).toBe(1); expect(app.router.getCurrentRoute()?.url.pathname).toBe(detailPath);
     expect(app.shell.element.innerHTML).not.toMatch(/reservedQuantity|currentParticipant|AAAA/); expect(JSON.stringify(hub.messages)).not.toContain(secret); expect(JSON.stringify(app.router.getCurrentRoute())).not.toContain(secret);
     app.shell.outlet.querySelector(`a[href="${path}"]`)?.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 })); await observe(() => app.shell.outlet.querySelector("h1")?.textContent === data.name); expect(state.reads).toBe(3);

@@ -17,6 +17,45 @@ function setup(values = {}, readOnly = false, options = {}) {
 }
 
 describe("owner wish gallery tile", () => {
+  it.each([
+    [2, 0, "Réservé"],
+    [1, 1, "1 sur 2 réservé 1 disponible"],
+    [0, 2, null],
+    [null, null, null],
+    [1, null, null],
+  ])("shows only the public reservation status for reserved=%s and available=%s", (reservedQuantity, availableQuantity, label) => {
+    // Arrange / Act
+    const card = setup({}, true, { detailHref: "/shared-wishlists/share/wishes/wish", reservationQuantities: { reservedQuantity, availableQuantity } });
+    const badge = card.querySelector(".wish-gallery__reservation");
+    // Assert
+    expect(badge?.textContent.trim() ?? null).toBe(label);
+    if (label) {
+      expect(card.querySelector(".wish-gallery__photo")?.getAttribute("aria-label")).toContain(label.replace("réservé ", "réservé, "));
+      expect(card.querySelector(".wish-gallery__photo")?.contains(badge)).toBe(true);
+      expect(badge?.querySelector('svg[aria-hidden="true"]') !== null).toBe(label === "Réservé");
+    }
+    expect(card.querySelector("button")).toBeNull();
+  });
+  it("shows explicit plural quantities only for partial reservations", () => {
+    // Arrange / Act
+    const card = setup({ quantity: 4 }, true, { detailHref: "/shared-wishlists/share/wishes/wish", reservationQuantities: { reservedQuantity: 2, availableQuantity: 2 } });
+    // Assert
+    expect(card.querySelector(".wish-gallery__reservation")?.textContent).toBe("2 sur 4 réservés 2 disponibles");
+    expect(card.querySelector(".wish-gallery__availability")?.textContent).toBe("2 disponibles");
+    expect(card.querySelector(".wish-gallery__photo")?.getAttribute("aria-label")).toContain("2 sur 4 réservés, 2 disponibles");
+  });
+  it.each([false, true])("never exposes reservation badges in owner galleries, readonly=%s", readOnly => {
+    // Arrange / Act
+    const card = setup({}, readOnly, { reservationQuantities: { reservedQuantity: 2, availableQuantity: 0 } });
+    // Assert
+    expect(card.querySelector(".wish-gallery__reservation")).toBeNull();
+  });
+  it("omits reservation status during reordering", () => {
+    // Arrange / Act
+    const card = setup({}, true, { reordering: true, detailHref: "/shared-wishlists/share/wishes/wish", reservationQuantities: { reservedQuantity: 2, availableQuantity: 0 } });
+    // Assert
+    expect(card.querySelector(".wish-gallery__reservation")).toBeNull();
+  });
   it("reuses static photo-name-price tiles without links or favorite information during reordering", () => {
     // Arrange
     const favoriteButton = document.createElement("button"); const onDelete = vi.fn();

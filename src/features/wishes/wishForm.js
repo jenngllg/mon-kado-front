@@ -16,7 +16,7 @@ const Fields = Object.freeze([
  * @param {{inactive: () => boolean, onChange: () => void, label?: string}} options Lifecycle and validation feedback.
  */
 export function createWishForm({ inactive, onChange, label = "Ajouter un souhait" }) {
-  const form = document.createElement("form"); form.noValidate = true; form.className = "wishlist-form flow"; form.setAttribute("aria-label", label);
+  const form = document.createElement("form"); form.noValidate = true; form.className = "wishlist-form wish-form flow"; form.setAttribute("aria-label", label);
   let disposed = false;
   /** @type {HTMLButtonElement | null} */ let pressedAction = null;
   /** @type {(() => void) | null} */ let deferredBlur = null;
@@ -30,7 +30,7 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un souhait
       if (definition.name === "price") control.inputMode = "decimal";
       if (definition.name === "url") { control.inputMode = "url"; control.setAttribute("autocomplete", "url"); control.spellcheck = false; control.autocapitalize = "none"; }
     }
-    const element = createFormField({ ...definition, control }); form.append(element);
+    const element = createFormField({ ...definition, control }); element.classList.add(`wish-form__${definition.name}`); form.append(element);
     const field = { ...definition, element, control, dirty: false, checked: false, error: /** @type {string | null} */ (null) };
     const update = () => { if (disposed || inactive()) return; field.dirty = true; if (field.checked) validate(field); onChange(); };
     addComponentEventListener(form, control, "input", update); addComponentEventListener(form, control, "change", update);

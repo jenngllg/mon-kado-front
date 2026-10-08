@@ -24,9 +24,10 @@ for (const width of [240, 390, 768, 1440]) {
       const style = globalThis.getComputedStyle(node);
       return { fontSize: style.fontSize, lineHeight: style.lineHeight, padding: style.padding, borderRadius: style.borderRadius, fontWeight: style.fontWeight };
     });
-    await expect(create).toHaveCSS("background-color", "rgb(255, 103, 87)");
+    await expect(create).toHaveCSS("background-color", "rgb(185, 62, 50)");
+    await expect(create).toHaveCSS("color", "rgb(255, 255, 255)");
     await create.hover();
-    await expect(create).toHaveCSS("background-color", "rgb(255, 123, 110)");
+    await expect(create).toHaveCSS("background-color", "rgb(165, 54, 43)");
     await expect(create).toHaveCSS("text-decoration-line", "none");
     const createHover = await create.evaluate(node => globalThis.getComputedStyle(node).backgroundColor);
     await page.screenshot({ path: testInfo.outputPath("create-list-hover.png") });
@@ -35,7 +36,7 @@ for (const width of [240, 390, 768, 1440]) {
     const archived = page.getByRole("link", { name: "Archivées", exact: true });
     await archived.hover();
     await expect(archived).toHaveCSS("background-color", "rgb(243, 244, 236)");
-    await expect(create).toHaveCSS("background-color", "rgb(255, 103, 87)");
+    await expect(create).toHaveCSS("background-color", "rgb(185, 62, 50)");
     await create.press("Enter");
     await expect(page).toHaveURL("/lists/new");
     await page.goto(`/lists/${listId}`);
@@ -45,7 +46,8 @@ for (const width of [240, 390, 768, 1440]) {
       const style = globalThis.getComputedStyle(node);
       return { fontSize: style.fontSize, lineHeight: style.lineHeight, padding: style.padding, borderRadius: style.borderRadius, fontWeight: style.fontWeight };
     })).toEqual(createStyle);
-    await expect(share).toHaveCSS("background-color", "rgb(255, 103, 87)");
+    await expect(share).toHaveCSS("background-color", "rgb(185, 62, 50)");
+    await expect(share).toHaveCSS("color", "rgb(255, 255, 255)");
     await share.hover();
     await expect(share).toHaveCSS("background-color", createHover);
     await page.screenshot({ path: testInfo.outputPath("share-hover.png") });
