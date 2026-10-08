@@ -98,7 +98,11 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       if (result.image && imageSection.getSelected() === selected) imageSection.setSelected(result.image);
       status.textContent = "";
     } catch (error) {
-      if (!disposed && !controller.signal.aborted && !isAbortError(error)) show({ title: "Récupération impossible", message: "Tu peux compléter les informations manuellement." });
+      if (!disposed && !controller.signal.aborted && !isAbortError(error)) {
+        if (error instanceof ApiError && error.statusCode === 404) notFound(true);
+        else if (error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED") lockSuspended();
+        else show({ title: "Récupération impossible", message: "Tu peux compléter les informations manuellement." });
+      }
     } finally {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
       if (!disposed && analysisController === controller) { analyzing = false; loader.hidden = true; sync(); }

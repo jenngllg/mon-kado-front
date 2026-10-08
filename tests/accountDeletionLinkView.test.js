@@ -38,6 +38,58 @@ function accept(root) {
 }
 
 describe("account deletion browser flow", () => {
+  it("ignores a close event from the previous account confirmation", async () => {
+    const registrations = vi.spyOn(HTMLDialogElement.prototype, "addEventListener");
+    const f = accountDeletionFixture(); disposals.push(() => f.session.dispose()); await f.session.start();
+    let identity = f.session.getSnapshot();
+    /** @type {() => void} */ let notify = () => {};
+    const subscribe = /** @type {typeof f.session.subscribe} */ (listener => { notify = () => listener(identity); return () => {}; });
+    const view = createAccountDeletionLinkView({ session: { ...f.session, subscribe, getSnapshot: () => identity }, service: f.service, consumeFragment: () => `#token=${DeletionToken}` }); document.body.append(view);
+    const oldModal = /** @type {HTMLDialogElement} */ (view.querySelector("dialog"));
+    const closeListener = registrations.mock.calls.find(([type]) => type === "close")?.[1];
+    registrations.mockRestore();
+    oldModal.remove();
+    identity = { ...identity, user: { .../** @type {NonNullable<typeof identity.user>} */ (identity.user), id: "019c52dd-56c1-7cc6-8a95-243f3a032e99" } };
+    notify();
+    if (typeof closeListener !== "function") throw new Error("Missing modal close listener");
+    closeListener.call(oldModal, new Event("close"));
+    expect(view.querySelector("dialog")).not.toBe(oldModal); expect(f.posts()).toHaveLength(0);
+  });
+  it("guards stale modal activations and preserves native Escape before submission", async () => {
+    const f = accountDeletionFixture(); disposals.push(() => f.session.dispose()); await f.session.start();
+    let identity = f.session.getSnapshot();
+    const view = createAccountDeletionLinkView({ session: { ...f.session, getSnapshot: () => identity }, service: f.service, consumeFragment: () => `#token=${DeletionToken}` }); document.body.append(view);
+    const open = button(view, "Supprimer mon compte");
+    const confirm = button(view, "Supprimer définitivement mon compte");
+    const modal = /** @type {HTMLDialogElement} */ (view.querySelector("dialog"));
+    const accepted = /** @type {HTMLInputElement} */ (modal.querySelector("input"));
+    confirm.dispatchEvent(new MouseEvent("click"));
+    open.click(); open.dispatchEvent(new MouseEvent("click"));
+    confirm.dispatchEvent(new MouseEvent("click"));
+    const escape = new Event("cancel", { cancelable: true }); modal.dispatchEvent(escape);
+    expect(escape.defaultPrevented).toBe(false);
+    accepted.checked = true; accepted.dispatchEvent(new Event("change"));
+    identity = { ...identity, user: null };
+    confirm.dispatchEvent(new MouseEvent("click"));
+    modal.close(); open.dispatchEvent(new MouseEvent("click"));
+    expect(modal.open).toBe(false); expect(f.posts()).toHaveLength(0);
+    disposeComponent(view); modal.dispatchEvent(new Event("close")); open.dispatchEvent(new MouseEvent("click"));
+    expect(f.posts()).toHaveLength(0);
+  });
+  it("closes an open confirmation and cancels pending waits on route abort", async () => {
+    const f = accountDeletionFixture(); disposals.push(() => f.session.dispose()); await f.session.start();
+    const controller = new AbortController();
+    const view = createAccountDeletionLinkView({ session: f.session, service: f.service, signal: controller.signal, consumeFragment: () => `#token=${DeletionToken}` }); document.body.append(view);
+    button(view, "Supprimer mon compte").click();
+    const modal = /** @type {HTMLDialogElement} */ (view.querySelector("dialog"));
+    controller.abort(); expect(modal.open).toBe(false); expect(view.querySelector("dialog")).toBeNull();
+  });
+  it("does not restore focus to a detached trigger after closing", async () => {
+    const { root, posts } = await mount();
+    button(root, "Supprimer mon compte").remove();
+    button(root, "Annuler").click();
+    expect(root.querySelector("dialog")?.open).toBe(false); expect(posts()).toHaveLength(0);
+  });
   it("keeps the email continuation inert and only shows confirmation inside the explicitly opened modal", async () => {
     // Arrange
     const { root, posts } = await mount(false, `#token=${DeletionToken}`, false);
@@ -64,7 +116,7 @@ describe("account deletion browser flow", () => {
     // Act
     accept(root); await entered.promise;
     const cancelEvent = new Event("cancel", { cancelable: true }); modal.dispatchEvent(cancelEvent);
-    button(modal, "Annuler").click(); button(modal, "Supprimer définitivement mon compte").click();
+    button(modal, "Annuler").dispatchEvent(new MouseEvent("click")); button(modal, "Supprimer définitivement mon compte").dispatchEvent(new MouseEvent("click"));
     // Assert
     expect(cancelEvent.defaultPrevented).toBe(true); expect(modal.open).toBe(true); expect(posts()).toHaveLength(1);
     release.resolve(); await vi.waitFor(() => expect(root.textContent).toContain("Compte supprimé"));

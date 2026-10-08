@@ -35,6 +35,11 @@ const unusedSession = {
 /** @type {Array<[string, string]>} */
 const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
+  [RouteNames.WishlistReportHistory, RoutePaths.WishlistReportHistory],
+  [RouteNames.WishlistModerationHistory, RoutePaths.WishlistModerationHistory],
+  [RouteNames.WishlistModeration, RoutePaths.WishlistModeration],
+  [RouteNames.WishlistReportReview, RoutePaths.WishlistReportReview],
+  [RouteNames.ReportedWishlists, RoutePaths.ReportedWishlists],
   [RouteNames.Members, RoutePaths.Members],
   [RouteNames.MemberProfile, RoutePaths.MemberProfile],
   [RouteNames.Login, RoutePaths.Login],
@@ -64,6 +69,50 @@ const ExpectedRoutes = [
 ];
 
 describe("application routes", () => {
+  it.each([RouteNames.WishlistReportHistory, RouteNames.WishlistModerationHistory])("freshly reads only the events from guarded route %s", async name => {
+    const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", reportId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
+    const report = name === RouteNames.WishlistReportHistory;
+    let reads = 0;
+    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false })),
+      request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (async (path, options) => {
+        reads++; expect(path).toBe(report ? `/api/v1/admin/reported-wishlists/${wishlistId}/reports/${reportId}/events?page=1&pageSize=20` : `/api/v1/admin/wishlists/${wishlistId}/moderation/events?page=1&pageSize=20`); expect(options?.authentication).toBe("required");
+        return { status: 200, data: { items: [], currentPage: 1, pageSize: 20, totalPages: 0, totalCount: 0, hasNextPage: false, hasPreviousPage: false }, metadata: { etag: null, correlationId: wishlistId, location: null, retryAfterSeconds: null } };
+      }) };
+    const route = createApplicationRoutes({ session, apiBaseUrl: "http://localhost:7000" }).find(route => route.name === name);
+    if (!route) throw new Error("Missing history route.");
+    const context = { ...createRouteContext(report ? `/admin/reported-wishlists/${wishlistId}/reports/${reportId}/history` : `/admin/reported-wishlists/${wishlistId}/moderation/history`), params: { wishlistId, reportId } };
+    for (let visit = 0; visit < 2; visit++) {
+      const view = await route.render(context); for (let turn = 0; turn < 12; turn++) await Promise.resolve();
+      expect(view.textContent).toContain(report ? "Aucun historique de traitement" : "Aucun historique de modération"); expect(route.beforeEnter).toBeTypeOf("function"); disposeComponent(view); expect(view.textContent).toBe("");
+    }
+    expect(reads).toBe(2);
+  });
+  it("reads moderation freshly through the guarded administrator route", async () => {
+    const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
+    let reads = 0;
+    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false })),
+      request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (async (path, options) => { reads++; expect(path).toBe(`/api/v1/admin/wishlists/${wishlistId}/moderation`); expect(options?.authentication).toBe("required"); return { status: 200, data: { wishlistId, isSuspended: false, suspensionReason: null, suspendedAt: null }, metadata: { etag: '"list-1"', correlationId: wishlistId, location: null, retryAfterSeconds: null } }; }) };
+    const route = createApplicationRoutes({ session, apiBaseUrl: "http://localhost:7000" }).find(route => route.name === RouteNames.WishlistModeration);
+    if (!route) throw new Error("Missing moderation route");
+    const context = { ...createRouteContext(`/admin/reported-wishlists/${wishlistId}/moderation`), params: { wishlistId } };
+    const first = await route.render(context); for (let i = 0; i < 12; i++) await Promise.resolve(); expect(first.textContent).toContain("Liste non suspendue"); expect(route.beforeEnter).toBeTypeOf("function"); disposeComponent(first); expect(first.textContent).toBe("");
+    const second = await route.render(context); for (let i = 0; i < 12; i++) await Promise.resolve(); expect(reads).toBe(2); disposeComponent(second);
+  });
+  it("freshly reads the individual report for an admin, and removes it when leaving", async () => {
+    const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", reportId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
+    let reads = 0;
+    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false })),
+      request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (async (path, options) => {
+        reads++; expect(path).toBe(`/api/v1/admin/reported-wishlists/${wishlistId}/reports/${reportId}`); expect(options?.method).toBe("GET");
+        return { status: 200, data: { id: reportId, reason: "other", details: "Original", createdAt: "2026-10-07T12:00:00Z", status: "pending", reviewNote: "Private note", reviewedAt: null }, metadata: { etag: '"report-1"', correlationId: reportId, location: null, retryAfterSeconds: null } };
+      }) };
+    const route = createApplicationRoutes({ session, apiBaseUrl: "http://localhost:7000" }).find(route => route.name === RouteNames.WishlistReportReview);
+    if (!route) throw new Error("Missing review route.");
+    const context = { ...createRouteContext(`/admin/reported-wishlists/${wishlistId}/reports/${reportId}`), params: { wishlistId, reportId } };
+    const view = await route.render(context); for (let i = 0; i < 12; i++) await Promise.resolve();
+    expect(view.querySelector("textarea")?.value).toBe("Private note"); expect(route.beforeEnter).toBeTypeOf("function"); disposeComponent(view); expect(view.textContent).toBe("");
+    const next = await route.render(context); for (let i = 0; i < 12; i++) await Promise.resolve(); expect(reads).toBe(2); disposeComponent(next);
+  });
   it("renders member search publicly without restoring a session or reading the API", async () => {
     const route = getRoute(RouteNames.Members);
     expect(route.beforeEnter).toBeUndefined();

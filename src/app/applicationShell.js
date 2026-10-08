@@ -2,6 +2,7 @@ import { createNotificationRegion, createButton, createLoadingState, disposeComp
 import { addComponentEventListener, registerComponentCleanup } from "../components/componentLifecycle.js";
 import { createMemberAvatar } from "../components/memberAvatar.js";
 import { readProfilePhoto } from "../features/profile/profileImageService.js";
+import { hasAdminAccess } from "../features/admin/adminAccess.js";
 import {
   NavigationItems,
   RouteNames,
@@ -182,13 +183,15 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } 
   function setSession(state) {
     const mode = state.status === "authenticated" ? "member" :
       ["initializing", "signingOut"].includes(state.status) ? "pending" : "anonymous";
-    if (navigationMode === mode) { updateAvatar(state); return; }
-    navigationMode = mode;
+    const key = `${mode}:${hasAdminAccess(state)}`;
+    if (navigationMode === key) { updateAvatar(state); return; }
+    navigationMode = key;
     const restoreFocus = navigationList.contains(document.activeElement);
     disposeComponent(navigationList);
     navigationList.replaceChildren();
     navigationLinks.clear();
     for (const item of NavigationItems) {
+      if (item.routeName === RouteNames.ReportedWishlists && !hasAdminAccess(state)) continue;
       const isAccountAction = item.routeName === RouteNames.Login || item.routeName === RouteNames.Register;
       if (item.routeName !== RouteNames.Home && item.routeName !== RouteNames.Members &&
         (mode === "pending" || (mode === "member" ? isAccountAction : !isAccountAction))) continue;
@@ -284,6 +287,7 @@ function createMenuButton(navigationIdentifier) {
  * @returns {string | null} Navigation item route name.
  */
 function getActiveNavigationRoute(routeName) {
+  if (routeName === RouteNames.WishlistReportReview || routeName === RouteNames.WishlistModeration || routeName === RouteNames.WishlistReportHistory || routeName === RouteNames.WishlistModerationHistory) return RouteNames.ReportedWishlists;
   if (routeName === RouteNames.MemberProfile) return RouteNames.Members;
   if (routeName === RouteNames.PasswordChange || routeName === RouteNames.EmailChange) return RouteNames.Profile;
   if (

@@ -3,9 +3,11 @@ import { ApiError } from "../api/apiError.js";
 import { isWishlistId } from "../features/wishlists/wishlistValidation.js";
 
 /** @type {Set<string>} */
-const ProtectedRoutes = new Set([RouteNames.Authenticator, RouteNames.PersonalData, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.WishDetails, RouteNames.ListDetails, RouteNames.Reservations]);
+const ProtectedRoutes = new Set([RouteNames.WishlistModeration, RouteNames.WishlistReportReview, RouteNames.ReportedWishlists, RouteNames.Authenticator, RouteNames.PersonalData, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.WishDetails, RouteNames.ListDetails, RouteNames.Reservations]);
 /** @type {Set<string>} */
 const AnonymousRoutes = new Set([RouteNames.Login, RouteNames.Register]);
+ProtectedRoutes.add(RouteNames.WishlistReportHistory);
+ProtectedRoutes.add(RouteNames.WishlistModerationHistory);
 
 /** @param {string} name Route name.
  * @param {Pick<import("./sessionManager.js").SessionManager, "ensureSession">} session Session boundary.

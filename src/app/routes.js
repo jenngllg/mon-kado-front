@@ -8,6 +8,14 @@ import {
   RoutePaths,
 } from "./routeContracts.js";
 import { createSessionGuard } from "../auth/sessionGuards.js";
+import { createAdminReportedWishlistsView, createAdminView } from "../features/admin/adminAccess.js";
+import { createWishlistReportReviewService } from "../features/admin/wishlistReportReviewService.js";
+import { createWishlistReportReviewView } from "../features/admin/wishlistReportReviewView.js";
+import { createWishlistModerationService } from "../features/admin/wishlistModerationService.js";
+import { createWishlistModerationView } from "../features/admin/wishlistModerationView.js";
+import { createWishlistHistoryService } from "../features/admin/wishlistHistoryService.js";
+import { createWishlistReportHistoryView, createWishlistModerationHistoryView } from "../features/admin/wishlistHistoryView.js";
+import { createReportedWishlistsService } from "../features/admin/reportedWishlistsService.js";
 import { createMemberSearchService } from "../features/members/memberSearchService.js";
 import { createMemberSearchView } from "../features/members/memberSearchView.js";
 import { createMemberProfileService } from "../features/members/memberProfileService.js";
@@ -53,6 +61,7 @@ import { createWishEditView } from "../features/wishes/wishEditView.js";
 import { createWishDetailsView } from "../features/wishes/wishDetailsView.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
 import { createSharedWishlistService } from "../features/sharing/sharedWishlistService.js";
+import { createWishlistReportService } from "../features/sharing/wishlistReportService.js";
 import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
 import { createSharedWishView } from "../features/sharing/sharedWishView.js";
 import { createSharedSessionView } from "../features/sharing/sharedSessionView.js";
@@ -96,6 +105,34 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
+    {
+      name: RouteNames.WishlistReportHistory, path: RoutePaths.WishlistReportHistory, title: "Historique du signalement · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+        signal: context.signal, createView: () => createWishlistReportHistoryView({ wishlistId: context.params.wishlistId, reportId: context.params.reportId, ...createWishlistHistoryService(session), signal: context.signal }),
+      }),
+    },
+    {
+      name: RouteNames.WishlistModerationHistory, path: RoutePaths.WishlistModerationHistory, title: "Historique de modération · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+        signal: context.signal, createView: () => createWishlistModerationHistoryView({ wishlistId: context.params.wishlistId, ...createWishlistHistoryService(session), signal: context.signal }),
+      }),
+    },
+    {
+      name: RouteNames.WishlistModeration, path: RoutePaths.WishlistModeration, title: "Suspension de la liste · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+        signal: context.signal, createView: () => createWishlistModerationView({ wishlistId: context.params.wishlistId, ...createWishlistModerationService(session), signal: context.signal }),
+      }),
+    },
+    {
+      name: RouteNames.WishlistReportReview, path: RoutePaths.WishlistReportReview, title: "Examiner un signalement · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+        signal: context.signal, createView: () => createWishlistReportReviewView({ wishlistId: context.params.wishlistId, reportId: context.params.reportId, ...createWishlistReportReviewService(session), signal: context.signal }),
+      }),
+    },
+    {
+      name: RouteNames.ReportedWishlists, path: RoutePaths.ReportedWishlists, title: "Listes signalées · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminReportedWishlistsView(session, { ...createReportedWishlistsService(session), signal: context.signal }),
+    },
     {
       name: RouteNames.Members, path: RoutePaths.Members, title: "Rechercher un membre · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
@@ -293,6 +330,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal, fromMemberId,
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
+          report: createWishlistReportService(session, { context: sharing }).report,
           load: withResourcePageTitle(createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load, context, result => result.name) }), context.signal);
       },
     },

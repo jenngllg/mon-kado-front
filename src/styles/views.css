@@ -475,6 +475,7 @@
   max-width: 100%;
 }
 
+.report-review-comparison,
 .wish-edit-view__comparison,
 .wishlist-edit-view__comparison {
   padding: var(--space-4);
@@ -485,6 +486,7 @@
   overflow-wrap: anywhere;
 }
 
+.report-review-comparison h2,
 .wish-edit-view__comparison h2,
 .wishlist-edit-view__comparison h2 {
   font-size: var(--font-size-xl);
@@ -779,6 +781,7 @@
 .wish-delete-dialog,
 .reservation-cancel-dialog,
 .wishlist-share-revoke-dialog,
+.wishlist-report-dialog,
 .wishlist-share-renew-dialog {
   margin: auto;
   width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)));
@@ -801,6 +804,7 @@
 .wish-delete-dialog::backdrop,
 .reservation-cancel-dialog::backdrop,
 .wishlist-share-revoke-dialog::backdrop,
+.wishlist-report-dialog::backdrop,
 .wishlist-share-renew-dialog::backdrop {
   background: color-mix(in srgb, var(--color-text) 55%, transparent);
 }
@@ -812,6 +816,7 @@
 .reservation-edit-group { border: 0; margin-inline: 0; margin-block-end: 0; padding: 0; min-inline-size: 0; }
 .wishlist-share-renew-dialog h2 { font-size: var(--font-size-xl); }
 .wishlist-share-revoke-dialog h2 { font-size: var(--font-size-xl); }
+.wishlist-report-dialog h2 { font-size: var(--font-size-xl); }
 
 .wish-card__price {
   font-size: var(--font-size-lg);
@@ -943,4 +948,38 @@
   align-items: center;
   gap: var(--space-2);
   min-height: 44px;
+}
+.reported-wishlist,
+.reported-wishlist-report {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
+}
+.reported-wishlists-filters > .form-field { flex: 1 1 12rem; min-inline-size: 0; }
+.reported-wishlist-reports { border-block-start: 1px solid var(--color-border); padding-block-start: var(--space-4); }
+.reported-wishlists-view h2 { font-size: var(--font-size-xl); }
+.report-review-view { max-inline-size: var(--content-narrow); }
+.report-review-view > .wishlist-details-header { align-items: flex-start; }
+.report-review-view h2 { font-size: var(--font-size-xl); }
+.admin-history-list { list-style: none; padding: 0; margin: 0; }
+.admin-history-list > li { min-inline-size: 0; overflow-wrap: anywhere; }
+.reported-wishlists-view h3,
+.reported-wishlists-view h4 { font-size: var(--font-size-lg); }
+
+.reported-wishlist > time,
+.reported-wishlist-report > time { display: block; }
+
+@media (max-width: 30rem) {
+  .reported-wishlist { padding: var(--space-3); }
+  .reported-wishlist-report { padding: var(--space-2); }
+  .report-review-view > .wishlist-details-header h1 {
+    font-size: var(--font-size-xl);
+    overflow-wrap: normal;
+  }
+}
+
+@media (min-width: 80rem) {
+  .app-navigation__list:has(a[href="/admin/reported-wishlists"]) { gap: var(--space-2); }
 }

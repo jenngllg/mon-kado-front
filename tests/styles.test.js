@@ -125,6 +125,11 @@ describe("graphic foundations", () => {
     expect(galleryStyles).toContain("border-block-start: 1px solid var(--color-border-strong)");
     expect(galleryStyles).toContain(".wishlist-details-view .shared-wishlist-summary:not(:has(> .shared-wishlist-metadata)) { grid-template-columns: minmax(0, 1fr); }");
   });
+  it("keeps fixed moderation titles readable without arbitrary word breaks on narrow screens", () => {
+    const narrow = viewStyles.match(/@media \(max-width: 30rem\)\s*\{[\s\S]*?\.report-review-view > \.wishlist-details-header h1\s*\{([^}]+)\}/)?.[1];
+    expect(narrow).toContain("font-size: var(--font-size-xl)");
+    expect(narrow).toContain("overflow-wrap: normal");
+  });
   it("preserves flow spacing before email-change controls", () => {
     const controls = viewStyles.match(/\.email-change-view__controls\s*\{([^}]+)\}/)?.[1];
     expect(controls).toContain("margin-inline: 0");
@@ -188,7 +193,7 @@ describe("graphic foundations", () => {
     expect(readStyleFile("../src/styles/site-theme.css")).not.toMatch(/\.app-brand\b/);
   });
   it("keeps all shared confirmation gutters bounded by the viewport with enlarged text", () => {
-    const dialog = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1];
+    const dialog = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-report-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1];
     expect(dialog).toContain("width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)))");
     expect(dialog).toContain("padding-inline: min(var(--space-6), 4vw)");
     expect(dialog).toContain("max-width: 100%");
@@ -408,7 +413,7 @@ describe("graphic foundations", () => {
     expect(viewStyles).toContain(".wish-reorder-after::after { inset-inline-end: calc((var(--wish-gallery-column-gap, 1.625rem) + var(--space-1)) / -2); }");
   });
   it("bounds the native gift modal to the viewport with internal scrolling and token-based presentation", () => {
-    const modal = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1] ?? "";
+    const modal = viewStyles.match(/\.wish-delete-dialog,\s*\.reservation-cancel-dialog,\s*\.wishlist-share-revoke-dialog,\s*\.wishlist-report-dialog,\s*\.wishlist-share-renew-dialog\s*\{([^}]+)\}/)?.[1] ?? "";
     expect(modal).toContain("width: min(var(--content-narrow), calc(100% - min(var(--space-6), 8vw)))");
     expect(modal).toContain("max-height: calc(100dvh - var(--space-6))");
     expect(modal).toContain("overflow: auto");
@@ -439,6 +444,11 @@ describe("graphic foundations", () => {
     for (const suffix of ["", " h2", " dt", " dd"]) {
       expect(viewStyles).toContain(`.wish-edit-view__comparison${suffix},\n.wishlist-edit-view__comparison${suffix} {`);
     }
+  });
+  it("bounds report decisions and reuses the accessible version-comparison tokens", () => {
+    expect(viewStyles).toContain(".report-review-view { max-inline-size: var(--content-narrow); }");
+    expect(viewStyles).toContain(".report-review-comparison,\n.wish-edit-view__comparison,");
+    expect(viewStyles).toContain(".report-review-comparison h2,\n.wish-edit-view__comparison h2,");
   });
   it("keeps multiline notes and responsive shared details without fixed widths", () => {
     expect(viewStyles).toMatch(/\.wishlist-details-note\s*\{[^}]*white-space:\s*pre-wrap/);

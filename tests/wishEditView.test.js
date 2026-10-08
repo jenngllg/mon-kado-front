@@ -47,6 +47,20 @@ it("keeps wish deletion out of the edit page", async () => {
 });
 
 describe("gift editor", () => {
+  it.each([404, 409])("honors loss of parent access discovered during product analysis (%s)", async statusCode => {
+    vi.useFakeTimers();
+    try {
+      const preview = vi.fn(async () => { throw new ApiError({ kind: "http", statusCode, errorCode: statusCode === 409 ? "WISHLIST_SUSPENDED" : "WISHLIST_NOT_FOUND" }); });
+      const ui = setup({ preview }); await settle();
+      const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="url"]'));
+      link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(2000); await settle(); ui.send();
+      expect(ui.update).not.toHaveBeenCalled();
+      if (statusCode === 404) expect(ui.view.querySelector("form")).toBeNull();
+      else expect(ui.fields.every(field => field.readOnly)).toBe(true);
+      expect(ui.view.textContent).toContain(statusCode === 404 ? "Liste introuvable" : "Liste suspendue");
+    } finally { vi.useRealTimers(); }
+  });
   it.each(["success", "failure"])("locks editing immediately through debounce and retrieval, then unlocks after %s", async outcome => {
     // Arrange
     vi.useFakeTimers(); const gate = barrier();

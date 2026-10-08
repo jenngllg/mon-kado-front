@@ -18,6 +18,28 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it("discards reporting and ignores its late success when sharing is invalidated", async () => {
+    const access = new AbortController(), gate = barrier(), report = vi.fn(async () => { await gate.promise; });
+    const ui = setup({ report, accessSignal: access.signal }); await settle(); ui.button("Signaler cette liste").click();
+    /** @type {HTMLSelectElement} */ (ui.view.querySelector("dialog select")).value = "spamOrScam";
+    /** @type {HTMLButtonElement} */ (ui.view.querySelector('dialog [type="submit"]')).click(); access.abort(); gate.resolve(); await settle();
+    expect(ui.view.querySelector("dialog")).toBeNull(); expect(ui.view.textContent).not.toContain("Signalement envoyé"); expect(ui.view.querySelector(".wish-card")).toBeNull();
+    expect(report).toHaveBeenCalledOnce();
+  });
+  it("offers a unique report dialog after loading and never reloads gifts after success", async () => {
+    const report = vi.fn(async () => {}), ui = setup({ report }); await settle();
+    ui.button("Signaler cette liste").click(); ui.button("Signaler cette liste").click();
+    expect(ui.view.querySelectorAll("dialog")).toHaveLength(1); expect(report).not.toHaveBeenCalled();
+    const reason = /** @type {HTMLSelectElement} */ (ui.view.querySelector("dialog select")); reason.value = "spamOrScam";
+    /** @type {HTMLButtonElement} */ (ui.view.querySelector('dialog [type="submit"]')).click(); await settle();
+    expect(ui.view.querySelector("dialog")).toBeNull(); expect(ui.view.textContent).toContain("Signalement envoyé"); expect(ui.button("Signaler cette liste").hidden).toBe(true); expect(ui.load).toHaveBeenCalledOnce();
+  });
+  it("removes all content and modal after reporting discovers lost access", async () => {
+    const ui = setup({ report: async () => { throw new ApiError({ kind: "http", statusCode: 404 }); } }); await settle();
+    ui.button("Signaler cette liste").click(); /** @type {HTMLSelectElement} */ (ui.view.querySelector("dialog select")).value = "spamOrScam";
+    /** @type {HTMLButtonElement} */ (ui.view.querySelector('dialog [type="submit"]')).click(); await settle();
+    expect(ui.view.querySelector("dialog")).toBeNull(); expect(ui.view.querySelector("h1")?.textContent).toBe("Lien de partage indisponible"); expect(ui.view.querySelector(".wish-card")).toBeNull(); expect(ui.view.textContent).not.toContain(list.ownerDisplayName);
+  });
   it("sorts the loaded filter results without transport and keeps member origin on wish links", async () => {
     // Arrange
     const wishes = [list.wishes[0], { ...list.wishes[0], id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", name: "Album", availableQuantity: 0 }];

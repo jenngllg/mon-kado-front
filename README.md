@@ -2138,7 +2138,109 @@ Le renouvellement ou la révocation à distance se constate à la prochaine requ
 polling ni promesse de propagation instantanée. L’historique membre est retiré
 à la déconnexion et relu pour le compte suivant, sans repli invité.
 
+### Signaler une liste partagée (#954)
+
+Après une lecture valide, « Signaler cette liste » ouvre une confirmation native,
+sans créer de participation. Le motif est obligatoire ; « Autre » exige des
+précisions. Les précisions sont limitées à 1 000 caractères Unicode et le corps
+JSON à 4 096 octets UTF-8, sans troncature. Le POST public utilise le contexte de
+partage en mémoire et la protection antiforgery commune, sans JWT ni version.
+
+Un succès confirmé annonce « Signalement envoyé » sans relire les souhaits.
+Après un résultat incertain, la saisie reste dans la modale et une nouvelle
+tentative exige un clic explicite, avec avertissement du risque de doublon.
+Aucun endpoint ne permet de vérifier la réception. Fermer ou quitter efface
+le brouillon ; cela ne garantit pas l’annulation d’un envoi reçu par le serveur.
+Une perte d’accès retire la liste et invalide le contexte. Aucun secret, motif
+ou précision n’est conservé dans un stockage, une notification inter-onglets
+ou un journal applicatif.
+
+### Accéder à la modération (#955)
+
+L’entrée « Modération » ouvre directement les listes signalées, sans accueil
+intermédiaire. Elle nécessite une session stable et le rôle exact `Admin` reçu
+du serveur. Une session en cours de résolution ne monte pas la file ; un membre
+sans ce rôle voit « Accès administrateur requis » et un lien vers « Mes listes ».
+La connexion conserve sa destination habituelle, sans ajout à `returnTo`.
+
+Le rôle local sert uniquement à la présentation : le backend vérifie les droits
+actuels en base à chaque requête. Un refus `403` retire toute la file et bloque
+ses lectures, sans déconnecter le membre ni réécrire ses rôles. Les erreurs
+techniques restent récupérables, et les `401` conservent le traitement de session
+commun. Une déconnexion ou un changement d’identité/rôle annule les opérations
+et retire les données précédentes ; un nouveau compte admin effectue de nouvelles
+lectures. Aucun polling n’est ajouté : une révocation distante non encore connue
+se constate lors d’une nouvelle requête.
+
+### Consulter les listes signalées (#956)
+
+La route protégée `/admin/reported-wishlists` est proposée uniquement au compte
+administrateur stable. Le backend reste l’autorité d’accès. Les filtres de statut
+(en attente par défaut), de motif et de suspension relisent les résultats ; les
+comptages et dates correspondent aux filtres sélectionnés, pas à tous les signalements.
+
+Une liste à la fois peut dévoiler ses signalements anonymes : motif, précisions,
+date et statut. Les listes et leurs signalements ont des paginations indépendantes
+de 20 éléments. Aucun souhait, image, auteur du signalement, note de traitement
+ou historique de modération n’est exposé, et aucune mutation n’est proposée.
+
+Un refus administrateur retire toute la file ; une liste introuvable retire son
+entrée et permet de recharger explicitement les résultats. Un changement de
+compte, de rôle ou de session nettoie les lectures et ignore les réponses tardives.
+Les erreurs techniques restent locales, avec récupération explicite sans rejeu.
+
+### Examiner et rouvrir un signalement (#957)
+
+Depuis la file, « Examiner » ouvre
+`/admin/reported-wishlists/:wishlistId/reports/:reportId`. Cette page admin relit
+le signalement et son ETag individuel ; elle présente uniquement le motif, les
+précisions originales et la dernière décision (statut, note privée, date).
+Aucune identité de déclarant ou d’administrateur, aucun souhait ni historique
+complet n’est chargé. Le retour à la file effectue une lecture fraîche.
+
+Les décisions possibles sont « En attente », « Retenu » et « Classé sans suite ».
+Traiter ne suspend pas la liste. Revenir à « En attente » rouvre le signalement,
+sans effacer sa note. Effacer explicitement la note puis enregistrer la supprime.
+La note accepte 1 000 caractères Unicode après nettoyage des extrémités, sans
+normalisation ni troncature ; retours à la ligne et tabulations sont autorisés.
+
+Un conflit ou résultat incertain conserve exactement la saisie et impose une
+relecture. La comparaison permet ensuite d’enregistrer explicitement les deux
+informations avec le nouvel ETag ou d’adopter la version enregistrée, sans fusion
+ni rejeu automatique. Après succès, la version reçue devient la référence et la
+page reste ouverte. Quitter abandonne le brouillon ; cela ne garantit pas
+l’annulation d’un PUT déjà reçu par le serveur. Un refus admin, une disparition
+ou un changement de compte retire les données et invalide les réponses tardives.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US
 dédiées.
+## Suspension administrative des listes — #958
+
+La file de modération propose « Gérer la suspension », une page dédiée réservée aux administrateurs. Elle relit l’état courant, le motif privé et l’ETag de **liste** avant toute décision. Suspendre, corriger le motif et réactiver exigent une confirmation native ; ces actions ne traitent ni ne rouvrent les signalements.
+
+Le motif est obligatoire pour une suspension (1 000 caractères Unicode après nettoyage et NFC pour le contrôle de longueur). La réactivation envoie un motif `null`. Le frontend ne supprime aucune liste, aucun souhait, lien ou participant ; il ne crée ni ne renouvelle le partage lors d’une réactivation. Aucun historique complet ni identité administrative n’est affiché.
+
+Les conflits et résultats incertains conservent la saisie, bloquent les écritures et imposent une relecture suivie d’une décision et d’une nouvelle confirmation explicites. Aucun PUT n’est rejoué automatiquement. Un départ ou changement de compte nettoie la page et ferme sa confirmation, sans garantir l’annulation d’une mutation déjà reçue par le serveur.
+
+## Historiques administratifs — #959
+
+Les pages d’examen et de suspension proposent chacune leur historique dédié :
+`/admin/reported-wishlists/:wishlistId/reports/:reportId/history` et
+`/admin/reported-wishlists/:wishlistId/moderation/history`. Elles exigent une session
+administrateur stable et relisent uniquement les événements demandés, par pages
+de 20, dans l’ordre serveur. Les dates identiques ne provoquent aucun tri local.
+
+Le traitement présente les transitions de statut et les notes privées originales,
+y compris les corrections sans changement de statut. La modération présente les
+suspensions, corrections de motif et réactivations, sans inventer de motif lors
+d’une réactivation. Aucun nom de liste non fourni, identité administrative,
+contenu de cadeau ou état courant déduit de l’historique n’est affiché.
+
+La pagination, les reprises et le retour aux décisions déclenchent des lectures
+fraîches. Une page devenue hors limites propose une récupération explicite,
+sans navigation automatique. Les refus administrateur et ressources introuvables
+retirent les données ; une sortie ou un changement de compte annule les lectures
+et empêche les réponses tardives de réafficher le contenu. Aucun historique n’est
+mis en cache ou conservé dans un stockage du navigateur.

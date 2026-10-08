@@ -8,14 +8,15 @@ import { reorderWishGallery } from "../wishes/wishGalleryOrdering.js";
 import { createWishSortControl } from "../wishes/wishSortControl.js";
 import { hasVisibleAvailability, sortWishes, withWishSort } from "../wishes/wishSorting.js";
 import { memberOriginQuery, memberProfileHref } from "../members/memberNavigation.js";
+import { createWishlistReportDialog } from "./wishlistReportDialog.js";
 
 /** Public collection; only its transport retains access to a bearer context.
  * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null,
- * initialSort?: string | null, onSortChange?: (sort: import("../wishes/wishSorting.js").WishSort) => void,
+ * report?: import("./wishlistReportService.js").ReportWishlist, initialSort?: string | null, onSortChange?: (sort: import("../wishes/wishSorting.js").WishSort) => void,
  * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishlistView({ shareLinkId, load, signal, accessSignal, createParticipation, fromMemberId, initialSort, onSortChange = () => {} }) {
+export function createSharedWishlistView({ shareLinkId, load, report, signal, accessSignal, createParticipation, fromMemberId, initialSort, onSortChange = () => {} }) {
   const view = element("section", ""); view.className = "wishlist-details-view shared-wishlist-view wishlist-details-view--gallery flow";
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
   const information = element("section", ""); information.className = "wishlist-details-info flow";
@@ -39,13 +40,18 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
   view.append(fromMemberId ? createBackLink({ label: "Retour au profil", href: memberProfileHref(fromMemberId) }) : createBackLink({ label: "Retour à l’accueil", href: "/" }), layout);
   let disposed = false, busy = false, terminal = false;
   let availableOnly = false;
+  let reported = false;
+  /** @type {HTMLDialogElement | null} */ let reportDialog = null;
+  const reportStatus = element("p", ""); reportStatus.setAttribute("role", "status");
+  const reportButton = createButton({ label: "Signaler cette liste", variant: "secondary", onClick: openReport });
+  reportButton.hidden = true; if (report) information.append(reportStatus, reportButton);
   /** @type {import("./sharedWishlistService.js").SharedWishlist | null} */ let currentList = null;
   addComponentEventListener(view, filter, "change", () => {
     if (disposed || busy || terminal) { filter.checked = availableOnly; return; }
     availableOnly = filter.checked; void read(true, true);
   });
   const lifetime = new AbortController();
-  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); clear(details); clear(results); title.textContent = ""; gifts.hidden = true; retryImages.hidden = true; filter.disabled = true; filter.checked = false; availableOnly = false; });
+  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); closeReport(); disposeComponent(reportButton); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; clear(details); clear(results); title.textContent = ""; gifts.hidden = true; retryImages.hidden = true; filter.disabled = true; filter.checked = false; availableOnly = false; });
   if (signal) { addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true }); if (signal.aborted) disposeComponent(view); }
   if (accessSignal && !disposed) { addComponentEventListener(view, accessSignal, "abort", unavailable, { once: true }); if (accessSignal.aborted) unavailable(); }
   if (!disposed) void read(false);
@@ -54,6 +60,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
   /** @param {boolean} explicit User-initiated reread. @param {boolean} [filterChange] Keep focus on the filter after its activation. */
   async function read(explicit, filterChange = false) {
     if (disposed || busy || terminal) return;
+    closeReport(); reportButton.hidden = true;
     busy = true; currentList = null; retryImages.hidden = true; sorting.select.disabled = true; clear(details); clear(results); gifts.hidden = filterControls.hidden; filter.disabled = true;
     title.textContent = "Liste de souhaits partagée"; details.setAttribute("aria-busy", "true"); details.append(title, createLoadingState({ label: "Chargement de la liste…" }));
     try {
@@ -62,6 +69,7 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
       clear(details); populateWishlistSummary(details, title, list, list.ownerDisplayName);
       gifts.hidden = false; filterControls.hidden = false;
       currentList = list;
+      reportButton.hidden = !report || reported;
       sorting.update({ allowAvailability: hasVisibleAvailability(list.wishes), disabled: true });
       onSortChange(sorting.value()); renderWishes();
       if (explicit && !filterChange) title.focus();
@@ -101,10 +109,20 @@ export function createSharedWishlistView({ shareLinkId, load, signal, accessSign
   }
   function unavailable() {
     if (disposed || terminal) return;
-    terminal = true; lifetime.abort(); clear(details); details.append(title); clear(results); gifts.hidden = true; retryImages.hidden = true;
+    terminal = true; lifetime.abort(); closeReport(); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; clear(details); details.append(title); clear(results); gifts.hidden = true; retryImages.hidden = true;
     title.textContent = "Lien de partage indisponible";
     details.append(element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
     title.focus();
+  }
+  function closeReport() { if (reportDialog) disposeComponent(reportDialog); reportDialog = null; }
+  function openReport() {
+    if (!report || !currentList || disposed || terminal || busy || reported || reportDialog) return;
+    reportDialog = createWishlistReportDialog({ shareLinkId, wishlistName: currentList.name, report, signal: lifetime.signal,
+      onReported: () => { if (disposed || terminal) return; reported = true; reportButton.hidden = true; reportStatus.textContent = "Signalement envoyé"; title.focus(); },
+      onUnavailable: unavailable,
+      onClose: () => { reportDialog = null; if (!disposed && !terminal) { if (reported) title.focus(); else reportButton.focus(); } },
+    });
+    view.append(reportDialog); reportDialog.showModal(); reportDialog.querySelector("h2")?.focus();
   }
 }
 /** @param {"missing" | "invalid"} state Entry without usable credentials. @param {string | null} [fromMemberId] Non-secret navigation origin. @returns {HTMLElement} No-network state. */

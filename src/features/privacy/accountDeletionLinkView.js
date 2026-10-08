@@ -78,10 +78,10 @@ export function createAccountDeletionLinkView({ session, service, consumeFragmen
     label.append(accepted, consentText);
     const confirm = createButton({ label: "Supprimer définitivement mon compte", variant: "danger", onClick: () => {
       if (!modal.open || !accepted.checked || busy || token === null || presentedUser !== session.getSnapshot().user?.id) return;
-      void submit(token);
+      void submit(token, modal, title);
     } }); confirm.disabled = true;
     addComponentEventListener(content, accepted, "change", () => { confirm.disabled = !accepted.checked; });
-    const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: () => { if (!busy) modal.close(); } });
+    const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: () => modal.close() });
     const actions = document.createElement("div"); actions.className = "cluster"; actions.append(cancel, confirm);
     body.append(title, message("Compte connecté : " + state.user.displayName), warning, label, feedback, actions); modal.append(body);
     const open = createButton({ label: "Supprimer mon compte", variant: "danger", onClick: () => {
@@ -101,13 +101,14 @@ export function createAccountDeletionLinkView({ session, service, consumeFragmen
     if (disposed || isAbortError(error)) return;
     disposeComponent(feedback); feedback.replaceChildren(createAlert({ ...toUserFacingError(error), variant: "error" })); feedback.focus();
   }
-  /** @param {string} confirmationToken Proof captured by the checked current-member click handler. */
-  async function submit(confirmationToken) {
+  /** @param {string} confirmationToken Proof captured by the checked current-member click handler.
+   * @param {HTMLDialogElement} confirmation Current checked modal.
+   * @param {HTMLHeadingElement} title Its focus target.
+   */
+  async function submit(confirmationToken, confirmation, title) {
     busy = true; view.setAttribute("aria-busy", "true"); disposeComponent(feedback); feedback.replaceChildren();
-    if (dialog) {
-      dialog.setAttribute("aria-busy", "true");
-      const title = dialog.querySelector("h2"); if (title) { title.tabIndex = 0; title.focus(); }
-    }
+    confirmation.setAttribute("aria-busy", "true");
+    title.tabIndex = 0; title.focus();
     for (const control of content.querySelectorAll("button,input")) /** @type {HTMLInputElement} */ (control).disabled = true;
     try {
       const result = await service.confirm(confirmationToken, { signal: lifetime.signal });
