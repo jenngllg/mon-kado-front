@@ -3,12 +3,11 @@ import { withWishSort } from "../wishes/wishSorting.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { memberOriginQuery } from "../members/memberNavigation.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createBackLink, createActionLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
+import { createBackLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishImage } from "../wishes/wishImage.js";
 import { createSharedWishQuantities } from "./sharedWishQuantities.js";
-
-const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+import { createWishDetailInformation, createWishDetailProductLink, createWishDetailReservationStatus } from "../wishes/wishDetailPresentation.js";
 
 /** A fresh public detail, without participant information or owner actions.
  * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null, returnSort?: string | null,
@@ -36,7 +35,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
   if (!disposed) refreshOnReturn(view, () => { void read(false); });
   return view;
 
-  function clear() { disposeComponent(results); results.replaceChildren(); }
+  function clear() { if (results.contains(title)) view.insertBefore(title, notice); disposeComponent(results); results.replaceChildren(); }
   function clearNotice() { notice.textContent = ""; notice.hidden = true; }
   function unavailable() {
     if (disposed || terminal) return;
@@ -58,22 +57,16 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
       clear(); title.textContent = wish.name;
       if (wish.isFavorite) title.append(createWishFavoriteIndicator());
       const layout = element("div", ""); layout.className = "shared-wish-layout";
-      const information = element("div", ""); information.className = "shared-wish-information flow";
-      if (wish.note !== null && wish.note !== "") {
-        const note = element("p", wish.note); note.className = "wishlist-details-note"; information.append(note);
-      }
-      if (wish.price !== null) {
-        const price = element("p", PriceFormat.format(wish.price)); price.className = "wish-card__price"; information.append(price);
-      }
+      const information = createWishDetailInformation(wish, title);
       const desired = element("p", `Quantité souhaitée : ${wish.quantity}`);
       let quantities = createSharedWishQuantities(wish);
       information.append(desired, quantities);
+      const status = createWishDetailReservationStatus(wish); if (status) information.insertBefore(status, quantities);
       if (wish.url) {
-        const product = createActionLink({ label: "Voir le produit", href: wish.url }); product.target = "_blank"; product.rel = "noopener noreferrer";
-        product.setAttribute("aria-label", `Voir le produit « ${wish.name} » (nouvel onglet)`); information.append(product);
+        information.append(createWishDetailProductLink(wish.url, wish.name));
       } else if (wish.productUnavailable) information.append(element("p", "Lien produit indisponible"));
       layout.append(createWishImage(wish), information); results.append(layout);
-      if (createReservation && wish.reservedQuantity !== null) results.append(createReservation(() => {
+      if (createReservation && wish.reservedQuantity !== null) information.append(createReservation(() => {
         if (disposed || terminal) return;
         terminal = true; lifetime.abort(); clear(); clearNotice();
         title.textContent = "Souhait introuvable"; title.focus();
@@ -90,6 +83,8 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
         if (disposed || terminal || !results.contains(layout)) return;
         desired.textContent = `Quantité souhaitée : ${fresh.quantity}`;
         const next = createSharedWishQuantities(fresh);
+        information.querySelector(".wish-detail__reservation")?.remove();
+        const nextStatus = createWishDetailReservationStatus(fresh); if (nextStatus) information.insertBefore(nextStatus, quantities);
         disposeComponent(quantities); quantities.replaceWith(next); quantities = next;
       }));
       if (explicit) title.focus();

@@ -10,14 +10,40 @@ const wish = { id: "wish", wishlistId: "list", name: "Produit", note: "Une note"
 const result = { wish, etag: '"1"', values: { name: wish.name, note: wish.note, price: "10", quantity: "3", url: wish.url } };
 /** @type {HTMLElement[]} */ const views = [];
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
-/** @param {import("../src/features/wishes/wishesService.js").LoadWish} loadOne Dependency. @param {AbortSignal} [signal] Lifetime. */
-function mount(loadOne, signal) {
-  const view = createWishDetailsView({ wishlistId: "list", wishId: "wish", loadOne, signal });
+/** @param {import("../src/features/wishes/wishesService.js").LoadWish} loadOne Dependency. @param {AbortSignal} [signal] Lifetime. @param {boolean} [visible] Explicit non-surprise parent. */
+function mount(loadOne, signal, visible = false) {
+  const view = createWishDetailsView({ wishlistId: "list", wishId: "wish", loadOne, signal,
+    loadWishlist: visible ? async () => ({ wishlist: { id: "list", name: "Liste", message: null, occasion: "other", eventDate: null, isSuspended: false, isArchived: false, surpriseMode: false }, etag: '"list"' }) : undefined });
   views.push(view);
   return view;
 }
 
 describe("owner wish detail", () => {
+  it.each([true, undefined])("hides reservations for surprise mode %s even if a supplied projection contains quantities", async surpriseMode => {
+    const view = createWishDetailsView({ wishlistId: "list", wishId: "wish", loadOne: async () => result,
+      loadWishlist: vi.fn().mockResolvedValue({ wishlist: { surpriseMode, isSuspended: false } }) });
+    views.push(view);
+    await vi.waitFor(() => expect(view.querySelector("h1")).not.toBeNull());
+    expect(view.querySelector(".shared-wish-quantities, .wish-detail__reservation")).toBeNull();
+    expect(view.textContent).not.toContain("Quantité réservée");
+  });
+  it("puts the versioned favorite toggle with management actions and rereads after explicit success", async () => {
+    let current = { ...result, wish: { ...wish, isFavorite: false } };
+    const loadOne = vi.fn(async () => current);
+    const loadWishlist = vi.fn().mockResolvedValue({ wishlist: { isSuspended: false, isArchived: false } });
+    const setFavorite = vi.fn(async () => { current = { ...current, wish: { ...current.wish, isFavorite: true } }; return current; });
+    const view = createWishDetailsView({ wishlistId: "list", wishId: "wish", loadOne, loadWishlist, setFavorite });
+    views.push(view); document.body.append(view);
+    await vi.waitFor(() => expect(view.querySelector(".wish-favorite-button")).not.toBeNull());
+    expect(setFavorite).not.toHaveBeenCalled();
+    const toggle = /** @type {HTMLButtonElement} */ (view.querySelector(".wish-favorite-button"));
+    expect(view.querySelector(".wish-detail__commands")?.contains(toggle)).toBe(true);
+    expect(view.querySelector(".wish-detail-information")?.contains(view.querySelector("h1"))).toBe(true);
+    toggle.click();
+    await vi.waitFor(() => expect(view.querySelector(".wish-favorite-button")?.getAttribute("aria-pressed")).toBe("true"));
+    expect(setFavorite).toHaveBeenCalledExactlyOnceWith("list", "wish", true, { etag: '"1"', signal: expect.any(AbortSignal) });
+    expect(view.querySelector('button[aria-label*="Réserver"]')).toBeNull();
+  });
   it("does not reveal actions or read the wish when parent access cannot be verified", async () => {
     // Arrange
     const loadOne = vi.fn(); const remove = vi.fn();
@@ -43,7 +69,7 @@ describe("owner wish detail", () => {
     await vi.waitFor(() => expect(view.querySelector("h1")).not.toBeNull());
     // Act / Assert
     expect(view.querySelector(`a[href="/lists/${listId}/wishes/${wishId}/edit?sort=priceAsc"]`)?.getAttribute("aria-label")).toBe("Modifier");
-    expect(view.querySelectorAll('.wish-owner-detail__actions svg[aria-hidden="true"]')).toHaveLength(3);
+    expect(view.querySelectorAll('.wish-owner-detail__actions svg[aria-hidden="true"]')).toHaveLength(2);
     expect(view.querySelector(".wish-owner-detail__actions")?.textContent).toBe("");
     expect(view.querySelector('a[target="_blank"]')?.getAttribute("title")).toContain("nouvel onglet");
     expect(view.querySelector('a[target="_blank"]')?.getAttribute("rel")).toBe("noopener noreferrer");
@@ -76,7 +102,7 @@ describe("owner wish detail", () => {
   });
   it("shows aggregate quantities but no mutation or refresh actions", async () => {
     const load = vi.fn().mockResolvedValue(result);
-    const view = mount(load);
+    const view = mount(load, undefined, true);
     await vi.waitFor(() => expect(view.textContent).toContain("Quantité réservée : 2"));
     expect(view.textContent).toContain("Quantité disponible : 1");
     expect(view.querySelector("button")).toBeNull();
@@ -85,7 +111,7 @@ describe("owner wish detail", () => {
   });
   it("clears previous quantities immediately on focus and accepts hidden quantities", async () => {
     const load = vi.fn().mockResolvedValueOnce(result).mockResolvedValueOnce({ ...result, wish: { ...wish, reservedQuantity: null, availableQuantity: null, note: null, price: null, url: null } });
-    const view = mount(load);
+    const view = mount(load, undefined, true);
     await vi.waitFor(() => expect(view.textContent).toContain("Quantité réservée"));
     window.dispatchEvent(new Event("focus"));
     expect(view.textContent).not.toContain("Quantité réservée");

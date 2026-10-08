@@ -233,10 +233,13 @@ for (const selector of [".wish-gallery__photo", "h3 a"]) {
     await expect(page).toHaveURL(new RegExp(`/lists/${listId}/wishes/${wishId}$`));
     const actions = page.getByRole("group", { name: "Actions du souhait" });
     await expect(actions.getByRole("link", { name: "Modifier", exact: true })).toHaveAttribute("href", `/lists/${listId}/wishes/${wishId}/edit`);
-    await expect(actions.getByRole("link", { name: "Voir le produit (nouvel onglet)", exact: true })).toHaveAttribute("target", "_blank");
+    const product = page.getByRole("link", { name: `Voir le produit « ${api.wish.name} » (nouvel onglet)`, exact: true });
+    await expect(product).toHaveAttribute("target", "_blank");
+    await expect(actions.getByRole("link", { name: /Voir le produit/ })).toHaveCount(0);
+    await expect(actions.getByRole("button", { name: /coup de cœur/ })).toBeVisible();
     await expect(actions.locator(".icon-action")).toHaveCount(3);
     const remove = actions.getByRole("button", { name: "Supprimer", exact: true });
-    await expect(remove).toHaveCSS("border-radius", "999px");
+    await expect(remove).toHaveCSS("border-radius", "50%");
     await expect(remove).toHaveCSS("width", "44px");
     await remove.click();
     await expect(page.getByRole("dialog")).toBeVisible(); expect(api.state.wishWrites).toBe(0);
