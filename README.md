@@ -2216,3 +2216,10 @@ Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US
 dédiées.
+## Suspension administrative des listes — #958
+
+La file de modération propose « Gérer la suspension », une page dédiée réservée aux administrateurs. Elle relit l’état courant, le motif privé et l’ETag de **liste** avant toute décision. Suspendre, corriger le motif et réactiver exigent une confirmation native ; ces actions ne traitent ni ne rouvrent les signalements.
+
+Le motif est obligatoire pour une suspension (1 000 caractères Unicode après nettoyage et NFC pour le contrôle de longueur). La réactivation envoie un motif `null`. Le frontend ne supprime aucune liste, aucun souhait, lien ou participant ; il ne crée ni ne renouvelle le partage lors d’une réactivation. Aucun historique complet ni identité administrative n’est affiché.
+
+Les conflits et résultats incertains conservent la saisie, bloquent les écritures et imposent une relecture suivie d’une décision et d’une nouvelle confirmation explicites. Aucun PUT n’est rejoué automatiquement. Un départ ou changement de compte nettoie la page et ferme sa confirmation, sans garantir l’annulation d’une mutation déjà reçue par le serveur.

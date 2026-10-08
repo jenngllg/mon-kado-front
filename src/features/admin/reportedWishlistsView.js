@@ -62,7 +62,10 @@ export function createReportedWishlistsView({ load, loadReports, signal }) {
           button.setAttribute("aria-expanded", "true"); void readReports(false);
         } });
         button.setAttribute("aria-label", `Voir les signalements de « ${list.name} »`); button.setAttribute("aria-expanded", "false"); button.setAttribute("aria-controls", region.id);
-        row.append(heading, description, count, date, button, region); results.append(row);
+        const moderation = createActionLink({ label: "Gérer la suspension", href: `/admin/reported-wishlists/${list.wishlistId}/moderation` });
+        moderation.setAttribute("aria-label", `Gérer la suspension de « ${list.name} »`);
+        const actions = node("div", ""); actions.className = "cluster"; actions.append(button, moderation);
+        row.append(heading, description, count, date, actions, region); results.append(row);
       }
       results.append(pagination(data, value => { page = value; void read(true); }));
       announcement.textContent = `${data.items.length} liste${data.items.length > 1 ? "s" : ""} affichée${data.items.length > 1 ? "s" : ""}.`;
