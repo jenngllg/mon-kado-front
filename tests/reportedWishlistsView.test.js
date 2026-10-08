@@ -59,6 +59,7 @@ describe("reported wishlist queue", () => {
     const ui = setup(); if (detail) ui.loadReports.mockRejectedValue(new ApiError({ kind: "http", statusCode: 403 })); else ui.load.mockRejectedValue(new ApiError({ kind: "http", statusCode: 403 }));
     await settle(); if (detail) { ui.button("Voir les signalements").click(); await settle(); } else { const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select")); select.dispatchEvent(new Event("change")); await settle(); }
     expect(ui.view.textContent).toContain("Accès administrateur requis"); expect(ui.view.textContent).not.toContain("Camille"); expect(ui.view.querySelectorAll("button")).toHaveLength(0);
+    expect(ui.view.querySelector("a")?.getAttribute("href")).toBe("/lists"); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
   });
   it("cancels disclosure reads and ignores late errors after closing", async () => {
     const ui = setup(), gate = barrier(); ui.loadReports.mockImplementation(async () => { await gate.promise; throw new ApiError({ kind: "http", statusCode: 403 }); }); await settle(); ui.button("Voir les signalements").click(); ui.button("Voir les signalements").click(); gate.resolve(); await settle(); expect(ui.view.textContent).toContain("Camille"); expect(ui.view.textContent).not.toContain("Accès administrateur requis");

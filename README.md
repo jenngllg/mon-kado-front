@@ -2155,6 +2155,23 @@ Une perte d’accès retire la liste et invalide le contexte. Aucun secret, moti
 ou précision n’est conservé dans un stockage, une notification inter-onglets
 ou un journal applicatif.
 
+### Accéder à la modération (#955)
+
+L’entrée « Modération » ouvre directement les listes signalées, sans accueil
+intermédiaire. Elle nécessite une session stable et le rôle exact `Admin` reçu
+du serveur. Une session en cours de résolution ne monte pas la file ; un membre
+sans ce rôle voit « Accès administrateur requis » et un lien vers « Mes listes ».
+La connexion conserve sa destination habituelle, sans ajout à `returnTo`.
+
+Le rôle local sert uniquement à la présentation : le backend vérifie les droits
+actuels en base à chaque requête. Un refus `403` retire toute la file et bloque
+ses lectures, sans déconnecter le membre ni réécrire ses rôles. Les erreurs
+techniques restent récupérables, et les `401` conservent le traitement de session
+commun. Une déconnexion ou un changement d’identité/rôle annule les opérations
+et retire les données précédentes ; un nouveau compte admin effectue de nouvelles
+lectures. Aucun polling n’est ajouté : une révocation distante non encore connue
+se constate lors d’une nouvelle requête.
+
 ### Consulter les listes signalées (#956)
 
 La route protégée `/admin/reported-wishlists` est proposée uniquement au compte
