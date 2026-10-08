@@ -35,6 +35,7 @@ const unusedSession = {
 /** @type {Array<[string, string]>} */
 const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
+  [RouteNames.WishlistModeration, RoutePaths.WishlistModeration],
   [RouteNames.WishlistReportReview, RoutePaths.WishlistReportReview],
   [RouteNames.ReportedWishlists, RoutePaths.ReportedWishlists],
   [RouteNames.Members, RoutePaths.Members],
@@ -67,6 +68,17 @@ const ExpectedRoutes = [
 ];
 
 describe("application routes", () => {
+  it("reads moderation freshly through the guarded administrator route", async () => {
+    const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
+    let reads = 0;
+    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false })),
+      request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (async (path, options) => { reads++; expect(path).toBe(`/api/v1/admin/wishlists/${wishlistId}/moderation`); expect(options?.authentication).toBe("required"); return { status: 200, data: { wishlistId, isSuspended: false, suspensionReason: null, suspendedAt: null }, metadata: { etag: '"list-1"', correlationId: wishlistId, location: null, retryAfterSeconds: null } }; }) };
+    const route = createApplicationRoutes({ session, apiBaseUrl: "http://localhost:7000" }).find(route => route.name === RouteNames.WishlistModeration);
+    if (!route) throw new Error("Missing moderation route");
+    const context = { ...createRouteContext(`/admin/reported-wishlists/${wishlistId}/moderation`), params: { wishlistId } };
+    const first = await route.render(context); for (let i = 0; i < 12; i++) await Promise.resolve(); expect(first.textContent).toContain("Liste non suspendue"); expect(route.beforeEnter).toBeTypeOf("function"); disposeComponent(first); expect(first.textContent).toBe("");
+    const second = await route.render(context); for (let i = 0; i < 12; i++) await Promise.resolve(); expect(reads).toBe(2); disposeComponent(second);
+  });
   it("freshly reads the individual report for an admin, and removes it when leaving", async () => {
     const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", reportId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
     let reads = 0;

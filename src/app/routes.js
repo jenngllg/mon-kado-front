@@ -10,6 +10,8 @@ import { createSessionGuard } from "../auth/sessionGuards.js";
 import { createAdminReportedWishlistsView, createAdminView } from "../features/admin/adminAccess.js";
 import { createWishlistReportReviewService } from "../features/admin/wishlistReportReviewService.js";
 import { createWishlistReportReviewView } from "../features/admin/wishlistReportReviewView.js";
+import { createWishlistModerationService } from "../features/admin/wishlistModerationService.js";
+import { createWishlistModerationView } from "../features/admin/wishlistModerationView.js";
 import { createReportedWishlistsService } from "../features/admin/reportedWishlistsService.js";
 import { createMemberSearchService } from "../features/members/memberSearchService.js";
 import { createMemberSearchView } from "../features/members/memberSearchView.js";
@@ -101,6 +103,12 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
+    {
+      name: RouteNames.WishlistModeration, path: RoutePaths.WishlistModeration, title: "Suspension de la liste · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+        signal: context.signal, createView: () => createWishlistModerationView({ wishlistId: context.params.wishlistId, ...createWishlistModerationService(session), signal: context.signal }),
+      }),
+    },
     {
       name: RouteNames.WishlistReportReview, path: RoutePaths.WishlistReportReview, title: "Examiner un signalement · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {

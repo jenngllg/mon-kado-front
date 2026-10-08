@@ -32,6 +32,8 @@ describe("reported wishlist queue", () => {
   });
   it("loads the queue without reports, wishes, mutations or unsafe HTML", async () => {
     const ui = setup(); await settle(); expect(ui.load).toHaveBeenCalledOnce(); expect(ui.loadReports).not.toHaveBeenCalled(); expect(ui.view.querySelector("script")).toBeNull(); expect(ui.view.textContent).toContain("Camille"); expect(ui.view.textContent).toContain("correspondant aux filtres");
+    const moderation = ui.view.querySelector(`a[href="/admin/reported-wishlists/${id}/moderation"]`);
+    expect(moderation?.textContent).toBe("Gérer la suspension"); expect(moderation?.getAttribute("aria-label")).toBe(`Gérer la suspension de « ${list.name} »`);
     const button = ui.button("Voir les signalements"); button.click(); await settle(); expect(button.getAttribute("aria-expanded")).toBe("true"); expect(ui.view.querySelector(`#${button.getAttribute("aria-controls")}`)?.textContent).toContain("Deux\nlignes");
     button.click(); expect(button.getAttribute("aria-expanded")).toBe("false"); expect(ui.view.textContent).not.toContain("Deux\nlignes"); button.click(); await settle(); expect(ui.loadReports).toHaveBeenCalledTimes(2);
   });
