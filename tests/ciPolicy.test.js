@@ -4,6 +4,21 @@ import { describe, expect, it } from "vitest";
 const workflow = readFileSync(new URL("../.github/workflows/quality.yml", import.meta.url), "utf8");
 
 describe("frontend CI contract", () => {
+  it.each([
+    ["brace-expansion@^2.0.0", "brace-expansion", "2.1.7", "2.1.4"],
+    ["brace-expansion@^5.0.0", "brace-expansion", "5.0.12", "5.0.9"],
+    ["source-map-js", "source-map-js", "1.2.2", "1.2.1"],
+  ])("keeps the patched %s resolution in the frozen install", (selector, name, patched, vulnerable) => {
+    // Arrange
+    const workspace = readFileSync(new URL("../pnpm-workspace.yaml", import.meta.url), "utf8");
+    const lock = readFileSync(new URL("../pnpm-lock.yaml", import.meta.url), "utf8");
+
+    // Act / Assert
+    expect(workspace).toContain(`"${selector}": "${patched}"`);
+    expect(lock).toContain(`${name}@${patched}:`);
+    expect(lock).not.toContain(`${name}@${vulnerable}:`);
+  });
+
   it("runs all quality gates with immutable action revisions and no privileged PR trigger", () => {
     expect(workflow).toContain("contents: read");
     expect(workflow).not.toContain("pull_request_target");
