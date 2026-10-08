@@ -2223,3 +2223,24 @@ La file de modération propose « Gérer la suspension », une page dédiée ré
 Le motif est obligatoire pour une suspension (1 000 caractères Unicode après nettoyage et NFC pour le contrôle de longueur). La réactivation envoie un motif `null`. Le frontend ne supprime aucune liste, aucun souhait, lien ou participant ; il ne crée ni ne renouvelle le partage lors d’une réactivation. Aucun historique complet ni identité administrative n’est affiché.
 
 Les conflits et résultats incertains conservent la saisie, bloquent les écritures et imposent une relecture suivie d’une décision et d’une nouvelle confirmation explicites. Aucun PUT n’est rejoué automatiquement. Un départ ou changement de compte nettoie la page et ferme sa confirmation, sans garantir l’annulation d’une mutation déjà reçue par le serveur.
+
+## Historiques administratifs — #959
+
+Les pages d’examen et de suspension proposent chacune leur historique dédié :
+`/admin/reported-wishlists/:wishlistId/reports/:reportId/history` et
+`/admin/reported-wishlists/:wishlistId/moderation/history`. Elles exigent une session
+administrateur stable et relisent uniquement les événements demandés, par pages
+de 20, dans l’ordre serveur. Les dates identiques ne provoquent aucun tri local.
+
+Le traitement présente les transitions de statut et les notes privées originales,
+y compris les corrections sans changement de statut. La modération présente les
+suspensions, corrections de motif et réactivations, sans inventer de motif lors
+d’une réactivation. Aucun nom de liste non fourni, identité administrative,
+contenu de cadeau ou état courant déduit de l’historique n’est affiché.
+
+La pagination, les reprises et le retour aux décisions déclenchent des lectures
+fraîches. Une page devenue hors limites propose une récupération explicite,
+sans navigation automatique. Les refus administrateur et ressources introuvables
+retirent les données ; une sortie ou un changement de compte annule les lectures
+et empêche les réponses tardives de réafficher le contenu. Aucun historique n’est
+mis en cache ou conservé dans un stockage du navigateur.

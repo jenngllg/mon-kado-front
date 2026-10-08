@@ -1,6 +1,6 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createAlert, createBackLink, createButton, createFormField, createLoadingState, disposeComponent, setFormFieldValidation } from "../../components/index.js";
+import { createAlert, createBackLink, createActionLink, createButton, createFormField, createLoadingState, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createModerationAccessDeniedView } from "./moderationAccessView.js";
 import { ModerationReasonMessage, validateModerationReason } from "./wishlistModerationService.js";
@@ -16,7 +16,9 @@ export function createWishlistModerationView({ wishlistId, load, update, signal 
   const view = node("section", ""); view.className = "report-review-view flow";
   const title = node("h1", "Suspension de la liste"); title.tabIndex = -1;
   const header = node("div", ""); header.className = "wishlist-details-header";
-  header.append(title, createBackLink({ label: "Retour aux listes signalées", href: "/admin/reported-wishlists" }));
+  const history = createActionLink({ label: "Historique de modération", href: `/admin/reported-wishlists/${wishlistId}/moderation/history` });
+  const toolbar = node("div", ""); toolbar.className = "cluster"; toolbar.append(createBackLink({ label: "Retour aux listes signalées", href: "/admin/reported-wishlists" }), history);
+  header.append(title, toolbar);
   const record = node("div", ""); record.className = "flow";
   const feedback = node("div", ""); const announcement = node("p", ""); announcement.setAttribute("role", "status");
   const comparison = node("section", ""); comparison.className = "report-review-comparison flow"; comparison.hidden = true;
@@ -162,7 +164,7 @@ export function createWishlistModerationView({ wishlistId, load, update, signal 
   /** @param {unknown} error Terminal refusal. */
   function unavailable(error) {
     if (!(error instanceof ApiError) || ![403, 404].includes(error.statusCode ?? 0)) return false;
-    terminal = true; lifetime.abort(); close(false); erase(); disposeComponent(form); form.remove(); recovery.remove(); comparison.remove();
+    terminal = true; lifetime.abort(); close(false); erase(); disposeComponent(form); form.remove(); recovery.remove(); comparison.remove(); history.remove();
     if (error.statusCode === 403) { const denied = createModerationAccessDeniedView(); view.replaceChildren(denied); denied.querySelector("h1")?.focus(); }
     else { title.textContent = "Liste introuvable"; title.focus(); }
     return true;

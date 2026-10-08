@@ -28,6 +28,8 @@ export const RouteNames = Object.freeze({
   ReportedWishlists: "reported-wishlists",
   WishlistReportReview: "wishlist-report-review",
   WishlistModeration: "wishlist-moderation",
+  WishlistReportHistory: "wishlist-report-history",
+  WishlistModerationHistory: "wishlist-moderation-history",
   SharedWishlist: "shared-wishlist",
   SharedWish: "shared-wish",
 });
@@ -62,6 +64,8 @@ export const RoutePaths = Object.freeze({
   ReportedWishlists: "/admin/reported-wishlists",
   WishlistReportReview: "/admin/reported-wishlists/:wishlistId/reports/:reportId",
   WishlistModeration: "/admin/reported-wishlists/:wishlistId/moderation",
+  WishlistReportHistory: "/admin/reported-wishlists/:wishlistId/reports/:reportId/history",
+  WishlistModerationHistory: "/admin/reported-wishlists/:wishlistId/moderation/history",
   SharedWishlist: "/shared-wishlists/:shareLinkId",
   SharedWish: "/shared-wishlists/:shareLinkId/wishes/:wishId",
 });
