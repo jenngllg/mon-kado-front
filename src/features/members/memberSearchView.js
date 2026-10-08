@@ -44,7 +44,7 @@ export function createMemberSearchView({ search, signal, state = { query: "", pa
     if (disposed || busy) return;
     if (validate()) {
       clear(summary); summary.hidden = false;
-      summary.append(createAlert({ title: "Recherche à vérifier", message: "Vérifie le nom indiqué avant de rechercher un membre.", variant: "error" }));
+      summary.append(createAlert({ title: "Recherche à vérifier", message: "Nom recherché invalide.", variant: "error" }));
       input.focus(); return;
     }
     submitted = input.value.trim(); requestedPage = 1; void read();

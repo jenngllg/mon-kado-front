@@ -1,3 +1,4 @@
+import { withResourcePageTitle } from "./resourcePageTitle.js";
 import {
   createHomeView,
   createPlaceholderView,
@@ -24,7 +25,7 @@ import { createProfileView } from "../features/profile/profileView.js";
 import { createAccountLayout } from "../components/accountLayout.js";
 import { createPersonalDataService } from "../features/privacy/personalDataService.js";
 import { createPersonalDataView } from "../features/privacy/personalDataView.js";
-import { createAccountDeletionView } from "../features/privacy/accountDeletionView.js";
+import { createAccountDeletionLinkView } from "../features/privacy/accountDeletionLinkView.js";
 import { createAccountDeletionService } from "../features/privacy/accountDeletionService.js";
 import { createAuthenticatorService } from "../features/twoFactor/authenticatorService.js";
 import { createAuthenticatorView } from "../features/twoFactor/authenticatorView.js";
@@ -45,7 +46,6 @@ import { createWishImportService } from "../features/wishes/wishImportService.js
 import { createWishlistsView } from "../features/wishlists/wishlistsView.js";
 import { createWishlistView } from "../features/wishlists/createWishlistView.js";
 import { createWishlistEditView } from "../features/wishlists/wishlistEditView.js";
-import { createWishlistDeleteView } from "../features/wishlists/wishlistDeleteView.js";
 import { createWishlistDetailsView } from "../features/wishlists/wishlistDetailsView.js";
 import { createWishesService } from "../features/wishes/wishesService.js";
 import { createWishCreateView } from "../features/wishes/wishCreateView.js";
@@ -192,7 +192,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.ConfirmAccountDeletion, path: RoutePaths.ConfirmAccountDeletion, title: "Supprimer mon compte · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createAccountDeletionView({ session, service: createAccountDeletionService(session), consumeFragment: context.consumeFragment, signal: context.signal }),
+        createAccountDeletionLinkView({ session, service: createAccountDeletionService(session), consumeFragment: context.consumeFragment, signal: context.signal }),
     },
     {
       name: RouteNames.EmailChange, path: RoutePaths.EmailChange, title: "Changer mon adresse e-mail · MonKado",
@@ -213,13 +213,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.EditList, path: RoutePaths.EditList, title: "Modifier ma liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishlistEditView({ ...createWishlistsService(session), wishlistId: context.params.listId, signal: context.signal }),
-    },
-    {
-      name: RouteNames.DeleteList, path: RoutePaths.DeleteList, title: "Supprimer une liste · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishlistDeleteView({ ...createWishlistsService(session), wishlistId: context.params.listId, signal: context.signal,
-          onDeleted: () => onWishlistDeleted(context) }),
+        createWishlistEditView({ ...createWishlistsService(session), update: withResourcePageTitle(createWishlistsService(session).update, context, result => result.wishlist.name), loadOne: withResourcePageTitle(createWishlistsService(session).loadOne, context, result => result.wishlist.name), wishlistId: context.params.listId, signal: context.signal }),
     },
     {
       name: RouteNames.NewWish, path: RoutePaths.NewWish, title: "Ajouter un souhait · MonKado",
@@ -234,7 +228,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.EditWish, path: RoutePaths.EditWish, title: "Modifier un souhait · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishEditView({ ...createWishesService(session, { apiBaseUrl }), wishlistId: context.params.listId, wishId: context.params.wishId,
+        createWishEditView({ ...createWishesService(session, { apiBaseUrl }), update: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).update, context, result => result.wish.name), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
           returnSort: context.searchParams.get("sort"),
           preview: createWishImportService(session).preview,
           loadWishlist: createWishlistsService(session).loadOne, signal: context.signal, onDeleted: () => onWishDeleted(context) }),
@@ -242,14 +236,17 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.WishDetails, path: RoutePaths.WishDetails, title: "Détail du souhait · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishDetailsView({ ...createWishesService(session, { apiBaseUrl }), wishlistId: context.params.listId, wishId: context.params.wishId, signal: context.signal, returnSort: context.searchParams.get("sort") }),
+        createWishDetailsView({ ...createWishesService(session, { apiBaseUrl }), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
+          loadWishlist: createWishlistsService(session).loadOne, onDeleted: () => onWishDeleted(context),
+          signal: context.signal, returnSort: context.searchParams.get("sort") }),
     },
     {
       name: RouteNames.ListDetails, path: RoutePaths.ListDetails, title: "Détail de la liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
+        createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: withResourcePageTitle(createWishlistsService(session).loadOne, context, result => result.wishlist.name),
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           setArchived: createWishlistsService(session).setArchived,
+          removeWishlist: createWishlistsService(session).remove, onWishlistDeleted: () => onWishlistDeleted(context),
           favorite: createWishesService(session, { apiBaseUrl }),
           deletion: createWishesService(session, { apiBaseUrl }),
           onDeleted: () => onWishDeleted(context),
@@ -296,7 +293,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal, fromMemberId,
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
-          load: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load }), context.signal);
+          load: withResourcePageTitle(createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).load, context, result => result.name) }), context.signal);
       },
     },
     {
@@ -353,7 +350,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
             }),
           }) } : {}),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
-          loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne }), context.signal);
+          loadOne: withResourcePageTitle(createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne, context, result => result.name) }), context.signal);
       },
     },
   ]);

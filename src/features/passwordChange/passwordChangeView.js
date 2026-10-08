@@ -18,7 +18,7 @@ export function createPasswordChangeView({ changePassword, signal }) {
     { name: "newPassword", label: "Nouveau mot de passe", type: "password", autocomplete: "new-password", help: "De 12 à 128 caractères. Différent du mot de passe actuel." },
     { name: "confirmation", label: "Confirmer le nouveau mot de passe", type: "password", autocomplete: "new-password" },
   ], submitLabel: "Enregistrer le nouveau mot de passe", loadingLabel: "Modification en cours…",
-  validate: validatePasswordChangeField, serverMessages: { currentPassword: "Vérifie ton mot de passe actuel.", newPassword: NewPasswordServerMessage },
+  validate: validatePasswordChangeField, serverMessages: { currentPassword: "Mot de passe actuel invalide.", newPassword: NewPasswordServerMessage },
   serverErrorFields: { MEMBER_CURRENT_PASSWORD_INVALID: { name: "currentPassword", message: "Le mot de passe actuel est incorrect." } },
   uncertainResult: true,
   submit: async (values, options) => { await changePassword({ currentPassword: values.currentPassword, newPassword: values.newPassword }, options); },

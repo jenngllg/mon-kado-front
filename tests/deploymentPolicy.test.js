@@ -7,6 +7,8 @@ describe("deployed frontend policy", () => {
   it("routes social previews to the fixed API origin before the normal SPA fallback", () => {
     expect(config).toContain("facebookexternalhit|Facebot|WhatsApp|Discordbot");
     expect(config).toContain("path_regexp sharePreview ^/shared-wishlists/");
+    expect(config).toContain("header_regexp shareCrawler User-Agent");
+    expect(config).not.toContain("header_regexp User-Agent");
     expect(config).toContain("rewrite * /api/v1/shared-wishlists/{re.sharePreview.1}/preview");
     expect(config).toContain("rewrite * /api/v1/shared-wishlists/{re.previewImage.1}/preview/image");
     expect(config.match(/reverse_proxy \{\$FRONTEND_API_ORIGIN\}/g)).toHaveLength(2);

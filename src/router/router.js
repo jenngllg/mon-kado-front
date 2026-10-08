@@ -24,6 +24,7 @@ const MaximumRedirects = 10;
  *   params: Readonly<Record<string, string>>,
  *   searchParams: URLSearchParams,
  *   signal: AbortSignal,
+ *   setTitle?: (title: string) => void,
  *   navigate: (target: string | URL) => Promise<RouteSnapshot | null>,
  *   consumeFragment: () => string,
  *   replaceSearchParameter: (name: string, value: string | null) => void
@@ -201,6 +202,7 @@ export function createRouter({
     const match = matchRoute(compiledRoutes, url.pathname);
     const params = match?.params ?? Object.freeze({});
     let publishedSnapshot = /** @type {RouteSnapshot | null} */ (null);
+    let resourceTitle = /** @type {string | null} */ (null);
     const context = createRouteContext(
       url,
       params,
@@ -236,6 +238,11 @@ export function createRouter({
           currentRoute = publishedSnapshot;
           for (const listener of subscribers) listener(publishedSnapshot);
         }
+      },
+      title => {
+        if (!isCurrentNavigation(identifier, navigationIdentifier, controller.signal)) return;
+        resourceTitle = title;
+        if (publishedSnapshot !== null) browserWindow.document.title = title;
       },
     );
     let pendingView = /** @type {HTMLElement | null} */ (null);
@@ -300,7 +307,7 @@ export function createRouter({
         params,
       );
       publishedSnapshot = snapshot;
-      mountView(view, snapshot, title);
+      mountView(view, snapshot, resourceTitle ?? title);
       pendingView = null;
 
       return snapshot;
@@ -540,9 +547,10 @@ export function createRouter({
  * @param {(target: string | URL) => Promise<RouteSnapshot | null>} navigate Router navigation.
  * @param {() => string} consumeFragment One-shot fragment extraction for the active navigation.
  * @param {(name: string, value: string | null) => void} replaceSearchParameter Update a preference without remounting the view.
+ * @param {(title: string) => void} setTitle Update the active page title after a resource loads.
  * @returns {RouteContext} Route context.
  */
-function createRouteContext(url, params, signal, navigate, consumeFragment, replaceSearchParameter) {
+function createRouteContext(url, params, signal, navigate, consumeFragment, replaceSearchParameter, setTitle) {
   return Object.freeze({
     url: new URL(url.href),
     params,
@@ -551,6 +559,7 @@ function createRouteContext(url, params, signal, navigate, consumeFragment, repl
     navigate,
     consumeFragment,
     replaceSearchParameter,
+    setTitle,
   });
 }
 

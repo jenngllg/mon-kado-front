@@ -34,6 +34,31 @@ function setup(options = {}) {
   return { view, form, analysis, input, values, analyze, submit, create, loadOne, loadWish, uploadImage, preview, onCreated };
 }
 describe("unified creation and suggestions", () => {
+  it.each(["success", "failure"])("locks creation immediately through debounce and retrieval, then unlocks after %s", async outcome => {
+    // Arrange
+    vi.useFakeTimers(); const gate = barrier(); const ui = setup(); await settle();
+    ui.values.name.value = "Mon souhait";
+    ui.preview.mockImplementation(async () => {
+      await gate.promise;
+      if (outcome === "failure") throw new ApiError({ kind: "network" });
+      return { name: "Produit", url, price: "12", image: null, warnings: [] };
+    });
+    const controls = [...ui.form.querySelectorAll("input,textarea,button")];
+    const locked = () => controls.every(control => /** @type {HTMLInputElement} */ (control).disabled);
+    // Act
+    ui.input.focus(); ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
+    // Assert
+    expect(locked()).toBe(true); expect(ui.input.disabled).toBe(false);
+    expect(ui.form.getAttribute("aria-busy")).toBe("true");
+    expect(document.activeElement).toBe(ui.input);
+    await ui.submit(); expect(ui.create).not.toHaveBeenCalled(); expect(ui.preview).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(locked()).toBe(true); await ui.submit(); expect(ui.create).not.toHaveBeenCalled();
+    gate.resolve(); await settle();
+    expect(controls.every(control => !/** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
+    expect(ui.form.getAttribute("aria-busy")).toBe("false");
+    expect(ui.values.name.value).toBe(outcome === "success" ? "Produit" : "Mon souhait");
+  });
   it("preserves the favorite choice during URL import and saves it only on Add", async () => {
     const ui = setup(); await settle();
     const favorite = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="isFavorite"]'));
@@ -79,10 +104,10 @@ describe("unified creation and suggestions", () => {
     vi.mocked(decodeWishImage).mockRejectedValue(new Error("Image cannot be decoded"));
     ui.preview.mockResolvedValue({ name: "", price: "", url, image: new Blob(["fixture"]), warnings: [] });
     await ui.analyze();
-    expect(ui.values.name.value).toBe("Mon produit"); expect(ui.view.textContent).toContain("Nom : Non renseigné");
-    expect(ui.view.textContent).toContain("Prix : Non renseigné"); expect(ui.view.textContent).toContain("Suggestions à vérifier");
+    expect(ui.values.name.value).toBe("Mon produit");
+    expect(ui.view.textContent).toContain("Suggestions à vérifier");
     expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull();
-    button(ui.view, "Garder ma saisie").click(); expect(ui.values.name.value).toBe("Mon produit");
+    expect(ui.view.textContent).not.toContain("Garder ma saisie");
     await ui.submit(); expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).toHaveBeenCalledOnce();
   });
   it("selects a local image before Ajouter without uploading until creation", async () => {
@@ -100,6 +125,22 @@ describe("unified creation and suggestions", () => {
     expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
     await ui.submit();
     expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
+  });
+  it("describes automatic prefilling below the URL with a decorative info icon and accessible association", async () => {
+    // Arrange
+    const ui = setup(); await settle();
+    const description = ui.analysis.querySelector(".form-field__description");
+    // Act
+    ui.input.value = "invalid";
+    ui.analysis.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
+    // Assert
+    expect(description?.textContent).toBe("Indique le lien du produit : les informations disponibles seront préremplies automatiquement.");
+    expect(ui.input.nextElementSibling).toBe(description);
+    expect(description?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+    expect(description?.querySelector("svg")?.getAttribute("focusable")).toBe("false");
+    expect(ui.input.getAttribute("aria-describedby")?.split(" ")).toContain(description?.id);
+    expect(ui.input.getAttribute("aria-invalid")).toBe("true");
+    expect(ui.preview).not.toHaveBeenCalled();
   });
   it("always shows an optional URL and only a spinner during retrieval", async () => {
     // Arrange
@@ -135,8 +176,8 @@ describe("unified creation and suggestions", () => {
     expect(document.activeElement).toBe(ui.input);
     expect(ui.analysis.querySelector('button[type="submit"]')).toBeNull();
     const description = ui.analysis.querySelector(".form-field__description");
-    expect(description).toBeNull();
-    expect(ui.input.hasAttribute("aria-describedby")).toBe(false);
+    expect(description?.textContent).toContain("les informations disponibles seront préremplies automatiquement");
+    expect(ui.input.getAttribute("aria-describedby")?.split(" ")).toContain(description?.id);
     expect(ui.view.textContent).not.toContain("Les informations récupérées");
     expect(ui.view.textContent).not.toContain("2 048 caractères");
   });
@@ -144,12 +185,17 @@ describe("unified creation and suggestions", () => {
     // Arrange
     vi.useFakeTimers(); const ui = setup(); await settle();
     ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
+    expect(ui.values.name.disabled).toBe(true);
     // Act
     if (action === "dispose") disposeComponent(ui.view);
     else { ui.input.value = action === "empty" ? "" : "invalid"; ui.input.dispatchEvent(new Event("input")); }
     await vi.advanceTimersByTimeAsync(2000);
     // Assert
     expect(ui.preview).not.toHaveBeenCalled();
+    if (action !== "dispose") {
+      expect(ui.values.name.disabled).toBe(false);
+      expect(ui.form.getAttribute("aria-busy")).toBe("false");
+    }
   });
   it("aborts obsolete analysis when typing resumes and ignores its late result", async () => {
     // Arrange
@@ -162,6 +208,7 @@ describe("unified creation and suggestions", () => {
     // Assert
     expect(ui.preview.mock.calls[0][2].signal.aborted).toBe(true);
     expect(ui.values.name.value).toBe("");
+    expect(ui.values.name.disabled).toBe(true);
     await vi.advanceTimersByTimeAsync(2000); await settle();
     expect(ui.preview).toHaveBeenCalledTimes(2);
     expect(ui.values.name.value).toBe("Théière");
@@ -171,18 +218,25 @@ describe("unified creation and suggestions", () => {
     await ui.submit(); expect(ui.create.mock.calls[0][1]).toEqual({ name: "Théière", note: "", price: "19,99", url, quantity: "1", isFavorite: false }); expect(ui.uploadImage.mock.calls[0][3].etag).toBe('"created"'); expect(ui.onCreated).toHaveBeenCalledTimes(1); expect(revoke).toHaveBeenCalledTimes(1);
     await ui.submit(); expect(ui.create).toHaveBeenCalledTimes(1);
   });
-  it("requires explicit application over drafts while retaining note and quantity", async () => {
-    const ui = setup(); await settle(); ui.values.name.value = "Mon nom"; ui.values.note.value = "  note conservée  "; ui.values.quantity.value = "3"; await ui.analyze(); expect(ui.values.name.value).toBe("Mon nom"); expect(ui.view.textContent).toContain("remplacera");
-    button(ui.view, "Appliquer les suggestions").click(); expect(ui.values.name.value).toBe("Théière"); expect(ui.values.note.value).toBe("  note conservée  "); expect(ui.values.quantity.value).toBe("3"); expect(document.activeElement?.getAttribute("role")).toBe("status");
+  it("automatically replaces draft metadata while retaining note and quantity without saving", async () => {
+    const ui = setup(); await settle(); ui.values.name.value = "Mon nom"; ui.values.note.value = "  note conservée  "; ui.values.quantity.value = "3"; await ui.analyze();
+    expect(ui.values.name.value).toBe("Théière"); expect(ui.values.note.value).toBe("  note conservée  "); expect(ui.values.quantity.value).toBe("3");
+    expect(ui.view.textContent).not.toContain("Appliquer les suggestions"); expect(ui.view.textContent).not.toContain("Garder ma saisie");
+    expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
   });
-  it("can reject new suggestions without changing an existing applied image", async () => {
-    const ui = setup(); await settle(); await ui.analyze(); await ui.analyze(); button(ui.view, "Garder ma saisie").click(); expect(revoke).toHaveBeenCalledTimes(1); expect(ui.view.querySelectorAll('img[src^="blob:"]')).toHaveLength(1);
+  it("automatically replaces a previous imported image and revokes its preview", async () => {
+    const ui = setup(); await settle(); await ui.analyze();
+    ui.preview.mockResolvedValue({ name: "Nouveau produit", url: "https://shop.example/new", price: "29,99", image: new Blob(["new image"]), warnings: [] });
+    ui.input.value = "https://shop.example/new"; ui.input.dispatchEvent(new Event("input")); ui.analysis.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
+    expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:preview-1"); expect(ui.view.querySelectorAll('img[src^="blob:"]')).toHaveLength(1);
+    expect(ui.values.name.value).toBe("Nouveau produit"); expect(ui.values.price.value).toBe("29,99");
+    expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
   });
   it("removes the optional image without changing the creation request", async () => {
     const ui = setup(); await settle(); await ui.analyze();
     expect(ui.view.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
     expect(ui.view.querySelector('input[name="isFavorite"]')).not.toBeNull();
-    const remove = /** @type {HTMLButtonElement} */ (ui.view.querySelector('button[aria-label="Supprimer l’image"]'));
+    const remove = /** @type {HTMLButtonElement} */ (ui.view.querySelector('button[aria-label="Retirer la sélection"]'));
     remove.click();
     expect(ui.form.querySelector("img")).toBeNull(); expect(remove.hidden).toBe(true);
     expect(revoke).toHaveBeenCalledOnce(); expect(ui.values.name.value).toBe("Théière");

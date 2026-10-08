@@ -20,6 +20,49 @@ function setup(options = {}) {
 }
 
 describe("wish image selection", () => {
+  it("uses shared add, edit and trash icons with distinct local-removal labels", () => {
+    // Arrange
+    const ui = setup();
+    const path = (/** @type {HTMLElement} */ button) => button.querySelector("path")?.getAttribute("d");
+    const editPath = path(ui.edit);
+    const trashPath = path(ui.remove);
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:selection");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    // Act
+    ui.section.update({ ...ui.wish, imageUrl: null }, false, false);
+    // Assert
+    expect(path(ui.edit)).toBe("M12 5v14M5 12h14");
+    expect(ui.edit.title).toBe("Ajouter une image");
+    expect(ui.remove.classList.contains("icon-action--danger")).toBe(true);
+    expect(ui.remove.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+    ui.section.setSelected(new Blob(["local"]));
+    expect(path(ui.edit)).toBe(editPath);
+    expect(ui.edit.title).toBe("Remplacer l’image");
+    expect(ui.remove.getAttribute("aria-label")).toBe("Retirer la sélection");
+    expect(path(ui.remove)).toBe(trashPath);
+    ui.remove.click();
+    expect(ui.onRemove).not.toHaveBeenCalled();
+    expect(ui.remove.title).toBe("Supprimer l’image");
+  });
+  it("keeps the saved photo and local selection across editor state updates", () => {
+    // Arrange
+    const ui = setup();
+    const saved = ui.section.element.querySelector("img");
+    const blob = new Blob(["validated image"], { type: "image/png" });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:local-draft");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+    ui.section.setSelected(blob);
+    const preview = ui.section.element.querySelector('img[src="blob:local-draft"]');
+    // Act
+    ui.section.update(ui.wish, true, false);
+    ui.section.update(ui.wish, false, false);
+    // Assert
+    expect(ui.section.element.querySelector('img[src="https://example.test/image.png"]')).toBe(saved);
+    expect(ui.section.element.querySelector('img[src="blob:local-draft"]')).toBe(preview);
+    expect(ui.section.getSelected()).toBe(blob);
+    expect(ui.onUpload).toHaveBeenCalledExactlyOnceWith(blob);
+    expect(ui.onRemove).not.toHaveBeenCalled();
+  });
   it("accepts a decoded local selection without a server mutation and clears an empty selection", async () => {
     const decode = vi.fn(async () => {}), ui = setup({ decode });
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:local");

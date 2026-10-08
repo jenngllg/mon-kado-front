@@ -60,7 +60,7 @@ describe("authenticator management routes", () => {
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(document.activeElement).toBe(input);
     const descriptions = (input.getAttribute("aria-describedby") ?? "").split(" ").map(id => document.getElementById(id)?.textContent).join(" ");
-    expect(descriptions).toContain(recovery ? "code de récupération complet" : "six chiffres");
+    expect(descriptions).toContain(recovery ? "Code de récupération invalide ou incomplet" : "six chiffres");
     // Act
     input.value = "1"; input.dispatchEvent(new Event("input"));
     // Assert

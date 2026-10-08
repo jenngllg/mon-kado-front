@@ -17,32 +17,39 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   const element = node("section", ""); element.className = "wish-import flow";
   const analysis = node("form", ""); analysis.noValidate = true; analysis.className = "wishlist-form flow"; analysis.setAttribute("aria-label", "Analyser un lien produit");
   const input = document.createElement("input"); input.type = "text"; input.inputMode = "url"; input.setAttribute("autocomplete", "url"); input.spellcheck = false; input.autocapitalize = "none";
-  const field = createFormField({ control: input, label: "Lien du produit" });
+  const field = createFormField({ control: input, label: "Lien du produit", description: "Indique le lien du produit : les informations disponibles seront préremplies automatiquement." });
+  const description = field.querySelector(".form-field__description");
+  if (description) {
+    description.classList.add("form-field__description--info");
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 24 24"); icon.setAttribute("aria-hidden", "true"); icon.setAttribute("focusable", "false");
+    const circle = document.createElementNS(icon.namespaceURI, "circle"); circle.setAttribute("cx", "12"); circle.setAttribute("cy", "12"); circle.setAttribute("r", "9");
+    const mark = document.createElementNS(icon.namespaceURI, "path"); mark.setAttribute("d", "M12 11v6m0-10h.01");
+    icon.append(circle, mark);
+    const copy = node("span", description.textContent ?? "");
+    description.replaceChildren(icon, copy);
+  }
   const loader = node("span", ""); loader.className = "ui-spinner wish-import__loader";
   loader.setAttribute("role", "status"); loader.setAttribute("aria-label", "Récupération des informations en cours"); loader.hidden = true;
   field.append(loader); field.classList.add("wish-import__url-field");
   const status = node("p", ""); status.setAttribute("role", "status"); status.tabIndex = -1;
   const feedback = node("div", ""); const suggestions = node("div", ""); suggestions.className = "flow";
-  const pendingImage = node("div", ""); pendingImage.className = "wish-image-section__preview";
   const appliedImage = node("div", ""); appliedImage.className = "wish-image-section__preview flow";
   const imagePanel = node("aside", ""); imagePanel.className = "wish-import__image-panel";
   imagePanel.setAttribute("aria-label", "Image du souhait");
   const imageEmpty = node("p", "Aucune image"); imageEmpty.className = "wish-import__image-empty";
   const fileInput = document.createElement("input"); fileInput.type = "file"; fileInput.accept = "image/jpeg,image/png,image/webp"; fileInput.hidden = true;
-  const chooseImage = createButton({ label: "Ajouter une image", variant: "secondary", onClick: () => { if (!disabled && !analyzing) fileInput.click(); } });
+  const chooseImage = createButton({ label: "Ajouter une image", variant: "secondary", onClick: () => { if (!disabled && !isBusy()) fileInput.click(); } });
   chooseImage.setAttribute("aria-label", "Ajouter une image"); applyActionIcon(chooseImage, "edit", "Choisir une image");
   chooseImage.classList.add("wish-image-section__edit");
   const imageFrame = node("div", ""); imageFrame.className = "wish-image-section__media wish-image-section__media--empty";
-  const removeImage = createButton({ label: "Supprimer l’image", variant: "secondary", onClick: () => {
-    if (disposed || disabled || analyzing) return;
+  const removeImage = createButton({ label: "Retirer la sélection", variant: "secondary", onClick: () => {
+    if (disposed || disabled || isBusy()) return;
     discardApplied(); sync(); chooseImage.focus();
   } });
-  removeImage.setAttribute("aria-label", "Supprimer l’image"); removeImage.title = "Supprimer l’image";
-  removeImage.textContent = "×"; removeImage.classList.add("wish-image-section__remove");
+  applyActionIcon(removeImage, "delete", "Retirer la sélection");
+  removeImage.classList.add("wish-image-section__remove", "icon-action--danger");
   const imageHost = node("div", ""); appliedImage.append(imageHost);
-  const accept = createButton({ label: "Appliquer les suggestions", onClick: () => { applyPending(); status.textContent = "Suggestions appliquées. Vérifie et complète ton souhait."; status.focus(); } });
-  const retain = createButton({ label: "Garder ma saisie", variant: "secondary", onClick: () => { discardPending(); suggestions.replaceChildren(); status.textContent = "Ta saisie est conservée."; sync(); status.focus(); } });
-  const decisions = node("div", ""); decisions.className = "cluster wishlist-form__actions"; decisions.append(accept, retain);
   analysis.append(field, status, feedback, suggestions);
   imageFrame.append(imageEmpty, appliedImage, chooseImage, removeImage); imagePanel.append(imageFrame, fileInput);
   element.append(analysis, imagePanel);
@@ -60,18 +67,19 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
     disposeComponent(feedback); feedback.replaceChildren();
     apply({ ...getValues(), url: input.value.trim() });
     if (checked) validate();
-    sync(); onBusy(); schedule();
+    schedule(); sync(); onBusy();
   });
   addComponentEventListener(element, input, "blur", () => { if (dirty) validate(); });
-  registerComponentCleanup(element, () => { disposed = true; disposeComponent(accept); disposeComponent(retain); clear(); element.replaceChildren(); });
+  registerComponentCleanup(element, () => { disposed = true; clear(); element.replaceChildren(); });
   sync();
-  return { element, imagePanel, isBusy: () => analyzing, isUrlMode: () => true, getImage: () => appliedBlob, clear,
+  return { element, imagePanel, isBusy, isUrlMode: () => true, getImage: () => appliedBlob, clear,
     update: (/** @type {boolean} */ value) => { disabled = value; if (value) abort(); element.hidden = value; sync(); } };
 
+  function isBusy() { return analyzing || analysisTimer !== null; }
   function cancelTimer() { if (analysisTimer !== null) clearTimeout(analysisTimer); analysisTimer = null; }
   async function selectLocalImage() {
     const file = fileInput.files?.[0];
-    if (!file || disposed || disabled || analyzing) return;
+    if (!file || disposed || disabled || isBusy()) return;
     abort(); discardPending(); controller = new AbortController();
     const signal = controller.signal, expected = revision;
     analyzing = true; sync(); onBusy();
@@ -100,26 +108,30 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   }
   function validate() { checked = true; const error = input.value.trim() ? validateImportUrl(input.value) : null; setFormFieldValidation(field, error); return error; }
   function abort() { cancelTimer(); revision++; controller?.abort(); controller = null; analyzing = false; status.textContent = ""; }
-  function discardPending() { if (pendingUrl) URL.revokeObjectURL(pendingUrl); pendingUrl = null; pending = null; pendingImage.replaceChildren(); }
+  function discardPending() { if (pendingUrl) URL.revokeObjectURL(pendingUrl); pendingUrl = null; pending = null; }
   function discardApplied() { if (appliedUrl) URL.revokeObjectURL(appliedUrl); appliedUrl = null; appliedBlob = null; imageHost.replaceChildren(); }
   function clear() { abort(); discardPending(); discardApplied(); input.value = ""; suggestions.replaceChildren(); disposeComponent(feedback); feedback.replaceChildren(); sync(); }
   function sync() {
-    loader.hidden = !analyzing;
+    const busy = isBusy();
+    loader.hidden = !busy;
     input.disabled = disabled || disposed;
-    accept.disabled = disabled || analyzing || !pending; retain.disabled = disabled || analyzing;
-    removeImage.disabled = disabled || analyzing || disposed; removeImage.hidden = !appliedBlob; appliedImage.hidden = !appliedBlob;
+    fileInput.disabled = disabled || busy || disposed;
+    removeImage.disabled = disabled || busy || disposed; removeImage.hidden = !appliedBlob; appliedImage.hidden = !appliedBlob;
     imageEmpty.hidden = !!appliedBlob;
-    chooseImage.disabled = disabled || analyzing || disposed;
-    chooseImage.setAttribute("aria-label", appliedBlob ? "Remplacer l’image" : "Ajouter une image");
+    chooseImage.disabled = disabled || busy || disposed;
+    const chooseLabel = appliedBlob ? "Remplacer l’image" : "Ajouter une image";
+    chooseImage.setAttribute("aria-label", chooseLabel); applyActionIcon(chooseImage, appliedBlob ? "edit" : "add", chooseLabel);
     imageFrame.classList.toggle("wish-image-section__media--empty", !appliedBlob);
-    analysis.setAttribute("aria-busy", String(analyzing));
+    analysis.setAttribute("aria-busy", String(busy));
   }
   function applyPending() {
     if (!pending || analyzing || disabled || disposed) return;
-    const old = getValues(); apply({ ...old, name: pending.name, price: pending.price, url: pending.url });
-    discardApplied(); appliedBlob = pending.image; appliedUrl = pendingUrl; pendingUrl = null;
-    if (appliedUrl) { const image = document.createElement("img"); image.alt = "Image proposée pour le souhait"; image.src = appliedUrl; imageHost.append(image); }
-    pending = null; pendingImage.replaceChildren(); suggestions.replaceChildren(); sync();
+    const old = getValues(); apply({ ...old, name: pending.name || old.name, price: pending.price || old.price, url: pending.url });
+    if (pending.image && pendingUrl) {
+      discardApplied(); appliedBlob = pending.image; appliedUrl = pendingUrl; pendingUrl = null;
+      const image = document.createElement("img"); image.alt = "Image proposée pour le souhait"; image.src = appliedUrl; imageHost.append(image);
+    }
+    pending = null; suggestions.replaceChildren(); sync();
   }
   /** @param {readonly string[]} warnings Safe translated copy. */
   function showWarnings(warnings) { if (warnings.length) feedback.append(createAlert({ variant: "warning", title: "Suggestions à vérifier", message: [...new Set(warnings)].join(" ") })); }
@@ -143,14 +155,8 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
       if (disposed || signal.aborted || expected !== revision) return;
       pending = { ...result, image }; showWarnings(warnings);
       focusTarget = status;
-      const old = getValues(); const pristine = !appliedBlob && [old.name, old.note, old.price].every(value => value === "") && old.quantity === "1";
       analyzing = false;
-      if (pristine) { applyPending(); status.textContent = "Suggestions appliquées. Vérifie et complète ton souhait."; }
-      else {
-        suggestions.append(node("h2", "Suggestions disponibles"), node("p", `Nom : ${result.name || "Non renseigné"}`), node("p", `Prix : ${result.price ? result.price + " €" : "Non renseigné"}`), node("p", "Appliquer les suggestions remplacera le nom, le prix, le lien et l’image. Ta note et ta quantité seront conservées."));
-        if (pendingUrl) { const img = document.createElement("img"); img.alt = "Nouvelle image suggérée"; img.src = pendingUrl; pendingImage.append(node("p", "Nouvelle image suggérée — non appliquée"), img); suggestions.append(pendingImage); }
-        suggestions.append(decisions); status.textContent = "Suggestions disponibles. Choisis de les appliquer ou de garder ta saisie.";
-      }
+      applyPending(); status.textContent = "";
     } catch (error) {
       if (disposed || signal.aborted || expected !== revision || isAbortError(error)) return;
       if (error instanceof ApiError && (error.statusCode === 404 || error.errorCode === "WISHLIST_SUSPENDED")) { onUnavailable(error); return; }

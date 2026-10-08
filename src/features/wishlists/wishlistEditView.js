@@ -29,12 +29,15 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
     onChange: () => { if (validationSummary && editor.fields.every(field => field.error === null)) clearFeedback(); syncControls(); },
   });
   const { form, fields, surpriseMode } = editor; form.hidden = true;
-  const actions = textElement("div", ""); actions.className = "wishlist-form__actions cluster";
+  const actions = textElement("div", ""); actions.className = "wishlist-form__footer";
   const submit = createButton({ label: "Enregistrer", type: "submit" });
   const reread = createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void read(true); } }); reread.hidden = true;
   const useVersion = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: useStored }); useVersion.hidden = true;
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
-  actions.append(submit, useVersion); form.append(actions);
+  const surpriseControl = surpriseMode.closest(".wishlist-surprise-control");
+  if (surpriseControl) actions.append(surpriseControl);
+  const commands = textElement("div", ""); commands.className = "wishlist-form__actions cluster";
+  commands.append(submit, useVersion); actions.append(commands); form.append(actions);
   const back = createBackLink({ label: "Retour à la liste", href: isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists });
   view.append(back, title, feedback, status, retry, reread, comparison, form);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
@@ -56,7 +59,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
     feedback.hidden = false; feedback.append(alert); return alert;
   }
   function summary() {
-    show({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." }); validationSummary = true;
+    show({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." }); validationSummary = true;
   }
   function hasChanges() {
     if (!base) return false;
@@ -184,13 +187,13 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
       const field = fields.find(candidate => candidate.name === validation.propertyName);
       if (!field) { unknown = true; continue; }
       field.checked = true;
-      field.error = field.name === "eventDate" ? "Conserve la date enregistrée, retire-la ou choisis une date à partir d’aujourd’hui (jour UTC)." : WishlistServerMessages[field.name];
+      field.error = field.name === "eventDate" ? "Date invalide : la date enregistrée ou une date à partir d’aujourd’hui (jour UTC) uniquement." : WishlistServerMessages[field.name];
       setFormFieldValidation(field.element, field.error);
     }
     if (error.statusCode === 409 && error.errorCode === "WISHLIST_NAME_ALREADY_EXISTS") {
       fields[0].checked = true; fields[0].error = "Tu as déjà une liste avec ce nom."; setFormFieldValidation(fields[0].element, fields[0].error); summary();
     } else if (validations.length > 0) {
-      if (unknown) show({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées. Vérifie tes saisies puis réessaie." });
+      if (unknown) show({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées." });
       else summary();
     } else presentTechnical(error, false);
   }

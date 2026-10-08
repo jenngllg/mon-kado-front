@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSessionApplication } from "../src/app/sessionApplication.js";
 import { accountDeletionFixture, DeletionToken } from "./accountDeletionTestHelpers.js";
 import { barrier } from "./sessionTestHelpers.js";
-import { createAccountDeletionView } from "../src/features/privacy/accountDeletionView.js";
+import { createAccountDeletionLinkView } from "../src/features/privacy/accountDeletionLinkView.js";
 import { disposeComponent } from "../src/components/index.js";
 import { createAbortError } from "../src/api/apiError.js";
 
@@ -14,12 +14,13 @@ afterEach(() => {
   for (const view of document.body.children) if (view instanceof HTMLElement) disposeComponent(view);
   disposals.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); window.history.replaceState({}, "", "/");
 });
-async function mount(anonymous = false, fragment = `#token=${DeletionToken}`) {
+async function mount(anonymous = false, fragment = `#token=${DeletionToken}`, openConfirmation = true) {
   const f = accountDeletionFixture(); if (anonymous) f.state.refreshStatus = 401;
   window.history.replaceState({}, "", "/confirm-account-deletion" + fragment);
   const root = document.createElement("div"); document.body.append(root);
   const app = createSessionApplication(root, { apiBaseUrl: "http://localhost:7000", session: f.session }); applications.push(app);
   await app.start(); await f.session.start();
+  if (openConfirmation) [...root.querySelectorAll("button")].find(button => button.textContent === "Supprimer mon compte")?.click();
   return { ...f, app, root };
 }
 /** @param {HTMLElement} root @param {string} label @returns {HTMLButtonElement} */
@@ -30,12 +31,45 @@ function button(root, label) {
 }
 /** @param {HTMLElement} root */
 function accept(root) {
+  if (!root.querySelector("dialog")?.open) button(root, "Supprimer mon compte").click();
   const checkbox = /** @type {HTMLInputElement} */ (root.querySelector('input[type="checkbox"]'));
   checkbox.checked = true; checkbox.dispatchEvent(new Event("change"));
   button(root, "Supprimer définitivement mon compte").click();
 }
 
 describe("account deletion browser flow", () => {
+  it("keeps the email continuation inert and only shows confirmation inside the explicitly opened modal", async () => {
+    // Arrange
+    const { root, posts } = await mount(false, `#token=${DeletionToken}`, false);
+    const modal = root.querySelector("dialog");
+    const trigger = button(root, "Supprimer mon compte");
+    // Act / Assert
+    expect(modal?.open).toBe(false); expect(window.location.hash).toBe("");
+    expect(root.innerHTML).not.toContain(DeletionToken); expect(posts()).toHaveLength(0);
+    trigger.click(); expect(modal?.open).toBe(true);
+    expect(modal?.getAttribute("aria-labelledby")).toBe(modal?.querySelector("h2")?.id);
+    const checkbox = /** @type {HTMLInputElement} */ (modal?.querySelector("input"));
+    checkbox.checked = true; checkbox.dispatchEvent(new Event("change"));
+    button(/** @type {HTMLDialogElement} */ (modal), "Annuler").click();
+    expect(modal?.open).toBe(false); expect(checkbox.checked).toBe(false); expect(document.activeElement).toBe(trigger);
+    expect(window.location.pathname).toBe("/confirm-account-deletion"); expect(posts()).toHaveLength(0);
+    trigger.click(); expect(checkbox.checked).toBe(false);
+    expect(button(root, "Supprimer définitivement mon compte").disabled).toBe(true);
+  });
+  it("blocks dismissal and double confirmation while a deletion is pending", async () => {
+    // Arrange
+    const { root, operation, posts } = await mount(); const entered = barrier(), release = barrier();
+    operation.before = async () => { entered.resolve(); await release.promise; };
+    const modal = /** @type {HTMLDialogElement} */ (root.querySelector("dialog"));
+    // Act
+    accept(root); await entered.promise;
+    const cancelEvent = new Event("cancel", { cancelable: true }); modal.dispatchEvent(cancelEvent);
+    button(modal, "Annuler").click(); button(modal, "Supprimer définitivement mon compte").click();
+    // Assert
+    expect(cancelEvent.defaultPrevented).toBe(true); expect(modal.open).toBe(true); expect(posts()).toHaveLength(1);
+    release.resolve(); await vi.waitFor(() => expect(root.textContent).toContain("Compte supprimé"));
+    expect(root.querySelector("dialog")).toBeNull(); expect(posts()).toHaveLength(1);
+  });
   it("groups consent with its native checkbox and marks the final action as destructive", async () => {
     // Arrange
     const { root, posts } = await mount();
@@ -57,7 +91,7 @@ describe("account deletion browser flow", () => {
     const controller = new AbortController(); controller.abort();
     const subscribe = vi.fn(f.session.subscribe);
     // Act
-    const view = createAccountDeletionView({ session: { ...f.session, subscribe }, service: f.service, signal: controller.signal, consumeFragment: () => `#token=${DeletionToken}` });
+    const view = createAccountDeletionLinkView({ session: { ...f.session, subscribe }, service: f.service, signal: controller.signal, consumeFragment: () => `#token=${DeletionToken}` });
     document.body.append(view);
     // Assert
     expect(subscribe).not.toHaveBeenCalled(); expect(view.querySelector("input,button")).toBeNull(); expect(f.posts()).toHaveLength(0);
@@ -69,7 +103,7 @@ describe("account deletion browser flow", () => {
     const confirm = vi.fn(async () => { entered.resolve(); await release.promise;
       if (outcome === "failure") throw new Error("private-canary"); if (outcome === "abort") throw createAbortError(); return { sessionIssue: null };
     });
-    const view = createAccountDeletionView({ session: f.session, service: { confirm }, consumeFragment: () => `#token=${DeletionToken}` }); document.body.append(view);
+    const view = createAccountDeletionLinkView({ session: f.session, service: { confirm }, consumeFragment: () => `#token=${DeletionToken}` }); document.body.append(view);
     const buttonBeforeConsent = button(view, "Supprimer définitivement mon compte"); buttonBeforeConsent.disabled = false; buttonBeforeConsent.click();
     expect(confirm).not.toHaveBeenCalled();
     accept(view); await entered.promise;
@@ -83,7 +117,7 @@ describe("account deletion browser flow", () => {
     // Arrange
     const f = accountDeletionFixture(); disposals.push(() => f.session.dispose()); f.state.refreshStatus = 401; await f.session.start();
     const restore = vi.fn(async () => { throw new Error("private-canary"); });
-    const view = createAccountDeletionView({ session: { ...f.session, restore }, service: f.service, consumeFragment: () => `#token=${DeletionToken}` }); document.body.append(view);
+    const view = createAccountDeletionLinkView({ session: { ...f.session, restore }, service: f.service, consumeFragment: () => `#token=${DeletionToken}` }); document.body.append(view);
     // Act
     button(view, "J’ai terminé la connexion : vérifier ma session").click();
     await vi.waitFor(() => expect(view.querySelector('[role="alert"].ui-alert--error')).not.toBeNull());

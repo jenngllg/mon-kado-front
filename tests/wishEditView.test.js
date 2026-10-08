@@ -14,7 +14,7 @@ function stored(name = "Souhait", etag = '"gift"') {
     etag, values: { name, note: "", url: "", price: "0,29", quantity: "2" } };
 }
 /** @type {HTMLElement[]} */ const views = [];
-afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
+afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); vi.useRealTimers(); });
 /** @param {Partial<Parameters<typeof createWishEditView>[0]>} [options] Overrides. */
 function setup(options = {}) {
   const loadWishlist = vi.fn(/** @type {import("../src/features/wishlists/wishlistsService.js").LoadWishlist} */ (async () => list));
@@ -47,11 +47,54 @@ it("keeps wish deletion out of the edit page", async () => {
 });
 
 describe("gift editor", () => {
+  it.each(["success", "failure"])("locks editing immediately through debounce and retrieval, then unlocks after %s", async outcome => {
+    // Arrange
+    vi.useFakeTimers(); const gate = barrier();
+    const preview = vi.fn(async () => {
+      await gate.promise;
+      if (outcome === "failure") throw new ApiError({ kind: "network" });
+      return { name: "Produit", price: "12", url: "https://shop.test/new", image: null, warnings: [] };
+    });
+    const ui = setup({ preview, uploadImage: vi.fn(), removeImage: vi.fn() }); await settle();
+    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
+    const controls = [...ui.form.querySelectorAll('input:not([name="url"]),textarea,.wish-image-section button,button[type="submit"]')];
+    const locked = () => controls.every(control => /** @type {HTMLInputElement} */ (control).disabled);
+    // Act
+    link.focus(); link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
+    // Assert
+    expect(locked()).toBe(true); expect(link.disabled).toBe(false);
+    expect(ui.form.getAttribute("aria-busy")).toBe("true"); expect(document.activeElement).toBe(link);
+    ui.send(); expect(ui.update).not.toHaveBeenCalled(); expect(preview).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(locked()).toBe(true); ui.send(); expect(ui.update).not.toHaveBeenCalled();
+    gate.resolve(); await settle();
+    expect(controls.every(control => !/** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
+    expect(ui.form.getAttribute("aria-busy")).toBe("false");
+    expect(/** @type {HTMLInputElement} */ (ui.form.querySelector('[name="name"]')).value).toBe(outcome === "success" ? "Produit" : "Souhait");
+  });
+  it.each(["", "invalid"])("unlocks editing when a pending link becomes %j", async value => {
+    // Arrange
+    vi.useFakeTimers(); const preview = vi.fn(); const ui = setup({ preview }); await settle();
+    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="url"]'));
+    link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
+    expect(ui.fields.filter(field => field !== link).every(field => field.disabled)).toBe(true);
+    // Act
+    link.value = value; link.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(2000);
+    // Assert
+    expect(ui.fields.every(field => !field.disabled)).toBe(true);
+    expect(ui.form.getAttribute("aria-busy")).toBe("false"); expect(preview).not.toHaveBeenCalled();
+  });
   it("retrieves a changed product link after two seconds without saving", async () => {
     // Arrange
     vi.useFakeTimers();
     const preview = vi.fn(async () => ({ name: "Nouveau produit", price: "25", url: "https://shop.test/new", image: null, warnings: [] }));
     const ui = setup({ preview }); await settle();
+    for (const [name, value] of [["name", "Nom saisi avant analyse"], ["note", "Note personnelle\nà conserver"], ["quantity", "4"]]) {
+      const field = /** @type {HTMLInputElement | HTMLTextAreaElement} */ (ui.form.querySelector(`[name="${name}"]`));
+      field.value = value;
+      field.dispatchEvent(new Event("input"));
+    }
     const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
     // Act
     link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
@@ -62,6 +105,9 @@ describe("gift editor", () => {
     expect(ui.form.querySelector("input")).toBe(link);
     expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="name"]'))?.value).toBe("Nouveau produit");
     expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="price"]'))?.value).toBe("25");
+    expect(/** @type {HTMLTextAreaElement | null} */ (ui.form.querySelector('textarea[name="note"]'))?.value).toBe("Note personnelle\nà conserver");
+    expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="quantity"]'))?.value).toBe("4");
+    expect(ui.view.textContent).not.toContain("Informations récupérées appliquées");
     expect(ui.update).not.toHaveBeenCalled();
     vi.useRealTimers();
   });
@@ -105,7 +151,7 @@ describe("gift editor", () => {
   });
   it("enforces total byte size without truncation or transport", async () => {
     const ui = setup(); await settle(); const note = "🎁".repeat(500); ui.input(1, note); ui.input(2, "https://example.test/" + "é".repeat(1500)); ui.send();
-    expect(ui.update).not.toHaveBeenCalled(); expect(ui.view.textContent).toContain("Raccourcis la note ou le lien"); expect(ui.fields[1].value).toBe(note);
+    expect(ui.update).not.toHaveBeenCalled(); expect(ui.view.textContent).toContain("Informations trop volumineuses pour l’envoi"); expect(ui.fields[1].value).toBe(note);
   });
   it("sends once, disables controls, adopts the response and uses its ETag for the next edit", async () => {
     const gate = barrier(); const operation = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").UpdateWish} */ (async () => { await gate.promise; return stored("Normalisé", '"new"'); }));

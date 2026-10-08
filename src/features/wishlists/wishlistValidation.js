@@ -5,10 +5,10 @@
 export const WishlistOccasions = Object.freeze({ birthday: "Anniversaire", christmas: "Noël", wedding: "Mariage", birth: "Naissance", other: "Autre" });
 /** @type {Readonly<Record<WishlistField, string>>} */
 export const WishlistServerMessages = Object.freeze({
-  name: "Vérifie le nom de ta liste : 100 caractères maximum, sans caractères de contrôle.",
-  occasion: "Choisis une occasion parmi les options proposées.",
-  eventDate: "Choisis une date valide, aujourd’hui ou plus tard.",
-  message: "Vérifie ton message : 500 caractères maximum, sans caractères de contrôle autres que les retours à la ligne et tabulations.",
+  name: "Nom de la liste invalide.",
+  occasion: "Occasion invalide.",
+  eventDate: "Date invalide : aujourd’hui ou une date future uniquement.",
+  message: "Message invalide.",
 });
 
 /** Matches .NET Trim's Unicode White_Space set, without changing normalization.
@@ -36,9 +36,9 @@ export function isCalendarDate(value) {
 export function validateWishlistField(field, value, now = () => new Date()) {
   const clean = trimWishlistText(value);
   if (field === "name") {
-    if (clean === "") return "Donne un nom à ta liste.";
-    if (/\p{Cs}/u.test(value) || /[\p{Cc}\p{Zl}\p{Zp}]/u.test(clean)) return "Le nom ne doit pas contenir de caractères de contrôle ni de retours à la ligne.";
-    return [...clean].length > 100 ? "Le nom ne doit pas dépasser 100 caractères." : null;
+    if (clean === "") return "Nom de la liste obligatoire.";
+    if (/\p{Cs}/u.test(value) || /[\p{Cc}\p{Zl}\p{Zp}]/u.test(clean)) return WishlistServerMessages.name;
+    return [...clean].length > 100 ? "Nom de la liste trop long : 100 caractères maximum." : null;
   }
   if (field === "occasion") return isWishlistOccasion(value) ? null : WishlistServerMessages.occasion;
   if (field === "eventDate") {
@@ -46,9 +46,9 @@ export function validateWishlistField(field, value, now = () => new Date()) {
     return isCalendarDate(value) && value >= now().toISOString().slice(0, 10) ? null : WishlistServerMessages.eventDate;
   }
   if (/\p{Cs}/u.test(value) || [...value].some(character => /\p{Cc}/u.test(character) && !["\r", "\n", "\t"].includes(character))) {
-    return "Le message contient un caractère non accepté. Les retours à la ligne et tabulations sont autorisés.";
+    return WishlistServerMessages.message;
   }
-  return [...clean].length > 500 ? "Le message ne doit pas dépasser 500 caractères." : null;
+  return [...clean].length > 500 ? "Message trop long : 500 caractères maximum." : null;
 }
 
 /** Validates edits against the latest server version, including an unchanged past date.

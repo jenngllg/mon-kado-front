@@ -15,8 +15,8 @@ export function validateLoginField(name, value) {
 }
 
 export const LoginServerMessages = Object.freeze({
-  email: "Vérifie ton adresse e-mail.",
-  password: "Vérifie ton mot de passe.",
+  email: "Adresse e-mail invalide.",
+  password: "Mot de passe invalide.",
 });
 
 export const LoginErrorMessages = Object.freeze({

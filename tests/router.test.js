@@ -34,6 +34,30 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
+describe("resource page titles", () => {
+  it("preserves a title supplied during rendering and ignores updates after navigation", async () => {
+    // Arrange
+    /** @type {import("../src/router/router.js").RouteContext | undefined} */ let active;
+    const { router } = createTestRouter([
+      createRoute("home", "/", "Loading · MonKado", context => {
+        active = context;
+        context.setTitle?.("Anniversaire · MonKado");
+        return createView("List");
+      }),
+      createRoute("other", "/other", "Mes listes · MonKado"),
+    ]);
+    // Act
+    await router.start();
+    // Assert
+    expect(document.title).toBe("Anniversaire · MonKado");
+    active?.setTitle?.("Vélo · MonKado");
+    expect(document.title).toBe("Vélo · MonKado");
+    await router.navigate("/other");
+    active?.setTitle?.("Late response · MonKado");
+    expect(document.title).toBe("Mes listes · MonKado");
+  });
+});
+
 describe("fragment consumption", () => {
   it("replaces a display preference without remounting, losing focus or adding history", async () => {
     // Arrange

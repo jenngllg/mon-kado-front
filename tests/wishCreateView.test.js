@@ -75,7 +75,7 @@ describe("manual gift creation view", () => {
   it.each([400, 401, 403, 409, 413, 429])("presents safe HTTP %s with retained inputs and no retry", async statusCode => {
     const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode, correlationId: "support-fixture", retryAfterSeconds: 7 })); await settle(); ui.fill(); ui.send(); await settle();
     expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields[0].value).toBe(" Souhait 🎁 "); expect(ui.view.querySelectorAll('[role="alert"]')).toHaveLength(1); expect(ui.view.textContent).toContain("support-fixture");
-    if (statusCode === 429) expect(ui.view.textContent).toContain("7 seconde(s)"); if (statusCode === 413) expect(ui.view.textContent).toContain("Raccourcis la note ou le lien produit");
+    if (statusCode === 429) expect(ui.view.textContent).toContain("7 seconde(s)"); if (statusCode === 413) expect(ui.view.textContent).toContain("Informations trop volumineuses pour l’envoi");
   });
   it("maps only the five known validation paths and never displays backend messages", async () => {
     const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 400, validationErrors: ["name", "note", "url", "price", "quantity", "confirmation", "wishes[2].name"].map(propertyName => ({ propertyName, errorMessage: "PRIVATE_ENGLISH" })) })); await settle(); ui.fill(); ui.send(); await settle();

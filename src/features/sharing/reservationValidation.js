@@ -1,4 +1,4 @@
-export const ReservationQuantityMessage = "Indique une quantité entière entre 1 et 100, sans dépasser la quantité disponible.";
+export const ReservationQuantityMessage = "Quantité invalide : nombre entier entre 1 et 100, dans la limite de la quantité disponible.";
 
 /** @param {string} value Raw quantity. @param {number} available Current availability. @returns {string | null} Local French validation. */
 export function validateReservationQuantity(value, available) {

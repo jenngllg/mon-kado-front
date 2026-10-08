@@ -23,11 +23,16 @@ for (const width of [390, 1440]) {
       if (!bounds || !frame) throw new Error("Image and frame must have visible bounds");
       expect(Math.abs(bounds.width - frame.width)).toBeLessThan(2);
       expect(Math.abs(bounds.height - frame.height)).toBeLessThan(2);
-      const edit = section.getByRole("button", { name: "Ajouter une image" });
+      const edit = section.getByRole("button", { name: "Remplacer l’image" });
       await image.hover({ position: { x: 5, y: 5 } }); const before = await edit.boundingBox();
       await edit.hover(); const after = await edit.boundingBox();
       expect(after).toEqual(before);
-      const remove = await section.getByRole("button", { name: "Supprimer l’image" }).boundingBox();
+      const removalButton = section.getByRole("button", { name: "Retirer la sélection" });
+      await expect(removalButton.locator("svg")).toHaveAttribute("aria-hidden", "true");
+      await expect(removalButton).toHaveCSS("width", "44px");
+      await expect(removalButton).toHaveCSS("height", "44px");
+      await expect(removalButton).toHaveCSS("color", "rgb(180, 35, 24)");
+      const remove = await removalButton.boundingBox();
       if (!remove) throw new Error("Image removal control must have visible bounds");
       expect(remove.x + remove.width).toBeLessThanOrEqual(bounds.x + bounds.width);
       expect(remove.y).toBeGreaterThanOrEqual(bounds.y);

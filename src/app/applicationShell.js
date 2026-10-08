@@ -290,7 +290,6 @@ function getActiveNavigationRoute(routeName) {
     routeName === RouteNames.Lists ||
     routeName === RouteNames.NewList ||
     routeName === RouteNames.EditList ||
-    routeName === RouteNames.DeleteList ||
     routeName === RouteNames.NewWish ||
     routeName === RouteNames.EditWish ||
     routeName === RouteNames.ListDetails

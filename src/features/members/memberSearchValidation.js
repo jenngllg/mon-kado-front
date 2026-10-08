@@ -5,9 +5,9 @@ import { validateDisplayName } from "../../auth/displayNameValidation.js";
  * @returns {string | null} Local French error.
  */
 export function validateMemberSearch(value) {
-  if (!value.trim()) return "Indique le nom du membre à rechercher.";
+  if (!value.trim()) return "Nom du membre obligatoire.";
   const error = validateDisplayName(value);
   if (error) return error;
-  if ([...value.trim().normalize("NFC")].length < 2) return "Saisis au moins deux caractères du nom du membre.";
+  if ([...value.trim().normalize("NFC")].length < 2) return "Le nom recherché doit contenir au moins deux caractères.";
   return null;
 }

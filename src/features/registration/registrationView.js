@@ -168,7 +168,7 @@ export function createRegistrationView({ register, signal, startGoogle }) {
   }
 
   function showValidationSummary() {
-    showFeedback({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." });
+    showFeedback({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." });
     validationSummary = true;
   }
 
@@ -256,7 +256,7 @@ export function createRegistrationView({ register, signal, startGoogle }) {
         setFormFieldValidation(field.element, field.error);
       }
       if (validations.length > 0) {
-        if (unknownField) showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées. Vérifie tes saisies puis réessaie." });
+        if (unknownField) showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées." });
         else showValidationSummary();
         // An unmapped server error must remain visible when known fields are corrected.
         validationSummary = !unknownField;

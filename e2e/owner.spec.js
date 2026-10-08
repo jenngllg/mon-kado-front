@@ -17,10 +17,10 @@ test("create then delete a list with an explicit confirmation and individual ver
   await expect(page).toHaveURL(`/lists/${listId}`);
   await expect(page.getByRole("heading", { name: "Liste créée par le test", exact: true })).toBeVisible();
   expect(api.state.listWrites).toBe(1);
-  await page.getByRole("link", { name: "Supprimer cette liste", exact: true }).click();
+  await page.getByRole("button", { name: "Supprimer cette liste", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Supprimer définitivement « Liste créée par le test » ?", exact: true })).toBeVisible();
   expect(api.state.listWrites).toBe(1);
-  await page.getByRole("button", { name: "Supprimer définitivement", exact: true }).click();
+  await page.getByRole("button", { name: "Supprimer", exact: true }).click();
   await expect(page).toHaveURL("/lists");
   await expect(page.getByText("Tu n’as pas encore de liste", { exact: true })).toBeVisible();
   expect(api.state.listWrites).toBe(2);
@@ -40,7 +40,8 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   await page.getByRole("button", { name: "Ajouter", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Carnet test", exact: true })).toBeVisible();
   expect(api.state.wishWrites).toBe(1);
-  await page.getByRole("link", { name: "Modifier le souhait « Carnet test »", exact: true }).click();
+  await page.getByRole("link", { name: "Carnet test", exact: true }).click();
+  await page.getByRole("link", { name: "Modifier", exact: true }).click();
   await expect(page.getByRole("textbox", { name: /Nom du produit/ })).toHaveValue("Carnet test");
   await page.getByRole("textbox", { name: /Nom du produit/ }).fill("Carnet corrigé");
   await expect(page.getByRole("button", { name: "Annuler les modifications", exact: true })).toHaveCount(0);
@@ -49,6 +50,7 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   expect(api.state.wishWrites).toBe(2);
   await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
   const remove = page.getByRole("button", { name: "Supprimer le souhait « Carnet corrigé »", exact: true });
+  await page.locator(".wish-card--gallery").filter({ has: remove }).hover();
   await remove.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading")).toContainText("Carnet corrigé");
@@ -58,7 +60,7 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   await expect(remove).toBeFocused();
   expect(api.state.wishWrites).toBe(2);
   await remove.click();
-  await dialog.getByRole("button", { name: "Supprimer définitivement", exact: true }).click();
+  await dialog.getByRole("button", { name: "Supprimer", exact: true }).click();
   await expect(page).toHaveURL(`/lists/${listId}`);
   await expect(page.getByRole("heading", { name: "Carnet corrigé", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Ajouter un souhait", exact: true })).toBeVisible();

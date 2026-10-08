@@ -54,7 +54,6 @@ const ExpectedRoutes = [
   [RouteNames.Lists, RoutePaths.Lists],
   [RouteNames.NewList, RoutePaths.NewList],
   [RouteNames.EditList, RoutePaths.EditList],
-  [RouteNames.DeleteList, RoutePaths.DeleteList],
   [RouteNames.NewWish, RoutePaths.NewWish],
   [RouteNames.EditWish, RoutePaths.EditWish],
   [RouteNames.WishDetails, RoutePaths.WishDetails],

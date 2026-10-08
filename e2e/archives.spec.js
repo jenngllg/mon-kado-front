@@ -23,13 +23,13 @@ for (const width of [390, 1440]) {
     });
     await page.goto("/lists");
     await expect(page.getByRole("link", { name: "Actives", exact: true })).toHaveAttribute("aria-current", "page");
-    await page.getByLabel(`Actions de la liste « ${api.wishlist.name} »`).click();
+    await expect(page.locator(".wishlist-card").getByRole("button", { name: "Archiver", exact: true })).toHaveCount(0);
+    await page.getByRole("link", { name: `Ouvrir la liste « ${api.wishlist.name} »` }).click();
     await page.getByRole("button", { name: "Archiver", exact: true }).focus();
     await page.getByRole("button", { name: "Archiver", exact: true }).press("Enter");
-    await expect(page.getByRole("link", { name: `Ouvrir la liste « ${api.wishlist.name} »` })).toHaveCount(0);
+    await expect(page.getByText("Liste archivée", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Retour à Mes listes", exact: true }).click();
     expect(writes).toBe(1);
-    await page.getByRole("link", { name: "Archivées", exact: true }).focus();
-    await page.getByRole("link", { name: "Archivées", exact: true }).press("Enter");
     await expect(page).toHaveURL("/lists?isArchived=true");
     await expect(page.getByRole("link", { name: "Archivées", exact: true })).toHaveAttribute("aria-current", "page");
     await page.screenshot({ path: testInfo.outputPath("archived-overview.png"), fullPage: true });

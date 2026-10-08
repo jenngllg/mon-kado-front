@@ -45,9 +45,27 @@ function until(root, predicate) {
 async function ready(app) {
   await until(app.shell.outlet, () => app.shell.outlet.querySelector(`button[aria-label="Supprimer le souhait « ${wish.name} »"]`) !== null);
   /** @type {HTMLButtonElement} */ (app.shell.outlet.querySelector(`button[aria-label="Supprimer le souhait « ${wish.name} »"]`)).click();
-  await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Supprimer définitivement" && !/** @type {HTMLButtonElement} */ (button).disabled));
+  await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Supprimer" && !/** @type {HTMLButtonElement} */ (button).disabled));
 }
 describe("gift deletion integration", () => {
+  it("confirms deletion from the owner detail and returns to the list with a single success notice", async () => {
+    // Arrange
+    const app = setup(); await app.start();
+    await app.router.navigate(`${detail}/wishes/${wish.id}`);
+    await until(app.shell.outlet, () => app.shell.outlet.querySelector('.wish-owner-detail__actions button[aria-label="Supprimer"]') !== null);
+    const trigger = /** @type {HTMLButtonElement} */ (app.shell.outlet.querySelector('.wish-owner-detail__actions button[aria-label="Supprimer"]'));
+    // Act
+    trigger.click();
+    await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Supprimer" && !/** @type {HTMLButtonElement} */ (button).disabled));
+    // Assert
+    expect(app.state.writes).toBe(0);
+    app.click("Supprimer");
+    await until(app.shell.element, () => window.location.pathname === detail && app.shell.notificationRegion.textContent.includes("Souhait supprimé") && app.shell.outlet.textContent.includes("Aucun souhait pour le moment"));
+    expect(app.state.writes).toBe(1);
+    expect(app.shell.outlet.querySelector("dialog")).toBeNull();
+    expect(app.shell.notificationRegion.textContent.match(/Souhait supprimé/g)).toHaveLength(1);
+    expect(app.shell.outlet.textContent).not.toContain(wish.name);
+  });
   it("opens the owner wish details and returns to the list without offering reservations", async () => {
     const app = setup(); await app.start(); await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null);
     const destination = `${detail}/wishes/${wish.id}`;
@@ -62,32 +80,32 @@ describe("gift deletion integration", () => {
   it.each([false, true])("rereads independent versions and returns to the collection (remaining: %s)", async remaining => {
     const app = setup(); app.state.remaining = remaining; await app.start(); app.state.version = 2; await ready(app);
     expect(app.state.reads).toBe(1); expect(app.state.parentReads).toBe(2); expect(app.state.writes).toBe(0); expect(window.location.pathname).toBe(path);
-    const replace = vi.spyOn(window.history, "replaceState"); app.click("Supprimer définitivement");
+    const replace = vi.spyOn(window.history, "replaceState"); app.click("Supprimer");
     await until(app.shell.element, () => app.state.collectionReads === 2 && app.shell.outlet.querySelector('.wishlist-details-gifts [aria-busy="false"]') !== null && window.location.pathname === detail && app.shell.notificationRegion.textContent.includes("Souhait supprimé") && (remaining ? app.shell.outlet.textContent.includes("Autre souhait") : app.shell.outlet.textContent.includes("Aucun souhait pour le moment")));
     expect(app.state.writes).toBe(1); expect(app.state.parentReads).toBe(2); expect(app.state.collectionReads).toBe(2); expect(app.shell.outlet.querySelector("dialog")).toBeNull(); expect(document.activeElement?.textContent).toBe("Souhaits");
     expect(replace).not.toHaveBeenCalled(); expect(app.shell.notificationRegion.textContent.match(/Souhait supprimé/g)).toHaveLength(1); expect(app.shell.outlet.textContent).not.toContain("Souhait privé");
   });
   it("preserves confirmed success when collection reloading fails and retries only GET", async () => {
-    const app = setup(); await app.start(); await ready(app); app.state.collectionStatus = 503; app.click("Supprimer définitivement");
+    const app = setup(); await app.start(); await ready(app); app.state.collectionStatus = 503; app.click("Supprimer");
     await until(app.shell.element, () => window.location.pathname === detail && app.shell.outlet.querySelector('.wishlist-details-gifts [role="alert"]') !== null && app.shell.outlet.querySelector('.wishlist-details-gifts [aria-busy="false"]') !== null && app.shell.notificationRegion.textContent.includes("Souhait supprimé"));
     app.state.collectionStatus = 200; window.dispatchEvent(new Event("focus")); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Aucun souhait pour le moment")); expect(app.state.writes).toBe(1); expect(app.state.collectionReads).toBe(3);
   });
   it("deletes on the current list without relying on history navigation", async () => {
-    const app = setup(); await app.start(); await ready(app); vi.spyOn(window.history, "replaceState").mockImplementationOnce(() => { throw new Error("history failure"); }); app.click("Supprimer définitivement");
+    const app = setup(); await app.start(); await ready(app); vi.spyOn(window.history, "replaceState").mockImplementationOnce(() => { throw new Error("history failure"); }); app.click("Supprimer");
     await until(app.shell.outlet, () => app.shell.notificationRegion.textContent.includes("Souhait supprimé") && !app.shell.outlet.querySelector("dialog"));
-    expect(window.location.pathname).toBe(detail); expect(app.shell.outlet.querySelector(`button[aria-label="Supprimer le souhait « ${wish.name} »"]`)).toBeNull(); app.click("Supprimer définitivement"); expect(app.state.writes).toBe(1);
+    expect(window.location.pathname).toBe(detail); expect(app.shell.outlet.querySelector(`button[aria-label="Supprimer le souhait « ${wish.name} »"]`)).toBeNull(); app.click("Supprimer"); expect(app.state.writes).toBe(1);
   });
   it.each([401, 403, 404, 409, 412, 428, 429, 503])("handles %s without retry, session mutation or duplicate shell errors", async status => {
-    const app = setup(); app.state.status = status; await app.start(); await ready(app); app.click("Supprimer définitivement");
+    const app = setup(); app.state.status = status; await app.start(); await ready(app); app.click("Supprimer");
     await until(app.shell.outlet, () => status === 401 ? window.location.pathname === "/login" : app.shell.outlet.querySelector('dialog [role="alert"]') !== null);
     expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toMatch(/ENGLISH_PRIVATE|BACKEND_PRIVATE/);
     if (status === 401) expect(app.session.getSnapshot().user).toBeNull();
     else { expect(app.session.getSnapshot().status).toBe("authenticated"); expect(app.shell.sessionFeedback.querySelector('[role="alert"]')).toBeNull(); }
-    if (status === 404) expect(app.shell.outlet.querySelector("dialog dl")?.textContent).toBe("");
+    if (status === 404) expect(app.shell.outlet.querySelector("dialog dl")).toBeNull();
   });
   it.each(["departure", "logout", "changeAccount"])("closes the modal and ignores late DELETE results on %s", async action => {
     const app = setup(); const gate = barrier(); const entered = barrier(); app.state.beforeWrite = async () => { entered.resolve(); await gate.promise; };
-    await app.start(); await ready(app); const dialog = /** @type {HTMLDialogElement} */ (app.shell.outlet.querySelector("dialog")); app.click("Supprimer définitivement"); await entered.promise;
+    await app.start(); await ready(app); const dialog = /** @type {HTMLDialogElement} */ (app.shell.outlet.querySelector("dialog")); app.click("Supprimer"); await entered.promise;
     if (action === "departure") await app.router.navigate("/");
     else {
       const other = createSessionManager({ apiBaseUrl: "http://localhost:7000", coordinator: app.hub.create(), fetchImplementation: app.transport.fetch }); cleanups.push(other.dispose); await other.start();

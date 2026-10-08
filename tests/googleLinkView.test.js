@@ -54,7 +54,7 @@ describe("Google link proof form", () => {
     // Act
     visibility.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); visibility.click();
     // Assert
-    expect(password.type).toBe("text"); expect(password.getAttribute("aria-invalid")).toBe("true"); expect(view.textContent).toContain("Renseigne ton mot de passe");
+    expect(password.type).toBe("text"); expect(password.getAttribute("aria-invalid")).toBe("true"); expect(view.textContent).toContain("Mot de passe obligatoire");
   });
   it("announces loading, disables all controls and prevents double submission", async () => {
     // Arrange

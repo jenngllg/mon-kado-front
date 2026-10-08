@@ -111,7 +111,9 @@ describe("public shared wishlist integration", () => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => app.shell.outlet.querySelector(".wish-card") !== null);
     const filter = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector('input[type="checkbox"]')); filter.click();
-    await observe(() => app.shell.outlet.textContent?.includes("1 souhait affiché.") === true);
+    await observe(() => app.shell.outlet.querySelector(".wish-card") !== null && app.shell.outlet.querySelector('.shared-wishlist-summary[aria-busy="false"]') !== null);
+    expect(document.activeElement).toBe(filter);
+    expect(app.shell.outlet.textContent).not.toMatch(/souhaits? affichés?/);
     expect(state.filters.at(-1)).toBe("true"); expect(state.joins + state.reservationWrites + state.reservationDeletes).toBe(0);
     await app.session.logout(); await observe(() => app.shell.outlet.querySelector(".wish-card") !== null);
     expect(state.filters.at(-1)).toBeNull(); expect(/** @type {HTMLInputElement} */ (app.shell.outlet.querySelector('input[type="checkbox"]')).checked).toBe(false);

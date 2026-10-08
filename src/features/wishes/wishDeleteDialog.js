@@ -20,30 +20,24 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
   const dialog = document.createElement("dialog"); dialog.className = "wish-delete-dialog";
   const content = element("div", ""); content.className = "flow";
   const title = element("h2", subjectTitle); title.id = `wish-delete-${crypto.randomUUID()}`; title.tabIndex = -1; title.setAttribute("autofocus", "");
-  const warning = element("p", imageOnly ? "Seule l’image sera supprimée. Le souhait sera conservé." : "Cette action est définitive. Ce souhait sera retiré de ta liste. Les autres souhaits seront conservés."); warning.id = `${title.id}-warning`;
-  dialog.setAttribute("aria-labelledby", title.id); dialog.setAttribute("aria-describedby", warning.id);
-  const parentName = element("p", "");
-  const details = document.createElement("dl"); details.className = "wish-delete-dialog__details";
+  const warning = element("p", ""); warning.id = `${title.id}-warning`;
+  dialog.setAttribute("aria-labelledby", title.id);
   const feedback = element("div", ""); feedback.className = "flow";
   const status = element("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   /** @type {import("./wishesService.js").EditableWish | null} */ let current = null;
   let disposed = false; let busy = false; let deleting = false; let blocked = true; let terminal = false; let completed = false;
   const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: () => { if (!deleting) dialog.close(); } });
-  const confirm = createButton({ label: imageOnly ? "Supprimer l’image" : "Supprimer définitivement", variant: "danger", onClick: () => { void deleteWish(); } });
+  const confirm = createButton({ label: imageOnly ? "Supprimer l’image" : "Supprimer", variant: "danger", onClick: () => { void deleteWish(); } });
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } });
   const reread = createButton({ label: "Relire le souhait", variant: "secondary", onClick: () => { void read(true); } });
   const back = createBackLink({ label: "Retour à la liste", href: isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists }); back.hidden = true;
   const actions = element("div", ""); actions.className = "cluster wishlist-form__actions"; actions.append(cancel, confirm);
-  content.append(back, title);
-  if (!imageOnly) content.append(parentName);
-  content.append(warning);
-  if (!imageOnly) content.append(details);
-  content.append(feedback, status, retry, reread, actions); dialog.append(content);
+  content.append(back, title, warning, feedback, status, retry, reread, actions); dialog.append(content);
   addComponentEventListener(dialog, dialog, "cancel", event => { if (deleting) event.preventDefault(); });
   addComponentEventListener(dialog, dialog, "close", () => { disposeComponent(dialog); dialog.remove(); });
   registerComponentCleanup(dialog, () => {
-    disposed = true; lifetime.abort(); current = null; clearDetails(); clearFeedback(); status.textContent = "";
+    disposed = true; lifetime.abort(); current = null; resetWarning(); clearFeedback(); status.textContent = "";
     title.textContent = subjectTitle; confirm.disabled = true; cancel.disabled = true;
     if (dialog.open) dialog.close();
   });
@@ -55,7 +49,13 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
   return dialog;
 
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); feedback.hidden = true; }
-  function clearDetails() { details.replaceChildren(); parentName.textContent = ""; }
+  function resetWarning() { setWarning(imageOnly ? "Seule l’image sera supprimée. Le souhait sera conservé." : ""); }
+  /** @param {string} text Only public reservation state or generic surprise copy. */
+  function setWarning(text) {
+    warning.textContent = text; warning.hidden = text === "";
+    if (text) dialog.setAttribute("aria-describedby", warning.id);
+    else dialog.removeAttribute("aria-describedby");
+  }
   /** @param {Parameters<typeof createAlert>[0]} options Local copy. */
   function show(options) { clearFeedback(); feedback.hidden = false; const alert = createAlert({ variant: "error", ...options }); alert.tabIndex = -1; feedback.append(alert); return alert; }
   function focusError() { /** @type {HTMLElement | null} */ (feedback.firstElementChild)?.focus(); }
@@ -68,13 +68,12 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
     cancel.textContent = terminal || completed ? "Fermer" : "Annuler";
     retry.hidden = disposed || busy || terminal || completed || current !== null;
     reread.hidden = disposed || terminal || completed || !blocked || current === null; reread.disabled = busy;
-    details.hidden = current === null || terminal || completed;
     dialog.setAttribute("aria-busy", String(busy));
   }
   /** @param {WishUnavailable} state Safe status only; never a new editor version. */
   function unavailable(state) {
     blocked = true;
-    if (state !== "suspended") { terminal = true; current = null; clearDetails(); title.textContent = subjectTitle; }
+    if (state !== "suspended") { terminal = true; current = null; resetWarning(); title.textContent = subjectTitle; }
     show({ title: state === "suspended" ? "Liste suspendue" : state === "wishlistMissing" ? "Liste introuvable" : "Souhait introuvable",
       message: state === "suspended" ? "Consultation uniquement" : "Ce contenu n’est pas disponible.", variant: state === "suspended" ? "warning" : "error" });
     onUnavailable(state); sync();
@@ -84,7 +83,7 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
     if (disposed || busy || terminal || completed) return;
     if (!isWishlistId(wishlistId)) { unavailable("wishlistMissing"); return; }
     if (!isWishlistId(wishId)) { unavailable("wishMissing"); return; }
-    busy = true; blocked = true; clearFeedback(); sync(); feedback.hidden = false; feedback.append(createLoadingState({ label: "Chargement du souhait à supprimer…" }));
+    busy = true; blocked = true; resetWarning(); clearFeedback(); sync(); feedback.hidden = false; feedback.append(createLoadingState({ label: "Chargement du souhait à supprimer…" }));
     let parent = true;
     try {
       const list = await loadWishlist(wishlistId, { signal: lifetime.signal });
@@ -93,14 +92,11 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
       const gift = await loadOne(wishlistId, wishId, { signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
       if (!isStrongEntityTag(gift.etag)) throw new ApiError({ kind: "invalidResponse" });
-      current = gift; clearDetails(); clearFeedback(); parentName.textContent = list.wishlist.name;
+      current = gift; resetWarning(); clearFeedback();
       title.textContent = imageOnly ? subjectTitle : `Supprimer définitivement « ${gift.wish.name} » ?`;
-      /** @type {[string, string | null][]} */
-      const rows = [["Nom", gift.values.name], ["Note", gift.values.note || "Sans note"], ["Lien produit", gift.values.url || "Sans lien"],
-        ["Prix", gift.wish.price === null ? null : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(gift.wish.price)], ["Quantité souhaitée", gift.values.quantity]];
-      for (const [label, value] of rows) {
-        if (value === null) continue;
-        details.append(element("dt", label), element("dd", value));
+      if (!imageOnly) {
+        if (list.wishlist.surpriseMode !== false) setWarning("Mode surprise : quelqu’un a peut-être déjà réservé ce souhait.");
+        else if ((gift.wish.reservedQuantity ?? 0) > 0) setWarning("Quelqu’un a déjà réservé ce souhait.");
       }
       blocked = list.wishlist.isSuspended || !!list.wishlist.isArchived;
       if (blocked) unavailable("suspended");
@@ -121,7 +117,7 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
       return;
     } finally { if (!disposed) { busy = false; deleting = false; setButtonLoading(confirm, false); status.textContent = ""; sync(); } }
     if (disposed || lifetime.signal.aborted) return;
-    completed = true; current = null; clearDetails(); title.textContent = successTitle; sync(); back.hidden = false;
+    completed = true; current = null; resetWarning(); title.textContent = successTitle; sync(); back.hidden = false;
     show({ title: successTitle, message: imageOnly ? "La suppression de l’image est confirmée." : "La suppression de ton souhait est confirmée.", variant: "success" });
     try { await onDeleted(); }
     catch { if (!disposed) show({ title: successTitle, message: imageOnly ? "La suppression est confirmée. Reviens au souhait pour actualiser ses informations." : "Ton souhait est supprimé, mais le retour à la liste a échoué. Utilise le lien ci-dessous.", variant: "success" }).focus(); }

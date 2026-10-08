@@ -251,7 +251,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
     for (const field of fields) validate(field);
     const invalid = fields.find(field => field.error !== null);
     if (invalid) {
-      showFeedback({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." });
+      showFeedback({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." });
       summary = true;
       invalid.control.focus();
       return;
@@ -275,7 +275,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
               setFormFieldValidation(field.element, field.error);
             }
           }
-          showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées. Vérifie tes saisies puis réessaie." });
+          showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées." });
           summary = validations.every(item => fields.some(field => field.name === item.propertyName));
         } else showTranslated(toUserFacingError(error, LoginErrorMessages));
         if (error instanceof ApiError && error.errorCode === "ACCOUNT_EMAIL_NOT_CONFIRMED") {

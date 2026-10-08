@@ -4,18 +4,17 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { createActionLink, createAlert, createButton, createEmptyState, createLoadingState, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { WishlistOccasions as OccasionLabels } from "./wishlistValidation.js";
-import { createActionDisclosure } from "../../components/actionDisclosure.js";
-import { wishlistArtwork, wishlistOccasionIcon } from "./wishlistArtwork.js";
-import { createWishlistArchiveButton } from "./wishlistArchiveButton.js";
+import { applyActionIcon } from "../../components/actionIcon.js";
+import { wishlistArtwork } from "./wishlistArtwork.js";
+import { createWishlistDeleteDialog } from "./wishlistDeleteDialog.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** Creates an owned-list overview with a fresh, view-owned read.
- * @param {{load: import("./wishlistsService.js").LoadWishlists, loadOne?: import("./wishlistsService.js").LoadWishlist,
- * setArchived?: import("./wishlistsService.js").SetArchivedWishlist, isArchived?: boolean, signal?: AbortSignal}} options Injectable read and route lifetime.
+ * @param {{load: import("./wishlistsService.js").LoadWishlists, loadOne?: import("./wishlistsService.js").LoadWishlist, remove?: import("./wishlistsService.js").RemoveWishlist, isArchived?: boolean, signal?: AbortSignal}} options Injectable read and route lifetime.
  * @returns {HTMLElement} Routed component.
  */
-export function createWishlistsView({ load, loadOne, setArchived, isArchived = false, signal }) {
+export function createWishlistsView({ load, loadOne, remove, isArchived = false, signal }) {
   const view = textElement("section", "");
   view.className = "wishlists-view flow";
   const header = textElement("div", "");
@@ -26,8 +25,10 @@ export function createWishlistsView({ load, loadOne, setArchived, isArchived = f
   title.tabIndex = -1;
   introduction.append(title);
   const create = createActionLink({ label: "Créer une liste", href: RoutePaths.NewList });
-  create.classList.add("home-hero__primary-action");
-  header.append(introduction, create);
+  create.classList.add("ui-button", "ui-button--primary", "page-primary-action");
+  header.append(introduction);
+  const toolbar = textElement("div", "");
+  toolbar.className = "wishlists-view__toolbar";
   const results = textElement("div", "");
   results.className = "wishlists-view__results flow";
   const tabs = textElement("nav", ""); tabs.className = "wishlist-archive-tabs cluster"; tabs.setAttribute("aria-label", "Catégories de listes");
@@ -36,10 +37,12 @@ export function createWishlistsView({ load, loadOne, setArchived, isArchived = f
     if (archived === isArchived) tab.setAttribute("aria-current", "page");
     tabs.append(tab);
   }
-  view.append(header, tabs, results);
+  toolbar.append(tabs, create);
+  view.append(header, toolbar, results);
   const lifetime = new AbortController();
   let disposed = false;
   let busy = false;
+  /** @type {HTMLDialogElement | null} */ let deletionDialog = null;
   registerComponentCleanup(view, () => {
     disposed = true;
     lifetime.abort();
@@ -52,6 +55,20 @@ export function createWishlistsView({ load, loadOne, setArchived, isArchived = f
   }
   if (!disposed) void read(false);
   return view;
+
+  /** @param {string} wishlistId Selected list. @param {HTMLButtonElement} trigger Focus return target. */
+  function openDeletion(wishlistId, trigger) {
+    if (!loadOne || !remove || disposed || busy || deletionDialog) return;
+    const modal = createWishlistDeleteDialog({ wishlistId, loadOne, remove, signal: lifetime.signal,
+      onDeleted: async () => { if (disposed) return; modal.close(); await read(true); },
+    });
+    deletionDialog = modal;
+    modal.addEventListener("close", () => {
+      deletionDialog = null;
+      if (!disposed && trigger.isConnected) trigger.focus();
+    }, { once: true, signal: lifetime.signal });
+    view.append(modal); modal.showModal();
+  }
 
   /** @param {HTMLElement} content Owned result state. */
   function show(content) {
@@ -75,11 +92,7 @@ export function createWishlistsView({ load, loadOne, setArchived, isArchived = f
         const collection = textElement("ul", "");
         collection.className = "wishlists-grid";
         collection.setAttribute("role", "list");
-        for (const item of items) collection.append(createCard(item, loadOne && setArchived ? createWishlistArchiveButton({
-          wishlist: item, loadOne, setArchived, signal: lifetime.signal,
-          onUpdated: () => read(true),
-          onError: error => { const alert = createAlert({ ...toUserFacingError(error), variant: "error" }); results.prepend(alert); },
-        }) : null));
+        for (const item of items) collection.append(createCard(item, openDeletion));
         show(collection);
       }
       if (focus) title.focus();
@@ -104,30 +117,27 @@ export function createWishlistsView({ load, loadOne, setArchived, isArchived = f
 }
 
 /** @param {import("./wishlistsService.js").Wishlist} item Validated, minimal read model.
- * @param {HTMLButtonElement | null} archive Archive control.
+ * @param {(id: string, trigger: HTMLButtonElement) => void} onDelete Open confirmation.
  * @returns {HTMLLIElement} A semantic card; only its action is interactive.
  */
-function createCard(item, archive) {
+function createCard(item, onDelete) {
   const card = textElement("li", "");
   card.className = "wishlist-card";
   const cover = document.createElement("img");
   cover.className = "wishlist-card__cover";
   cover.src = wishlistArtwork(item.occasion);
-  cover.alt = ""; cover.loading = "lazy";
+  cover.alt = ""; cover.loading = "lazy"; cover.width = 400; cover.height = 500;
   const content = textElement("div", "");
   content.className = "wishlist-card__content";
   const occasion = textElement("p", OccasionLabels[item.occasion]);
   occasion.className = "wishlist-card__occasion";
   const heading = textElement("h2", "");
-  const icon = document.createElement("img"); icon.alt = "";
-  icon.className = "wishlist-card__icon"; icon.src = wishlistOccasionIcon(item.occasion);
   const open = createActionLink({ label: item.name, href: RoutePaths.ListDetails.replace(":listId", item.id) });
   open.setAttribute("aria-label", "Ouvrir la liste « " + item.name + " »");
   open.classList.add("wishlist-card__open");
-  heading.append(icon, open);
+  heading.append(open);
   content.append(heading, occasion);
-  if (item.eventDate === null) content.append(textElement("p", "Sans date"));
-  else {
+  if (item.eventDate !== null) {
     const date = textElement("time", DateFormat.format(new Date(item.eventDate + "T00:00:00Z")));
     date.dateTime = item.eventDate;
     content.append(date);
@@ -139,13 +149,21 @@ function createCard(item, archive) {
     content.append(suspension);
   }
   if (!item.isSuspended) {
-    const edit = createActionLink({ label: "Modifier", href: RoutePaths.EditList.replace(":listId", item.id) });
-    edit.setAttribute("aria-label", "Modifier la liste « " + item.name + " »");
-    const remove = createActionLink({ label: "Supprimer", href: RoutePaths.DeleteList.replace(":listId", item.id), variant: "danger" });
-    /** @type {HTMLElement[]} */ const commands = item.isArchived ? [remove] : [edit, remove];
-    if (archive) commands.unshift(archive);
-    const actions = createActionDisclosure("⋯", "Actions de la liste « " + item.name + " »", commands);
-    actions.classList.add("wishlist-card__actions");
+    const actions = textElement("div", "");
+    actions.className = "wishlist-card__actions";
+    actions.setAttribute("role", "group");
+    actions.setAttribute("aria-label", "Actions de la liste « " + item.name + " »");
+    if (!item.isArchived) {
+      const edit = createActionLink({ label: "Modifier", href: RoutePaths.EditList.replace(":listId", item.id) });
+      edit.setAttribute("aria-label", "Modifier la liste « " + item.name + " »");
+      applyActionIcon(edit, "edit", "Modifier");
+      actions.append(edit);
+    }
+    const remove = createButton({ label: "Supprimer", variant: "danger", onClick: () => onDelete(item.id, remove) });
+    remove.setAttribute("aria-label", "Supprimer la liste « " + item.name + " »");
+    applyActionIcon(remove, "delete", "Supprimer");
+    remove.classList.add("icon-action--danger");
+    actions.append(remove);
     card.append(actions);
   }
   card.prepend(cover, content);

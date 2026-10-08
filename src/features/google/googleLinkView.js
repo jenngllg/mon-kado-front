@@ -196,7 +196,7 @@ export function createGoogleLinkView({ continuation, session, signal, onDestinat
     clearFeedback();
     validate();
     if (fieldError !== null) {
-      showFeedback({ title: "Informations à vérifier", message: "Vérifie le champ indiqué avant de continuer." });
+      showFeedback({ title: "Informations à vérifier", message: "Le champ contient une erreur." });
       summary = true;
       password.focus();
       return;
@@ -216,10 +216,10 @@ export function createGoogleLinkView({ continuation, session, signal, onDestinat
       else {
         showError(error);
         if (error instanceof ApiError && error.validationErrors.length > 0) {
-          showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées. Vérifie ta saisie puis réessaie." });
+          showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées." });
           if (error.validationErrors.some(item => item.propertyName === "currentPassword")) {
             checked = true;
-            fieldError = "Vérifie ton mot de passe MonKado.";
+            fieldError = "Mot de passe MonKado invalide.";
             setFormFieldValidation(field, fieldError);
           }
           summary = error.validationErrors.every(item => item.propertyName === "currentPassword");
