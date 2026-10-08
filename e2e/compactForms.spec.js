@@ -46,4 +46,3 @@ for (const [width, height, enlarged] of [[320, 800, false], [360, 800, false], [
     expect(api.unexpected).toEqual([]);
   });
 }
-

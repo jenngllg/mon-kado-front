@@ -20,4 +20,3 @@ export function createAccountIcon(name) {
   wrapper.append(svg);
   return wrapper;
 }
-
