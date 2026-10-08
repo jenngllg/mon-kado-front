@@ -101,6 +101,14 @@ export {
  * @param {WishlistDeletedHandler} onWishlistShareRevoked Confirmed share revocation notice.
  */
 function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked) {
+  /** @param {string} shareLinkId Current private context. @returns {import("../features/sharing/wishCopyActions.js").WishCopyOperations} Explicit authenticated operations. */
+  function copyOperations(shareLinkId) {
+    return {
+      loadLists: createWishlistsService(session).load,
+      copy: (wishlistId, wishId, { signal }) => sharing.run(shareLinkId, (shareToken, contextSignal) =>
+        createWishesService(session, { apiBaseUrl }).copy(wishlistId, shareLinkId, wishId, { shareToken, signal: AbortSignal.any([signal, contextSignal]) })),
+    };
+  }
   const memberSearchState = { query: "", page: 1 };
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
@@ -328,6 +336,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const state = sharing.enter(context.params.shareLinkId, fragment);
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
         return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal, fromMemberId,
+          ...(identity.authentication === "required" ? { copy: copyOperations(context.params.shareLinkId) } : {}),
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           report: createWishlistReportService(session, { context: sharing }).report,
@@ -344,6 +353,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
         const resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId);
         return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, fromMemberId,
+          ...(identity.authentication === "required" ? { copy: copyOperations(context.params.shareLinkId) } : {}),
           returnSort: context.searchParams.get("sort"),
           ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized, onVerified) => createGiftReservationSection({
             shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized, fromMemberId,

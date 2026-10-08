@@ -9,14 +9,15 @@ import { createWishSortControl } from "../wishes/wishSortControl.js";
 import { hasVisibleAvailability, sortWishes, withWishSort } from "../wishes/wishSorting.js";
 import { memberOriginQuery, memberProfileHref } from "../members/memberNavigation.js";
 import { createWishlistReportDialog } from "./wishlistReportDialog.js";
+import { createWishCopyActions } from "./wishCopyActions.js";
 
 /** Public collection; only its transport retains access to a bearer context.
  * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null,
- * report?: import("./wishlistReportService.js").ReportWishlist, initialSort?: string | null, onSortChange?: (sort: import("../wishes/wishSorting.js").WishSort) => void,
+ * copy?: import("./wishCopyActions.js").WishCopyOperations, report?: import("./wishlistReportService.js").ReportWishlist, initialSort?: string | null, onSortChange?: (sort: import("../wishes/wishSorting.js").WishSort) => void,
  * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishlistView({ shareLinkId, load, report, signal, accessSignal, createParticipation, fromMemberId, initialSort, onSortChange = () => {} }) {
+export function createSharedWishlistView({ shareLinkId, load, report, copy, signal, accessSignal, createParticipation, fromMemberId, initialSort, onSortChange = () => {} }) {
   const view = element("section", ""); view.className = "wishlist-details-view shared-wishlist-view wishlist-details-view--gallery flow";
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
   const information = element("section", ""); information.className = "wishlist-details-info flow";
@@ -38,7 +39,7 @@ export function createSharedWishlistView({ shareLinkId, load, report, signal, ac
   gifts.append(toolbar, results); gifts.hidden = true;
   details.append(title); information.append(details); layout.append(information, gifts);
   view.append(fromMemberId ? createBackLink({ label: "Retour au profil", href: memberProfileHref(fromMemberId) }) : createBackLink({ label: "Retour à l’accueil", href: "/" }), layout);
-  let disposed = false, busy = false, terminal = false;
+  let disposed = false, busy = false, terminal = false, copying = false;
   let availableOnly = false;
   let reported = false;
   /** @type {HTMLDialogElement | null} */ let reportDialog = null;
@@ -47,10 +48,13 @@ export function createSharedWishlistView({ shareLinkId, load, report, signal, ac
   reportButton.hidden = true; if (report) information.append(reportStatus, reportButton);
   /** @type {import("./sharedWishlistService.js").SharedWishlist | null} */ let currentList = null;
   addComponentEventListener(view, filter, "change", () => {
-    if (disposed || busy || terminal) { filter.checked = availableOnly; return; }
+    if (disposed || busy || terminal || copying) { filter.checked = availableOnly; return; }
     availableOnly = filter.checked; void read(true, true);
   });
   const lifetime = new AbortController();
+  const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, onUnavailable: unavailable,
+    onBusy: value => { copying = value; filter.disabled = value || busy || terminal; sorting.select.disabled = value || busy || terminal; reportButton.disabled = value; } }) : null;
+  if (copyActions) view.append(copyActions.element);
   registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); closeReport(); disposeComponent(reportButton); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; clear(details); clear(results); title.textContent = ""; gifts.hidden = true; retryImages.hidden = true; filter.disabled = true; filter.checked = false; availableOnly = false; });
   if (signal) { addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true }); if (signal.aborted) disposeComponent(view); }
   if (accessSignal && !disposed) { addComponentEventListener(view, accessSignal, "abort", unavailable, { once: true }); if (accessSignal.aborted) unavailable(); }
@@ -59,7 +63,7 @@ export function createSharedWishlistView({ shareLinkId, load, report, signal, ac
 
   /** @param {boolean} explicit User-initiated reread. @param {boolean} [filterChange] Keep focus on the filter after its activation. */
   async function read(explicit, filterChange = false) {
-    if (disposed || busy || terminal) return;
+    if (disposed || busy || terminal || copying) return;
     closeReport(); reportButton.hidden = true;
     busy = true; currentList = null; retryImages.hidden = true; sorting.select.disabled = true; clear(details); clear(results); gifts.hidden = filterControls.hidden; filter.disabled = true;
     title.textContent = "Liste de souhaits partagée"; details.setAttribute("aria-busy", "true"); details.append(title, createLoadingState({ label: "Chargement de la liste…" }));
@@ -99,13 +103,14 @@ export function createSharedWishlistView({ shareLinkId, load, report, signal, ac
       const cards = element("ul", ""); cards.className = "wish-grid wish-grid--gallery"; cards.setAttribute("role", "list");
       for (const wish of sortWishes(currentList.wishes, sorting.value())) cards.append(createWishGalleryCard(wish, true, {
         reservationQuantities: { reservedQuantity: wish.reservedQuantity, availableQuantity: wish.availableQuantity },
+        copyButton: copyActions?.button(wish.id, true),
         detailHref: withWishSort(`/shared-wishlists/${shareLinkId}/wishes/${wish.id}${memberOriginQuery(fromMemberId)}`, sorting.value()),
         onImageError: () => { if (!disposed && !terminal) retryImages.hidden = false; } }));
       results.append(cards);
     }
   }
   function sortRenderedWishes() {
-    if (!currentList || disposed || terminal) return;
+    if (!currentList || disposed || terminal || copying) return;
     if (!reorderWishGallery(results, sortWishes(currentList.wishes, sorting.value()), sorting.value())) renderWishes();
   }
   function unavailable() {

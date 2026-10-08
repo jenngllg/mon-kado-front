@@ -200,6 +200,7 @@
   background: var(--color-surface);
 }
 .wish-gallery__delete.icon-action--danger { color: var(--color-danger); }
+.wish-gallery__copy,
 .wish-gallery__favorite {
   position: absolute;
   inset-block-start: var(--space-2);
@@ -215,6 +216,8 @@
   background: var(--color-surface);
 }
 @media (hover: hover) and (pointer: fine) {
+  .wish-card--gallery .wish-gallery__copy { opacity: 0; pointer-events: none; }
+  .wish-card--gallery:is(:hover, :focus-within) .wish-gallery__copy { opacity: 1; pointer-events: auto; }
   .wish-card--gallery .wish-gallery__delete { opacity: 0; pointer-events: none; }
   .wish-card--gallery:is(:hover, :focus-within) .wish-gallery__delete { opacity: 1; pointer-events: auto; }
 }

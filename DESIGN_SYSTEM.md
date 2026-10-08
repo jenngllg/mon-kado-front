@@ -37,6 +37,8 @@ Priority: explicit user decisions, original mockups, then this charter and share
 
 ## Lists and wishes
 
+- Shared wishes can be copied by authenticated members with at least one active, non-suspended owned list. Offer a round copy icon on reading cards (hover/focus on desktop, persistent on touch) and “Ajouter à mes listes” on shared wish details. Both open one native destination-picker modal, refreshing eligible lists on opening and requiring explicit Add. Copy name, note, product URL, price, quantity and an independently owned image; never copy favorites or reservations. Hide the action for visitors and members without eligible lists. Keep the shared screen after success with a concise status and destination link; do not replay uncertain writes or change the sign-in destination.
+
 - Call list entries **souhaits**, not **cadeaux**. Gift-related marketing text may retain cadeaux.
 - Owner, reading and reordering list summary banners keep their sage background without botanical decoration. This user-approved refinement supersedes earlier banner artwork guidance; leave unrelated illustrations unchanged.
 - Owner list banners, including manual reordering, omit the author's name because the current user owns the list. Reading banners retain the verified author. Keep the list title and optional message in both modes.
