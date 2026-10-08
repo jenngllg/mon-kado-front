@@ -7,6 +7,8 @@ import {
   RoutePaths,
 } from "./routeContracts.js";
 import { createSessionGuard } from "../auth/sessionGuards.js";
+import { createAdminReportedWishlistsView } from "../features/admin/adminAccess.js";
+import { createReportedWishlistsService } from "../features/admin/reportedWishlistsService.js";
 import { createMemberSearchService } from "../features/members/memberSearchService.js";
 import { createMemberSearchView } from "../features/members/memberSearchView.js";
 import { createMemberProfileService } from "../features/members/memberProfileService.js";
@@ -97,6 +99,10 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
+    {
+      name: RouteNames.ReportedWishlists, path: RoutePaths.ReportedWishlists, title: "Listes signalées · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminReportedWishlistsView(session, { ...createReportedWishlistsService(session), signal: context.signal }),
+    },
     {
       name: RouteNames.Members, path: RoutePaths.Members, title: "Rechercher un membre · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>

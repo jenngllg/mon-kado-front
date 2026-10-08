@@ -968,3 +968,28 @@
   gap: var(--space-2);
   min-height: 44px;
 }
+.reported-wishlist,
+.reported-wishlist-report {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
+}
+.reported-wishlists-filters > .form-field { flex: 1 1 12rem; min-inline-size: 0; }
+.reported-wishlist-reports { border-block-start: 1px solid var(--color-border); padding-block-start: var(--space-4); }
+.reported-wishlists-view h2 { font-size: var(--font-size-xl); }
+.reported-wishlists-view h3,
+.reported-wishlists-view h4 { font-size: var(--font-size-lg); }
+
+.reported-wishlist > time,
+.reported-wishlist-report > time { display: block; }
+
+@media (max-width: 30rem) {
+  .reported-wishlist { padding: var(--space-3); }
+  .reported-wishlist-report { padding: var(--space-2); }
+}
+
+@media (min-width: 80rem) {
+  .app-navigation__list:has(a[href="/admin/reported-wishlists"]) { gap: var(--space-2); }
+}
