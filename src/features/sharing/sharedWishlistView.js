@@ -98,6 +98,7 @@ export function createSharedWishlistView({ shareLinkId, load, report, signal, ac
     else {
       const cards = element("ul", ""); cards.className = "wish-grid wish-grid--gallery"; cards.setAttribute("role", "list");
       for (const wish of sortWishes(currentList.wishes, sorting.value())) cards.append(createWishGalleryCard(wish, true, {
+        reservationQuantities: { reservedQuantity: wish.reservedQuantity, availableQuantity: wish.availableQuantity },
         detailHref: withWishSort(`/shared-wishlists/${shareLinkId}/wishes/${wish.id}${memberOriginQuery(fromMemberId)}`, sorting.value()),
         onImageError: () => { if (!disposed && !terminal) retryImages.hidden = false; } }));
       results.append(cards);

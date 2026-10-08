@@ -205,6 +205,13 @@ describe("application shell", () => {
     expect(getNavigation(shell.element).dataset.open).toBe("false");
   });
 
+  it.each([RouteNames.Profile, RouteNames.EmailChange, RouteNames.PasswordChange, RouteNames.PersonalData, RouteNames.Authenticator])("keeps account navigation active on %s", routeName => {
+    const shell = createTestShell();
+    shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
+    shell.setCurrentRoute(createRouteSnapshot(routeName));
+    expect(shell.element.querySelector('.app-navigation__link[href="/profile"]')?.getAttribute("aria-current")).toBe("page");
+  });
+
   it("clears the current item for a route outside the primary navigation", () => {
     // Arrange
     const shell = createTestShell();

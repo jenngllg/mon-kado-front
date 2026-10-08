@@ -1,13 +1,15 @@
 import { createActionLink } from "./index.js";
 import { RoutePaths } from "../app/routeContracts.js";
 import { disposeComponent, registerComponentCleanup } from "./componentLifecycle.js";
+import { createAccountIcon } from "./accountIcon.js";
 
+/** @type {ReadonlyArray<{label: string, href: string, icon: Parameters<typeof createAccountIcon>[0]}>} */
 const Categories = [
-  { label: "Profil", href: RoutePaths.Profile },
-  { label: "Adresse e-mail", href: RoutePaths.EmailChange },
-  { label: "Mot de passe", href: RoutePaths.PasswordChange },
-  { label: "Données personnelles", href: RoutePaths.PersonalData },
-  { label: "Authentificateur", href: RoutePaths.Authenticator },
+  { label: "Profil", href: RoutePaths.Profile, icon: "user" },
+  { label: "Adresse e-mail", href: RoutePaths.EmailChange, icon: "email" },
+  { label: "Mot de passe", href: RoutePaths.PasswordChange, icon: "password" },
+  { label: "Données personnelles", href: RoutePaths.PersonalData, icon: "shield" },
+  { label: "Authentificateur", href: RoutePaths.Authenticator, icon: "authenticator" },
 ];
 
 /** Wraps an account category in the shared navigation layout.
@@ -21,8 +23,8 @@ export function createAccountLayout(content, currentPath, session) {
   layout.className = "profile-layout";
   const sidebar = document.createElement("aside");
   sidebar.className = "profile-view__settings";
-  const heading = document.createElement("h2");
-  heading.textContent = "Mon compte";
+  const heading = content.querySelector(":scope > h1");
+  if (heading) layout.append(heading);
   const navigation = document.createElement("nav");
   navigation.setAttribute("aria-label", "Paramètres du compte");
   function updateNavigation() {
@@ -33,14 +35,14 @@ export function createAccountLayout(content, currentPath, session) {
     for (const category of Categories) {
       if (category.href === RoutePaths.Authenticator && !isAdmin) continue;
       if (isGoogleLinked && (category.href === RoutePaths.EmailChange || category.href === RoutePaths.PasswordChange)) continue;
-      const link = createActionLink(category);
+      const link = createActionLink({ ...category, decorativeElement: createAccountIcon(category.icon) });
       if (category.href === currentPath) link.setAttribute("aria-current", "page");
       navigation.append(link);
     }
   }
   updateNavigation();
   if (session) registerComponentCleanup(layout, session.subscribe(updateNavigation));
-  sidebar.append(heading, navigation);
+  sidebar.append(navigation);
   content.classList.add("profile-view");
   layout.append(sidebar, content);
   return layout;
