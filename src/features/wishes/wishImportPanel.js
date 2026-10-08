@@ -31,7 +31,8 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   }
   const loader = node("span", ""); loader.className = "ui-spinner wish-import__loader";
   loader.setAttribute("role", "status"); loader.setAttribute("aria-label", "Récupération des informations en cours"); loader.hidden = true;
-  field.append(loader); field.classList.add("wish-import__url-field");
+  const loadingLabel = node("span", "Récupération en cours…"); loadingLabel.className = "wish-import__loading-label"; loadingLabel.setAttribute("aria-hidden", "true");
+  field.append(loader, loadingLabel); field.classList.add("wish-import__url-field");
   const status = node("p", ""); status.setAttribute("role", "status"); status.tabIndex = -1;
   const feedback = node("div", ""); const suggestions = node("div", ""); suggestions.className = "flow";
   const appliedImage = node("div", ""); appliedImage.className = "wish-image-section__preview flow";
