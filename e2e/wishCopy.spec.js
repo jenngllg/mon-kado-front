@@ -1,6 +1,22 @@
 import { test, expect } from "@playwright/test";
 import { controlledApi, listId, wishId, shareId, frontendOrigin, sharedPath, secret } from "./controlledApi.js";
 
+test.describe("touch copy action", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+  test("stays visible without hover and opens without writing", async ({ page, context }) => {
+    const api = await controlledApi(context); api.state.authenticated = true;
+    await page.goto(`${sharedPath}#${secret}`);
+    const trigger = page.getByRole("button", { name: "Ajouter à mes listes", exact: true });
+    await expect(trigger).toBeVisible(); await expect(trigger).toHaveCSS("opacity", "1");
+    await expect(trigger).toHaveCSS("pointer-events", "auto");
+    await trigger.tap();
+    const dialog = page.getByRole("dialog", { name: "Ajouter à mes listes" });
+    await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(listId);
+    await dialog.getByRole("button", { name: "Annuler" }).tap();
+    expect(api.state.wishWrites).toBe(0); expect(api.unexpected).toEqual([]);
+  });
+});
+
 for (const width of [390, 1440]) {
   for (const failure of ["network", "revoked", "archived"]) {
     test(`copy ${failure} is safe at ${width}px`, async ({ page, context }) => {
@@ -48,6 +64,7 @@ for (const width of [390, 1440]) {
         if (route.request().method() === "OPTIONS") return route.fallback();
         writes++;
         expect(route.request().headers().authorization).toBe("Bearer access-test-only");
+        expect(route.request().headers()["x-csrf-token"]).toBe("csrf-test-only");
         expect(route.request().headers()["x-monkado-share-token"]).toBe(secret);
         expect(route.request().postDataJSON()).toEqual({ sourceShareLinkId: shareId, sourceWishId: wishId });
         await route.fulfill({ status: 201, headers: { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"copied-1"' },

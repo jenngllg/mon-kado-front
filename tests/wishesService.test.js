@@ -21,7 +21,7 @@ describe("owned gift collection service", () => {
     const service = setup({ ...wish, isFavorite: false }, 201, '"copied"');
     const result = await service.copy(id, id, wishId, { shareToken: "private-secret", signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes/copies`, {
-      method: "POST", authentication: "required", body: { sourceShareLinkId: id, sourceWishId: wishId }, shareToken: "private-secret", signal,
+      method: "POST", authentication: "required", csrf: true, body: { sourceShareLinkId: id, sourceWishId: wishId }, shareToken: "private-secret", signal,
     });
     expect(result.wish.id).toBe(wishId); expect(result.wish.isFavorite).toBe(false); expect(result.etag).toBe('"copied"');
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wish)).toBe(true);

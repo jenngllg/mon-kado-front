@@ -100,6 +100,25 @@ describe("shared wish copies", () => {
     ui.lifetime.abort(); gate.resolve(); await settle();
     expect(ui.trigger.hidden).toBe(true); expect(globalThis.document.querySelector("dialog")).toBeNull();
   });
+  it("disposes a pending copy without announcing a stale success or replaying it", async () => {
+    const gate = barrier();
+    const copy = vi.fn(/** @type {import("../src/features/sharing/wishCopyActions.js").WishCopyOperations["copy"]} */ (async () => {
+      await gate.promise; return /** @type {import("../src/features/wishes/wishesService.js").CreatedWish} */ ({});
+    }));
+    const ui = setup({ copy }); await settle(); ui.trigger.click(); await settle(); submit();
+    const requestSignal = copy.mock.calls[0]?.[2]?.signal;
+    ui.lifetime.abort(); gate.resolve(); await settle();
+    expect(requestSignal?.aborted).toBe(true); expect(copy).toHaveBeenCalledOnce();
+    expect(globalThis.document.querySelector("dialog")).toBeNull(); expect(ui.element.textContent).not.toContain("Souhait ajouté.");
+    expect(ui.trigger.hidden).toBe(true);
+  });
+  it("does not copy when the fresh destination read fails and cancellation restores focus", async () => {
+    const loadLists = vi.fn().mockResolvedValueOnce([list]).mockRejectedValueOnce(new Error("network"));
+    const ui = setup({ loadLists }); await settle(); ui.trigger.focus(); ui.trigger.click(); await settle();
+    expect(modal().querySelector('[role="alert"]')).not.toBeNull(); expect(command("Ajouter").disabled).toBe(true);
+    submit(); expect(ui.copy).not.toHaveBeenCalled(); command("Annuler").click();
+    expect(globalThis.document.activeElement).toBe(ui.trigger);
+  });
   it("blocks copy commands while another mutation is running", async () => {
     const ui = setup(); await settle(); ui.setBlocked(true); ui.trigger.click();
     expect(ui.trigger.disabled).toBe(true); expect(globalThis.document.querySelector("dialog")).toBeNull();

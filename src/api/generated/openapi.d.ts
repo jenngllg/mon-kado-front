@@ -14284,7 +14284,9 @@ export interface paths {
         readonly post: {
             readonly parameters: {
                 readonly query?: never;
-                readonly header?: {
+                readonly header: {
+                    /** @description Request token obtained from GET /security/csrf-token. */
+                    readonly "X-CSRF-TOKEN": string;
                     readonly "X-MonKado-Share-Token"?: string;
                 };
                 readonly path: {

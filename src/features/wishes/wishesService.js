@@ -37,7 +37,7 @@ export function createWishesService(session, { apiBaseUrl }) {
     /** @type {import("../../api/generated/openapi.js").components["schemas"]["CopyWishRequest"]} */
     const body = { sourceShareLinkId, sourceWishId };
     const response = await session.request(`/api/v1/wishlists/${wishlistId}/wishes/copies`, {
-      method: "POST", authentication: "required", body, shareToken, signal,
+      method: "POST", authentication: "required", csrf: true, body, shareToken, signal,
     });
     return createdWish(response, wishlistId, base);
   }, setFavorite: async (wishlistId, wishId, isFavorite, { etag, signal }) => {
