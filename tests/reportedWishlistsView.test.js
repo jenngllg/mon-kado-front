@@ -40,6 +40,12 @@ describe("reported wishlist queue", () => {
     const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select")); select.focus(); select.value = "all"; select.dispatchEvent(new Event("change")); await settle();
     expect(document.activeElement).toBe(select); expect(ui.load).toHaveBeenLastCalledWith(expect.objectContaining({ status: "all", page: 1 })); expect(ui.view.textContent).not.toContain("Deux\nlignes");
   });
+  it("links each anonymous report to a fresh dedicated review with a distinctive accessible name", async () => {
+    const ui = setup(); await settle(); ui.button("Voir les signalements").click(); await settle();
+    const link = ui.view.querySelector(".reported-wishlist-report a");
+    expect(link?.textContent).toBe("Examiner"); expect(link?.getAttribute("href")).toBe(`/admin/reported-wishlists/${id}/reports/${id}`);
+    expect(link?.getAttribute("aria-label")).toBe("Examiner le signalement 1 : Autre");
+  });
   it("keeps report failures local and allows explicit recovery", async () => {
     const ui = setup(); ui.loadReports.mockRejectedValueOnce(new ApiError({ kind: "network" })); await settle(); ui.button("Voir les signalements").click(); await settle();
     expect(ui.view.textContent).toContain("Camille"); expect(document.activeElement?.getAttribute("role")).toBe("alert"); ui.button("Réessayer").click(); await settle(); expect(ui.view.textContent).toContain("Deux\nlignes"); expect(document.activeElement?.textContent).toBe("Signalements");

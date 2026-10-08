@@ -321,6 +321,11 @@ describe("graphic foundations", () => {
       expect(viewStyles).toContain(`.wish-edit-view__comparison${suffix},\n.wishlist-edit-view__comparison${suffix} {`);
     }
   });
+  it("bounds report decisions and reuses the accessible version-comparison tokens", () => {
+    expect(viewStyles).toContain(".report-review-view { max-inline-size: var(--content-narrow); }");
+    expect(viewStyles).toContain(".report-review-comparison,\n.wish-edit-view__comparison,");
+    expect(viewStyles).toContain(".report-review-comparison h2,\n.wish-edit-view__comparison h2,");
+  });
   it("keeps multiline notes and responsive shared details without fixed widths", () => {
     expect(viewStyles).toMatch(/\.wishlist-details-note\s*\{[^}]*white-space:\s*pre-wrap/);
     expect(viewStyles).toMatch(/\.shared-wish-layout\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
