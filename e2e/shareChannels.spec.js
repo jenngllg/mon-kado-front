@@ -28,6 +28,7 @@ for (const width of [390, 1440]) {
       Object.defineProperty(globalThis, "copiedShareMessages", { value: copied });
     });
     await page.goto(`/lists/${listId}`);
+    await page.getByRole("button", { name: "Partager", exact: true }).click();
     const group = page.getByRole("group", { name: "Partager la liste sur un canal" });
     await expect(group).toBeVisible(); await expect(group.getByRole("button")).toHaveCount(4);
     await expect(page.getByRole("button", { name: "Partager par Discord", exact: true })).toHaveCount(0);
@@ -35,7 +36,7 @@ for (const width of [390, 1440]) {
     for (const icon of await group.locator("img").all()) expect(await icon.evaluate(node => /** @type {HTMLImageElement} */ (node).naturalWidth)).toBeGreaterThan(0);
     const input = page.getByRole("textbox", { name: "Lien de partage" });
     await input.focus(); await page.keyboard.press("Tab");
-    await expect(group.getByRole("button", { name: "Partager par WhatsApp", exact: true })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Copier le lien", exact: true })).toBeFocused();
     const button = group.getByRole("button", { name: "Partager par Facebook", exact: true });
     await button.scrollIntoViewIfNeeded(); const before = await button.boundingBox(); await button.hover(); const after = await button.boundingBox();
     expect(after).toEqual(before); expect(before?.width).toBe(44); expect(before?.height).toBe(44);
@@ -62,8 +63,8 @@ for (const width of [390, 1440]) {
       `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}`,
     ]);
     await page.getByRole("button", { name: "Renouveler le lien", exact: true }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Renouveler le lien", exact: true }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.locator(".wishlist-share-renew-dialog").getByRole("button", { name: "Renouveler le lien", exact: true }).click();
+    await expect(page.locator(".wishlist-share-renew-dialog")).toHaveCount(0);
     await expect(input).toHaveValue(shareUrl());
     const renewedPopupPromise = page.waitForEvent("popup"); await button.click();
     const renewedPopup = await renewedPopupPromise; await renewedPopup.waitForURL(/^https:/);
@@ -75,8 +76,8 @@ for (const width of [390, 1440]) {
     expect(new URL(messengerPopup.url()).searchParams.get("link")).toBe(shareUrl());
     await messengerPopup.close();
     await page.getByRole("button", { name: "Désactiver le partage", exact: true }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Désactiver le partage", exact: true }).click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.locator(".wishlist-share-revoke-dialog").getByRole("button", { name: "Désactiver le partage", exact: true }).click();
+    await expect(page.locator(".wishlist-share-revoke-dialog")).toHaveCount(0);
     await expect(group).toBeHidden(); expect(shareWrites).toBe(2);
     expect(api.unexpected).toEqual([]);
     api.wishlist.isArchived = true; await page.reload(); await expect(group).toHaveCount(0);
@@ -99,6 +100,7 @@ test("Messenger opens its recipient dialog without clipboard access", async ({ p
     } } });
   });
   await page.goto(`/lists/${listId}`);
+  await page.getByRole("button", { name: "Partager", exact: true }).click();
   const popupPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Partager par Messenger", exact: true }).focus();
   await page.keyboard.press("Enter");
@@ -132,6 +134,7 @@ for (const platform of ["Android", "iPhone"]) {
       }, true);
     }, platform);
     await page.goto(`/lists/${listId}`);
+    await page.getByRole("button", { name: "Partager", exact: true }).click();
     await page.getByRole("button", { name: "Partager par Messenger", exact: true }).click();
     const destinations = await page.evaluate(() => Reflect.get(globalThis, "nativeMessengerDestinations"));
     expect(destinations).toHaveLength(1);

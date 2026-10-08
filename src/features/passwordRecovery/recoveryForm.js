@@ -133,7 +133,7 @@ export function createRecoveryForm(options) {
     fields.forEach(validate);
     const invalid = fields.find(field => field.error !== null);
     if (invalid) {
-      showFeedback({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." });
+      showFeedback({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." });
       summary = true;
       invalid.control.focus();
       return;
@@ -156,7 +156,7 @@ export function createRecoveryForm(options) {
             setFormFieldValidation(field.element, field.error);
           }
         }
-        showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées. Vérifie tes saisies puis réessaie." });
+        showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées." });
         summary = validations.every(item => fields.some(field => field.definition.name === item.propertyName && options.serverMessages[field.definition.name] !== undefined));
       } else {
         const translated = toUserFacingError(error);

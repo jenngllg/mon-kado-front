@@ -8,3 +8,7 @@
 - Preserve useful validation errors, accessibility labels and necessary legal information. Show constraints when they help resolve an error rather than repeating them under every field.
 - Mark required fields with an asterisk; do not append “facultatif” to optional field labels.
 - Call wishlist entries “souhaits” in interface labels, actions and feedback; reserve “cadeaux” for general gift-related marketing copy.
+
+- Browser tabs for wishlist and wish detail/edit pages use the loaded resource name followed by ` · MonKado`, including shared views; keep titles current after saved renames and prevent stale responses from changing another page's title.
+
+- The home/header logo combines the existing MonKado wordmark and coral dot with the favicon gift outline in coral on its left, shifted upward by 1 px for optical alignment.

@@ -29,8 +29,13 @@ describe("profile photo crop", () => {
   it("exports precisely the preview framing rather than the original file", async () => {
     const ui = setup(); ui.image.dispatchEvent(new Event("load"));
     const sliders = ui.editor.element.querySelectorAll("input");
-    sliders[0].value = "2"; sliders[1].value = "100"; sliders[2].value = "0";
+    sliders[0].value = "2";
     sliders[0].dispatchEvent(new Event("input"));
+    const viewport = ui.editor.element.querySelector(".profile-photo-crop__viewport");
+    for (let i = 0; i < 10; i++) {
+      viewport?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+      viewport?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    }
     expect(ui.image.style.width).toBe("300%"); expect(ui.image.style.left).toBe("-200%");
     expect(await ui.editor.exportImage()).toBe(ui.blob);
     expect(ui.drawImage).toHaveBeenCalledExactlyOnceWith(ui.image, 800, 0, 400, 400, 0, 0, 400, 400);
@@ -71,20 +76,38 @@ describe("profile photo crop", () => {
     viewport.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, isPrimary: false }));
     viewport.dispatchEvent(new PointerEvent("pointerdown", { pointerId: 1, isPrimary: true, button: 2 }));
     expect(capture).not.toHaveBeenCalled();
-    down(); move(-1000, 2); expect(sliders[1].value).toBe("50");
-    move(-1000); expect(sliders[1].value).toBe("100"); expect(sliders[2].value).toBe("50");
-    move(1000); expect(sliders[1].value).toBe("0");
+    down(); move(-1000, 2); expect(ui.image.style.left).toBe("-25%");
+    move(-1000); expect(ui.image.style.left).toBe("-50%"); expect(ui.image.style.top).toBe("0%");
+    move(1000); expect(ui.image.style.left).toBe("0%");
     for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
-      down(); viewport.dispatchEvent(new PointerEvent(type)); move(-1000); expect(sliders[1].value).toBe("0");
+      down(); viewport.dispatchEvent(new PointerEvent(type)); move(-1000); expect(ui.image.style.left).toBe("0%");
     }
-    ui.editor.setDisabled(true); down(); move(-1000); expect(sliders[1].value).toBe("0");
+    ui.editor.setDisabled(true); down(); move(-1000); expect(ui.image.style.left).toBe("0%");
     ui.editor.setDisabled(false); sliders[0].value = "2"; sliders[0].dispatchEvent(new Event("input")); down(); move(-1000);
-    expect(sliders[1].value).toBe("100"); expect(Number(sliders[2].value)).toBeLessThan(50);
+    expect(parseFloat(ui.image.style.top)).toBeGreaterThan(-50);
     expect(ui.image.style.left).toBe("-200%");
   });
   it("rejects export when the browser cannot allocate a canvas", async () => {
     const ui = setup(); ui.image.dispatchEvent(new Event("load"));
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     await expect(ui.editor.exportImage()).rejects.toThrow("Canvas unavailable");
+  });
+  it("positions with arrow keys without scrolling and ignores keys while disabled", () => {
+    const ui = setup(); ui.image.dispatchEvent(new Event("load"));
+    const viewport = /** @type {HTMLElement} */ (ui.editor.element.querySelector(".profile-photo-crop__viewport"));
+    const zoom = /** @type {HTMLInputElement} */ (ui.editor.element.querySelector("input"));
+    zoom.value = "2"; zoom.dispatchEvent(new Event("input"));
+    const key = new KeyboardEvent("keydown", { key: "ArrowRight", cancelable: true });
+    viewport.dispatchEvent(key);
+    expect(key.defaultPrevented).toBe(true); expect(ui.image.style.left).toBe("-90%");
+    viewport.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" }));
+    expect(parseFloat(ui.image.style.top)).toBeCloseTo(-55);
+    viewport.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(ui.image.style.left).toBe("-90%");
+    ui.editor.setDisabled(true);
+    viewport.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+    expect(ui.image.style.left).toBe("-90%"); expect(viewport.tabIndex).toBe(-1);
+    ui.editor.setDisabled(false); expect(viewport.tabIndex).toBe(0);
+    expect(ui.editor.element.querySelectorAll('input[type="range"]')).toHaveLength(1);
   });
 });

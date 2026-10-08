@@ -213,7 +213,7 @@ describe("profile editor", () => {
     // Act
     edit(input, "Draft"); await submit(form);
     // Assert
-    expect(view.textContent).toContain("Vérifie ton nom"); expect(view.textContent).not.toContain("English");
+    expect(view.textContent).toContain("Nom d’affichage invalide"); expect(view.textContent).not.toContain("English");
     expect(document.activeElement).toBe(input);
     edit(input, "Corrigé"); expect(view.textContent).toContain("Certaines informations n’ont pas été acceptées.");
   });

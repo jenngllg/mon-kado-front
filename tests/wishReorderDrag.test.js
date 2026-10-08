@@ -22,6 +22,18 @@ function setup() {
   return { owner, grid, rows, pointer, hit, move, release, cancel, scroll, frames, disable: () => { enabled = false; } };
 }
 describe("pointer reordering enhancement", () => {
+  it("suppresses the browser's trailing click after a drag without suppressing a later deliberate click", () => {
+    // Arrange
+    const ui = setup(); const click = vi.fn(); ui.rows[0].handle.addEventListener("click", click);
+    // Act
+    ui.pointer("pointerdown"); ui.pointer("pointermove", { clientY: 350 }); ui.pointer("pointerup", { clientY: 350 }); ui.rows[0].handle.click();
+    // Assert
+    expect(click).not.toHaveBeenCalled();
+    // Act
+    ui.pointer("pointerdown"); ui.pointer("pointerup"); ui.rows[0].handle.click();
+    // Assert
+    expect(click).toHaveBeenCalledTimes(1);
+  });
   it.each(["mouse", "touch", "pen"])("captures %s only on a handle and commits insertion only on release", pointerType => {
     const ui = setup(); const focus = vi.spyOn(ui.rows[0].handle, "focus"); ui.pointer("pointerdown", { pointerType }); ui.pointer("pointermove", { clientY: 350, pointerType });
     expect(focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
@@ -54,6 +66,27 @@ describe("pointer reordering enhancement", () => {
   it("uses reading order across columns without swapping cards", () => {
     const ui = setup(); vi.spyOn(ui.rows[1].card, "getBoundingClientRect").mockReturnValue(new DOMRect(150, 0, 150, 200));
     ui.pointer("pointerdown", { clientX: 10 }); ui.pointer("pointermove", { clientX: 280, clientY: 100 }); ui.pointer("pointerup", { clientX: 280, clientY: 100 }); expect(ui.move).toHaveBeenCalledWith("a", 1);
+  });
+  it("anchors both neighbouring halves and their gutter to one insertion marker and drop position", () => {
+    // Arrange
+    const ui = setup();
+    ui.rows.forEach(({ card }, index) => vi.mocked(card.getBoundingClientRect).mockReturnValue(new DOMRect(index * 126, 0, 100, 200 + index * 10)));
+    vi.mocked(ui.grid.getBoundingClientRect).mockReturnValue(new DOMRect(0, 0, 352, 220));
+    ui.pointer("pointerdown", { clientX: 20, clientY: 20 });
+    // Act / Assert
+    /** @type {[Element, number][]} */
+    const positions = [[ui.rows[1].card, 216], [ui.grid, 239], [ui.rows[2].card, 262]];
+    for (const [element, x] of positions) {
+      ui.hit.mockReturnValue(element);
+      ui.pointer("pointermove", { clientX: x, clientY: 100 });
+      expect([...ui.grid.querySelectorAll(".wish-reorder-before, .wish-reorder-after")]).toEqual([ui.rows[2].card]);
+      expect(ui.rows[2].card.classList.contains("wish-reorder-before")).toBe(true);
+      expect(ui.move).not.toHaveBeenCalled();
+    }
+    ui.hit.mockReturnValue(ui.grid);
+    ui.pointer("pointerup", { clientX: 239, clientY: 100 });
+    expect(ui.move).toHaveBeenCalledExactlyOnceWith("a", 1);
+    expect(ui.grid.querySelector(".wish-reorder-before, .wish-reorder-after")).toBeNull();
   });
   it("autoscrolls while dragging at an edge and stops deterministically on cancellation", () => {
     const ui = setup(); ui.pointer("pointerdown"); ui.pointer("pointermove", { clientY: 10 });

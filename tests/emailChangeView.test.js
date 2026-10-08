@@ -52,7 +52,7 @@ describe("email change request validation and view", () => {
   });
   it.each([Profile.email, " CURRENT@example.test "])("refuses an obviously unchanged address", email => {
     // Arrange / Act / Assert
-    expect(validateEmailChangeField("email", { email }, Profile.email)).toContain("différente");
+    expect(validateEmailChangeField("email", { email }, Profile.email)).toBe("La nouvelle adresse e-mail est identique à l’adresse actuelle.");
   });
   it("renders current address as safe text and two required native labelled fields", async () => {
     // Arrange / Act

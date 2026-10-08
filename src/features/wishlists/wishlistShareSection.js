@@ -10,19 +10,19 @@ import { openWishlistMailComposer, openWishlistMessengerComposer, openWishlistSh
 /** Owner-only share section, independent of the gift collection.
  * @param {{wishlistId: string, wishlistName?: string, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, load: import("./wishlistShareService.js").LoadWishlistShare,
  * create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, copyText: (text: string) => Promise<void>,
- * onUnavailable: (state: "wishlistMissing" | "suspended") => void, onRevoked?: () => void, signal?: AbortSignal,
+ * onUnavailable: (state: "wishlistMissing" | "suspended") => void, onRevoked?: () => void, onBusy?: (pending: boolean) => void, signal?: AbortSignal,
  * openShareWindow?: () => import("./wishlistShareChannels.js").ShareWindow | null, openMailComposer?: (url: string) => void,
  * openMessengerComposer?: (url: string) => void}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, onRevoked, signal, openShareWindow = openWishlistShareWindow, openMailComposer = openWishlistMailComposer, openMessengerComposer = openWishlistMessengerComposer }) {
+export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, onRevoked, onBusy = () => {}, signal, openShareWindow = openWishlistShareWindow, openMailComposer = openWishlistMailComposer, openMessengerComposer = openWishlistMessengerComposer }) {
   const section = document.createElement("section"); section.className = "wishlist-share flow";
   const title = document.createElement("h2"); title.textContent = "Partager ma liste"; title.tabIndex = -1;
   const help = document.createElement("p"); help.textContent = "Une liste partagée est visible sur ton profil et accessible à tous.";
   const feedback = document.createElement("div");
   const status = document.createElement("p"); status.setAttribute("role", "status");
   const empty = document.createElement("p"); empty.textContent = "Aucun lien de partage créé";
-  const input = document.createElement("textarea"); input.readOnly = true; input.rows = 4; input.spellcheck = false; input.autocomplete = "off";
+  const input = document.createElement("textarea"); input.readOnly = true; input.rows = 2; input.spellcheck = false; input.autocomplete = "off";
   const field = createFormField({ label: "Lien de partage", control: input });
   const channels = document.createElement("div"); channels.className = "wishlist-share__channels";
   channels.setAttribute("role", "group"); channels.setAttribute("aria-label", "Partager la liste sur un canal");
@@ -31,7 +31,9 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     button.classList.add("icon-action"); button.title = button.getAttribute("aria-label") ?? `Partager par ${channel.name}`;
     button.setAttribute("aria-label", `Partager par ${channel.name}`);
     const icon = document.createElement("img"); icon.src = channel.icon; icon.alt = ""; icon.width = 24; icon.height = 24;
-    button.replaceChildren(icon); channels.append(button);
+    const label = document.createElement("span"); label.className = "wishlist-share__channel-name"; label.textContent = channel.id === "email" ? "E-mail" : channel.name;
+    const entry = document.createElement("div"); entry.className = "wishlist-share__channel"; entry.append(button, label);
+    button.replaceChildren(icon); channels.append(entry);
     return button;
   });
   const actions = document.createElement("div"); actions.className = "wishlist-share__actions";
@@ -39,7 +41,8 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
   const copy = createButton({ label: "Copier le lien", onClick: () => { void copyLink(); } });
   const renewButton = createButton({ label: "Renouveler le lien", variant: "secondary", onClick: openRenewal });
   const revokeButton = createButton({ label: "Désactiver le partage", variant: "danger", onClick: openRevocation });
-  actions.append(generate, copy, renewButton, revokeButton); section.append(title, help, feedback, status, empty, field, channels, actions);
+  const linkRow = document.createElement("div"); linkRow.className = "wishlist-share__link-row"; linkRow.append(field, copy);
+  actions.append(generate, renewButton, revokeButton); section.append(title, help, feedback, status, empty, linkRow, channels, actions);
   const lifetime = new AbortController();
   let disposed = false; let busy = false; let terminal = false; let absent = false;
   /** @type {import("./wishlistShareService.js").WishlistShareLink | null} */ let link = null;
@@ -55,10 +58,12 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
   return section;
 
   function sync() {
+    onBusy(!disposed && (busy || dialog !== null));
     section.setAttribute("aria-busy", String(busy && !disposed));
     generate.hidden = !absent || terminal || disposed; copy.hidden = !link || terminal || disposed;
     empty.hidden = !absent || terminal || disposed;
     field.hidden = !link || terminal || disposed;
+    linkRow.hidden = !link || terminal || disposed;
     channels.hidden = !link || terminal || disposed;
     renewButton.hidden = !renew || !link || busy || terminal || disposed;
     revokeButton.hidden = !revoke || !wishlistName || !link || busy || terminal || disposed;

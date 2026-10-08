@@ -46,6 +46,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       cancelAnalysis();
       if (!disposed && !busy && !blocked && !suspended && !terminal && validateImportUrl(urlField.control.value) === null)
         analysisTimer = setTimeout(() => { analysisTimer = null; void analyzeLink(); }, 2000);
+      sync();
     });
   }
   const actions = element("div", ""); actions.className = "wishlist-form__actions cluster";
@@ -89,13 +90,19 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       if (disposed || controller.signal.aborted) return;
       if (result.image) { imageUrl = URL.createObjectURL(result.image); await decodeWishImage(imageUrl, controller.signal); }
       if (disposed || controller.signal.aborted) return;
+      analyzing = false; sync();
       const current = editor.getValues();
       editor.reset({ ...current,
-        name: current.name === snapshot.name && result.name ? result.name : current.name,
-        price: current.price === snapshot.price && result.price ? result.price : current.price });
+        name: result.name || current.name,
+        price: result.price || current.price });
       if (result.image && imageSection.getSelected() === selected) imageSection.setSelected(result.image);
+      status.textContent = "";
     } catch (error) {
-      if (!disposed && !controller.signal.aborted && !isAbortError(error)) show({ title: "Récupération impossible", message: "Tu peux compléter les informations manuellement." });
+      if (!disposed && !controller.signal.aborted && !isAbortError(error)) {
+        if (error instanceof ApiError && error.statusCode === 404) notFound(true);
+        else if (error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED") lockSuspended();
+        else show({ title: "Récupération impossible", message: "Tu peux compléter les informations manuellement." });
+      }
     } finally {
       if (imageUrl) URL.revokeObjectURL(imageUrl);
       if (!disposed && analysisController === controller) { analyzing = false; loader.hidden = true; sync(); }
@@ -117,19 +124,21 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   function hasTextDraft() { const values = editor.getValues(); return !!base && (fields.some(field => values[field.name] !== base?.values[field.name]) || !!values.isFavorite !== !!base.values.isFavorite); }
   function clearImageNotice() { disposeComponent(imageNotice); imageNotice.replaceChildren(); imageNotice.hidden = true; }
   function sync() {
-    editor.favorite.disabled = disposed || terminal || busy || suspended || blocked;
+    const importing = analyzing || analysisTimer !== null;
+    loader.hidden = !importing;
+    editor.favorite.disabled = disposed || terminal || busy || importing || suspended || blocked;
     form.hidden = disposed || terminal || base === null;
     for (const field of fields) {
       field.control.readOnly = suspended;
-      field.control.disabled = disposed || terminal || busy;
+      field.control.disabled = disposed || terminal || busy || (importing && field.name !== "url");
     }
-    submit.disabled = disposed || terminal || busy || analyzing || blocked || suspended || (!changed() && !imageSection.getSelected());
+    submit.disabled = disposed || terminal || busy || importing || blocked || suspended || (!changed() && !imageSection.getSelected());
     if (!busy) submit.textContent = "Enregistrer";
     useVersion.hidden = !decision; useVersion.disabled = disposed || terminal || busy || suspended;
     reread.hidden = disposed || terminal || !base || !blocked; reread.disabled = busy;
     retry.hidden = disposed || terminal || base !== null || busy; retry.disabled = busy;
-    form.setAttribute("aria-busy", String(busy));
-    imageSection.update(base?.wish ?? null, disposed || busy || blocked || terminal, suspended);
+    form.setAttribute("aria-busy", String(busy || importing));
+    imageSection.update(base?.wish ?? null, disposed || busy || importing || blocked || terminal, suspended);
   }
   /** An image success never replays a mutation if its subsequent read fails.
    * @param {string} label Confirmed result. */
@@ -188,8 +197,8 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     else if (uncertain) message = "La modification de l’image ne peut pas être confirmée. Relis le souhait avant de réessayer.";
     else if (error instanceof ApiError) {
       if (error.statusCode === 413) message = "L’image ne doit pas dépasser 10 Mio.";
-      else if (error.errorCode === "WISH_IMAGE_UNSUPPORTED_FORMAT" || error.statusCode === 415) message = "Choisis une image JPEG, PNG ou WebP non animée.";
-      else if (error.errorCode === "WISH_IMAGE_INVALID" || error.validationErrors.some(item => item.propertyName === "image")) message = "Cette image ne peut pas être utilisée. Vérifie son format et ses dimensions, ou choisis un autre fichier.";
+      else if (error.errorCode === "WISH_IMAGE_UNSUPPORTED_FORMAT" || error.statusCode === 415) message = "Format d’image non pris en charge : JPEG, PNG ou WebP non animé uniquement.";
+      else if (error.errorCode === "WISH_IMAGE_INVALID" || error.validationErrors.some(item => item.propertyName === "image")) message = "Image invalide : format ou dimensions non acceptés.";
     }
     show({ title: "Image non enregistrée", message, detail: details.join(" ") || null });
   }
@@ -242,11 +251,11 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     } finally { if (!disposed) { busy = false; sync(); } }
   }
   async function save() {
-    if (disposed || busy || analyzing || blocked || suspended || terminal || !base || (!changed() && !imageSection.getSelected())) return;
+    if (disposed || busy || analyzing || analysisTimer !== null || blocked || suspended || terminal || !base || (!changed() && !imageSection.getSelected())) return;
     cancelAnalysis();
     editor.discardDeferredBlur(); clearFeedback(); for (const field of fields) editor.validate(field);
     const invalid = fields.find(field => field.error !== null);
-    if (invalid) { show({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." }); validationSummary = true; invalid.control.focus(); return; }
+    if (invalid) { show({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." }); validationSummary = true; invalid.control.focus(); return; }
     try { createWishPayload(editor.getValues()); } catch (error) { technical(error, false); focusFeedback(); return; }
     const selectedImage = imageSection.getSelected();
     if (!changed() && selectedImage) { await saveImage(selectedImage); return; }
@@ -288,7 +297,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     const uncertain = !(error instanceof ApiError) || error.kind !== "http" || (error.statusCode !== null && error.statusCode >= 500);
     if (uncertain) { blocked = true; decision = false; clearComparison(); technical(error, true); return; }
     if (error.errorCode === "WISH_QUANTITY_BELOW_RESERVED") {
-      const field = fields[4]; field.checked = true; field.error = "Cette quantité ne peut pas être enregistrée. Choisis une autre quantité.";
+      const field = fields[4]; field.checked = true; field.error = "Cette quantité ne peut pas être enregistrée.";
       setFormFieldValidation(field.element, field.error);
       show({ title: "Quantité à vérifier", message: field.error }); return;
     }

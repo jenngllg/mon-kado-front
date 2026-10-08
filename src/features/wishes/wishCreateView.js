@@ -56,7 +56,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
     submit.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
     importer?.update(disposed || busy || blocked || terminal || completed);
     retry.hidden = disposed || !blocked || busy || terminal || completed; retry.disabled = busy;
-    form.setAttribute("aria-busy", String(busy));
+    form.setAttribute("aria-busy", String(busy || !!importer?.isBusy()));
   }
   /** @param {boolean} explicit User retry. */
   async function read(explicit) {
@@ -80,7 +80,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
     discardDeferredBlur(); clearFeedback(); for (const field of fields) validate(field);
     syncControls();
     const invalid = fields.find(field => field.error !== null);
-    if (invalid) { show({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." }); validationSummary = true; invalid.control.focus(); return; }
+    if (invalid) { show({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." }); validationSummary = true; invalid.control.focus(); return; }
     // Validate the aggregate byte limit even when the operation is injected.
     try { createWishPayload(getValues()); } catch (error) { presentFailure(error, false); focusFeedback(); return; }
     const selectedImage = importer?.getImage();

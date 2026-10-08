@@ -48,17 +48,19 @@ describe("create wishlist form", () => {
     expect(mode.checked).toBe(true);
     expect(ui.create).not.toHaveBeenCalled();
   });
-  it("updates the visual preview from actual form values without creating a list", () => {
+  it("keeps creation focused on the form without preview or decorative image requests", () => {
     const ui = setup();
     ui.input(0, "Noël en famille"); ui.input(1, "christmas"); ui.input(2, "2028-12-25"); ui.input(3, "Nos idées");
-    const preview = ui.view.querySelector(".wishlist-live-preview");
-    expect(preview?.querySelector("h2")?.textContent).toBe("Noël en famille");
-    expect(preview?.textContent).toContain("25 décembre 2028");
-    expect(preview?.textContent).toContain("Nos idées");
-    expect(preview?.querySelector("img")?.getAttribute("src")).toBe("/src/assets/design/christmas.webp");
+    expect(ui.view.querySelector("aside, img, .wishlist-live-preview, dialog")).toBeNull();
+    expect(ui.view.textContent).not.toContain("Aperçu");
+    expect(ui.fields.map(field => field.value)).toEqual(["Noël en famille", "christmas", "2028-12-25", "Nos idées"]);
+    expect(ui.form.querySelector(".wishlist-form__footer > .wishlist-surprise-control")).not.toBeNull();
+    expect(ui.submit.parentElement?.className).toBe("wishlist-form__footer");
+    expect(ui.fields[1].closest(".wishlist-form__occasion")).not.toBeNull();
+    expect(ui.fields[2].closest(".wishlist-form__eventDate")).not.toBeNull();
     expect(ui.create).not.toHaveBeenCalled();
     disposeComponent(ui.view);
-    expect(preview?.textContent).toBe("");
+    expect(ui.fields.every(field => field.value === "")).toBe(true);
   });
   it("defaults to surprise mode and submits an explicit disabled mode", async () => {
     const ui = setup(); ui.fill();
@@ -165,7 +167,7 @@ describe("create wishlist form", () => {
   it("keeps HTML-looking inputs as text", async () => {
     const ui = setup(); ui.fill(); ui.input(0, "<img src=x onerror=alert(1)>"); ui.create.mockRejectedValue(new ApiError({ kind: "network" })); ui.send(); await settle();
     expect(ui.view.querySelector('img[src="x"], img[onerror]')).toBeNull(); expect(ui.fields[0].value).toContain("<img");
-    expect(ui.view.querySelector(".wishlist-live-preview h2")?.textContent).toContain("<img");
+    expect(ui.view.querySelector(".wishlist-live-preview")).toBeNull();
   });
   it("shows the common catalogue's support reference on technical failures", async () => {
     const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 503, correlationId: "support-fixture" })); ui.fill(); ui.send(); await settle();

@@ -58,9 +58,11 @@ describe("gift editing integration", () => {
     expect(window.location.pathname).toBe(path); expect(app.state.writes).toBe(1); expect(app.state.reads).toBe(1); expect(app.state.collectionReads).toBe(0);
     await app.router.navigate(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null);
     expect(app.state.parentReads).toBe(2); expect(app.state.collectionReads).toBe(1); expect(app.shell.outlet.textContent).toContain("Corrigé");
-    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.getAttribute("aria-label")).toBe("Modifier le souhait « Corrigé »");
-    app.state.suspended = true; await app.router.replace(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(`a[href="${path}"]`) !== null);
-    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.getAttribute("title")).toBe("Consulter"); await app.router.navigate(path); await ready(app);
+    const wishDetail = path.replace(/\/edit$/, "");
+    expect(app.shell.outlet.querySelector(`.wish-card h3 a[href="${wishDetail}"]`)?.textContent).toBe("Corrigé");
+    expect(app.shell.outlet.querySelector(`.wish-card a[href="${path}"]`)).toBeNull();
+    app.state.suspended = true; await app.router.replace(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(`.wish-card a[href="${wishDetail}"]`) !== null);
+    expect(app.shell.outlet.querySelector(".wish-gallery__delete")).toBeNull(); await app.router.navigate(path); await ready(app);
     expect(app.shell.outlet.textContent).toContain("Consultation uniquement"); expect([...app.shell.outlet.querySelectorAll("input,textarea")].every(control => /** @type {HTMLInputElement} */ (control).disabled || /** @type {HTMLInputElement} */ (control).readOnly)).toBe(true);
   });
   it.each([401, 403, 404, 409, 412, 413, 428, 429, 503])("handles %s without retries or duplicate shell errors", async status => {

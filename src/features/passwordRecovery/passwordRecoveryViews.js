@@ -97,7 +97,7 @@ export function createResetPasswordView({ resetPassword, consumeFragment, signal
  */
 export function validateResetField(name, values) {
   if (name === "newPassword") return validateNewPassword(values.newPassword);
-  if (!values.confirmation) return "Confirme ton nouveau mot de passe.";
+  if (!values.confirmation) return "Confirmation du mot de passe obligatoire.";
   if (values.confirmation !== values.newPassword) return "Les deux mots de passe doivent être identiques.";
   return null;
 }

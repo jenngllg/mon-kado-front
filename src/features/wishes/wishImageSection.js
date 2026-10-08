@@ -30,7 +30,7 @@ export function createWishImageSection({ onUpload, onRemove, decode = decodeWish
     if (inactive || decoding) return;
     if (selected) { clearSelection(); edit.focus(); } else onRemove();
   } });
-  remove.classList.add("wish-image-section__remove"); remove.setAttribute("aria-label", "Supprimer l’image"); remove.title = "Supprimer l’image"; remove.textContent = "×";
+  applyActionIcon(remove, "delete", "Supprimer l’image"); remove.classList.add("wish-image-section__remove", "icon-action--danger");
   current.append(savedImage, preview, edit, remove);
   controls.append(field, feedback, status); element.append(title, current, controls);
   addComponentEventListener(element, input, "change", () => { void select(); });
@@ -62,7 +62,10 @@ export function createWishImageSection({ onUpload, onRemove, decode = decodeWish
   function sync() {
     const hasImage = !!currentWish && (currentWish.imageUrl !== null || currentWish.imageUnavailable);
     input.disabled = inactive || decoding || disposed; edit.disabled = inactive || decoding || disposed;
-    edit.hidden = controls.hidden; edit.setAttribute("aria-label", hasImage ? "Remplacer l’image" : "Ajouter une image"); edit.title = hasImage ? "Remplacer l’image" : "Ajouter une image";
+    const editLabel = hasImage || selected ? "Remplacer l’image" : "Ajouter une image";
+    edit.hidden = controls.hidden; edit.setAttribute("aria-label", editLabel); applyActionIcon(edit, hasImage || selected ? "edit" : "add", editLabel);
+    const removeLabel = selected ? "Retirer la sélection" : "Supprimer l’image";
+    remove.setAttribute("aria-label", removeLabel); remove.title = removeLabel;
     current.classList.toggle("wish-image-section__media--empty", !hasImage && !selected);
     remove.hidden = (!hasImage && !selected) || controls.hidden; remove.disabled = inactive || decoding || disposed;
 
@@ -86,7 +89,7 @@ export function createWishImageSection({ onUpload, onRemove, decode = decodeWish
       preview.append(image); preview.hidden = false; status.textContent = "";
     } catch (error) {
       if (disposed || expected !== revision || signal.aborted || isAbortError(error)) return;
-      clearSelection(); const message = error instanceof WishImageValidationError ? error.message : "Cette image ne peut pas être lue. Choisis un autre fichier.";
+      clearSelection(); const message = error instanceof WishImageValidationError ? error.message : "Cette image ne peut pas être lue.";
       setFormFieldValidation(field, message); feedback.append(createAlert({ title: "Image à vérifier", message, variant: "error" })); edit.focus();
     } finally { if (!disposed && expected === revision) { decoding = false; sync(); } }
     if (!disposed && expected === revision && !inactive && selected) onUpload(selected);

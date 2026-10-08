@@ -16,8 +16,7 @@
 }
 
 :is(.registration-view, .recovery-view, .login-view, .google-return-view,
-  .google-link-view, .email-confirmation-view, .profile-view, .placeholder-view,
-  .wishlist-delete-view) {
+  .google-link-view, .email-confirmation-view, .profile-view, .placeholder-view) {
   --flow-space: 1.5rem;
   padding: 0;
   border: 0;
@@ -31,7 +30,7 @@
 }
 :is(.registration-view, .recovery-view, .login-view, .google-return-view,
   .google-link-view, .email-confirmation-view, .profile-view, .placeholder-view,
-  .wishlist-delete-view, .reservation-history-view, .shared-wish-view, .two-factor-view, .authenticator-view) h1 {
+  .reservation-history-view, .shared-wish-view, .two-factor-view, .authenticator-view) h1 {
   font-size: clamp(2rem, 3.8vw, 3rem);
   line-height: 1.15;
   text-wrap: pretty;
@@ -39,7 +38,8 @@
 .profile-layout {
   grid-template-columns: 15rem minmax(0, 1fr);
   gap: clamp(2rem, 5vw, 5rem);
-  width: min(100%, 74rem);
+  width: 100%;
+  max-width: none;
 }
 .profile-layout > .profile-view { padding: 0; min-height: 0; width: 100%; }
 .profile-view__settings {
@@ -67,7 +67,7 @@
 /* Overview headings share one origin; readable content widths belong below them. */
 :is(.wishlists-view, .reservation-history-view, .member-search-view) {
   width: 100%;
-  max-width: 78rem;
+  max-width: none;
   margin-inline: auto;
   --flow-space: 1.5rem;
 }
@@ -85,12 +85,6 @@
   min-height: 0;
   padding: 0;
   align-items: flex-start;
-}
-.wishlists-view__header > .home-hero__primary-action {
-  min-width: min(100%, 14.75rem);
-  max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
 }
 .member-search-view > :is(form, div) { max-width: 48rem; }
 .app-main:has(> :is(.wishlists-view, .reservation-history-view, .member-search-view)) {
@@ -254,14 +248,14 @@
 }
 .profile-photo-crop {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  grid-template-columns: 10rem minmax(0, 1fr);
   align-items: center;
   gap: var(--space-6);
 }
 .profile-photo-crop > * { margin-block: 0; }
 .profile-photo-crop__viewport {
   position: relative;
-  width: min(100%, 16rem);
+  width: min(100%, 10rem);
   aspect-ratio: 1;
   overflow: hidden;
   border-radius: 50%;
@@ -271,6 +265,7 @@
   touch-action: none;
 }
 .profile-photo-crop__viewport:active { cursor: grabbing; }
+.profile-photo-crop__viewport:focus-visible { outline: 0.1875rem solid var(--color-focus-ring); outline-offset: 0.1875rem; }
 .profile-photo-crop__viewport img {
   position: absolute;
   max-width: none;
@@ -278,13 +273,27 @@
   pointer-events: none;
   user-select: none;
 }
-.profile-photo-crop__controls { --flow-space: 0.5rem; border: 0; margin: 0; padding: 0; max-width: 24rem; min-width: 0; }
+.profile-photo-crop__controls { --flow-space: 0.5rem; border: 0; margin: 0; padding: 0; max-width: 16rem; min-width: 0; }
 .profile-photo-crop__controls legend { font-weight: var(--font-weight-bold); margin-block-end: var(--space-4); }
 .profile-photo-crop__controls input[type="range"] {
   width: 100%; min-height: 44px; padding: 0; border: 0; box-shadow: none;
   accent-color: var(--color-text); background: transparent;
 }
 .profile-image-section__photo { width: 8rem; height: 8rem; border-radius: 50%; object-fit: cover; }
+.profile-image-section { --flow-space: var(--space-4); max-width: 28rem; border-block-start: 0; padding-block-start: 0; }
+.profile-image-section > :empty { display: none; }
+.profile-image-section > .profile-image-section__body,
+.profile-image-section > .wish-image-section__preview { margin-block-start: 0; }
+.profile-image-section__body { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: var(--space-6); align-items: center; }
+.profile-image-section__actions { flex-wrap: wrap; gap: var(--space-3); }
+.profile-photo-crop__controls .profile-image-section__actions { margin-block-start: var(--space-4); }
+.profile-image-section__frame { width: 10rem; }
+.profile-image-section__frame .member-avatar { width: 10rem; height: 10rem; }
+.profile-form > .profile-image-section + .form-field { margin-block-start: var(--space-6); }
+.profile-form > .form-field { max-width: 26rem; }
+@media (max-width: 36rem) {
+  .profile-photo-crop, .profile-image-section__body { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+}
 
 /* Keep empty states and forms quiet; reserve large media areas for real previews. */
 .empty-state p { margin-inline: 0; text-align: start; }
@@ -315,8 +324,4 @@
   .shared-wishlist-view .wishlist-details-info > * { margin-block-start: var(--space-3); }
   .shared-wishlist-view .wishlist-details-info > :first-child { margin-block-start: 0; }
   .shared-wishlist-view .wishlist-participation { --flow-space: var(--space-3); }
-  .wishlists-grid > .wishlist-card { min-height: 12rem; }
-  .wishlists-grid .wishlist-card__content { padding-block: var(--space-4); }
-  .wishlist-create-view > .wishlist-live-preview { min-height: 0; }
-  .wishlist-live-preview > img { width: 6rem; height: 6rem; margin-block: var(--space-4); }
 }

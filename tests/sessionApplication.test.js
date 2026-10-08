@@ -128,7 +128,7 @@ describe("session routes and shell", () => {
       // Act
       await app.start();
       await observe(() => app.shell.outlet.querySelector("form")?.hidden === false);
-      const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector("input"));
+      const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector('input[name="displayName"]'));
       const form = /** @type {HTMLFormElement} */ (app.shell.outlet.querySelector("form"));
       input.value = "Updated member"; input.dispatchEvent(new Event("input"));
       form.dispatchEvent(new Event("submit", { cancelable: true }));
@@ -321,7 +321,7 @@ describe("session routes and shell", () => {
     // Arrange
     const app = mount(); await app.start(); await app.session.start();
     const routes = createApplicationRoutes({ session: app.session, apiBaseUrl: "http://localhost:7000" });
-    expect(routes).toHaveLength(33);
+    expect(routes).toHaveLength(32);
     const button = [...app.shell.element.querySelectorAll("button")].find(item => item.textContent === "Se déconnecter");
     app.dispose(); app.dispose();
     const requests = app.transport.fetch.mock.calls.length;

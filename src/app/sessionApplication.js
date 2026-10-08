@@ -60,9 +60,11 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
           showNotification(shell.notificationRegion, { message: "Souhait supprimé", variant: "success" });
           return;
         }
-        const editPath = RoutePaths.EditWish.replace(":listId", context.params.listId).replace(":wishId", context.params.wishId);
-        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.EditWish ||
-          window.location.pathname.replace(/\/+$/, "") !== editPath || session.getSnapshot().status !== "authenticated") return;
+        const sourceName = router.getCurrentRoute()?.name;
+        const sourceTemplate = sourceName === RouteNames.WishDetails ? RoutePaths.WishDetails : RoutePaths.EditWish;
+        const sourcePath = sourceTemplate.replace(":listId", context.params.listId).replace(":wishId", context.params.wishId);
+        if (disposed || context.signal.aborted || (sourceName !== RouteNames.EditWish && sourceName !== RouteNames.WishDetails) ||
+          window.location.pathname.replace(/\/+$/, "") !== sourcePath || session.getSnapshot().status !== "authenticated") return;
         const epoch = protectedViewEpoch;
         const destination = RoutePaths.ListDetails.replace(":listId", context.params.listId);
         confirmedWishDeletion = { epoch, destination };
@@ -99,8 +101,8 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
         }
       },
       onWishlistDeleted: async context => {
-        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.DeleteList ||
-          window.location.pathname.replace(/\/+$/, "") !== RoutePaths.DeleteList.replace(":listId", context.params.listId) ||
+        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.ListDetails ||
+          window.location.pathname.replace(/\/+$/, "") !== RoutePaths.ListDetails.replace(":listId", context.params.listId) ||
           session.getSnapshot().status !== "authenticated") return;
         const epoch = protectedViewEpoch;
         confirmedWishlistDeletionEpoch = epoch;

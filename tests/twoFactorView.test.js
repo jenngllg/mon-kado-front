@@ -84,7 +84,7 @@ describe("second-factor continuation UI", () => {
     expect(view.querySelector("form")?.noValidate).toBe(true);
     expect(input.getAttribute("aria-invalid")).toBe("true");
     const description = document.getElementById(input.getAttribute("aria-describedby") ?? "");
-    expect(description?.textContent).toContain(recovering ? "code de récupération complet" : "six chiffres");
+    expect(description?.textContent).toContain(recovering ? "Code de récupération invalide ou incomplet" : "six chiffres");
     expect(f.session.secondFactor.complete).not.toHaveBeenCalled();
     input.value = "1"; input.dispatchEvent(new Event("input"));
     expect(input.hasAttribute("aria-invalid")).toBe(false);

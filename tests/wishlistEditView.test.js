@@ -33,6 +33,21 @@ async function conflict(ui) {
   ui.input(0, " Mon brouillon "); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISHLIST_VERSION_CONFLICT" })); ui.send(); await settle();
 }
 describe("wishlist editor", () => {
+  it("groups surprise mode and save commands in the same footer as creation", async () => {
+    // Arrange
+    const ui = setup();
+    await settle();
+    // Act
+    const footer = ui.form.querySelector(".wishlist-form__footer");
+    // Assert
+    expect(footer?.querySelector(".wishlist-surprise-control")).not.toBeNull();
+    expect(footer?.contains(ui.submit)).toBe(true);
+    expect(footer?.contains(ui.button("Utiliser la version enregistrée"))).toBe(true);
+    expect(ui.fields[1].closest(".wishlist-form__occasion")).not.toBeNull();
+    expect(ui.fields[2].closest(".wishlist-form__eventDate")).not.toBeNull();
+    expect(ui.submit.disabled).toBe(true);
+    expect(ui.update).not.toHaveBeenCalled();
+  });
   it("places conflict recovery before the preserved form without starting another operation", async () => {
     // Arrange
     const ui = setup(); await settle(); await conflict(ui);

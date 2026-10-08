@@ -115,7 +115,7 @@ describe("registration view", () => {
     // Assert
     expect(app.register).not.toHaveBeenCalled(); expect(document.activeElement).toBe(app.fields[3]);
     expect(app.fields[3].getAttribute("aria-invalid")).toBe("true");
-    expect(app.view.textContent).toContain(confirmation === "" ? "Confirme ton mot de passe." : "Les deux mots de passe doivent être identiques.");
+    expect(app.view.textContent).toContain(confirmation === "" ? "Confirmation du mot de passe obligatoire." : "Les deux mots de passe doivent être identiques.");
   });
 
   it("rechecks a previously validated confirmation when either input changes", async () => {
@@ -270,7 +270,7 @@ describe("registration view", () => {
     expect(document.activeElement).toBe(app.fields[1]);
     expect(app.fields[1].getAttribute("aria-invalid")).toBe("true");
     expect(app.fields[2].getAttribute("aria-invalid")).toBe("true");
-    expect(app.view.textContent).toContain("Vérifie le format de ton adresse e-mail");
+    expect(app.view.textContent).toContain("Adresse e-mail invalide");
     expect(app.view.textContent).not.toMatch(/Unsafe|English|<img/);
     expect(app.view.querySelector("img")).toBeNull();
     expect(app.fields[2].value).toBe(" password unchanged ");

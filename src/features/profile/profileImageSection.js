@@ -7,13 +7,15 @@ import { createProfilePhotoCrop } from "./profilePhotoCrop.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 
 /** Owns only the local file and rendered sources; the profile owns versions and mutations.
- * @param {{onUpload: (file: Blob) => void, onRemove: () => void, decode?: typeof decodeWishImage}} options Actions.
+ * @param {{onChange: () => void, onRemove: () => void, saveAction: HTMLButtonElement, decode?: typeof decodeWishImage}} options Actions.
  */
-export function createProfileImageSection({ onUpload, onRemove, decode = decodeWishImage }) {
+export function createProfileImageSection({ onChange, onRemove, saveAction, decode = decodeWishImage }) {
   const element = node("section", ""); element.className = "wish-image-section profile-image-section flow";
   const title = node("h2", "Photo de profil"); title.tabIndex = -1;
+  title.className = "visually-hidden";
   const current = node("div", ""); current.className = "wish-image-section__media";
   const media = node("div", ""); media.className = "profile-image-section__frame wish-image-section__media";
+  const body = node("div", ""); body.className = "profile-image-section__body";
   const input = node("input", ""); input.type = "file"; input.accept = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
   const field = createFormField({ control: input, label: "Choisir une photo", description: "JPEG, PNG ou WebP non animé · 10 Mio maximum · 40 millions de pixels maximum." });
   field.classList.add("visually-hidden"); input.tabIndex = -1;
@@ -21,7 +23,6 @@ export function createProfileImageSection({ onUpload, onRemove, decode = decodeW
   const preview = node("div", ""); preview.className = "wish-image-section__preview flow"; preview.hidden = true;
   let disposed = false, inactive = true, decoding = false, revision = 0;
   /** @type {Blob | null} */ let selected = null;
-  /** @type {Blob | null} */ let prepared = null;
   /** @type {string | null} */ let objectUrl = null;
   /** @type {AbortController | null} */ let decoder = null;
   /** @type {import("./profileImageService.js").ProfilePhoto | null} */ let photo = null;
@@ -30,25 +31,27 @@ export function createProfileImageSection({ onUpload, onRemove, decode = decodeW
   let encoding = false;
   const edit = createButton({ label: "Remplacer la photo", variant: "secondary", onClick: () => { if (!inactive && !encoding && !decoding) input.click(); } });
   edit.setAttribute("aria-label", "Remplacer la photo"); applyActionIcon(edit, "edit", "Remplacer la photo"); edit.classList.add("wish-image-section__edit");
-  const upload = createButton({ label: "Valider le recadrage", onClick: () => { void saveCrop(); } });
-  const cancel = createButton({ label: "Annuler la sélection", variant: "secondary", onClick: () => { if (!cancel.disabled) { clearSelection(); input.focus(); } } });
-  const remove = createButton({ label: "Supprimer la photo", variant: "danger", onClick: () => { if (!remove.disabled) onRemove(); } });
-  remove.setAttribute("aria-label", "Supprimer la photo"); remove.title = "Supprimer la photo"; remove.textContent = "×"; remove.classList.add("wish-image-section__remove");
-  const actions = node("div", ""); actions.className = "cluster"; actions.append(upload, cancel);
+  const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: () => { if (!cancel.disabled) { clearSelection(); edit.focus(); } } });
+  const remove = createButton({ label: "Supprimer la photo", variant: "secondary", onClick: () => { if (!remove.disabled) onRemove(); } });
+  applyActionIcon(remove, "delete", "Supprimer la photo"); remove.classList.add("wish-image-section__remove", "icon-action--danger");
+  const actions = node("div", ""); actions.className = "profile-image-section__actions cluster"; actions.append(cancel, saveAction);
   media.append(current, edit, remove);
-  element.append(title, media, field, status, preview, actions);
+  body.append(media, actions);
+  element.append(title, body, field, status, preview);
   addComponentEventListener(element, input, "change", () => { void select(); });
   registerComponentCleanup(element, () => { disposed = true; clearSelection(); photo = null; identity = ""; disposeComponent(current); current.replaceChildren(); });
   sync();
-  return { element, title, clearSelection, update, getSelected: () => prepared, focusRemove: () => { (remove.hidden ? title : remove).focus(); } };
+  return { element, title, clearSelection, update, prepareSelectionAsync, getSelected: () => selected,
+    isPending: () => decoding || encoding || (!!objectUrl && !selected), focusRemove: () => { (remove.hidden ? title : remove).focus(); } };
 
   /** @param {boolean} [reset] Clear the native control except when beginning its newest selection. */
   function clearSelection(reset = true) {
-    revision++; decoder?.abort(); decoder = null; decoding = false; encoding = false; selected = null; prepared = null;
+    revision++; decoder?.abort(); decoder = null; decoding = false; encoding = false; selected = null;
+    body.append(actions);
     disposeComponent(preview); cropper = null;
     const image = preview.querySelector("img"); image?.removeAttribute("src"); preview.replaceChildren(); preview.hidden = true;
     if (objectUrl) URL.revokeObjectURL(objectUrl);
-    objectUrl = null; if (reset) input.value = ""; setFormFieldValidation(field, null); status.textContent = ""; sync();
+    objectUrl = null; if (reset) input.value = ""; setFormFieldValidation(field, null); status.textContent = ""; sync(); onChange();
   }
   /** @param {import("./profileImageService.js").ProfilePhoto | null} value Safe source. @param {boolean} disabled Parent lock. @param {boolean} blocked Explicit recovery required. @param {string} [memberId] Canonical identity. */
   function update(value, disabled, blocked, memberId = "") {
@@ -66,36 +69,41 @@ export function createProfileImageSection({ onUpload, onRemove, decode = decodeW
   }
   function sync() {
     const hasPhoto = !!photo && (!!photo.imageUrl || photo.imageUnavailable);
-    input.disabled = inactive || encoding || disposed; upload.disabled = inactive || decoding || encoding || !selected || disposed;
-    upload.hidden = !selected || !!prepared;
+    input.disabled = inactive || encoding || disposed;
     edit.disabled = inactive || decoding || encoding || disposed;
-    edit.setAttribute("aria-label", hasPhoto ? "Remplacer la photo" : "Ajouter une photo"); edit.title = hasPhoto ? "Remplacer la photo" : "Ajouter une photo";
+    const editLabel = hasPhoto ? "Remplacer la photo" : "Ajouter une photo";
+    edit.setAttribute("aria-label", editLabel); applyActionIcon(edit, hasPhoto ? "edit" : "add", editLabel);
     media.classList.toggle("wish-image-section__media--empty", !hasPhoto);
     cancel.hidden = !selected && !decoding && !objectUrl; cancel.disabled = inactive || disposed;
     remove.hidden = !hasPhoto; remove.disabled = inactive || decoding || encoding || disposed;
-    cropper?.setDisabled(inactive || encoding || disposed || !!prepared);
+    body.hidden = !!cropper;
+    cropper?.setDisabled(inactive || encoding || disposed);
     preview.setAttribute("aria-busy", String(decoding || encoding));
   }
-  async function saveCrop() {
-    if (upload.disabled || !cropper) return;
+  /** Exports the latest local framing only when the profile's single save action is submitted.
+   * @returns {Promise<Blob | null>} Cropped photo, or null when cancelled or invalid.
+   */
+  async function prepareSelectionAsync() {
+    if (!selected || encoding || !cropper || disposed) return null;
     const expected = revision;
     encoding = true; sync();
     try {
       const file = await cropper.exportImage();
-      if (!disposed && expected === revision && !inactive) { prepared = file; onUpload(file); }
+      if (!disposed && expected === revision) return file;
     } catch (error) {
       if (!disposed && expected === revision && !isAbortError(error)) {
-        status.textContent = "La photo n’a pas pu être recadrée. Choisis une autre image.";
+        status.textContent = "La photo n’a pas pu être recadrée.";
         setFormFieldValidation(field, status.textContent);
       }
     } finally { if (!disposed && expected === revision) { encoding = false; sync(); } }
+    return null;
   }
   async function select() {
     if (inactive || disposed) return;
     const file = input.files?.length === 1 ? input.files[0] : null;
     clearSelection(false); if (!file) return;
     const expected = revision; decoding = true; decoder = new AbortController(); const signal = decoder.signal;
-    status.textContent = "Vérification de la photo…"; sync();
+    status.textContent = "Vérification de la photo…"; sync(); onChange();
     try {
       await validateWishImageFile(file);
       if (disposed || expected !== revision) return;
@@ -104,16 +112,17 @@ export function createProfileImageSection({ onUpload, onRemove, decode = decodeW
       if (disposed || expected !== revision || signal.aborted) return;
       cropper = createProfilePhotoCrop({ url, onReady: () => {
         if (disposed || expected !== revision) return;
-        selected = file; status.textContent = ""; sync();
+        selected = file; status.textContent = ""; sync(); onChange();
       }, onError: () => {
         if (disposed || expected !== revision) return;
         clearSelection(); status.textContent = "Cette photo ne peut pas être lue."; setFormFieldValidation(field, status.textContent); edit.focus();
       } });
-      preview.append(cropper.element); preview.hidden = false;
+      cropper.controls.append(actions);
+      preview.append(cropper.element); preview.hidden = false; sync();
     } catch (error) {
       if (disposed || expected !== revision || isAbortError(error)) return;
       clearSelection(); status.textContent = error instanceof WishImageValidationError ? error.message : "Cette photo ne peut pas être lue."; setFormFieldValidation(field, status.textContent); edit.focus();
-    } finally { if (!disposed && expected === revision) { decoding = false; sync(); } }
+    } finally { if (!disposed && expected === revision) { decoding = false; sync(); onChange(); } }
   }
 }
 /** @template {keyof HTMLElementTagNameMap} T @param {T} tag Native tag. @param {string} text Safe content. @returns {HTMLElementTagNameMap[T]} Element. */

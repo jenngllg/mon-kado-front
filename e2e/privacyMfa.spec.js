@@ -161,13 +161,27 @@ test("private export downloads the authenticated ZIP without a navigable remote 
   expect(state.exports).toBe(1); expect(api.unexpected).toEqual([]);
 });
 
-test("deletion consumes its fragment then waits for explicit authenticated confirmation", async ({ page, context }) => {
+for (const width of [390, 1440]) {
+test(`deletion uses a modal after consuming the email proof at ${width}px`, async ({ page, context }, testInfo) => {
+  await page.setViewportSize({ width, height: 1000 });
   const api = await controlledApi(context); api.state.authenticated = true;
   const state = await privateApi(context, api);
   await page.goto("/confirm-account-deletion#token=synthetic-deletion-proof");
+  const trigger = page.getByRole("button", { name: "Supprimer mon compte", exact: true });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await trigger.click();
+  const modal = page.getByRole("dialog", { name: "Supprimer définitivement ton compte ?", exact: true });
+  await expect(modal).toBeVisible();
   await expect(page.getByText("Compte connecté : Camille test", { exact: true })).toBeVisible();
   await expect(page).toHaveURL("/confirm-account-deletion");
   expect(state.deletions).toBe(0);
+  await expect(modal.getByRole("heading", { name: "Supprimer définitivement ton compte ?", exact: true })).toBeFocused();
+  expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("account-delete-modal.png") });
+  await page.keyboard.press("Escape");
+  await expect(modal).toBeHidden(); await expect(trigger).toBeFocused();
+  expect(state.deletions).toBe(0);
+  await trigger.click();
   await expect(page.getByRole("button", { name: "Supprimer définitivement mon compte" })).toBeDisabled();
   await page.getByRole("checkbox", { name: "Je confirme vouloir supprimer définitivement ce compte" }).check();
   await page.getByRole("button", { name: "Supprimer définitivement mon compte" }).click();
@@ -177,3 +191,4 @@ test("deletion consumes its fragment then waits for explicit authenticated confi
   await expect(page.getByText(/Ce lien est invalide/)).toBeVisible();
   expect(state.deletions).toBe(1); expect(api.unexpected).toEqual([]);
 });
+}

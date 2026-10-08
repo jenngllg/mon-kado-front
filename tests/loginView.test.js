@@ -190,7 +190,7 @@ describe("login form", () => {
     await app.send();
     // Assert
     expect(document.activeElement).toBe(app.fields[0]);
-    expect(app.view.textContent).toContain("Vérifie ton adresse e-mail.");
+    expect(app.view.textContent).toContain("Adresse e-mail invalide.");
     expect(app.view.textContent).not.toMatch(/English|secret|<img/);
     expect(app.view.querySelector("img,script")).toBeNull();
     app.fields.slice(0, 2).forEach(field => field.dispatchEvent(new Event("input")));

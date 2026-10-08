@@ -111,7 +111,7 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   async function join() {
     if (disposed || busy || mustRead || joined) return;
     if (validate()) {
-      clearFeedback(); feedback.hidden = false; feedback.append(createAlert({ title: "Informations à vérifier", message: "Vérifie le nom indiqué avant de continuer.", variant: "error" })); summary = true; input.focus(); return;
+      clearFeedback(); feedback.hidden = false; feedback.append(createAlert({ title: "Informations à vérifier", message: "Nom d’affichage invalide.", variant: "error" })); summary = true; input.focus(); return;
     }
     clearFeedback(); loading(true, "Participation en cours…");
     try {

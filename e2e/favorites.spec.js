@@ -9,8 +9,14 @@ for (const width of [390, 1440]) {
     const favorite = page.getByRole("button", { name: "Marquer comme coup de cœur « Une théière »", exact: true });
     await expect(favorite).toBeVisible();
     await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    await page.mouse.move(0, 0);
+    await expect(favorite).toHaveCSS("opacity", "1");
+    await expect(favorite).toHaveCSS("pointer-events", "auto");
+    await expect(favorite.locator("svg")).toHaveCSS("fill", "none");
     await expect(favorite).toHaveCSS("width", "44px"); await expect(favorite).toHaveCSS("height", "44px");
     await favorite.scrollIntoViewIfNeeded();
+    // Settle Playwright's whole-card auto-scroll before comparing hover geometry.
+    await page.locator(".wish-card--gallery").first().hover();
     const position = api.wish.position; const before = await favorite.boundingBox();
     await favorite.hover(); expect(await favorite.boundingBox()).toEqual(before);
     await favorite.focus(); await favorite.press("Enter");
@@ -19,6 +25,9 @@ for (const width of [390, 1440]) {
     await expect(page.locator('.wish-card h3 [aria-label="Coup de cœur"]')).toHaveCount(0);
     expect(api.wish.position).toBe(position); expect(api.state.wishWrites).toBe(1);
     await expect(selected.locator("svg")).toHaveCSS("fill", "rgb(255, 103, 87)");
+    await page.mouse.move(0, 0); await page.locator(".app-main").focus();
+    await expect(selected).toHaveCSS("opacity", "1");
+    await expect(selected).toHaveCSS("pointer-events", "auto");
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("favorite-owner.png"), fullPage: true });
     await page.goto(`/lists/${listId}/wishes/${wishId}/edit`);
@@ -48,7 +57,7 @@ for (const width of [390, 1440]) {
     await page.goto(`${sharedPath}#${secret}`);
     await expect(page.getByRole("img", { name: "Coup de cœur", exact: true })).toBeVisible();
     await expect(page.locator(".wish-card button")).toHaveCount(0);
-    await page.locator(".wish-card__preview-link").click();
+    await page.locator(".wish-gallery__photo").click();
     await expect(page.getByRole("img", { name: "Coup de cœur", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("favorite-shared.png"), fullPage: true });
     expect(api.unexpected).toEqual([]);

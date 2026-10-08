@@ -18,7 +18,8 @@
     transform var(--motion-duration-fast) var(--motion-easing-standard);
 }
 
-.ui-button {
+.ui-button,
+.action-link.ui-button {
   border: 1px solid transparent;
   padding: var(--space-3) min(4vw, var(--space-5));
   cursor: pointer;
@@ -33,6 +34,10 @@
   background: var(--color-accent);
   color: var(--color-text-on-accent);
   box-shadow: var(--shadow-sm);
+}
+
+.page-primary-action {
+  line-height: 1.25;
 }
 
 .ui-button--primary:not(:disabled):hover {
@@ -82,7 +87,7 @@
   text-decoration: none;
 }
 
-.action-link:not([aria-disabled="true"]):hover { background-color: var(--color-surface-muted); }
+.action-link:not(.ui-button):not([aria-disabled="true"]):hover { background-color: var(--color-surface-muted); }
 
 .action-disclosure { position: relative; }
 .action-disclosure > summary {
@@ -247,6 +252,8 @@ input[type="date"].form-field__control::-webkit-calendar-picker-indicator {
   }
 }
 
+.form-field__description--info { display: flex; align-items: flex-start; gap: var(--space-2); max-width: none; }
+.form-field__description--info svg { width: 1rem; height: 1rem; flex: 0 0 1rem; margin-block-start: 0.15em; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .form-field__description,
 .validation-message {
   font-size: var(--font-size-sm);

@@ -1,3 +1,5 @@
+import gripSource from "../assets/icons/grip-vertical.svg?raw";
+
 const Paths = {
   heart: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z",
   add: "M12 5v14M5 12h14",
@@ -9,18 +11,22 @@ const Paths = {
 
 /** Adds a decorative icon to an action while retaining its accessible name.
  * @param {HTMLElement} control Named link or button.
- * @param {keyof typeof Paths} icon Action icon.
+ * @param {keyof typeof Paths | "reorder"} icon Action icon.
  * @param {string} title Hover label.
  */
 export function applyActionIcon(control, icon, title) {
   if (!control.hasAttribute("aria-label")) control.setAttribute("aria-label", control.textContent?.trim() || title);
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const svg = icon === "reorder"
+    ? new DOMParser().parseFromString(gripSource, "image/svg+xml").documentElement
+    : document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
   svg.setAttribute("aria-hidden", "true");
   svg.setAttribute("focusable", "false");
-  const path = document.createElementNS(svg.namespaceURI, "path");
-  path.setAttribute("d", Paths[icon]);
-  svg.append(path);
+  if (icon !== "reorder") {
+    const path = document.createElementNS(svg.namespaceURI, "path");
+    path.setAttribute("d", Paths[icon]);
+    svg.append(path);
+  }
   control.replaceChildren(svg);
   control.classList.add("icon-action");
   control.title = title;

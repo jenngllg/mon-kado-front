@@ -53,6 +53,17 @@
   text-decoration: none;
 }
 
+.app-brand::before {
+  content: "";
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  margin-right: var(--space-2);
+  background-color: var(--color-accent);
+  mask: url("../assets/brand-gift.svg") center / contain no-repeat;
+  transform: translateY(-1px);
+}
+
 .app-brand::after {
   color: var(--color-accent);
   content: ".";

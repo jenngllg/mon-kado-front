@@ -60,11 +60,12 @@ describe("wishlist details application integration", () => {
       return original(input, init);
     });
     await app.start(); await loaded(app);
+    app.shell.outlet.querySelector('.wishlist-details-share')?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Désactiver le partage" && !button.hidden));
     const revoke = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Désactiver le partage");
     revoke?.click();
-    const confirm = [...app.shell.outlet.querySelectorAll("dialog")].flatMap(dialog => [...dialog.querySelectorAll("button")]).find(button => button.textContent === "Désactiver le partage");
-    confirm?.click();
+    const confirm = [...app.shell.outlet.querySelectorAll(".wishlist-share-revoke-dialog button")].find(button => button.textContent === "Désactiver le partage");
+    /** @type {HTMLButtonElement | undefined} */ (confirm)?.click();
     expect(app.shell.notificationRegion.textContent).not.toContain("Partage désactivé");
     gate.resolve();
     await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Partage désactivé") === true);
@@ -80,8 +81,8 @@ describe("wishlist details application integration", () => {
   it("uses real details, correct navigation, initial focus and fresh reads on every opening", async () => {
     const app = setup(); await app.start(); await loaded(app);
     expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes"); expect(document.activeElement).toBe(app.shell.outlet);
-    expect(document.title).toBe("Détail de la liste · MonKado"); expect(app.shell.outlet.textContent).toContain(wish.name);
-    expect(app.shell.outlet.querySelector(`a[href="/lists/${id}/edit"]`)).not.toBeNull(); expect(app.shell.outlet.querySelector(`a[href="/lists/${id}/delete"]`)).not.toBeNull();
+    expect(document.title).toBe(`${item.name} · MonKado`); expect(app.shell.outlet.textContent).toContain(wish.name);
+    expect(app.shell.outlet.querySelector(`a[href="/lists/${id}/edit"]`)).not.toBeNull(); expect(app.shell.outlet.querySelector('button[aria-label="Supprimer cette liste"]')).not.toBeNull();
     await app.router.navigate("/"); await app.router.navigate(`/lists/${id}`); await loaded(app); expect(app.state.listReads).toBe(2); expect(app.state.giftReads).toBe(2);
   });
   it.each([401, 403, 404, 429, 503])("handles collection HTTP %s without replay or duplicated shell errors", async status => {

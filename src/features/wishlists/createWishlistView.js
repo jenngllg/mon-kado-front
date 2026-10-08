@@ -3,9 +3,8 @@ import { RoutePaths } from "../../app/routeContracts.js";
 import { createBackLink, createAlert, createButton, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
-import { isWishlistOccasion, isCalendarDate, validateWishlistField, WishlistServerMessages, WishlistOccasions } from "./wishlistValidation.js";
+import { isWishlistOccasion, validateWishlistField, WishlistServerMessages } from "./wishlistValidation.js";
 import { createWishlistForm } from "./wishlistForm.js";
-import { wishlistArtwork } from "./wishlistArtwork.js";
 
 /** Creates a single-use creation form; route/session ownership remains in the application.
  * @param {{create: import("./wishlistsService.js").CreateWishlist,
@@ -19,26 +18,22 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
   const feedback = textElement("div", ""); feedback.hidden = true;
   const status = textElement("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
-  const preview = textElement("aside", ""); preview.className = "wishlist-live-preview";
-  preview.setAttribute("aria-label", "Aperçu de la liste");
-  const previewImage = document.createElement("img"); previewImage.alt = "";
-  const previewName = textElement("h2", "Ta liste");
-  const previewMeta = textElement("p", "");
-  const previewMessage = textElement("p", ""); previewMessage.className = "wishlist-details-note";
-  preview.append(textElement("p", "Aperçu"), previewImage, previewName, previewMeta, previewMessage);
   let disposed = false; let submitting = false; let completed = false; let validationSummary = false;
   const { form, fields, surpriseMode, validate, discardDeferredBlur } = createWishlistForm({
     label: "Créer une liste", validateValue: (field, value) => validateWishlistField(field, value, now),
-    inactive: () => submitting || completed || disposed, onChange: () => { updateSummary(); updatePreview(); },
+    inactive: () => submitting || completed || disposed, onChange: updateSummary,
   });
-  const submit = createButton({ label: "Créer ma liste", type: "submit" }); form.append(submit);
+  const submit = createButton({ label: "Créer ma liste", type: "submit" });
+  const actions = textElement("div", ""); actions.className = "wishlist-form__footer";
+  const surpriseControl = surpriseMode.closest(".wishlist-surprise-control");
+  if (surpriseControl) actions.append(surpriseControl);
+  actions.append(submit); form.append(actions);
   const back = createBackLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
-  view.append(back, title, feedback, status, form, preview);
-  updatePreview();
+  view.append(back, title, feedback, status, form);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void submitWishlist(); });
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); discardDeferredBlur();
-    clearInputs(); clearFeedback(); status.textContent = ""; preview.replaceChildren();
+    clearInputs(); clearFeedback(); status.textContent = "";
   });
   if (signal) {
     addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });
@@ -46,15 +41,6 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
   }
   return view;
 
-  function updatePreview() {
-    const [name, occasion, date, message] = fields.map(field => field.control.value);
-    previewName.textContent = name.trim() || "Ta liste";
-    const label = isWishlistOccasion(occasion) ? WishlistOccasions[occasion] : "";
-    const formatted = isCalendarDate(date) ? new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeZone: "UTC" }).format(new Date(date + "T00:00:00Z")) : "";
-    previewMeta.textContent = [label, formatted].filter(Boolean).join(" · ");
-    previewMessage.textContent = message;
-    previewImage.src = wishlistArtwork(occasion);
-  }
   function clearInputs() { for (const field of fields) field.control.value = ""; }
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); feedback.hidden = true; validationSummary = false; }
   function updateSummary() { if (validationSummary && fields.every(field => field.error === null)) clearFeedback(); }
@@ -65,7 +51,7 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
     return alert;
   }
   function summary() {
-    showFeedback({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." }); validationSummary = true;
+    showFeedback({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." }); validationSummary = true;
   }
   /** @param {boolean} loading Pending operation. */
   function setLoading(loading) {
@@ -113,7 +99,7 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
       fields[0].checked = true; fields[0].error = "Tu as déjà une liste avec ce nom.";
       setFormFieldValidation(fields[0].element, fields[0].error); summary();
     } else if (validations.length > 0) {
-      if (unknown) showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées. Vérifie tes saisies puis réessaie." });
+      if (unknown) showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées." });
       else summary();
     } else {
       const details = [];

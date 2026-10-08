@@ -98,8 +98,8 @@ export function createAuthenticatorView({ service, session, signal, onFinished }
       const code = input.value.trim(); input.value = "";
       if (!(useRecovery ? /^[a-f\d-]{32,39}$/i : /^\d{6}$/).test(code)) {
         const message = useRecovery
-          ? "Saisis un code de récupération complet, tel qu’il a été enregistré."
-          : "Saisis les six chiffres de ton application d’authentification.";
+          ? "Code de récupération invalide ou incomplet."
+          : "Code d’authentification invalide : six chiffres attendus.";
         invalid = true; setFormFieldValidation(field, message);
         disposeComponent(feedback); feedback.replaceChildren(createAlert({ title: "Code à vérifier", message, variant: "error" }));
         input.focus(); return;

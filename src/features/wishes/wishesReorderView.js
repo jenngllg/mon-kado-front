@@ -1,11 +1,12 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { isStrongEntityTag } from "../../api/entityTag.js";
 import { registerComponentCleanup, addComponentEventListener } from "../../components/componentLifecycle.js";
-import { createAlert, createButton, createFormField, createLoadingState, disposeComponent, setFormFieldValidation } from "../../components/index.js";
+import { createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
-import { createWishCard } from "./wishCard.js";
+import { createWishGalleryCard } from "./wishGalleryCard.js";
 import { installWishReorderDrag } from "./wishReorderDrag.js";
+import gripSource from "../../assets/icons/grip-vertical.svg?raw";
 
 /** @typedef {import("./wishesService.js").WishCollection} Collection */
 /** Complete, local order editor; no request occurs during a move.
@@ -17,26 +18,54 @@ import { installWishReorderDrag } from "./wishReorderDrag.js";
 export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, reorder, onSaved, onCancel, signal }) {
   const view = node("section", ""); view.className = "wish-reorder-view flow";
   const title = node("h2", "Réorganiser les souhaits"); title.tabIndex = -1;
-  const help = node("p", "Déplace les cartes par leur poignée, utilise Monter et Descendre, ou choisis une position. Les changements restent locaux jusqu’à l’enregistrement.");
+  const help = node("p", "Glisse les souhaits pour changer leur ordre.");
+  help.className = "wish-reorder-help";
+  const keyboardHelp = node("p", "Espace pour déplacer, flèches pour positionner, Entrée pour déposer, Échap pour annuler le déplacement.");
+  keyboardHelp.id = `wish-reorder-keyboard-${wishlistId}`; keyboardHelp.className = "visually-hidden";
   const feedback = node("div", ""); feedback.className = "flow";
   const comparison = node("div", ""); comparison.className = "wish-reorder-comparison flow"; comparison.hidden = true;
-  const grid = node("ul", ""); grid.className = "wish-grid"; grid.setAttribute("role", "list");
-  const status = node("p", ""); status.setAttribute("role", "status"); status.className = "wish-reorder-status";
+  const grid = node("ul", ""); grid.className = "wish-grid wish-grid--gallery"; grid.setAttribute("role", "list");
+  const status = node("p", ""); status.setAttribute("role", "status"); status.className = "wish-reorder-status visually-hidden";
   const lifetime = new AbortController();
   /** @type {Collection | null} */ let base = null;
   /** @type {Collection | null} */ let latest = null;
   /** @type {string[]} */ let draft = [];
   let busy = false, disposed = false, blocked = true, suspended = false, terminal = false, completed = false, differentMembership = false, decision = false, needsRead = false;
-  /** @type {Map<string, {card: HTMLLIElement, title: HTMLElement, rank: HTMLElement, up: HTMLButtonElement, down: HTMLButtonElement, handle: HTMLButtonElement, input: HTMLInputElement, field: HTMLElement, apply: HTMLButtonElement}>} */ const cards = new Map();
-  const saveButtons = [0, 1].map(() => createButton({ label: "Enregistrer l’ordre", onClick: () => { void save(); } }));
-  const cancelButtons = [0, 1].map(() => createButton({ label: "Annuler", variant: "secondary", onClick: () => { void leave(completed); } }));
-  const bars = saveButtons.map((button, i) => { const bar = node("div", ""); bar.className = "cluster wish-reorder-actions"; bar.append(button, cancelButtons[i]); return bar; });
+  /** @type {{id: string, original: string[]} | null} */ let keyboardMove = null;
+  let repositioning = false;
+  /** @type {Map<string, {card: HTMLLIElement, title: HTMLElement, rank: HTMLElement, handle: HTMLButtonElement}>} */ const cards = new Map();
+  const saveButtons = [createButton({ label: "Enregistrer", onClick: () => { void save(); } })];
+  const cancelButtons = [createButton({ label: "Annuler", variant: "secondary", onClick: () => { void leave(completed); } })];
+  const bar = node("div", ""); bar.className = "cluster wish-reorder-actions"; bar.append(cancelButtons[0], saveButtons[0]);
+  const introduction = node("div", ""); introduction.className = "wish-reorder-introduction"; introduction.append(title, help);
+  const toolbar = node("div", ""); toolbar.className = "wish-reorder-toolbar"; toolbar.append(introduction, bar);
   const reread = createButton({ label: "Relire les souhaits", variant: "secondary", onClick: () => { void read(true); } });
   const adopt = createButton({ label: "Utiliser l’ordre enregistré", variant: "secondary", onClick: useLatest });
-  view.append(title, help, feedback, reread, comparison, adopt, status, bars[0], grid, bars[1]);
+  view.append(toolbar, feedback, reread, comparison, adopt, status, keyboardHelp, grid);
   const stopDrag = installWishReorderDrag(view, grid, { enabled: canMove, move: (id, index) => move(id, index, cards.get(id)?.handle) });
+  const stopMovement = () => { stopDrag(); finishKeyboard(false); };
+  addComponentEventListener(view, grid, "pointerdown", () => finishKeyboard(false));
+  addComponentEventListener(view, grid, "keydown", event => {
+    const key = /** @type {KeyboardEvent} */ (event);
+    const handle = key.target instanceof Element ? key.target.closest("[data-reorder-handle]") : null;
+    const id = /** @type {HTMLElement | null} */ (handle?.closest("[data-wish-id]"))?.dataset.wishId;
+    if (!id || !canMove()) return;
+    if (key.key === " " || key.key === "Enter") { key.preventDefault(); toggleKeyboard(id); return; }
+    if (keyboardMove?.id !== id) return;
+    if (key.key === "Escape") { key.preventDefault(); finishKeyboard(true); return; }
+    if (key.key === "Tab") { finishKeyboard(false); return; }
+    const index = draft.indexOf(id);
+    const firstTop = grid.firstElementChild?.getBoundingClientRect().top;
+    const columns = Math.max(1, [...grid.children].filter(card => Math.abs(card.getBoundingClientRect().top - (firstTop ?? 0)) < 4).length);
+    const targets = { ArrowLeft: index - 1, ArrowRight: index + 1, ArrowUp: index - columns, ArrowDown: index + columns, Home: 0, End: draft.length - 1 };
+    if (!(key.key in targets)) return;
+    key.preventDefault(); move(id, Math.max(0, Math.min(draft.length - 1, targets[/** @type {keyof typeof targets} */ (key.key)])), cards.get(id)?.handle);
+  });
+  addComponentEventListener(view, grid, "focusout", event => {
+    if (!repositioning && keyboardMove && /** @type {FocusEvent} */ (event).relatedTarget !== cards.get(keyboardMove.id)?.handle) finishKeyboard(false);
+  });
   registerComponentCleanup(view, () => {
-    disposed = true; lifetime.abort(); stopDrag(); base = null; latest = null; draft = []; cards.clear();
+    disposed = true; lifetime.abort(); stopMovement(); base = null; latest = null; draft = []; cards.clear();
     clear(grid); clear(feedback); clear(comparison); status.textContent = ""; sync();
   });
   if (signal) {
@@ -50,17 +79,42 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
   function changed() { return !!base && draft.some((id, i) => id !== base?.wishes[i]?.id.toLowerCase()); }
   function sync() {
     view.setAttribute("aria-busy", String(busy));
-    for (const button of saveButtons) { button.disabled = !canMove() || !changed(); button.textContent = decision ? "Enregistrer mon ordre" : "Enregistrer l’ordre"; }
+    help.textContent = keyboardMove ? "Flèches pour déplacer · Entrée pour déposer · Échap pour annuler" : "Glisse les souhaits pour changer leur ordre.";
+    for (const button of saveButtons) { button.disabled = !canMove() || !changed(); button.textContent = decision ? "Enregistrer mon ordre" : "Enregistrer"; }
     for (const button of cancelButtons) { button.disabled = disposed || busy; button.textContent = completed ? "Retour aux souhaits" : "Annuler"; }
     reread.hidden = disposed || terminal || completed || (!needsRead && base !== null); reread.disabled = busy;
     adopt.hidden = disposed || completed || terminal || !latest; adopt.disabled = busy || suspended || (latest?.wishes.length ?? 0) > 1000;
     adopt.textContent = differentMembership ? "Repartir de la collection actualisée" : "Utiliser l’ordre enregistré";
     draft.forEach((id, index) => {
       const row = cards.get(id); if (!row) return;
-      row.rank.textContent = `Position ${index + 1} sur ${draft.length}`;
-      row.up.disabled = !canMove() || index === 0; row.down.disabled = !canMove() || index === draft.length - 1;
-      row.input.disabled = !canMove(); row.input.max = String(draft.length); row.handle.disabled = !canMove(); row.apply.disabled = !canMove();
+      row.rank.textContent = String(index + 1);
+      row.rank.setAttribute("aria-label", `Position ${index + 1} sur ${draft.length}`);
+      row.handle.disabled = !canMove();
+      row.handle.setAttribute("aria-pressed", String(keyboardMove?.id === id));
+      row.card.classList.toggle("wish-reorder-selected", keyboardMove?.id === id);
     });
+  }
+  /** @param {string} id Wish selected using its handle. */
+  function toggleKeyboard(id) {
+    if (!canMove()) return;
+    stopDrag();
+    const previous = keyboardMove?.id; finishKeyboard(false);
+    if (previous === id) return;
+    keyboardMove = { id, original: [...draft] }; sync();
+    status.textContent = `« ${cards.get(id)?.title.textContent} » sélectionné. Utilise les flèches pour déplacer le souhait.`;
+  }
+  /** @param {boolean} restore Escape cancels only the current keyboard gesture. */
+  function finishKeyboard(restore) {
+    if (!keyboardMove) return;
+    const previous = keyboardMove; keyboardMove = null;
+    if (restore) {
+      draft = previous.original;
+      repositioning = true;
+      for (const id of draft) { const row = cards.get(id); if (row) grid.append(row.card); }
+      cards.get(previous.id)?.handle.focus(); repositioning = false; status.textContent = "Déplacement annulé.";
+    }
+    else status.textContent = "Souhait déposé. Enregistre pour conserver cet ordre.";
+    sync();
   }
   /** @param {Parameters<typeof createAlert>[0]} options Safe copy. */
   function show(options) { clear(feedback); const alert = createAlert({ variant: "error", ...options }); alert.tabIndex = -1; feedback.append(alert); return alert; }
@@ -71,41 +125,30 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
     const index = draft.indexOf(id); if (index < 0 || index === target) return;
     draft.splice(index, 1); draft.splice(target, 0, id);
     const moved = cards.get(id);
+    repositioning = true;
     if (moved) grid.insertBefore(moved.card, cards.get(draft[target + 1])?.card ?? null);
-    draft.forEach((key, i) => { const row = cards.get(key); if (row) { row.input.value = String(i + 1); setFormFieldValidation(row.field, null); } });
     sync(); const row = cards.get(id);
-    if (row) { (focus instanceof HTMLButtonElement && focus.disabled ? row.title : focus ?? row.title).focus(); status.textContent = `« ${row.title.textContent} » déplacé à la position ${target + 1} sur ${draft.length}.`; }
+    if (row) { (focus ?? row.handle).focus(); status.textContent = `« ${row.title.textContent} » déplacé à la position ${target + 1} sur ${draft.length}.`; }
+    repositioning = false;
   }
   function renderCards() {
-    stopDrag(); clear(grid); cards.clear();
+    stopMovement(); clear(grid); cards.clear();
     if (!base) return;
     const fragment = document.createDocumentFragment();
     const byId = new Map(base.wishes.map(item => [item.id.toLowerCase(), item]));
     for (const id of draft) {
       const item = byId.get(id); if (!item) continue;
-      const card = createWishCard(item, suspended, { editable: false }); card.dataset.wishId = id;
+      const card = createWishGalleryCard(item, suspended, { reordering: true }); card.dataset.wishId = id;
       const heading = /** @type {HTMLElement} */ (card.querySelector("h3")); heading.tabIndex = -1;
-      const rank = node("p", ""); rank.className = "wish-reorder-rank";
-      const handle = createButton({ label: "Déplacer la carte", variant: "secondary" }); handle.dataset.reorderHandle = ""; handle.classList.add("wish-reorder-handle");
-      handle.setAttribute("aria-label", `Déplacer la carte « ${item.name} »`);
-      const up = createButton({ label: "Monter", variant: "secondary", onClick: () => move(id, draft.indexOf(id) - 1, up) });
-      const down = createButton({ label: "Descendre", variant: "secondary", onClick: () => move(id, draft.indexOf(id) + 1, down) });
-      up.setAttribute("aria-label", `Monter « ${item.name} »`); down.setAttribute("aria-label", `Descendre « ${item.name} »`);
-      const input = document.createElement("input"); input.type = "number"; input.min = "1"; input.step = "1"; input.value = String(draft.indexOf(id) + 1);
-      const field = createFormField({ control: input, label: `Position de ${item.name}` });
-      const apply = createButton({ label: "Déplacer", variant: "secondary", onClick: () => {
-        if (!canMove()) return;
-        if (!/^\d+$/.test(input.value) || Number(input.value) < 1 || Number(input.value) > draft.length || input.validity.badInput) {
-          setFormFieldValidation(field, `Choisis une position entière entre 1 et ${draft.length}.`); input.focus(); return;
-        }
-        setFormFieldValidation(field, null); move(id, Number(input.value) - 1, apply);
-      } });
-      apply.setAttribute("aria-label", `Déplacer « ${item.name} » à la position choisie`);
-      addComponentEventListener(card, handle, "click", () => { if (canMove()) input.focus(); });
-      const commands = node("div", ""); commands.className = "wish-reorder-commands flow";
-      const adjacent = node("div", ""); adjacent.className = "cluster"; adjacent.append(up, down);
-      commands.append(rank, handle, adjacent, field, apply); card.append(commands); fragment.append(card);
-      cards.set(id, { card, title: heading, rank, up, down, handle, input, field, apply });
+      const rank = node("span", ""); rank.className = "wish-reorder-rank";
+      const handle = createButton({ label: `Déplacer le souhait « ${item.name} »`, variant: "secondary", onClick: () => toggleKeyboard(id) });
+      handle.dataset.reorderHandle = ""; handle.classList.add("wish-reorder-handle");
+      handle.setAttribute("aria-label", `Déplacer le souhait « ${item.name} »`); handle.setAttribute("aria-describedby", keyboardHelp.id);
+      handle.title = "Déplacer ce souhait";
+      const icon = new DOMParser().parseFromString(gripSource, "image/svg+xml").documentElement;
+      icon.setAttribute("aria-hidden", "true"); icon.setAttribute("focusable", "false"); handle.replaceChildren(document.importNode(icon, true));
+      card.append(rank, handle); fragment.append(card);
+      cards.set(id, { card, title: heading, rank, handle });
     }
     grid.append(fragment);
     if (!busy) sync();
@@ -127,7 +170,7 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
   /** @param {boolean} explicit Retry or conflict reread. */
   async function read(explicit) {
     if (disposed || busy || terminal || completed) return;
-    stopDrag(); busy = true; blocked = true; clear(feedback); feedback.append(createLoadingState({ label: "Chargement de l’ordre des souhaits…" })); sync();
+    stopMovement(); busy = true; blocked = true; clear(feedback); feedback.append(createLoadingState({ label: "Chargement de l’ordre des souhaits…" })); sync();
     try {
       if (!isWishlistId(wishlistId)) throw new ApiError({ kind: "http", statusCode: 404 });
       const list = await loadWishlist(wishlistId, { signal: lifetime.signal });
@@ -156,13 +199,13 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
   }
   function useLatest() {
     if (!latest || disposed || busy || terminal || completed || suspended || latest.wishes.length > 1000) return;
-    stopDrag(); base = latest; latest = null; draft = base.wishes.map(item => item.id.toLowerCase()); differentMembership = false; decision = false; blocked = false; needsRead = false;
+    stopMovement(); base = latest; latest = null; draft = base.wishes.map(item => item.id.toLowerCase()); differentMembership = false; decision = false; blocked = false; needsRead = false;
     clear(comparison); comparison.hidden = true; clear(feedback); renderCards(); title.focus();
   }
   /** @param {boolean} saved Confirmed operation, never retry it. */
   async function leave(saved) {
     if (disposed || busy) return;
-    stopDrag(); busy = true; sync();
+    stopMovement(); busy = true; sync();
     try { await (saved ? onSaved() : onCancel()); }
     catch { if (!disposed) show({ title: completed ? "Ordre des souhaits enregistré" : "Retour indisponible", message: "Le retour aux souhaits a échoué. Réessaie le retour sans renvoyer l’ordre.", variant: completed ? "success" : "error" }).focus(); }
     finally { if (!disposed) { busy = false; sync(); } }
@@ -170,7 +213,7 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
   async function save() {
     if (!canMove() || !changed() || !base) return;
     if (draft.length !== base.wishes.length || new Set(draft).size !== draft.length || base.wishes.some(item => !draft.includes(item.id.toLowerCase()))) { blocked = true; needsRead = true; sync(); return; }
-    stopDrag(); busy = true; clear(feedback); sync(); status.textContent = "Enregistrement de l’ordre…"; title.focus();
+    stopMovement(); busy = true; clear(feedback); sync(); status.textContent = "Enregistrement de l’ordre…"; title.focus();
     try {
       await reorder(wishlistId, [...draft], { etag: base.etag, signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
@@ -183,7 +226,7 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
   }
   /** @param {unknown} error Safe error. @param {boolean} mutation PATCH may have reached the server. */
   function failure(error, mutation) {
-    stopDrag();
+    stopMovement();
     if (error instanceof ApiError && error.statusCode === 404) {
       terminal = true; base = null; latest = null; draft = []; cards.clear(); clear(grid); clear(comparison); comparison.hidden = true;
       show({ title: "Liste introuvable", message: "Cette liste n’est pas disponible." }); return;

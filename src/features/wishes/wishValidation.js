@@ -5,13 +5,13 @@ import { trimWishlistText } from "../wishlists/wishlistValidation.js";
 /** @typedef {Record<WishField, string> & {isFavorite?: boolean}} WishValues */
 /** @type {Readonly<Record<WishField, string>>} */
 export const WishServerMessages = Object.freeze({
-  name: "Vérifie le nom du souhait : 100 caractères maximum, sans caractères de contrôle ni retours à la ligne.",
-  note: "Vérifie la note : 500 caractères maximum. Les retours à la ligne et tabulations sont autorisés.",
+  name: "Nom du souhait invalide.",
+  note: "Note invalide.",
   url: "Lien invalide",
-  price: "Indique un prix entre 0,01 et 99 999 999,99 euros, avec deux décimales maximum.",
-  quantity: "Indique une quantité entière entre 1 et 100.",
+  price: "Prix invalide : entre 0,01 et 99 999 999,99 euros, avec deux décimales maximum.",
+  quantity: "Quantité invalide : nombre entier entre 1 et 100.",
 });
-export const WishPayloadTooLarge = "Ces informations sont trop volumineuses. Raccourcis la note ou le lien produit avant de réessayer.";
+export const WishPayloadTooLarge = "Informations trop volumineuses pour l’envoi.";
 
 /** Validates raw form data before the backend's NFC normalization.
  * @param {WishField} field Field name. @param {string} value Raw input.
@@ -20,11 +20,13 @@ export const WishPayloadTooLarge = "Ces informations sont trop volumineuses. Rac
 export function validateWishField(field, value) {
   const clean = trimWishlistText(value);
   if (field === "name") {
-    if (clean === "") return "Donne un nom à ton souhait.";
-    return /\p{Cs}/u.test(value) || /[\p{Cc}\p{Zl}\p{Zp}]/u.test(clean) || [...clean].length > 100 ? WishServerMessages.name : null;
+    if (clean === "") return "Nom du souhait obligatoire.";
+    if (/\p{Cs}/u.test(value) || /[\p{Cc}\p{Zl}\p{Zp}]/u.test(clean)) return WishServerMessages.name;
+    return [...clean].length > 100 ? "Nom du souhait trop long : 100 caractères maximum." : null;
   }
   if (field === "note") {
-    return /\p{Cs}/u.test(value) || [...clean].length > 500 || [...value].some(char => /\p{Cc}/u.test(char) && !["\r", "\n", "\t"].includes(char)) ? WishServerMessages.note : null;
+    if (/\p{Cs}/u.test(value) || [...value].some(char => /\p{Cc}/u.test(char) && !["\r", "\n", "\t"].includes(char))) return WishServerMessages.note;
+    return [...clean].length > 500 ? "Note trop longue : 500 caractères maximum." : null;
   }
   if (field === "url") return clean === "" || ([...clean].length <= 2048 && safeHttpUrl(clean) !== null) ? null : WishServerMessages.url;
   if (field === "price") return parseWishPrice(value) === undefined ? WishServerMessages.price : null;

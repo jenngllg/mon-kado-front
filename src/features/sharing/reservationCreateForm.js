@@ -67,7 +67,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
   }
   async function save() {
     if (disposed || busy || blocked || done || (!!reference && Number(input.value) === reference.quantity)) return;
-    if (validate()) { failure(new ApiError({ kind: "http", statusCode: 400 }), "Vérifie la quantité avant de réserver."); input.focus(); return; }
+    if (validate()) { failure(new ApiError({ kind: "http", statusCode: 400 }), ReservationQuantityMessage); input.focus(); return; }
     busy = true; clearFeedback(); controls(); status.textContent = editing ? "Modification de ta réservation…" : "Réservation en cours…";
     try {
       if (editing && reference) await editing.update(input.value, reference.etag, lifetime.signal);

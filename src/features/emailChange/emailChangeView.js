@@ -17,7 +17,7 @@ export function validateEmailChangeField(name, values, currentEmail) {
   const error = validateEmailAddress(values.email);
   if (error) return error;
   return values.email.trim().toLowerCase() === currentEmail.trim().toLowerCase()
-    ? "Indique une adresse e-mail différente de ton adresse actuelle." : null;
+    ? "La nouvelle adresse e-mail est identique à l’adresse actuelle." : null;
 }
 
 /** Creates the protected request page; pending status exists only in this mounted view.
@@ -90,7 +90,7 @@ export function createEmailChangeView({ load, requestChange, signal }) {
           { name: "currentPassword", label: "Mot de passe actuel", type: "password", autocomplete: "current-password" },
         ], submitLabel: "Demander le changement", loadingLabel: "Demande en cours…",
         validate: (name, values) => validateEmailChangeField(name, values, base?.email ?? ""),
-        serverMessages: { email: EmailServerValidationMessage, currentPassword: "Vérifie ton mot de passe actuel." },
+        serverMessages: { email: EmailServerValidationMessage, currentPassword: "Mot de passe actuel invalide." },
         serverErrorFields: {
           MEMBER_CURRENT_PASSWORD_INVALID: { name: "currentPassword", message: "Le mot de passe actuel est incorrect." },
           MEMBER_EMAIL_ALREADY_USED: { name: "email", message: "Cette adresse e-mail n’est pas disponible." },

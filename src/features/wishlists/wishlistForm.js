@@ -34,6 +34,7 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
       }
     }
     const element = createFormField({ ...definition, control }); form.append(element);
+    element.classList.add(`wishlist-form__${definition.name}`);
     const field = { ...definition, element, control, dirty: false, checked: false, error: /** @type {string | null} */ (null) };
     const update = () => {
       if (disposed || inactive()) return;

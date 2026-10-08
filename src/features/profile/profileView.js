@@ -74,10 +74,19 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   const confirmationActions = textElement("div", ""); confirmationActions.className = "cluster"; confirmationActions.append(cancelPhoto, confirmPhoto);
   photoConfirmation.append(photoConfirmationTitle, textElement("p", "Seule ta photo sera supprimée. Ton compte et tes informations seront conservés."), confirmationActions);
   const photoSection = uploadImage && removeImage ? createProfileImageSection({ decode: decodeImage,
-    onUpload: () => { updateControls(); }, onRemove: () => { void mutatePhoto(null); } }) : null;
+    saveAction: submit, onChange: () => {
+      if (!active()) return;
+      if (!busy && (photoSection?.getSelected() || photoSection?.isPending())) {
+        photoNotice = ""; photoSuccess.textContent = ""; photoSuccess.hidden = true;
+        disposeComponent(photoFeedback); photoFeedback.replaceChildren();
+        if (feedback.querySelector(".ui-alert--success")) clearFeedback();
+      }
+      updateControls();
+    }, onRemove: () => { void mutatePhoto(null); } }) : null;
   if (photoSection) {
     photoSection.element.append(photoSuccess, photoFeedback, photoConfirmation);
-    form.append(photoSection.element, actions);
+    form.prepend(photoSection.element);
+    actions.remove();
   }
 
   addComponentEventListener(view, input, "input", () => {
@@ -157,7 +166,8 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   function updateControls() {
     setButtonLoading(submit, saving);
     input.disabled = busy || confirmingPhoto;
-    submit.disabled = busy || confirmingPhoto || needsRead || base === null || (input.value.trim() === base.displayName && !photoSection?.getSelected());
+    submit.disabled = busy || confirmingPhoto || needsRead || base === null || !!photoSection?.isPending() ||
+      (!!photoSection?.getSelected() && photoNeedsRead) || (input.value.trim() === base.displayName && !photoSection?.getSelected());
     useCurrent.disabled = busy || confirmingPhoto || needsRead;
     form.setAttribute("aria-busy", String(busy));
     loading.hidden = !busy || saving || photoBusy;
@@ -243,15 +253,22 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   }
 
   async function submitProfile() {
-    if (!active() || busy || confirmingPhoto || needsRead || base === null) return;
+    if (!active() || busy || confirmingPhoto || needsRead || base === null || photoSection?.isPending() ||
+      (photoSection?.getSelected() && photoNeedsRead)) return;
     validate();
     if (fieldError !== null) {
-      showFeedback({ variant: "error", title: "Informations à vérifier", message: "Vérifie ton nom d’affichage avant de continuer." });
+      showFeedback({ variant: "error", title: "Informations à vérifier", message: "Nom d’affichage invalide." });
       validationSummary = true;
       input.focus();
       return;
     }
-    const selectedPhoto = photoSection?.getSelected();
+    let selectedPhoto = null;
+    if (photoSection?.getSelected()) {
+      busy = true; saving = true; updateControls();
+      try { selectedPhoto = await photoSection.prepareSelectionAsync(); }
+      finally { if (active()) { busy = false; saving = false; updateControls(); } }
+      if (!active() || !selectedPhoto) return;
+    }
     if (input.value.trim() === base.displayName) {
       if (selectedPhoto) await mutatePhoto(selectedPhoto);
       return;
@@ -289,7 +306,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
           setFormFieldValidation(field, fieldError);
         }
         showFeedback({ variant: "error", title: "Informations à vérifier",
-          message: "Certaines informations n’ont pas été acceptées. Vérifie ta saisie puis réessaie." });
+          message: "Certaines informations n’ont pas été acceptées." });
         validationSummary = validations.every(item => item.propertyName === "displayName");
       } else showTechnicalError(error);
       if (error instanceof ApiError && error.kind === "invalidResponse") {
@@ -378,8 +395,8 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
           : missing ? "La photo est indisponible. Relis le profil pour vérifier son état."
             : "La modification de ta photo ne peut pas être confirmée. Relis ton profil avant de réessayer.";
       } else if (api?.statusCode === 413) message = "La photo ne doit pas dépasser 10 Mio.";
-      else if (api?.statusCode === 415 || api?.errorCode === "ACCOUNT_PROFILE_IMAGE_UNSUPPORTED_FORMAT") message = "Choisis une photo JPEG, PNG ou WebP non animée.";
-      else if (api?.errorCode === "ACCOUNT_PROFILE_IMAGE_INVALID") message = "Cette photo ne peut pas être utilisée. Choisis une autre image lisible, de 40 millions de pixels maximum.";
+      else if (api?.statusCode === 415 || api?.errorCode === "ACCOUNT_PROFILE_IMAGE_UNSUPPORTED_FORMAT") message = "Format de photo non pris en charge : JPEG, PNG ou WebP non animé uniquement.";
+      else if (api?.errorCode === "ACCOUNT_PROFILE_IMAGE_INVALID") message = "Photo invalide : image lisible de 40 millions de pixels maximum.";
       photoMessage(message, error);
       if (photoNeedsRead) photoFeedback.append(createButton({ label: "Relire le profil", variant: "secondary", onClick: () => { void readPhoto("recover"); } }));
     } finally { if (active()) { busy = false; photoBusy = false; updateControls(); } }

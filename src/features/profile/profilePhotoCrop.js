@@ -16,13 +16,15 @@ export function getProfileCrop(width, height, zoom, x, y) {
 export function createProfilePhotoCrop({ url, onReady, onError }) {
   const element = document.createElement("div"); element.className = "profile-photo-crop flow";
   const viewport = document.createElement("div"); viewport.className = "profile-photo-crop__viewport";
+  viewport.tabIndex = 0;
+  viewport.setAttribute("role", "group");
+  viewport.setAttribute("aria-label", "Position de la photo : déplace-la avec la souris ou les touches fléchées");
   const image = document.createElement("img"); image.alt = "Aperçu du recadrage de ta photo de profil"; image.draggable = false;
   viewport.append(image);
   const controls = document.createElement("fieldset"); controls.className = "profile-photo-crop__controls flow";
-  const legend = document.createElement("legend"); legend.textContent = "Recadrer la photo"; controls.append(legend);
+  const legend = document.createElement("legend"); legend.textContent = "Recadrer la photo"; legend.className = "visually-hidden"; controls.append(legend);
   const zoom = slider("Zoom", 1, 3, 0.01, 1);
-  const horizontal = slider("Position horizontale", 0, 100, 1, 50);
-  const vertical = slider("Position verticale", 0, 100, 1, 50);
+  let horizontal = 50, vertical = 50;
   let ready = false, disposed = false, disabled = false;
   /** @type {{id: number, x: number, y: number, horizontal: number, vertical: number} | null} */
   let drag = null;
@@ -35,7 +37,8 @@ export function createProfilePhotoCrop({ url, onReady, onError }) {
   addComponentEventListener(element, viewport, "pointerdown", raw => {
     const event = /** @type {PointerEvent} */ (raw);
     if (disabled || !ready || !event.isPrimary || event.button !== 0) return;
-    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: Number(horizontal.value), vertical: Number(vertical.value) };
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal, vertical };
+    viewport.focus();
     viewport.setPointerCapture(event.pointerId);
   });
   addComponentEventListener(element, viewport, "pointermove", raw => {
@@ -43,9 +46,20 @@ export function createProfilePhotoCrop({ url, onReady, onError }) {
     if (!drag || disabled || event.pointerId !== drag.id) return;
     const { size } = crop();
     const scale = viewport.getBoundingClientRect().width / size;
-    const move = (/** @type {number} */ start, /** @type {number} */ distance, /** @type {number} */ available) => String(available > 0 ? Math.max(0, Math.min(100, start - distance / scale / available * 100)) : 50);
-    horizontal.value = move(drag.horizontal, event.clientX - drag.x, image.naturalWidth - size);
-    vertical.value = move(drag.vertical, event.clientY - drag.y, image.naturalHeight - size);
+    const move = (/** @type {number} */ start, /** @type {number} */ distance, /** @type {number} */ available) => available > 0 ? Math.max(0, Math.min(100, start - distance / scale / available * 100)) : 50;
+    horizontal = move(drag.horizontal, event.clientX - drag.x, image.naturalWidth - size);
+    vertical = move(drag.vertical, event.clientY - drag.y, image.naturalHeight - size);
+    render();
+  });
+  addComponentEventListener(element, viewport, "keydown", raw => {
+    const event = /** @type {KeyboardEvent} */ (raw);
+    if (disabled || !ready || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    const step = 5;
+    if (event.key === "ArrowLeft") horizontal = Math.min(100, horizontal + step);
+    if (event.key === "ArrowRight") horizontal = Math.max(0, horizontal - step);
+    if (event.key === "ArrowUp") vertical = Math.min(100, vertical + step);
+    if (event.key === "ArrowDown") vertical = Math.max(0, vertical - step);
     render();
   });
   for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) addComponentEventListener(element, viewport, type, () => { drag = null; });
@@ -53,8 +67,9 @@ export function createProfilePhotoCrop({ url, onReady, onError }) {
   image.src = url;
   return {
     element,
+    controls,
     /** @param {boolean} value Parent mutation lock. */
-    setDisabled(value) { disabled = value; controls.disabled = value; if (value) drag = null; },
+    setDisabled(value) { disabled = value; controls.disabled = value; viewport.tabIndex = value ? -1 : 0; viewport.setAttribute("aria-disabled", String(value)); if (value) drag = null; },
     async exportImage() {
       if (!ready || disposed) throw new Error("Photo not ready");
       const { size, left, top } = crop();
@@ -80,7 +95,7 @@ export function createProfilePhotoCrop({ url, onReady, onError }) {
     addComponentEventListener(element, input, "input", render);
     return input;
   }
-  function crop() { return getProfileCrop(image.naturalWidth, image.naturalHeight, Number(zoom.value), Number(horizontal.value), Number(vertical.value)); }
+  function crop() { return getProfileCrop(image.naturalWidth, image.naturalHeight, Number(zoom.value), horizontal, vertical); }
   function render() {
     if (!ready) return;
     const { size, left, top } = crop();
