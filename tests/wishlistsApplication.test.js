@@ -105,7 +105,7 @@ describe("owned wishlists session integration", () => {
     await app.router.navigate("/"); gate.resolve(); await gate.promise;
     // Assert
     expect(previous.textContent).not.toContain(item.name); expect(previous.querySelector(".wishlists-view__results")?.textContent).toBe("");
-    expect(app.shell.outlet.textContent).toContain("Bienvenue sur MonKado");
+    expect(app.shell.outlet.textContent).toContain("Petites envies, grandes occasions.");
     app.state.beforeRead = async () => {};
     await app.router.navigate("/lists"); await until(app.shell.outlet, () => app.shell.outlet.querySelector("li") !== null);
     expect(app.state.reads).toBe(2);

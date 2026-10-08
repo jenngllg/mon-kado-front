@@ -2,6 +2,7 @@ import { RoutePaths } from "../app/routeContracts.js";
 import { createActionLink } from "../components/index.js";
 import { createBackLink } from "../components/backLink.js";
 import { registerComponentCleanup } from "../components/componentLifecycle.js";
+import { wishlistArtwork } from "../features/wishlists/wishlistArtwork.js";
 
 /**
  * Creates the neutral product home page.
@@ -16,17 +17,13 @@ export function createHomeView(session) {
   const content = document.createElement("div");
   content.className = "home-hero__content flow";
 
-  const eyebrow = document.createElement("p");
-  eyebrow.className = "view-eyebrow";
-  eyebrow.textContent = "Bienvenue sur MonKado";
-
   const heading = document.createElement("h1");
-  heading.textContent = "Les cadeaux qui font vraiment plaisir.";
+  heading.textContent = "Petites envies, grandes occasions.";
 
   const description = document.createElement("p");
   description.className = "home-hero__description";
   description.textContent =
-    "Crée et partage tes listes d’envies, puis retrouve tes réservations au même endroit.";
+    "Une liste à partager pour les moments qui comptent.";
 
   const actions = document.createElement("div");
   actions.className = "home-hero__actions cluster";
@@ -35,13 +32,13 @@ export function createHomeView(session) {
     label: "Créer un compte",
     href: RoutePaths.Register,
   });
-  registerLink.classList.add("home-hero__primary-action");
+  registerLink.classList.add("home-hero__primary-action", "ui-button", "ui-button--primary");
 
   const loginLink = createActionLink({
     label: "Se connecter",
     href: RoutePaths.Login,
   });
-  loginLink.classList.add("home-hero__secondary-action");
+  loginLink.classList.add("home-hero__secondary-action", "ui-button", "ui-button--secondary");
   actions.append(registerLink, loginLink);
   function updateActions() {
     const status = session?.getSnapshot().status ?? "anonymous";
@@ -54,21 +51,29 @@ export function createHomeView(session) {
   }
   updateActions();
   if (session) registerComponentCleanup(section, session.subscribe(updateActions));
-  content.append(eyebrow, heading, description, actions);
+  content.append(heading, description, actions);
 
-  const statement = document.createElement("div");
-  statement.className = "home-hero__statement flow";
-  statement.setAttribute("aria-label", "La promesse MonKado");
-
-  const statementTitle = document.createElement("p");
-  statementTitle.className = "home-hero__statement-title";
-  statementTitle.textContent = "Simple à préparer, agréable à partager.";
-
-  const statementDescription = document.createElement("p");
-  statementDescription.textContent =
-    "Une seule adresse pour réunir les envies et faciliter le choix de chaque invité.";
-  statement.append(statementTitle, statementDescription);
-  section.append(content, statement);
+  const occasions = document.createElement("div");
+  occasions.className = "home-hero__occasions";
+  for (const [occasion, label] of [
+    ["birthday", "Anniversaire"],
+    ["christmas", "Noël"],
+    ["wedding", "Mariage"],
+    ["birth", "Naissance"],
+  ]) {
+    const figure = document.createElement("figure");
+    figure.className = "home-hero__occasion";
+    const image = document.createElement("img");
+    image.src = wishlistArtwork(occasion);
+    image.alt = "";
+    image.width = 800;
+    image.height = 1000;
+    const caption = document.createElement("figcaption");
+    caption.textContent = label;
+    figure.append(image, caption);
+    occasions.append(figure);
+  }
+  section.append(content, occasions);
 
   return section;
 }

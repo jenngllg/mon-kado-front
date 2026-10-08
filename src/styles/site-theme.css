@@ -4,6 +4,9 @@
   --container-max-width: 86rem;
   padding-block: 2.8rem 4rem;
 }
+.app-main:has(> .home-hero) {
+  padding-block: 2.8rem 1rem;
+}
 .app-footer { background: var(--color-background); }
 .ui-button--primary { box-shadow: none; }
 .ui-button--secondary { border-color: var(--color-border-strong); }
@@ -65,16 +68,7 @@
 .personal-data-view__status p { margin: 0; }
 .personal-data-view > div:empty { display: none; }
 .personal-data-view__deletion { padding-block-start: var(--space-5); border-block-start: 1px solid var(--color-border); }
-.home-hero { padding-block: clamp(1rem, 5vw, 4rem); gap: clamp(2rem, 6vw, 6rem); }
-.home-hero__statement {
-  padding: clamp(2rem, 5vw, 4rem);
-  padding-block-end: 8rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: none;
-  background: var(--color-surface-muted) url("../assets/design/botanical-isolated.webp") right bottom / 12rem auto no-repeat;
-}
-.home-hero h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
+.home-hero { gap: var(--space-7); }
 
 /* Overview headings share one origin; readable content widths belong below them. */
 :is(.wishlists-view, .reservation-history-view, .member-search-view) {

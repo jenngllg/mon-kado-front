@@ -90,7 +90,7 @@ describe("login routing and session integration", () => {
     release.resolve(); await complete;
     // Assert
     expect(window.location.pathname).toBe("/");
-    expect(app.shell.outlet.textContent).toContain("Bienvenue sur MonKado");
+    expect(app.shell.outlet.textContent).toContain("Petites envies, grandes occasions.");
     expect(fields[1].value).toBe("");
     expect(app.f.posts()).toHaveLength(1);
     expect(app.shell.element.querySelector('nav a[href="/profile"]')).not.toBeNull();

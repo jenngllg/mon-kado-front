@@ -100,7 +100,7 @@ describe("design audit regressions", () => {
     // Arrange / Act
     const view = createHomeView();
     // Assert
-    expect(view.textContent).toContain("Crée et partage tes listes d’envies, puis retrouve tes réservations au même endroit.");
+    expect(view.textContent).toContain("Une liste à partager pour les moments qui comptent.");
     expect(view.textContent).not.toMatch(/Créez|vos réservations/);
   });
 
