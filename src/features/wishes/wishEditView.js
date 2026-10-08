@@ -41,7 +41,8 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   const loader = element("span", ""); loader.className = "ui-spinner wish-import__loader"; loader.hidden = true;
   loader.setAttribute("role", "status"); loader.setAttribute("aria-label", "Récupération des informations en cours");
   if (preview && urlField) {
-    form.prepend(urlField.element); urlField.element.classList.add("wish-import__url-field"); urlField.element.append(loader);
+    const loadingLabel = element("span", "Récupération en cours…"); loadingLabel.className = "wish-import__loading-label"; loadingLabel.setAttribute("aria-hidden", "true");
+    form.prepend(urlField.element); urlField.element.classList.add("wish-import__url-field"); urlField.element.append(loader, loadingLabel);
     addComponentEventListener(view, urlField.control, "input", () => {
       cancelAnalysis();
       if (!disposed && !busy && !blocked && !suspended && !terminal && validateImportUrl(urlField.control.value) === null)

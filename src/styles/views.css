@@ -826,8 +826,32 @@
 .wish-reorder-view { min-width: 0; }
 .wish-image-section { border-block-start: 1px solid var(--color-border); padding-block-start: var(--space-6); min-width: 0; }
 .wish-import__url-field { position: relative; }
-.wish-import__url-field input { padding-inline-end: 3rem; }
-.wish-import__loader { position: absolute; right: 1rem; top: 2.9rem; pointer-events: none; }
+.wish-import__url-field input { grid-area: 2 / 1; padding-inline-end: 4rem; }
+.wish-import__loader {
+  grid-area: 2 / 1;
+  align-self: center;
+  justify-self: end;
+  margin-inline-end: var(--space-4);
+  width: 1.75rem;
+  height: 1.75rem;
+  border-width: 0.25rem;
+  border-color: var(--color-surface-sage);
+  border-block-start-color: var(--color-text);
+  animation-duration: var(--motion-duration-loading);
+  pointer-events: none;
+}
+.wish-import__loading-label { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .wish-import__loader { animation-duration: calc(var(--motion-duration-loading) * 2); }
+  .wish-import__loader:not([hidden]) + .wish-import__loading-label {
+    display: block;
+    grid-area: 3 / 1;
+    justify-self: end;
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+  }
+}
 .wish-create-view form > .wish-import__image-panel { position: static; width: 100%; margin-block: 1.5rem; }
 .wish-create-view form > .wish-import__image-panel .wish-image-section__media { width: fit-content; max-width: 100%; }
 .wish-create-view form > .wish-import__image-panel img { display: block; width: auto; height: auto; max-width: 100%; max-height: 24rem; }

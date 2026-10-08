@@ -78,5 +78,6 @@
 
   --motion-duration-fast: 160ms;
   --motion-duration-normal: 240ms;
+  --motion-duration-loading: 800ms;
   --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
 }
