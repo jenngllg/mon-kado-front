@@ -4,6 +4,7 @@ import { createAlert, createButton, createFormField, createLoadingState, dispose
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { ReportReasons } from "../sharing/wishlistReportValidation.js";
 import { ReportStatuses } from "./reportedWishlistsService.js";
+import { createModerationAccessDeniedView } from "./moderationAccessView.js";
 
 const Dates = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" });
 /** Read-only report queue with independently paginated, disposable disclosures.
@@ -113,7 +114,9 @@ export function createReportedWishlistsView({ load, loadReports, signal }) {
   function forbidden(error) {
     if (!(error instanceof ApiError) || error.statusCode !== 403) return false;
     terminal = true; lifetime.abort(); reading?.abort(); closeReports(); clear(results); filters.hidden = true; announcement.textContent = "";
-    title.textContent = "Accès administrateur requis"; title.focus(); return true;
+    title.textContent = "";
+    const denial = createModerationAccessDeniedView();
+    view.replaceChildren(denial); denial.querySelector("h1")?.focus(); return true;
   }
 }
 /** @param {{currentPage: number, totalPages: number}} data Page. @param {(page: number) => void} navigate Explicit page change. */
