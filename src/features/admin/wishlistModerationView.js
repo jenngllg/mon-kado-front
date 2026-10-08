@@ -68,7 +68,8 @@ export function createWishlistModerationView({ wishlistId, load, update, signal 
   function accept(data) { baseline = data; reread = null; intent = null; blocked = false; reason.value = data.suspensionReason ?? ""; clearValidation(); comparison.hidden = true; comparison.replaceChildren(); renderRecord(data); }
   /** @param {Moderation} data Current server state. */
   function renderRecord(data) {
-    record.replaceChildren(node("p", data.isSuspended ? "Liste suspendue — Consultation uniquement" : "Liste non suspendue"));
+    record.replaceChildren(node("p", data.isSuspended ? "Liste suspendue" : "Liste non suspendue"));
+    if (data.isSuspended) record.append(node("p", "Le propriétaire peut uniquement consulter cette liste."));
     if (data.suspensionReason !== null) { const text = node("p", `Motif privé : ${data.suspensionReason}`); text.className = "wishlist-details-note"; record.append(text); }
     if (data.suspendedAt !== null) { const date = node("time", `Suspendue le ${Dates.format(new Date(data.suspendedAt))}`); date.dateTime = data.suspendedAt; record.append(date); }
   }

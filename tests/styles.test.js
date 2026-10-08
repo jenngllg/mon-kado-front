@@ -11,6 +11,11 @@ const viewStyles = readStyleFile("../src/styles/views.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
+  it("keeps fixed moderation titles readable without arbitrary word breaks on narrow screens", () => {
+    const narrow = viewStyles.match(/@media \(max-width: 30rem\)\s*\{[\s\S]*?\.report-review-view > \.wishlist-details-header h1\s*\{([^}]+)\}/)?.[1];
+    expect(narrow).toContain("font-size: var(--font-size-xl)");
+    expect(narrow).toContain("overflow-wrap: normal");
+  });
   it("preserves flow spacing before email-change controls", () => {
     const controls = viewStyles.match(/\.email-change-view__controls\s*\{([^}]+)\}/)?.[1];
     expect(controls).toContain("margin-inline: 0");

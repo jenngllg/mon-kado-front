@@ -65,6 +65,15 @@ describe("moderation page", () => {
     const ui = setup(); await settle(); ui.draft(); ui.submit(); ui.confirm(); await settle(); expect(ui.update).toHaveBeenCalledExactlyOnceWith(wishlistId, { isSuspended: true, reason: "Motif" }, { etag: active.etag, signal: expect.any(AbortSignal) }); expect(ui.view.textContent).toContain("Liste suspendue"); expect(ui.reason.value).toBe("Motif"); expect(ui.button("Enregistrer le motif").disabled).toBe(true); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
     ui.draft("Nouveau"); ui.submit(); expect(ui.view.textContent).toContain("Modifier le motif privé ?"); ui.confirm(); await settle(); expect(ui.update).toHaveBeenLastCalledWith(wishlistId, { isSuspended: true, reason: "Nouveau" }, expect.objectContaining({ etag: suspended.etag })); expect(ui.view.textContent).toContain("Motif enregistré"); expect(ui.load).toHaveBeenCalledOnce();
   });
+  it("scopes suspended read-only copy to the owner without hiding administrator actions", async () => {
+    const ui = setup(suspended); await settle();
+    expect(ui.view.textContent).toContain("Le propriétaire peut uniquement consulter cette liste.");
+    expect(ui.view.textContent).not.toContain("Consultation uniquement");
+    expect(ui.reason.disabled).toBe(false);
+    expect(ui.button("Réactiver la liste").disabled).toBe(false);
+    ui.draft("Nouveau motif");
+    expect(ui.button("Enregistrer le motif").disabled).toBe(false);
+  });
   it("reactivates without sending the unsaved reason, and supports local reset", async () => {
     const ui = setup(suspended); await settle(); ui.draft("Brouillon"); ui.button("Annuler").click(); expect(ui.reason.value).toBe("Motif"); ui.draft("Autre"); ui.update.mockResolvedValue(active); ui.button("Réactiver la liste").click(); expect(ui.view.textContent).toContain("Aucun lien de partage ne sera créé"); ui.confirm(); await settle(); expect(ui.update).toHaveBeenCalledWith(wishlistId, { isSuspended: false, reason: null }, expect.objectContaining({ etag: suspended.etag })); expect(ui.view.textContent).toContain("Liste réactivée"); expect(ui.reason.value).toBe("");
   });
