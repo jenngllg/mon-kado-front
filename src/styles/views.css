@@ -777,6 +777,7 @@
 }
 
 .account-deletion-dialog,
+.wish-copy-dialog,
 .wishlist-delete-dialog,
 .wish-delete-dialog,
 .reservation-cancel-dialog,
@@ -800,6 +801,7 @@
 }
 
 .account-deletion-dialog::backdrop,
+.wish-copy-dialog::backdrop,
 .wishlist-delete-dialog::backdrop,
 .wish-delete-dialog::backdrop,
 .reservation-cancel-dialog::backdrop,
@@ -810,6 +812,7 @@
 }
 
 .account-deletion-dialog h2,
+.wish-copy-dialog h2,
 .wishlist-delete-dialog h2,
 .wish-delete-dialog h2 { font-size: var(--font-size-xl); }
 .reservation-cancel-dialog h2 { font-size: var(--font-size-xl); }

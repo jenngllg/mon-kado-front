@@ -8,21 +8,24 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishImage } from "../wishes/wishImage.js";
 import { createSharedWishQuantities } from "./sharedWishQuantities.js";
 import { createWishDetailInformation, createWishDetailProductLink, createWishDetailReservationStatus } from "../wishes/wishDetailPresentation.js";
+import { createWishCopyActions } from "./wishCopyActions.js";
 
 /** A fresh public detail, without participant information or owner actions.
- * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null, returnSort?: string | null,
+ * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, copy?: import("./wishCopyActions.js").WishCopyOperations, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null, returnSort?: string | null,
  * createReservation?: (onUnavailable: () => void, wish: import("./sharedWishlistService.js").SharedWishDetail, onSaved: (message?: string) => void, onBusy: (busy: boolean) => void, onUnrecognized: () => void, onVerified: (wish: import("./sharedWishlistService.js").SharedWishDetail) => void) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, accessSignal, createReservation, fromMemberId, returnSort }) {
+export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signal, accessSignal, createReservation, fromMemberId, returnSort }) {
   const view = element("section", ""); view.className = "shared-wish-view flow";
   const back = createBackLink({ label: "Retour à la liste", href: withWishSort(`/shared-wishlists/${shareLinkId}${memberOriginQuery(fromMemberId)}`, returnSort) });
   const title = element("h1", "Souhait partagé"); title.tabIndex = -1;
   const results = element("div", ""); results.className = "shared-wish-results flow";
   const notice = element("p", ""); notice.setAttribute("role", "status"); notice.hidden = true;
   view.append(back, title, notice, results);
-  let disposed = false, busy = false, terminal = false, mutationBusy = false;
+  let disposed = false, busy = false, terminal = false, mutationBusy = false, copying = false;
   const lifetime = new AbortController();
+  const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, onUnavailable: unavailable, onBusy: value => { copying = value; } }) : null;
+  if (copyActions) view.append(copyActions.element);
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); clear(); title.textContent = ""; notice.textContent = "";
   });
@@ -48,7 +51,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
 
   /** @param {boolean} explicit User-initiated reread. */
   async function read(explicit) {
-    if (disposed || busy || terminal || mutationBusy) return;
+    if (disposed || busy || terminal || mutationBusy || copying) return;
     busy = true; clear(); title.textContent = "Souhait partagé";
     results.setAttribute("aria-busy", "true"); results.append(createLoadingState({ label: "Chargement du souhait…" }));
     try {
@@ -62,9 +65,12 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
       let quantities = createSharedWishQuantities(wish);
       information.append(desired, quantities);
       const status = createWishDetailReservationStatus(wish); if (status) information.insertBefore(status, quantities);
+      const actions = element("div", ""); actions.className = "cluster";
+      if (copyActions) actions.append(copyActions.button(wish.id));
       if (wish.url) {
-        information.append(createWishDetailProductLink(wish.url, wish.name));
+        actions.append(createWishDetailProductLink(wish.url, wish.name));
       } else if (wish.productUnavailable) information.append(element("p", "Lien produit indisponible"));
+      if (actions.childElementCount) information.append(actions);
       layout.append(createWishImage(wish), information); results.append(layout);
       if (createReservation && wish.reservedQuantity !== null) information.append(createReservation(() => {
         if (disposed || terminal) return;
@@ -75,6 +81,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, signal, acc
         notice.textContent = message; notice.hidden = false; void read(true);
       }, value => {
         mutationBusy = value;
+        copyActions?.setBlocked(value);
         if (value) { notice.textContent = ""; notice.hidden = true; }
       }, () => {
         if (disposed || terminal) return;

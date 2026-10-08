@@ -56,7 +56,8 @@ for (const width of [390, 1440]) {
     expect(api.wish.isFavorite).toBe(true);
     await page.goto(`${sharedPath}#${secret}`);
     await expect(page.getByRole("img", { name: "Coup de cœur", exact: true })).toBeVisible();
-    await expect(page.locator(".wish-card button")).toHaveCount(0);
+    await expect(page.locator(".wish-card .wish-favorite-button")).toHaveCount(0);
+    await expect(page.locator(".wish-card .wish-gallery__copy")).toHaveCount(1);
     await page.locator(".wish-gallery__photo").click();
     await expect(page.getByRole("img", { name: "Coup de cœur", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("favorite-shared.png"), fullPage: true });

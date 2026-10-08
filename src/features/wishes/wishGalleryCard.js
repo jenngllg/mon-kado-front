@@ -11,10 +11,10 @@ const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency
 /** Creates a gallery tile with optional public reservation status and no implicit write access.
  * @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable" | "isFavorite"> & {wishlistId?: string}} item Safe wish projection.
  * @param {boolean} readOnly Archived or suspended list.
- * @param {{detailHref?: string, returnSort?: string, favoriteButton?: HTMLButtonElement, onDelete?: (trigger: HTMLButtonElement) => void, onImageError?: () => void, reordering?: boolean, reservationQuantities?: {reservedQuantity: number | null, availableQuantity: number | null}}} options Trusted detail destination, public quantities and optional owner commands.
+ * @param {{detailHref?: string, returnSort?: string, favoriteButton?: HTMLButtonElement, copyButton?: HTMLButtonElement, onDelete?: (trigger: HTMLButtonElement) => void, onImageError?: () => void, reordering?: boolean, reservationQuantities?: {reservedQuantity: number | null, availableQuantity: number | null}}} options Trusted detail destination, public quantities and optional owner commands.
  * @returns {HTMLLIElement} Disposable gallery tile.
  */
-export function createWishGalleryCard(item, readOnly, { detailHref, returnSort, favoriteButton, onDelete, onImageError, reordering = false, reservationQuantities }) {
+export function createWishGalleryCard(item, readOnly, { detailHref, returnSort, favoriteButton, copyButton, onDelete, onImageError, reordering = false, reservationQuantities }) {
   if (!reordering && !detailHref && !item.wishlistId) throw new TypeError("A wish detail destination is required.");
   const card = document.createElement("li");
   card.className = "wish-card wish-card--gallery";
@@ -69,6 +69,7 @@ export function createWishGalleryCard(item, readOnly, { detailHref, returnSort, 
     content.append(price);
   }
   card.append(photo, content);
+  if (!reordering && readOnly && copyButton) card.append(copyButton);
   if (!reordering && !readOnly && onDelete) {
     const remove = createButton({ label: "Supprimer", variant: "secondary", onClick: () => onDelete(remove) });
     remove.classList.add("wish-gallery__delete", "icon-action--danger");

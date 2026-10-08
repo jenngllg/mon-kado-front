@@ -13,6 +13,7 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishCollection>} LoadWishes */
 /** @typedef {Readonly<{wish: Wish, etag: string}>} CreatedWish */
 /** @typedef {(wishlistId: string, values: import("./wishValidation.js").WishValues, options: {signal: AbortSignal}) => Promise<CreatedWish>} CreateWish */
+/** @typedef {(wishlistId: string, sourceShareLinkId: string, sourceWishId: string, options: {shareToken: string, signal: AbortSignal}) => Promise<CreatedWish>} CopyWish */
 /** @typedef {Readonly<CreatedWish & {values: Readonly<import("./wishValidation.js").WishValues>}>} EditableWish */
 /** @typedef {(wishlistId: string, wishId: string, options: {signal: AbortSignal}) => Promise<EditableWish>} LoadWish */
 /** @typedef {(wishlistId: string, wishId: string, values: import("./wishValidation.js").WishValues, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} UpdateWish */
@@ -26,12 +27,20 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** Reads the complete private collection; grants and versions belong to the caller's view.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{apiBaseUrl: string}} options Trusted API configuration.
- * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish, setFavorite: SetWishFavorite, remove: RemoveWish, reorder: ReorderWishes, uploadImage: UploadWishImage, removeImage: RemoveWishImage}} Injectable owner operations.
+ * @returns {{load: LoadWishes, create: CreateWish, copy: CopyWish, loadOne: LoadWish, update: UpdateWish, setFavorite: SetWishFavorite, remove: RemoveWish, reorder: ReorderWishes, uploadImage: UploadWishImage, removeImage: RemoveWishImage}} Injectable owner operations.
  */
 export function createWishesService(session, { apiBaseUrl }) {
   const base = safeHttpUrl(apiBaseUrl);
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
-  return { setFavorite: async (wishlistId, wishId, isFavorite, { etag, signal }) => {
+  return { copy: async (wishlistId, sourceShareLinkId, sourceWishId, { shareToken, signal }) => {
+    if (![wishlistId, sourceShareLinkId, sourceWishId].every(isWishlistId)) throw new ApiError({ kind: "http", statusCode: 400 });
+    /** @type {import("../../api/generated/openapi.js").components["schemas"]["CopyWishRequest"]} */
+    const body = { sourceShareLinkId, sourceWishId };
+    const response = await session.request(`/api/v1/wishlists/${wishlistId}/wishes/copies`, {
+      method: "POST", authentication: "required", csrf: true, body, shareToken, signal,
+    });
+    return createdWish(response, wishlistId, base);
+  }, setFavorite: async (wishlistId, wishId, isFavorite, { etag, signal }) => {
     const path = itemPath(wishlistId, wishId);
     if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
     if (typeof isFavorite !== "boolean") throw new TypeError("A boolean favorite preference is required.");
@@ -111,6 +120,14 @@ export function createWishesService(session, { apiBaseUrl }) {
     if (!isWishlistId(wishlistId)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_NOT_FOUND" });
     const body = createWishPayload(values);
     const response = await session.request(`/api/v1/wishlists/${wishlistId}/wishes`, { method: "POST", authentication: "required", body, signal });
+    return createdWish(response, wishlistId, base);
+  } };
+}
+
+/** @param {Awaited<ReturnType<import("../../auth/sessionManager.js").SessionManager["request"]>>} response Creation response.
+ * @param {string} wishlistId Destination. @param {URL} base Trusted API. @returns {CreatedWish} Validated creation.
+ */
+function createdWish(response, wishlistId, base) {
     const data = /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["WishResponse"]> | null} */ (response.data);
     const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
     if (response.status !== 201 || !data || Array.isArray(data) || !isStrongEntityTag(response.metadata.etag)) throw invalid();
@@ -118,7 +135,6 @@ export function createWishesService(session, { apiBaseUrl }) {
     const quantity = typeof data.quantity === "string" && /^\d+$/.test(data.quantity) ? Number(data.quantity) : data.quantity;
     const wish = projectWish({ ...data, quantity, entityTag: response.metadata.etag }, wishlistId, base, invalid);
     return Object.freeze({ wish, etag: response.metadata.etag });
-  } };
 }
 
 /** @param {string} wishlistId Parent. @param {string} wishId Gift. @returns {string} Validated private path. */

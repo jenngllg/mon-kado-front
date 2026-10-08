@@ -17,6 +17,25 @@ function setup(data = { wishes: [wish] }, status = 200, etag = /** @type {string
 }
 
 describe("owned gift collection service", () => {
+  it("copies with authenticated transport, private bearer header and source identifiers only", async () => {
+    const service = setup({ ...wish, isFavorite: false }, 201, '"copied"');
+    const result = await service.copy(id, id, wishId, { shareToken: "private-secret", signal });
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes/copies`, {
+      method: "POST", authentication: "required", csrf: true, body: { sourceShareLinkId: id, sourceWishId: wishId }, shareToken: "private-secret", signal,
+    });
+    expect(result.wish.id).toBe(wishId); expect(result.wish.isFavorite).toBe(false); expect(result.etag).toBe('"copied"');
+    expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wish)).toBe(true);
+  });
+  it.each([0, 1, 2])("rejects invalid copy identifier at index %s before transport", async index => {
+    const service = setup(); const ids = [id, id, wishId]; ids[index] = "../private";
+    await expect(service.copy(ids[0], ids[1], ids[2], { shareToken: "private-secret", signal })).rejects.toMatchObject({ statusCode: 400 });
+    expect(service.request).not.toHaveBeenCalled();
+  });
+  it.each([200, 202, 204])("rejects copy HTTP %s without repeating the write", async status => {
+    const service = setup(wish, status);
+    await expect(service.copy(id, id, wishId, { shareToken: "private-secret", signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+    expect(service.request).toHaveBeenCalledTimes(1);
+  });
   it.each([[0, 2], [1, 1], [2, 0], [3, 0], [null, null]])("projects reservation quantities %s / %s without participant data", async (reservedQuantity, availableQuantity) => {
     // Arrange
     const service = setup({ wishes: [{ ...wish, reservedQuantity, availableQuantity }] });
