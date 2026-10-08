@@ -26,6 +26,7 @@ export const RouteNames = Object.freeze({
   ListDetails: "list-details",
   Reservations: "reservations",
   ReportedWishlists: "reported-wishlists",
+  WishlistReportReview: "wishlist-report-review",
   SharedWishlist: "shared-wishlist",
   SharedWish: "shared-wish",
 });
@@ -58,6 +59,7 @@ export const RoutePaths = Object.freeze({
   ListDetails: "/lists/:listId",
   Reservations: "/reservations",
   ReportedWishlists: "/admin/reported-wishlists",
+  WishlistReportReview: "/admin/reported-wishlists/:wishlistId/reports/:reportId",
   SharedWishlist: "/shared-wishlists/:shareLinkId",
   SharedWish: "/shared-wishlists/:shareLinkId/wishes/:wishId",
 });

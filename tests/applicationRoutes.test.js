@@ -35,6 +35,7 @@ const unusedSession = {
 /** @type {Array<[string, string]>} */
 const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
+  [RouteNames.WishlistReportReview, RoutePaths.WishlistReportReview],
   [RouteNames.ReportedWishlists, RoutePaths.ReportedWishlists],
   [RouteNames.Members, RoutePaths.Members],
   [RouteNames.MemberProfile, RoutePaths.MemberProfile],
@@ -66,6 +67,21 @@ const ExpectedRoutes = [
 ];
 
 describe("application routes", () => {
+  it("freshly reads the individual report for an admin, and removes it when leaving", async () => {
+    const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", reportId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
+    let reads = 0;
+    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false })),
+      request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (async (path, options) => {
+        reads++; expect(path).toBe(`/api/v1/admin/reported-wishlists/${wishlistId}/reports/${reportId}`); expect(options?.method).toBe("GET");
+        return { status: 200, data: { id: reportId, reason: "other", details: "Original", createdAt: "2026-10-07T12:00:00Z", status: "pending", reviewNote: "Private note", reviewedAt: null }, metadata: { etag: '"report-1"', correlationId: reportId, location: null, retryAfterSeconds: null } };
+      }) };
+    const route = createApplicationRoutes({ session, apiBaseUrl: "http://localhost:7000" }).find(route => route.name === RouteNames.WishlistReportReview);
+    if (!route) throw new Error("Missing review route.");
+    const context = { ...createRouteContext(`/admin/reported-wishlists/${wishlistId}/reports/${reportId}`), params: { wishlistId, reportId } };
+    const view = await route.render(context); for (let i = 0; i < 12; i++) await Promise.resolve();
+    expect(view.querySelector("textarea")?.value).toBe("Private note"); expect(route.beforeEnter).toBeTypeOf("function"); disposeComponent(view); expect(view.textContent).toBe("");
+    const next = await route.render(context); for (let i = 0; i < 12; i++) await Promise.resolve(); expect(reads).toBe(2); disposeComponent(next);
+  });
   it("renders member search publicly without restoring a session or reading the API", async () => {
     const route = getRoute(RouteNames.Members);
     expect(route.beforeEnter).toBeUndefined();

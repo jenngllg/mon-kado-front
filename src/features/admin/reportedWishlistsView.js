@@ -1,6 +1,6 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createAlert, createButton, createFormField, createLoadingState, disposeComponent } from "../../components/index.js";
+import { createActionLink, createAlert, createButton, createFormField, createLoadingState, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { ReportReasons } from "../sharing/wishlistReportValidation.js";
 import { ReportStatuses } from "./reportedWishlistsService.js";
@@ -89,12 +89,14 @@ export function createReportedWishlistsView({ load, loadReports, signal }) {
       if (disposed || terminal || requestSignal.aborted || region !== expanded) return;
       clear(region); const heading = node("h3", "Signalements"); heading.tabIndex = -1; region.append(heading);
       if (!data.items.length) region.append(node("p", data.totalCount ? "Cette page n’est plus disponible." : "Aucun signalement ne correspond à ces filtres."));
-      for (const report of data.items) {
+      for (const [index, report] of data.items.entries()) {
         const item = node("article", ""); item.className = "reported-wishlist-report flow";
         item.append(node("h4", ReportReasons[report.reason]), node("p", ReportStatuses[report.status]));
         const date = node("time", Dates.format(new Date(report.createdAt))); date.dateTime = report.createdAt; item.append(date);
         if (report.details !== null) { const details = node("p", report.details); details.className = "wishlist-details-note"; item.append(details); }
-        region.append(item);
+        const examine = createActionLink({ label: "Examiner", href: `/admin/reported-wishlists/${id}/reports/${report.id}` });
+        examine.setAttribute("aria-label", `Examiner le signalement ${(reportsPage - 1) * 20 + index + 1} : ${ReportReasons[report.reason]}`);
+        item.append(examine); region.append(item);
       }
       region.append(pagination(data, value => { reportsPage = value; void readReports(true); }));
       announcement.textContent = `${data.items.length} signalement${data.items.length > 1 ? "s" : ""} affiché${data.items.length > 1 ? "s" : ""}.`;

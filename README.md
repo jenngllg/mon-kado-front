@@ -2189,6 +2189,29 @@ entrée et permet de recharger explicitement les résultats. Un changement de
 compte, de rôle ou de session nettoie les lectures et ignore les réponses tardives.
 Les erreurs techniques restent locales, avec récupération explicite sans rejeu.
 
+### Examiner et rouvrir un signalement (#957)
+
+Depuis la file, « Examiner » ouvre
+`/admin/reported-wishlists/:wishlistId/reports/:reportId`. Cette page admin relit
+le signalement et son ETag individuel ; elle présente uniquement le motif, les
+précisions originales et la dernière décision (statut, note privée, date).
+Aucune identité de déclarant ou d’administrateur, aucun souhait ni historique
+complet n’est chargé. Le retour à la file effectue une lecture fraîche.
+
+Les décisions possibles sont « En attente », « Retenu » et « Classé sans suite ».
+Traiter ne suspend pas la liste. Revenir à « En attente » rouvre le signalement,
+sans effacer sa note. Effacer explicitement la note puis enregistrer la supprime.
+La note accepte 1 000 caractères Unicode après nettoyage des extrémités, sans
+normalisation ni troncature ; retours à la ligne et tabulations sont autorisés.
+
+Un conflit ou résultat incertain conserve exactement la saisie et impose une
+relecture. La comparaison permet ensuite d’enregistrer explicitement les deux
+informations avec le nouvel ETag ou d’adopter la version enregistrée, sans fusion
+ni rejeu automatique. Après succès, la version reçue devient la référence et la
+page reste ouverte. Quitter abandonne le brouillon ; cela ne garantit pas
+l’annulation d’un PUT déjà reçu par le serveur. Un refus admin, une disparition
+ou un changement de compte retire les données et invalide les réponses tardives.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US

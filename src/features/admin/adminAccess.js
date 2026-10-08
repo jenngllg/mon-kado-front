@@ -14,6 +14,15 @@ import { createModerationAccessDeniedView } from "./moderationAccessView.js";
  * @returns {HTMLElement} Identity-owned view.
  */
 export function createAdminReportedWishlistsView(session, options) {
+  return createAdminView(session, { createView: () => createReportedWishlistsView(options), signal: options.signal });
+}
+
+/** Own private administration content by the current stable account.
+ * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "getSnapshot" | "subscribe">} session Identity lifetime.
+ * @param {{createView: () => HTMLElement, signal?: AbortSignal}} options Content factory.
+ * @returns {HTMLElement} Identity-owned host.
+ */
+export function createAdminView(session, options) {
   const host = document.createElement("section");
   let disposed = false, key = "initial";
   /** @type {HTMLElement | null} */ let child = null;
@@ -26,7 +35,7 @@ export function createAdminReportedWishlistsView(session, options) {
     const restoreFocus = host.contains(document.activeElement);
     key = next; if (child) disposeComponent(child); host.replaceChildren();
     if (resolving) child = createLoadingState({ label: "Vérification de la session…" });
-    else if (next) child = createReportedWishlistsView(options);
+    else if (next) child = options.createView();
     else child = createModerationAccessDeniedView();
     host.append(child);
     if (restoreFocus) {

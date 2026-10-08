@@ -12,14 +12,21 @@ export const ReportReasons = Object.freeze({
 export const ReportDetailsMessage = "Indique au maximum 1 000 caractères, sans caractères de contrôle autres que les retours à la ligne et tabulations.";
 export const ReportTooLargeMessage = "Ces précisions sont trop volumineuses. Raccourcis-les avant de réessayer.";
 
-/** Matches the backend's raw Unicode checks before trimming and NFC normalization.
+/** Checks raw Unicode and controls before trimming, without normalization.
+ * @param {string} value Original text. @returns {string | null} Local error.
+ */
+export function validateReportText(value) {
+  return /\p{Cs}/u.test(value) || [...value.trim()].length > 1000 || [...value].some(character => /\p{Cc}/u.test(character) && !["\r", "\n", "\t"].includes(character)) ? ReportDetailsMessage : null;
+}
+
+/** Matches the backend's raw Unicode checks before trimming.
  * @param {ReportValues} values Raw input. @returns {{reason: string | null, details: string | null}} Local errors.
  */
 export function validateReport(values) {
   const reason = Object.hasOwn(ReportReasons, values.reason) ? null : "Choisis un motif de signalement.";
   const clean = values.details.trim();
   let details = null;
-  if (/\p{Cs}/u.test(values.details) || [...clean].length > 1000 || [...values.details].some(character => /\p{Cc}/u.test(character) && !["\r", "\n", "\t"].includes(character))) details = ReportDetailsMessage;
+  if (validateReportText(values.details)) details = ReportDetailsMessage;
   else if (values.reason === "other" && clean === "") details = "Précise pourquoi tu signales cette liste.";
   return { reason, details };
 }
