@@ -37,6 +37,8 @@ Priority: explicit user decisions, original mockups, then this charter and share
 
 ## Lists and wishes
 
+- Active owner lists and wish details also offer “Ajouter à une autre liste”, using the same round copy action and destination modal without creating a share link. Exclude the source list and archived/suspended destinations on initial eligibility and each modal read. Hide the action when no other eligible list exists. Owner cards keep the heart at the right and trash immediately to its left; place the new copy icon to the trash's left, hover/focus on desktop and persistent on touch. Copy independently and retain the original, without copying favorites or reservations.
+
 - Shared wishes can be copied by authenticated members with at least one active, non-suspended owned list. Offer a round copy icon on reading cards (hover/focus on desktop, persistent on touch) and “Ajouter à mes listes” on shared wish details. Both open one native destination-picker modal, refreshing eligible lists on opening and requiring explicit Add. Copy name, note, product URL, price, quantity and an independently owned image; never copy favorites or reservations. Hide the action for visitors and members without eligible lists. Keep the shared screen after success with a concise status and destination link; do not replay uncertain writes or change the sign-in destination.
 
 - Call list entries **souhaits**, not **cadeaux**. Gift-related marketing text may retain cadeaux.

@@ -69,7 +69,7 @@ describe("owned wishlists session integration", () => {
       else { await until(app.shell.outlet, () => app.shell.outlet.querySelector("h1")?.textContent === item.name); expect(app.shell.outlet.querySelector(".wishlist-details-view")).not.toBeNull(); }
       await app.router.navigate("/lists"); await until(app.shell.outlet, () => app.shell.outlet.querySelector("li") !== null);
     }
-    expect(app.state.reads).toBe(3);
+    expect(app.state.reads).toBe(4);
   });
   it("keeps a read outage local without changing the authenticated session", async () => {
     // Arrange

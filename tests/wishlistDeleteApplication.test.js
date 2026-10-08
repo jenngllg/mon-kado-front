@@ -75,11 +75,11 @@ describe("wishlist deletion integration", () => {
     await app.start(); await loaded(app); const length = window.history.length;
     expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes"); expect(app.shell.outlet.querySelector("dialog")?.open).toBe(true);
     expect(app.state.deletes).toBe(0); app.confirm(); await entered.promise;
-    expect(window.location.pathname).toBe(path); expect(app.state.exists).toBe(true); expect(app.state.collections).toBe(0); expect(app.shell.notificationRegion.children).toHaveLength(0);
+    expect(window.location.pathname).toBe(path); expect(app.state.exists).toBe(true); expect(app.state.collections).toBe(1); expect(app.shell.notificationRegion.children).toHaveLength(0);
     gate.resolve(); await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Liste supprimée") === true);
     await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Tu n’as pas encore de liste") === true);
     expect(window.location.pathname).toBe("/lists"); expect(window.history.length).toBe(length); expect(document.activeElement).toBe(app.shell.outlet);
-    expect(app.tags).toEqual(['"v1"']); expect(app.state.deletes).toBe(1); expect(app.state.collections).toBe(1); expect(app.shell.notificationRegion.children).toHaveLength(1);
+    expect(app.tags).toEqual(['"v1"']); expect(app.state.deletes).toBe(1); expect(app.state.collections).toBe(2); expect(app.shell.notificationRegion.children).toHaveLength(1);
   });
   it("requires re-reading a concurrently changed list and explicitly confirming its new version", async () => {
     const app = setup(); await app.start(); await loaded(app); app.state.version = 2; app.state.name = "Version concurrente"; app.confirm();

@@ -14,6 +14,7 @@ function setup() {
     if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}`) return Response.json(item, { headers: { ETag: '"created"' } });
     if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}/wishes`) return Response.json({ wishes: [] }, { headers: { ETag: '"collection"' } });
     if (new URL(String(input)).pathname === "/api/v1/wishlists") {
+      if (init?.method === "GET") return Response.json([item]);
       state.writes++; expect(init?.method).toBe("POST");
       const headers = new Headers(init?.headers);
       expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("Content-Type")).toBe("application/json");

@@ -30,6 +30,23 @@ function command(text) { const found = [...modal().querySelectorAll("button")].f
 function submit() { modal().querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); }
 
 describe("shared wish copies", () => {
+  it("excludes the owned source list on eligibility and fresh modal reads", async () => {
+    const ui = setup({ excludeWishlistId: wishId, actionLabel: "Ajouter à une autre liste", loadLists: async () => [list, { ...list, id: wishId, name: "Source" }] });
+    await settle(); expect(ui.trigger.hidden).toBe(false); ui.trigger.click(); await settle();
+    expect(modal().textContent).toContain("Ajouter à une autre liste");
+    expect([...modal().querySelectorAll("option")].map(item => item.value)).toEqual(["", listId]);
+    submit(); await settle(); expect(ui.copy).toHaveBeenCalledWith(listId, wishId, { signal: expect.any(AbortSignal) });
+  });
+  it("hides owned copy when the only writable list is the source", async () => {
+    const ui = setup({ excludeWishlistId: listId });
+    await settle(); expect(ui.trigger.hidden).toBe(true); ui.trigger.click(); expect(globalThis.document.querySelector("dialog")).toBeNull();
+    expect(ui.copy).not.toHaveBeenCalled();
+  });
+  it("does not retain the source as a destination after other lists become unavailable", async () => {
+    const loadLists = vi.fn().mockResolvedValueOnce([list, { ...list, id: wishId }]).mockResolvedValueOnce([list]);
+    const ui = setup({ excludeWishlistId: listId, loadLists }); await settle(); ui.trigger.click(); await settle();
+    expect(modal().textContent).toContain("Aucune liste disponible."); submit(); expect(ui.copy).not.toHaveBeenCalled();
+  });
   it.each([{ lists: [] }, { lists: [{ ...list, isArchived: true }] }, { lists: [{ ...list, isSuspended: true }] }])("hides actions without writable lists %j", async ({ lists }) => {
     const ui = setup({ loadLists: async () => lists });
     expect(ui.trigger.hidden).toBe(true);

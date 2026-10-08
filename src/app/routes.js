@@ -109,6 +109,13 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         createWishesService(session, { apiBaseUrl }).copy(wishlistId, shareLinkId, wishId, { shareToken, signal: AbortSignal.any([signal, contextSignal]) })),
     };
   }
+  /** @param {string} sourceWishlistId Owned source. @returns {import("../features/sharing/wishCopyActions.js").WishCopyOperations} No sharing required. */
+  function ownedCopyOperations(sourceWishlistId) {
+    return {
+      loadLists: createWishlistsService(session).load,
+      copy: (destinationWishlistId, wishId, options) => createWishesService(session, { apiBaseUrl }).copyOwned(sourceWishlistId, wishId, destinationWishlistId, options),
+    };
+  }
   const memberSearchState = { query: "", page: 1 };
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
@@ -282,6 +289,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.WishDetails, path: RoutePaths.WishDetails, title: "Détail du souhait · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishDetailsView({ ...createWishesService(session, { apiBaseUrl }), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
+          copy: ownedCopyOperations(context.params.listId),
           loadWishlist: createWishlistsService(session).loadOne, onDeleted: () => onWishDeleted(context),
           signal: context.signal, returnSort: context.searchParams.get("sort") }),
     },
@@ -289,6 +297,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.ListDetails, path: RoutePaths.ListDetails, title: "Détail de la liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: withResourcePageTitle(createWishlistsService(session).loadOne, context, result => result.wishlist.name),
+          copy: ownedCopyOperations(context.params.listId),
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           setArchived: createWishlistsService(session).setArchived,
           removeWishlist: createWishlistsService(session).remove, onWishlistDeleted: () => onWishlistDeleted(context),
