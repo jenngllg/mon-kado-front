@@ -167,13 +167,27 @@ describe("application routes", () => {
 
     // Assert
     expect(view.querySelector("h1")?.textContent).toBe(
-      "Les cadeaux qui font vraiment plaisir.",
+      "Petites envies, grandes occasions.",
     );
-    expect(view.textContent).toContain("Bienvenue sur MonKado");
+    expect(view.querySelector(".view-eyebrow")).toBeNull();
+    expect([...view.querySelectorAll("figcaption")].map((caption) => caption.textContent))
+      .toEqual(["Anniversaire", "Noël", "Mariage", "Naissance"]);
+    expect(view.querySelectorAll("img")).toHaveLength(4);
+    for (const image of view.querySelectorAll("img")) {
+      expect(image.alt).toBe("");
+      expect(image.width).toBe(800);
+      expect(image.height).toBe(1000);
+      expect(image.src).toContain(".webp");
+      expect(image.closest("a, button")).toBeNull();
+    }
     expect(view.querySelector('a[href="/register"]')?.textContent)
       .toBe("Créer un compte");
     expect(view.querySelector('a[href="/login"]')?.textContent)
       .toBe("Se connecter");
+    expect(view.querySelector('a[href="/register"]')?.classList.contains("ui-button--primary"))
+      .toBe(true);
+    expect(view.querySelector('a[href="/login"]')?.classList.contains("ui-button--secondary"))
+      .toBe(true);
     expect(view.querySelector("form")).toBeNull();
   });
 

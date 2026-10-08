@@ -91,6 +91,8 @@ Priority: explicit user decisions, original mockups, then this charter and share
 
 ## Remaining routes and future screens
 
+- Home uses the user-selected centered “Petites envies, grandes occasions.” headline, short subtitle and existing session-aware actions. Omit the occasion eyebrow and former botanical promise panel. Show the four bundled birthday, Christmas, wedding and birth covers with captions, identical aligned 4:5 dimensions, four columns on desktop and two on narrow screens. These decorative figures are not navigation controls.
+
 - `src/styles/site-theme.css` extends the original mockup theme to authentication, account settings, reservations, shared browsing and the home page. Reuse these view families for future routes instead of introducing another card treatment.
 - Authentication and account forms sit on the ivory page, without an enclosing shadow or coral top border. Keep a readable form width and the same field/button components as list creation (mockup 07).
 - Account settings use the selected centered frame and open navigation described above. Content height follows the form, without a tall empty minimum-height panel. Account categories use a straight coral marker; main-menu destinations use only a subtle active background, never an underline.

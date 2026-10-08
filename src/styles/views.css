@@ -14,22 +14,27 @@
 }
 
 .home-hero__content {
-  --flow-space: var(--space-5);
+  --flow-space: var(--space-4);
+  text-align: center;
 }
 
 .home-hero h1 {
-  max-width: 13ch;
-  font-size: var(--font-size-display);
+  max-width: none;
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
   line-height: var(--line-height-tight);
+  text-wrap: balance;
 }
 
 .home-hero__description {
+  margin-inline: auto;
   color: var(--color-text-muted);
   font-size: var(--font-size-lg);
 }
 
 .home-hero__actions {
   --cluster-space: var(--space-3);
+  justify-content: center;
+  padding-block-start: var(--space-2);
 }
 
 .home-hero__primary-action,
@@ -56,23 +61,27 @@
   background: var(--color-surface);
 }
 
-.home-hero__statement {
-  --flow-space: var(--space-3);
-
-  padding: clamp(var(--space-6), 7vw, var(--space-8));
-  padding-inline: min(7vw, var(--space-8));
-  border-radius: var(--radius-xl);
-  background: var(--color-surface-sage);
-  box-shadow: var(--shadow-md);
+.home-hero__occasions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
 }
 
-.home-hero__statement-title {
-  font-size: var(--font-size-2xl);
+.home-hero__occasion { min-width: 0; text-align: center; }
+.home-hero__occasion img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+}
+.home-hero__occasion figcaption {
+  margin-block-start: var(--space-3);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
-  line-height: var(--line-height-heading);
 }
 
-.home-hero__statement p:last-child,
 .placeholder-view__description {
   color: var(--color-text-muted);
 }
@@ -943,11 +952,8 @@
 @media (min-width: 64rem) {
   .wishlists-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
-@media (min-width: 48rem) {
-  .home-hero {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
-    gap: var(--space-8);
-  }
+@media (min-width: 64rem) {
+  .home-hero__occasions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .wish-favorite-indicator.icon-action {
   display: inline-flex;
