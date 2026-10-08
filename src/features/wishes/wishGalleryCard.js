@@ -69,7 +69,10 @@ export function createWishGalleryCard(item, readOnly, { detailHref, returnSort, 
     content.append(price);
   }
   card.append(photo, content);
-  if (!reordering && readOnly && copyButton) card.append(copyButton);
+  if (!reordering && copyButton) {
+    if (!readOnly) copyButton.classList.add("wish-gallery__copy--owner");
+    card.append(copyButton);
+  }
   if (!reordering && !readOnly && onDelete) {
     const remove = createButton({ label: "Supprimer", variant: "secondary", onClick: () => onDelete(remove) });
     remove.classList.add("wish-gallery__delete", "icon-action--danger");

@@ -12,14 +12,16 @@ import { createWishFavoriteIndicator } from "./wishFavoriteIndicator.js";
 import { createSharedWishQuantities } from "../sharing/sharedWishQuantities.js";
 import { createWishFavoriteButton } from "./wishFavoriteButton.js";
 import { createWishDetailInformation, createWishDetailProductLink, createWishDetailReservationStatus } from "./wishDetailPresentation.js";
+import { createWishCopyActions } from "../sharing/wishCopyActions.js";
 
 /** Owner detail with independently confirmed actions. Quantities remain projected by the API.
  * @param {{wishlistId: string, wishId: string, loadOne: import("./wishesService.js").LoadWish,
  * loadWishlist?: import("../wishlists/wishlistsService.js").LoadWishlist, remove?: import("./wishesService.js").RemoveWish, setFavorite?: import("./wishesService.js").SetWishFavorite,
+ * copy?: import("../sharing/wishCopyActions.js").WishCopyOperations,
  * onDeleted?: () => void | Promise<void>, signal?: AbortSignal, returnSort?: string | null}} options Dependencies.
  * @returns {HTMLElement} Disposable detail with fresh reads on return.
  */
-export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlist, remove, setFavorite, onDeleted = () => {}, signal, returnSort }) {
+export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlist, remove, setFavorite, copy, onDeleted = () => {}, signal, returnSort }) {
   const view = document.createElement("section"); view.className = "shared-wish-view wish-owner-detail flow";
   const back = createBackLink({ label: "Retour à la liste", href: withWishSort(`/lists/${wishlistId}`, returnSort) });
   const content = document.createElement("div"); content.className = "flow";
@@ -30,6 +32,10 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
   let mutationBusy = false;
   let request = new AbortController();
   const lifetime = new AbortController();
+  let copying = false;
+  const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, excludeWishlistId: wishlistId,
+    actionLabel: "Ajouter à une autre liste", onUnavailable: () => { void read(); }, onBusy: value => { copying = value; } }) : null;
+  if (copyActions) view.append(copyActions.element);
   /** @type {HTMLDialogElement | null} */ let deletionDialog = null;
   registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); request.abort(); disposeComponent(content); content.replaceChildren(); disposeComponent(commandHost); commandHost.replaceChildren(); });
   if (signal) {
@@ -42,7 +48,7 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
   return view;
 
   async function read() {
-    if (disposed || deletionDialog || mutationBusy) return;
+    if (disposed || deletionDialog || mutationBusy || copying) return;
     request.abort(); request = new AbortController();
     const active = request;
     disposeComponent(commandHost); commandHost.replaceChildren();
@@ -68,6 +74,11 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
         information.append(createWishDetailProductLink(wish.url, wish.name));
       }
       if (editable) {
+        if (copyActions) {
+          const copyButton = copyActions.button(wishId);
+          applyActionIcon(copyButton, "copy", "Ajouter à une autre liste"); actions.append(copyButton);
+          copyActions.setBlocked(false);
+        }
         const edit = createActionLink({ label: "Modifier", href: withWishSort(RoutePaths.EditWish.replace(":listId", wishlistId).replace(":wishId", wishId), returnSort) });
         applyActionIcon(edit, "edit", "Modifier ce souhait");
         addComponentEventListener(edit, edit, "click", event => { if (mutationBusy) event.preventDefault(); });
@@ -79,6 +90,7 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
           return loadOne(listId, id, options);
         }, setFavorite, signal: active.signal, onBusy: value => {
           mutationBusy = value;
+          copyActions?.setBlocked(value);
           edit.setAttribute("aria-disabled", String(value));
           commandHost.querySelectorAll("button").forEach(button => { button.disabled = value; });
         },
@@ -108,13 +120,14 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
 
   /** @param {HTMLButtonElement} trigger Return focus target. */
   function openDelete(trigger) {
-    if (disposed || deletionDialog || !loadWishlist || !remove) return;
+    if (disposed || deletionDialog || mutationBusy || copying || !loadWishlist || !remove) return;
     const modal = createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadOne, remove, signal: lifetime.signal,
       onDeleted: async () => { await onDeleted(); if (!disposed) { modal.close(); void read(); } },
       onUnavailable: () => {},
     });
     deletionDialog = modal;
-    modal.addEventListener("close", () => { deletionDialog = null; if (!disposed && trigger.isConnected) trigger.focus(); }, { once: true, signal: lifetime.signal });
+    copyActions?.setBlocked(true);
+    modal.addEventListener("close", () => { deletionDialog = null; copyActions?.setBlocked(false); if (!disposed && trigger.isConnected) trigger.focus(); }, { once: true, signal: lifetime.signal });
     view.append(modal); modal.showModal();
   }
 }

@@ -237,7 +237,8 @@ for (const selector of [".wish-gallery__photo", "h3 a"]) {
     await expect(product).toHaveAttribute("target", "_blank");
     await expect(actions.getByRole("link", { name: /Voir le produit/ })).toHaveCount(0);
     await expect(actions.getByRole("button", { name: /coup de cœur/ })).toBeVisible();
-    await expect(actions.locator(".icon-action")).toHaveCount(3);
+    await expect(actions.locator(".icon-action:visible")).toHaveCount(3);
+    await expect(actions.getByRole("button", { name: "Ajouter à une autre liste", exact: true })).toBeHidden();
     const remove = actions.getByRole("button", { name: "Supprimer", exact: true });
     await expect(remove).toHaveCSS("border-radius", "50%");
     await expect(remove).toHaveCSS("width", "44px");

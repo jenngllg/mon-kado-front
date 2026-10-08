@@ -17,6 +17,19 @@ function setup(data = { wishes: [wish] }, status = 200, etag = /** @type {string
 }
 
 describe("owned gift collection service", () => {
+  it("copies an owned wish with CSRF and no share secret", async () => {
+    const service = setup({ ...wish, isFavorite: false }, 201, '"copied"');
+    const result = await service.copyOwned(wishId, id, id, { signal });
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${wishId}/wishes/${id}/copies`, {
+      method: "POST", authentication: "required", csrf: true, body: { destinationWishlistId: id }, signal,
+    });
+    expect(result.wish.wishlistId).toBe(id);
+  });
+  it.each(["../private", id])("rejects invalid or identical owned-copy destination %s", async destination => {
+    const service = setup();
+    await expect(service.copyOwned(id, wishId, destination, { signal })).rejects.toMatchObject({ statusCode: 400 });
+    expect(service.request).not.toHaveBeenCalled();
+  });
   it("copies with authenticated transport, private bearer header and source identifiers only", async () => {
     const service = setup({ ...wish, isFavorite: false }, 201, '"copied"');
     const result = await service.copy(id, id, wishId, { shareToken: "private-secret", signal });

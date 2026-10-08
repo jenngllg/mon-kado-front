@@ -18,6 +18,7 @@ import { applyActionIcon } from "../../components/actionIcon.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId } from "./wishlistValidation.js";
 import { createWishlistArchiveButton } from "./wishlistArchiveButton.js";
+import { createWishCopyActions } from "../sharing/wishCopyActions.js";
 
 /** Mounts owner-only list details and independently refreshable gifts.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
@@ -25,12 +26,13 @@ import { createWishlistArchiveButton } from "./wishlistArchiveButton.js";
  * setArchived?: import("./wishlistsService.js").SetArchivedWishlist,
  * removeWishlist?: import("./wishlistsService.js").RemoveWishlist, onWishlistDeleted?: () => void | Promise<void>,
  * favorite?: {loadOne: import("../wishes/wishesService.js").LoadWish, setFavorite: import("../wishes/wishesService.js").SetWishFavorite},
+ * copy?: import("../sharing/wishCopyActions.js").WishCopyOperations,
  * loadWishes: import("../wishes/wishesService.js").LoadWishes, reorder?: import("../wishes/wishesService.js").ReorderWishes,
  * deletion?: {loadOne: import("../wishes/wishesService.js").LoadWish, remove: import("../wishes/wishesService.js").RemoveWish}, onDeleted?: () => void | Promise<void>,
  * share?: {load: import("./wishlistShareService.js").LoadWishlistShare, create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, copyText: (text: string) => Promise<void>, onRevoked?: () => void}, signal?: AbortSignal}} options View dependencies.
  * @returns {HTMLElement} Routed component, with explicit disposal.
  */
-export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, removeWishlist, onWishlistDeleted = () => {}, favorite, loadWishes, reorder, share, deletion, signal, initialSort, onSortChange = () => {}, onDeleted = () => {} }) {
+export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, removeWishlist, onWishlistDeleted = () => {}, favorite, copy, loadWishes, reorder, share, deletion, signal, initialSort, onSortChange = () => {}, onDeleted = () => {} }) {
   const view = element("section", ""); view.className = "wishlist-details-view wishlist-details-view--owner wishlist-details-view--gallery wishlist-details-view--banner flow";
   const back = createBackLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
@@ -59,6 +61,10 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
   giftActions.append(sorting.element, retryImages); giftToolbar.append(heading, giftActions);
   gifts.append(giftToolbar, results, reorderHost); layout.append(information, gifts); view.append(header, notice, layout);
   const lifetime = new AbortController();
+  let copying = false;
+  const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, excludeWishlistId: wishlistId,
+    actionLabel: "Ajouter à une autre liste", onUnavailable: notFound, onBusy: value => { copying = value; updateSorting(); } }) : null;
+  if (copyActions) view.append(copyActions.element);
   /** @type {AbortController | null} */ let giftRead = null;
   /** @type {HTMLDialogElement | null} */ let deletionDialog = null;
   /** @type {HTMLDialogElement | null} */ let shareDialog = null;
@@ -75,7 +81,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
     if (signal.aborted) disposeComponent(view);
   }
   if (!disposed) void readList(false);
-  if (!disposed) refreshOnReturn(view, () => { if (!deletionDialog && !shareDialog) void readGifts(false); });
+  if (!disposed) refreshOnReturn(view, () => { if (!deletionDialog && !shareDialog && !copying) void readGifts(false); });
   return view;
 
   function closeShare() {
@@ -84,7 +90,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
   }
   /** @param {HTMLButtonElement} trigger Focus return target. */
   function deleteList(trigger) {
-    if (!removeWishlist || !list || deletionDialog || shareDialog || disposed || busy || favoritePending || terminal || reordering || list.wishlist.isSuspended) return;
+    if (!removeWishlist || !list || deletionDialog || shareDialog || disposed || busy || favoritePending || terminal || reordering || copying || list.wishlist.isSuspended) return;
     const modal = createWishlistDeleteDialog({ wishlistId, loadOne, remove: removeWishlist, onDeleted: onWishlistDeleted, signal: lifetime.signal });
     deletionDialog = modal;
     modal.addEventListener("close", () => {
@@ -95,7 +101,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
   }
   /** @param {HTMLButtonElement} trigger Explicit owner command. */
   function openShare(trigger) {
-    if (!share || !list || shareDialog || deletionDialog || disposed || terminal || reordering || favoritePending || list.wishlist.isSuspended || list.wishlist.isArchived) return;
+    if (!share || !list || shareDialog || deletionDialog || disposed || terminal || reordering || copying || favoritePending || list.wishlist.isSuspended || list.wishlist.isArchived) return;
     shareDialog = createWishlistShareDialog({ ...share, wishlistId, wishlistName: list.wishlist.name, signal: lifetime.signal, onUnavailable: shareUnavailable,
       onClose: () => { shareDialog = null; if (!disposed && trigger.isConnected) trigger.focus(); },
     });
@@ -104,7 +110,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
 
   /** @param {string} wishId Selected wish. @param {HTMLButtonElement} trigger Focus return target. */
   function deleteWish(wishId, trigger) {
-    if (!deletion || deletionDialog || disposed || busy || favoritePending || terminal || reordering || (list?.wishlist.isSuspended || list?.wishlist.isArchived)) return;
+    if (!deletion || deletionDialog || disposed || busy || favoritePending || terminal || reordering || copying || (list?.wishlist.isSuspended || list?.wishlist.isArchived)) return;
     const modal = createWishDeleteDialog({ wishlistId, wishId, loadWishlist: loadOne, ...deletion, signal: lifetime.signal,
       onUnavailable: state => {
         if (disposed) return;
@@ -131,7 +137,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
   }
 
   function enterReorder() {
-    if (!reorder || disposed || busy || favoritePending || terminal || reordering || !list || list.wishlist.isSuspended || list.wishlist.isArchived || sorting.value() !== "listOrder" || !collection || collection.wishes.length < 2) return;
+    if (!reorder || disposed || busy || favoritePending || terminal || reordering || copying || !list || list.wishlist.isSuspended || list.wishlist.isArchived || sorting.value() !== "listOrder" || !collection || collection.wishes.length < 2) return;
     reordering = true; header.hidden = true; organize.hidden = true; retryImages.hidden = true; updateSorting(); clear(notice); notice.hidden = true;
     clear(results); results.hidden = true; renderList(); reorderHost.hidden = false;
     reorderHost.append(createWishesReorderView({ wishlistId, loadWishlist: loadOne, loadWishes, reorder, signal: lifetime.signal,
@@ -145,7 +151,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
   }
   /** @param {boolean} explicit Retry initiated by the owner. */
   async function readList(explicit) {
-    if (disposed || busy || favoritePending || terminal || reordering) return;
+    if (disposed || busy || favoritePending || terminal || reordering || copying) return;
     if (!isWishlistId(wishlistId)) { notFound(); return; }
     busy = true; sorting.select.disabled = true; information.setAttribute("aria-busy", "true"); clear(actions); clear(listContent);
     listContent.append(createLoadingState({ label: "Chargement de ta liste…" }));
@@ -213,7 +219,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
   }
   /** @param {boolean} explicit Explicit retry or refresh. */
   async function readGifts(explicit) {
-    if (disposed || busy || favoritePending || terminal || reordering || !listLoaded) return;
+    if (disposed || busy || favoritePending || terminal || reordering || copying || !listLoaded) return;
     busy = true; collection = null; organize.hidden = true; retryImages.hidden = true; gifts.hidden = false; sorting.select.disabled = true;
     results.setAttribute("aria-busy", "true"); clear(results);
     results.append(createLoadingState({ label: "Chargement de tes souhaits…" }));
@@ -232,9 +238,10 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
     } finally { if (giftRead === operation) { giftRead = null; busy = false; if (!disposed) { results.setAttribute("aria-busy", "false"); updateSorting(); } } }
   }
   function updateSorting() {
+    copyActions?.setBlocked(busy || favoritePending > 0 || terminal || reordering || !!deletionDialog || !!shareDialog || !listLoaded || list?.wishlist.isArchived === true || list?.wishlist.isSuspended === true);
     giftToolbar.hidden = reordering;
     if (!collection) { sorting.select.disabled = true; return; }
-    sorting.update({ allowAvailability: list?.wishlist.surpriseMode !== true && hasVisibleAvailability(collection.wishes), disabled: busy || favoritePending > 0 || reordering || terminal || !!deletionDialog });
+    sorting.update({ allowAvailability: list?.wishlist.surpriseMode !== true && hasVisibleAvailability(collection.wishes), disabled: busy || favoritePending > 0 || reordering || terminal || !!deletionDialog || copying });
   }
   function renderGifts() {
       if (!collection || disposed) return;
@@ -244,6 +251,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
         const cards = element("ul", ""); cards.className = "wish-grid wish-grid--gallery"; cards.setAttribute("role", "list");
         for (const item of sortWishes(collection.wishes, sorting.value())) cards.append(createWishGalleryCard(item, list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true, {
           returnSort: sorting.value(),
+          copyButton: copyActions && !list?.wishlist.isSuspended && !list?.wishlist.isArchived ? copyActions.button(item.id, true) : undefined,
           onImageError: () => { if (!disposed && !terminal && !reordering) retryImages.hidden = false; },
           favoriteButton: favorite && !list?.wishlist.isSuspended && !list?.wishlist.isArchived ? createWishFavoriteButton({ wish: item, ...favorite, signal: lifetime.signal,
             onBusy: pending => { favoritePending += pending ? 1 : -1; organize.disabled = favoritePending > 0; updateSorting(); },

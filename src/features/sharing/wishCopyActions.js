@@ -7,10 +7,10 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 /** @typedef {{loadLists: import("../wishlists/wishlistsService.js").LoadWishlists,
  * copy: (wishlistId: string, wishId: string, options: {signal: AbortSignal}) => Promise<import("../wishes/wishesService.js").CreatedWish>}} WishCopyOperations */
 
-/** Owns one eligible-list read per shared screen and the common explicit-copy dialog.
- * @param {WishCopyOperations & {signal: AbortSignal, onUnavailable: () => void, onBusy?: (busy: boolean) => void}} options Private operations.
+/** Owns one eligible-list read per screen and the common explicit-copy dialog.
+ * @param {WishCopyOperations & {signal: AbortSignal, onUnavailable: () => void, onBusy?: (busy: boolean) => void, excludeWishlistId?: string, actionLabel?: string}} options Private operations.
  */
-export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, onBusy = () => {} }) {
+export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, onBusy = () => {}, excludeWishlistId, actionLabel = "Ajouter à mes listes" }) {
   const host = document.createElement("div");
   const notice = document.createElement("p"); notice.setAttribute("role", "status"); notice.hidden = true; host.append(notice);
   const lifetime = new AbortController();
@@ -34,13 +34,13 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
     try {
       const lists = await loadLists({ signal: lifetime.signal });
       if (disposed) return;
-      eligible = lists.some(item => !item.isArchived && !item.isSuspended); sync();
+      eligible = lists.some(isEligible); sync();
     } catch { if (!disposed) { eligible = false; sync(); } }
   }
   /** @param {string} wishId Source. @param {boolean} [compact] Gallery icon. @returns {HTMLButtonElement} Initially hidden action. */
   function button(wishId, compact = false) {
-    const control = createButton({ label: "Ajouter à mes listes", variant: "secondary", onClick: () => open(wishId, control) });
-    if (compact) { applyActionIcon(control, "copy", "Ajouter à mes listes"); control.classList.add("wish-gallery__copy"); }
+    const control = createButton({ label: actionLabel, variant: "secondary", onClick: () => open(wishId, control) });
+    if (compact) { applyActionIcon(control, "copy", actionLabel); control.classList.add("wish-gallery__copy"); }
     buttons.add(control);
     registerComponentCleanup(control, () => buttons.delete(control));
     sync();
@@ -52,7 +52,7 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
     disposeComponent(notice); notice.replaceChildren(); notice.hidden = true;
     const modal = document.createElement("dialog"); modal.className = "wish-copy-dialog";
     dialog = modal; sync(); onBusy(true);
-    const title = document.createElement("h2"); title.textContent = "Ajouter à mes listes"; title.tabIndex = -1;
+    const title = document.createElement("h2"); title.textContent = actionLabel; title.tabIndex = -1;
     title.id = `wish-copy-${crypto.randomUUID()}`; modal.setAttribute("aria-labelledby", title.id);
     const content = document.createElement("div"); content.className = "flow";
     const feedback = document.createElement("div"); feedback.setAttribute("role", "status");
@@ -86,7 +86,7 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
     async function read() {
       feedback.append(createLoadingState({ label: "Chargement de tes listes…" }));
       try {
-        targets = (await loadLists({ signal: requestSignal })).filter(item => !item.isArchived && !item.isSuspended);
+        targets = (await loadLists({ signal: requestSignal })).filter(isEligible);
         if (disposed || closed || requestSignal.aborted) return;
         clearFeedback(); eligible = targets.length > 0; sync();
         if (!eligible) { feedback.textContent = "Aucune liste disponible."; cancel.textContent = "Fermer"; submit.hidden = true; return; }
@@ -134,4 +134,6 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
       }
     }
   }
+  /** @param {import("../wishlists/wishlistsService.js").Wishlist} item Current destination. */
+  function isEligible(item) { return item.id !== excludeWishlistId && !item.isArchived && !item.isSuspended; }
 }

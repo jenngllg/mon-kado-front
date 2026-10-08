@@ -200,6 +200,7 @@
   background: var(--color-surface);
 }
 .wish-gallery__delete.icon-action--danger { color: var(--color-danger); }
+.wish-gallery__copy.wish-gallery__copy--owner { inset-inline-end: calc(2 * 44px + 3 * var(--space-2)); }
 .wish-gallery__copy,
 .wish-gallery__favorite {
   position: absolute;
