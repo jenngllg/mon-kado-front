@@ -93,7 +93,7 @@ describe("application routes", () => {
       for (let turn = 0; turn < 24; turn++) await Promise.resolve();
       const title = /** @type {HTMLAnchorElement} */ (view.querySelector("h2 a"));
       expect(title.getAttribute("href")).toBe(ownedWishPath); title.click(); expect(destination).toBe(ownedWishPath);
-      const cancel = /** @type {HTMLButtonElement} */ (view.querySelector(".icon-action--danger")); cancel.click();
+      const cancel = /** @type {HTMLButtonElement} */ (view.querySelector(".reservation-history-card__cancel")); cancel.click();
       for (let turn = 0; turn < 40; turn++) await Promise.resolve();
       const confirm = [...view.querySelectorAll("dialog button")].find(button => button.textContent === "Confirmer l’annulation");
       expect(confirm).toBeDefined(); expect(confirm?.hasAttribute("disabled")).toBe(false); expect(writes).toBe(0);
