@@ -77,17 +77,17 @@ describe("public shared wishlist integration", () => {
     // Arrange
     const { app, state } = setup("/reservations");
     await app.start(); await untilSession(app.session, value => value.status === "authenticated");
-    await observe(() => app.shell.outlet.querySelector(".icon-action--danger") !== null);
+    await observe(() => app.shell.outlet.querySelector(".reservation-history-card__cancel") !== null);
     // Act
-    app.shell.outlet.querySelector(".icon-action--danger")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await observe(() => app.shell.outlet.querySelector("dialog")?.textContent?.includes("Quantité réservée : 1") === true);
+    app.shell.outlet.querySelector(".reservation-history-card__cancel")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await observe(() => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Confirmer l’annulation" && !/** @type {HTMLButtonElement} */ (button).disabled));
     expect(state.reservationDeletes).toBe(0);
     [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Confirmer l’annulation")?.click();
-    await observe(() => app.shell.outlet.textContent?.includes("Statut : Annulée") === true);
+    await observe(() => app.shell.outlet.querySelector(".reservation-history-card__status")?.textContent === "Statut : Annulée");
     // Assert
     expect(state.reservationDeletes).toBe(1);
     expect(state.reservationReads).toBe(1);
-    expect(app.shell.outlet.querySelector("dialog, .icon-action--danger")).toBeNull();
+    expect(app.shell.outlet.querySelector("dialog, .reservation-history-card__cancel")).toBeNull();
     expect(window.location.pathname).toBe("/reservations");
     app.shell.outlet.querySelector("h2 a")?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     await observe(() => app.shell.outlet.querySelector(".shared-wish-view") !== null);
@@ -124,10 +124,10 @@ describe("public shared wishlist integration", () => {
     await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Annuler ma réservation"));
     const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector("input[name=quantity]")); input.value = "5";
     [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Annuler ma réservation")?.click();
-    await observe(() => app.shell.outlet.querySelector("dialog")?.textContent?.includes("Quantité réservée : 1") === true);
+    await observe(() => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Confirmer l’annulation" && !/** @type {HTMLButtonElement} */ (button).disabled));
     expect(state.reservationDeletes).toBe(0); app.shell.outlet.querySelector("dialog")?.dispatchEvent(new Event("cancel", { cancelable: true })); expect(input.value).toBe("5");
     [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Annuler ma réservation")?.click();
-    await observe(() => app.shell.outlet.querySelector("dialog")?.textContent?.includes("Quantité réservée : 1") === true);
+    await observe(() => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Confirmer l’annulation" && !/** @type {HTMLButtonElement} */ (button).disabled));
     const gate = barrier(), started = barrier(); state.beforeCancel = async () => { started.resolve(); await gate.promise; };
     [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Confirmer l’annulation")?.click(); await started.promise;
     if (logout) await app.session.logout(); gate.resolve();

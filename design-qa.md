@@ -1,5 +1,54 @@
 # Design QA — Fondations graphiques MonKado
 
+## 2026-10-09 — Reservation status and cancellation refinement
+
+- Latest modal adjustment: reducing to 32rem caused the desktop buttons to wrap (P2). Increased only to 33rem (528 px) while keeping left alignment and unchanged button sizes. `test-results/reservation-design/cancel-inline-final.png` confirms both controls on the same row, each top at 463.984375 px. Responsive wrapping remains enabled on narrow screens. This supersedes the earlier 36rem modal-size evidence.
+
+- Modal-size refinement: cancellation width is now capped at 36rem rather than the common 42rem, with tighter responsive padding. Browser evidence `test-results/reservation-design/cancel-compact-final.png` measures 576 px wide; the named question wraps naturally and both centered actions remain visible. 77 targeted style/dialog tests pass. Mobile width/scroll constraints are preserved from the common modal rule; no fresh mobile capture for this size-only follow-up.
+
+- Confirmation-copy follow-up: user-provided annotated modal is the visual source for removing explanatory prose, suppressing quantity for one item and centering actions. Browser capture `test-results/reservation-design/cancel-single-final.png` confirms the named question and centered two-button group without intermediate prose. The browser's multi-item dialog shows only “Quantité réservée : 2.”; no real cancellation was submitted. 98 targeted tests, affected lint and typecheck pass; confirmation lifecycle is unchanged.
+
+- Latest vertical balance correction supersedes top alignment: the user requested equal space above/below each right-hand group. `align-self: center` preserves the shared horizontal track. Post-fix capture: `test-results/reservation-design/balanced-final.png`; active top/bottom gaps 28.40625/28.421875 px (subpixel rounding), unavailable 29.015625/29.015625 px. Both groups retain left edge 672.265625 px. 86 targeted tests passed; no remaining vertical-balance finding.
+
+- Follow-up alignment correction: independent intrinsic right tracks shifted the active/unavailable groups, a P2 inconsistency reported by the user. Replaced with a shared compact 12rem track and top alignment. Post-fix evidence: `test-results/reservation-design/aligned-final.png`; both status left edges and date left edges measure 672.265625 px, and their card-relative vertical offsets are respectively 17 px and 58.59375 px for both rows. This latest user instruction supersedes the content-sized track description below. The focused screenshot supplied by the user and the new two-row capture show consistent grouping, with no separate action track. 86 targeted style/view tests pass.
+
+- Source: `C:/Users/Jenn/.codex/generated_images/01a0718e-0d03-7b82-8d1e-7ce8ef19c56d/exec-b8a1860b-9ac9-4e91-a3b5-5d06bd960724.png`, superseded by user instructions to remove right-side whitespace and make the information icon non-button.
+- Render: `test-results/reservation-design/refined-final.png`; paired full-view comparison: `refinement-comparison.png`. Source 1536 × 1024; implementation 933 × 892 at default browser sizing, CSS viewport 933 px wide. Images are aspect-preserving downscaled into adjacent 900 px panels, not used for pixel-perfect measurement. Source and rendered states both include one active and one unavailable reservation with the information bubble open. Header/footer and contained fictional photographs intentionally reuse the existing site/harness rather than the generated mock's revised framing. Right-column alignment is judged against the user's later annotation, not the mock's unwanted empty track.
+- Focused evidence: the entire two-row render makes the status, icon, dates and button readable; measured right gaps are 17 px on both rows (normal 16 px padding plus border), with no action track. Tooltip bounds 544–864 px are inside the viewport. A separate focus crop is unnecessary for these readable controls.
+- Typography: existing locally bundled Nunito Sans and body tokens retained. Spacing: three tracks, last track content-sized; square contained media; cancellation below dates, aligned with the status. Colors: active sage, unavailable pale yellow, cancelled coral, primary coral/white cancellation. Assets: existing information-circle asset, no generated production image. Copy: possible loss of sharing/public access is explained without inventing a known cause; no bottom note.
+- Earlier P2 finding: at 320 px with root text 200%, the status word broke into fragments. Fix: allow the status/icon row to wrap and bound pill padding; follow-up screenshot confirms “Indisponible” stays whole. Tooltip padding also adapts to narrow viewports. No horizontal page overflow (scroll width 305 px within 320 px viewport before the padding refinement).
+- Interactions: keyboard focus opens information, Escape dismisses; pointer enter/leave covered by unit tests. Icon is not a button and has no click action. Cancellation opens the existing confirmation; Escape restores its trigger. No live account mutations were performed. Browser console errors: none in the controlled demo.
+- Validation: 149 targeted tests, affected lint and application typecheck passed. No screen reader test or WCAG certification claimed. Hover-only interaction was not separately exercised by native mouse movement; its listeners are covered in Happy DOM.
+- No outstanding P0–P2 findings for this scoped refinement. Production data/contracts and eligibility are unchanged; temporary fixtures/captures remain ignored.
+- final result: passed
+
+## 2026-10-09 — Selected reservation history concept
+
+- Source visual truth: `C:/Users/Jenn/.codex/generated_images/01a0718e-0d03-7b82-8d1e-7ce8ef19c56d/exec-9b469059-2559-409d-8336-38c1c64651a0.png` (second displayed concept).
+- Implementation evidence: `test-results/reservation-design/desktop.png`, `comparison.png`, `focus.png`, `mobile.png`, `320.png`, `tablet.png`, `text200.png`. These temporary captures and fixtures are ignored, not production data or assets.
+- Desktop viewport: 1487 × 1058 CSS pixels. Source pixels: 1487 × 1058; captured content: 1472 × 1047, excluding the browser scrollbar/capture edge. Full comparison preserves aspect ratios in two 892 × 635 regions; the focus comparison pairs first-row information crops. No browser chrome is compared.
+- State: three fictional reservations (two active, one cancelled); source photograph crops are used only in the temporary QA harness. Production continues to use API-provided images, names, links and quantities. Existing header, date abbreviation and shared 44px trash control are intentionally retained instead of introducing mock-only header/avatar changes.
+
+### Findings and comparison history
+
+1. [P2, fixed] Initial information hierarchy used undersized wish titles and bold metadata links, with too much horizontal distance before status. Increased titles to 1.75rem, restored quiet inline metadata and widened the status/date track. Final `comparison.png` and `focus.png` show the corrected hierarchy.
+2. [P2, fixed] At 768px with root text enlarged to 200%, viewport-only breakpoints squeezed the title into arbitrary word fragments. Added an inline-size container query measured in rem, and proportional circular action dimensions. The post-fix `text200.png` and DOM bounds show stacked content without overflow, also checked at 320px/200%.
+3. Fonts/typography: existing bundled Nunito Sans and site heading scale retained; titles, quantities and status have distinct weights. Metadata uses normal readable text. Date formatting intentionally remains the existing French abbreviated calendar format.
+4. Spacing/layout: large contained media on the left, description in the middle, status/dates together on the right, cancellation upper right; quiet border/radius and no shadows. Tablet and mobile stack without dropping information.
+5. Colors/tokens: existing ivory, forest, sage and semantic muted/warning surfaces; statuses are textual, never color-only. Shared focus outlines and destructive icon styling preserved.
+6. Images/assets: production retains real images with `object-fit: contain`, decorative empty alternatives and existing cleanup/recovery behavior. No generated image or source crop was added to production assets. Header/icons use existing assets/components.
+7. Copy/content: supported quantity, list/member, status and lifecycle dates preserved. `Statut :` remains available to assistive technology without duplicating the visible pill. No extra counts, prices or unsupported actions.
+
+### Interaction and validation evidence
+
+- In-app Chromium: selected active/cancelled filters, checked empty/unavailable states, opened the real cancellation component with fake operations, dismissed with Escape and verified focus returns to its trigger. Unavailable items have no shared-wish links or cancellation controls.
+- Viewports: desktop 1487×1058, tablet 768×1024, mobile 360×800 and 320×800; text 200% at 768px and 320px. No horizontal overflow in DOM bounds; normal cancellation targets 44×44px. No captured browser console errors.
+- Lint and all three TypeScript configurations passed; production build passed (existing >500kB chunk warning remains). All 169 unit-test files passed: 4,337 tests, including the new DOM grouping/accessible-label regression and existing cancellation/filter/session tests.
+- Real-account history remains empty; populated browser evidence is controlled simulation, not a backend reservation mutation. No screen reader or production certification claimed.
+- Follow-up polish: none required for this selected layout. Site-wide typography/header and date format remain intentionally consistent with sibling pages.
+
+final result: passed
+
 ## Current pass — Remaining site theme
 
 Scope: extend the original mockup charter to home, authentication, account settings, reservation history, public/shared lists, shared wish reservation and legal documents. This is a visual harmonization of existing capabilities, not implementation of every feature depicted in the mockups. Historical reports follow unchanged.

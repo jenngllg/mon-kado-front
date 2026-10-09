@@ -13,6 +13,27 @@ const mockupStyles = readStyleFile("../src/styles/mockup-fidelity.css");
 const utilities = readStyleFile("../src/styles/utilities.css");
 
 describe("graphic foundations", () => {
+  it("keeps reservation cancellation compact with left-aligned actions", () => {
+    const theme = readStyleFile("../src/styles/site-theme.css");
+    expect(theme.match(/\.reservation-cancel-dialog\s*\{([^}]+)\}/)?.[1]).toContain("width: min(33rem,");
+    expect(theme.match(/\.reservation-cancel-dialog h2\s*\{([^}]+)\}/)?.[1]).toContain("font-size: var(--font-size-xl)");
+    expect(theme.match(/\.reservation-cancel-dialog h2\s*\{([^}]+)\}/)?.[1]).toContain("text-wrap: wrap");
+    expect(theme.match(/\.reservation-cancel-dialog \.wishlist-form__actions\s*\{([^}]+)\}/)?.[1]).toContain("justify-content: flex-start");
+  });
+  it("aligns reservation status and dates in a shared vertically centered column", () => {
+    const theme = readStyleFile("../src/styles/site-theme.css");
+    const card = theme.match(/\.reservation-history-card\s*\{([^}]+)\}/)?.[1];
+    const review = theme.match(/\.reservation-history-card__review\s*\{([^}]+)\}/)?.[1];
+    expect(card).toContain("grid-template-columns: 18rem minmax(0, 1fr) 12rem");
+    expect(review).toContain("align-self: center");
+  });
+  it("keeps reservation photographs square and contained", () => {
+    const theme = readStyleFile("../src/styles/site-theme.css");
+    const media = theme.match(/\.reservation-history-card__media\s*\{([^}]+)\}/)?.[1];
+    const image = theme.match(/\.reservation-history-card__media img\s*\{([^}]+)\}/)?.[1];
+    expect(media).toContain("aspect-ratio: 1;");
+    expect(image).toContain("object-fit: contain");
+  });
   it("preserves white primary button labels for action links too", () => {
     expect(tokens).toContain("--color-text-on-accent: #ffffff");
     expect(componentStyles).toContain("color: var(--color-text-on-accent)");
