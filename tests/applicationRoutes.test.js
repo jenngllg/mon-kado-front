@@ -69,6 +69,39 @@ const ExpectedRoutes = [
 ];
 
 describe("application routes", () => {
+  it("opens and cancels an owned history item through private routes without shared access", async () => {
+    const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
+    const ownedWishPath = `/lists/${id}/wishes/${wishId}`;
+    let writes = 0, destination = "";
+    const session = { ...unusedSession, request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (async (path, options) => {
+      expect(options?.authentication).toBe("required"); expect(options).not.toHaveProperty("shareToken");
+      const metadata = { etag: '"owner-version"', correlationId: "test-ref", location: null, retryAfterSeconds: null };
+      if (path.startsWith("/api/v1/members/current/reservations")) return { status: 200, metadata, data: { currentPage: 1, pageSize: 20, totalCount: 1, items: [{ id, wishlistId: id, wishId, wishlistName: "Liste", wishName: "Souhait", shareLinkId: null, shareUrl: null, ownedWishPath, quantity: 1, status: "active", createdAt: "2026-10-09T09:00:00Z", lastActivityAt: "2026-10-09T09:00:00Z", endedAt: null }] } };
+      if (path === `/api/v1/wishlists/${id}/wishes/${wishId}`) return { status: 200, metadata, data: { id: wishId, wishlistId: id, name: "Souhait", note: null, price: null, url: null, position: 1, quantity: 1, imageUrl: null } };
+      expect(path).toBe(`/api/v1/wishlists/${id}/wishes/${wishId}/reservations/current`);
+      if (options?.method === "DELETE") {
+        writes++; expect(options.csrf).toBe(true); expect(options.ifMatch).toBe('"owner-version"');
+        return { status: 204, metadata, data: null };
+      }
+      return { status: 200, metadata, data: { id, wishId, quantity: 1 } };
+    }) };
+    const route = createApplicationRoutes({ session, apiBaseUrl: "http://localhost:7000" }).find(route => route.name === RouteNames.Reservations);
+    if (!route) throw new Error("Missing reservations route.");
+    const view = await route.render({ ...createRouteContext("/reservations"), navigate: async href => { destination = String(href); return null; } });
+    document.body.append(view);
+    try {
+      for (let turn = 0; turn < 24; turn++) await Promise.resolve();
+      const title = /** @type {HTMLAnchorElement} */ (view.querySelector("h2 a"));
+      expect(title.getAttribute("href")).toBe(ownedWishPath); title.click(); expect(destination).toBe(ownedWishPath);
+      const cancel = /** @type {HTMLButtonElement} */ (view.querySelector(".icon-action--danger")); cancel.click();
+      for (let turn = 0; turn < 40; turn++) await Promise.resolve();
+      const confirm = [...view.querySelectorAll("dialog button")].find(button => button.textContent === "Confirmer l’annulation");
+      expect(confirm).toBeDefined(); expect(confirm?.hasAttribute("disabled")).toBe(false); expect(writes).toBe(0);
+      confirm?.dispatchEvent(new MouseEvent("click"));
+      for (let turn = 0; turn < 24; turn++) await Promise.resolve();
+      expect(writes).toBe(1);
+    } finally { disposeComponent(view); view.remove(); }
+  });
   it.each([RouteNames.WishlistReportHistory, RouteNames.WishlistModerationHistory])("freshly reads only the events from guarded route %s", async name => {
     const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", reportId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
     const report = name === RouteNames.WishlistReportHistory;

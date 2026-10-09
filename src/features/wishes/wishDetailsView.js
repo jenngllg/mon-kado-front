@@ -13,15 +13,17 @@ import { createSharedWishQuantities } from "../sharing/sharedWishQuantities.js";
 import { createWishFavoriteButton } from "./wishFavoriteButton.js";
 import { createWishDetailInformation, createWishDetailProductLink, createWishDetailReservationStatus } from "./wishDetailPresentation.js";
 import { createWishCopyActions } from "../sharing/wishCopyActions.js";
+import { createOwnedGiftReservationSection } from "../sharing/ownedGiftReservationSection.js";
 
 /** Owner detail with independently confirmed actions. Quantities remain projected by the API.
  * @param {{wishlistId: string, wishId: string, loadOne: import("./wishesService.js").LoadWish,
  * loadWishlist?: import("../wishlists/wishlistsService.js").LoadWishlist, remove?: import("./wishesService.js").RemoveWish, setFavorite?: import("./wishesService.js").SetWishFavorite,
  * copy?: import("../sharing/wishCopyActions.js").WishCopyOperations,
+ * reservations?: ReturnType<typeof import("../sharing/ownedGiftReservationService.js").createOwnedGiftReservationService>,
  * onDeleted?: () => void | Promise<void>, signal?: AbortSignal, returnSort?: string | null}} options Dependencies.
  * @returns {HTMLElement} Disposable detail with fresh reads on return.
  */
-export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlist, remove, setFavorite, copy, onDeleted = () => {}, signal, returnSort }) {
+export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlist, remove, setFavorite, copy, reservations, onDeleted = () => {}, signal, returnSort }) {
   const view = document.createElement("section"); view.className = "shared-wish-view wish-owner-detail flow";
   const back = createBackLink({ label: "Retour à la liste", href: withWishSort(`/lists/${wishlistId}`, returnSort) });
   const content = document.createElement("div"); content.className = "flow";
@@ -37,6 +39,8 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
     actionLabel: "Ajouter à une autre liste", onUnavailable: () => { void read(); }, onBusy: value => { copying = value; } }) : null;
   if (copyActions) view.append(copyActions.element);
   /** @type {HTMLDialogElement | null} */ let deletionDialog = null;
+  /** @type {HTMLElement | null} */ let reservationPanel = null;
+  let reservationDraft = false;
   registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); request.abort(); disposeComponent(content); content.replaceChildren(); disposeComponent(commandHost); commandHost.replaceChildren(); });
   if (signal) {
     addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });
@@ -48,7 +52,8 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
   return view;
 
   async function read() {
-    if (disposed || deletionDialog || mutationBusy || copying) return;
+    if (disposed || deletionDialog || mutationBusy || copying || reservationDraft || reservationPanel?.contains(document.activeElement)) return;
+    reservationPanel = null;
     request.abort(); request = new AbortController();
     const active = request;
     disposeComponent(commandHost); commandHost.replaceChildren();
@@ -111,6 +116,20 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
       const layout = document.createElement("div"); layout.className = "shared-wish-layout";
       layout.append(createWishImage(wish), information);
       content.append(layout);
+      if (editable && reservations) {
+        reservationPanel = createOwnedGiftReservationSection({ wishlistId, wishId, wish, loadOne, reservations,
+          surpriseMode: parent.wishlist.surpriseMode !== false,
+          signal: active.signal, onDraft: () => { reservationDraft = true; },
+          onSaved: () => { mutationBusy = false; reservationDraft = false; reservationPanel = null; void read(); },
+          onUnavailable: () => { mutationBusy = false; reservationDraft = false; reservationPanel = null; void read(); },
+          onBusy: value => {
+            mutationBusy = value; copyActions?.setBlocked(value);
+            commandHost.querySelectorAll("button").forEach(button => { button.disabled = value; });
+            commandHost.querySelectorAll("a").forEach(link => { link.setAttribute("aria-disabled", String(value)); });
+          },
+        });
+        information.append(reservationPanel);
+      }
     } catch (error) {
       if (disposed || active.signal.aborted || isAbortError(error)) return;
       const translated = toUserFacingError(error);

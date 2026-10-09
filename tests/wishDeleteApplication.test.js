@@ -66,12 +66,12 @@ describe("gift deletion integration", () => {
     expect(app.shell.notificationRegion.textContent.match(/Souhait supprimé/g)).toHaveLength(1);
     expect(app.shell.outlet.textContent).not.toContain(wish.name);
   });
-  it("opens the owner wish details and returns to the list without offering reservations", async () => {
+  it("opens the owner wish details with explicit reservation controls and returns without writing", async () => {
     const app = setup(); await app.start(); await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null);
     const destination = `${detail}/wishes/${wish.id}`;
     const link = /** @type {HTMLAnchorElement} */ (app.shell.outlet.querySelector(`a[href="${destination}"]`));
     link.click(); await until(app.shell.outlet, () => app.shell.outlet.querySelector("h1")?.textContent === wish.name);
-    expect(window.location.pathname).toBe(destination); expect(app.shell.outlet.querySelector(".reservation-panel")).toBeNull();
+    expect(window.location.pathname).toBe(destination); expect(app.shell.outlet.querySelector(".reservation-panel")).not.toBeNull();
     expect(app.state.writes).toBe(0); expect(app.state.reads).toBe(1);
     app.shell.outlet.querySelector(`a[href="${detail}"]`)?.dispatchEvent(new MouseEvent("click", { bubbles: true, button: 0 }));
     await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null);

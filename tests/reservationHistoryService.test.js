@@ -13,6 +13,20 @@ function setup(data = page, status = 200) {
   return { ...service, request, signal: new AbortController().signal };
 }
 describe("member reservation history contract", () => {
+  it("uses private owner navigation and image grants without a bearer link", async () => {
+    const ownedWishPath = `/lists/${id}/wishes/${id}`;
+    const imageUrl = `http://localhost/api/v1/wishlists/${id}/wishes/${id}/image?token=private-test`;
+    const service = setup({ ...page, items: [{ ...item, shareLinkId: null, shareUrl: null, ownedWishPath, imageUrl }] });
+    expect((await service.load({ signal: service.signal })).items[0]).toMatchObject({ wishHref: ownedWishPath, imageUrl, imageUnavailable: false });
+  });
+  it.each(["https://other.test/lists", "/lists/other/wishes/other", `/lists/${id}/wishes/${id}#secret`])("rejects untrusted private paths %s", async ownedWishPath => {
+    const service = setup({ ...page, items: [{ ...item, ownedWishPath }] });
+    await expect(service.load({ signal: service.signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
+  it.each([{ isArchived: true }, { shareUrl: `http://localhost/shared-wishlists/${id}#${"A".repeat(43)}` }])("rejects ambiguous or archived owner access %j", async extra => {
+    const service = setup({ ...page, items: [{ ...item, ownedWishPath: `/lists/${id}/wishes/${id}`, ...extra }] });
+    await expect(service.load({ signal: service.signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("projects only trusted current sharing links and signed image URLs with the owner", async () => {
     const secret = "A".repeat(43);
     const imageUrl = `http://localhost/api/v1/shared-wishlists/${id}/wishes/${id}/image?token=image-test`;

@@ -66,6 +66,7 @@ import { createSharedWishlistView, createSharedWishlistEntryView } from "../feat
 import { createSharedWishView } from "../features/sharing/sharedWishView.js";
 import { createSharedSessionView } from "../features/sharing/sharedSessionView.js";
 import { createGiftReservationService } from "../features/sharing/giftReservationService.js";
+import { createOwnedGiftReservationService } from "../features/sharing/ownedGiftReservationService.js";
 import { createGiftReservationSection } from "../features/sharing/giftReservationSection.js";
 import { createReservationCreateForm } from "../features/sharing/reservationCreateForm.js";
 import { createReservationEditForm } from "../features/sharing/reservationEditForm.js";
@@ -290,6 +291,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishDetailsView({ ...createWishesService(session, { apiBaseUrl }), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
           copy: ownedCopyOperations(context.params.listId),
+          reservations: createOwnedGiftReservationService(session),
           loadWishlist: createWishlistsService(session).loadOne, onDeleted: () => onWishDeleted(context),
           signal: context.signal, returnSort: context.searchParams.get("sort") }),
     },
@@ -314,6 +316,19 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createReservationHistoryView({ ...createReservationHistoryService(session, { apiBaseUrl }), signal: context.signal,
           createCancel: (item, callbacks) => {
+            if (item.wishHref?.startsWith("/lists/")) {
+              const [, , wishlistId, , wishId] = item.wishHref.split("/");
+              const reservations = createOwnedGiftReservationService(session);
+              const wishes = createWishesService(session, { apiBaseUrl });
+              return createReservationCancelDialog({ ...callbacks, signal: context.signal,
+                cancel: (etag, signal) => reservations.cancel(wishlistId, wishId, { etag, signal }),
+                load: async signal => {
+                  const wish = await wishes.loadOne(wishlistId, wishId, { signal });
+                  const lookup = await reservations.loadCurrent(wishlistId, wishId, { signal });
+                  return { name: wish.wish.name, lookup };
+                },
+              });
+            }
             const access = createSharedWishlistContext();
             const target = new URL(item.wishHref ?? "", window.location.origin);
             const [, , shareLinkId, , wishId] = target.pathname.split("/");
@@ -332,6 +347,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
             return dialog;
           },
           onOpenWish: href => {
+            if (href.startsWith("/lists/")) { void context.navigate(href); return; }
             const target = new URL(href, window.location.origin);
             const shareLinkId = target.pathname.split("/")[2];
             if (sharing.enter(shareLinkId, target.hash) === "ready") void context.navigate(target.pathname);
