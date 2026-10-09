@@ -108,7 +108,8 @@ describe("session routes and shell", () => {
         expect(new Headers(init?.headers).has("X-CSRF-TOKEN")).toBe(false);
         if (delaySave) { saveEntered.resolve(); await saveGate.promise; }
         transport.state.user.displayName = JSON.parse(String(init?.body)).displayName;
-        return Response.json({ displayName: transport.state.user.displayName }, { headers: { ETag: '"identity-1"' } });
+        transport.state.user.isVisibleInMemberSearch = JSON.parse(String(init?.body)).isVisibleInMemberSearch;
+        return Response.json({ displayName: transport.state.user.displayName, isVisibleInMemberSearch: transport.state.user.isVisibleInMemberSearch }, { headers: { ETag: '"identity-1"' } });
       }
       if (!original) throw new Error("Missing test transport.");
       return original(input, init);

@@ -15351,6 +15351,8 @@ export interface components {
             readonly id: string;
             /** @description Gets whether the member has a linked Google identity. */
             readonly isGoogleLinked?: boolean;
+            /** @description Gets whether the member opts into public member search. */
+            readonly isVisibleInMemberSearch?: boolean;
             /** @description Gets the public profile-photo URL, or null for a generated avatar. */
             readonly profileImageUrl?: null | string;
             /** @description Gets the current member roles. */
@@ -15520,6 +15522,8 @@ export interface components {
         readonly MemberProfileResponse: {
             /** @description Gets the member display name. */
             readonly displayName: string;
+            /** @description Gets whether the member opts into public member search. */
+            readonly isVisibleInMemberSearch?: boolean;
             /** @description Gets the public profile-photo URL, or null for a generated avatar. */
             readonly profileImageUrl?: null | string;
         };
@@ -16190,6 +16194,8 @@ export interface components {
         readonly UpdateMemberProfileRequest: {
             /** @description Gets the requested display name. */
             readonly displayName: null | string;
+            /** @description Gets the optional search preference; omission preserves its current value. */
+            readonly isVisibleInMemberSearch?: null | boolean;
         };
         /** @description Contains an administrator's requested wishlist moderation state. */
         readonly UpdateWishlistModerationRequest: {

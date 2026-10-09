@@ -83,9 +83,14 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     expect(cancelBounds?.width).toBeGreaterThanOrEqual(44);
     expect(cancelBounds?.height).toBeGreaterThanOrEqual(44);
     await cancel.scrollIntoViewIfNeeded();
-    const beforeHover = await cancel.boundingBox();
+    // Compare layout geometry, not the shared button's animated hover transform.
+    const layoutBounds = () => cancel.evaluate(node => {
+      const button = /** @type {HTMLElement} */ (node);
+      return { x: button.offsetLeft, y: button.offsetTop, width: button.offsetWidth, height: button.offsetHeight };
+    });
+    const beforeHover = await layoutBounds();
     await cancel.hover();
-    expect(await cancel.boundingBox()).toEqual(beforeHover);
+    expect(await layoutBounds()).toEqual(beforeHover);
     await page.screenshot({ path: testInfo.outputPath("reservation-cancel-icon.png"), fullPage: true });
     await cancel.click();
     let dialog = page.getByRole("dialog");
