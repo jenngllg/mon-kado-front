@@ -30,6 +30,21 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   input.type = "text";
   input.setAttribute("autocomplete", "nickname");
   const field = createFormField({ control: input, label: "Nom d’affichage", required: true });
+  const visibility = document.createElement("input");
+  visibility.type = "checkbox";
+  visibility.name = "isVisibleInMemberSearch";
+  visibility.id = `profile-visibility-${crypto.randomUUID()}`;
+  const visibilityLabel = textElement("label", "");
+  visibilityLabel.className = "profile-visibility__label cluster";
+  visibilityLabel.htmlFor = visibility.id;
+  visibilityLabel.append(visibility, textElement("span", "Apparaître dans la recherche de membres"));
+  const visibilityHelp = textElement("p", "Ton profil peut être trouvé dans la recherche MonKado. Si cette option est désactivée, il reste accessible par lien direct.");
+  visibilityHelp.id = `${visibility.id}-help`;
+  visibilityHelp.className = "muted";
+  visibility.setAttribute("aria-describedby", visibilityHelp.id);
+  const visibilityGroup = textElement("div", "");
+  visibilityGroup.className = "profile-visibility flow";
+  visibilityGroup.append(visibilityLabel, visibilityHelp);
   const comparison = textElement("div", "");
   comparison.className = "profile-view__comparison flow";
   comparison.hidden = true;
@@ -40,7 +55,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   const actions = textElement("div", "");
   actions.className = "cluster";
   actions.append(submit);
-  form.append(field, comparison, actions);
+  form.append(field, visibilityGroup, comparison, actions);
   view.append(title, feedback, loading, form);
 
   const lifetime = new AbortController();
@@ -95,6 +110,10 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     if (!conflict && !needsRead && feedback.querySelector(".ui-alert--success")) clearFeedback();
     updateControls();
   });
+  addComponentEventListener(view, visibility, "change", () => {
+    if (!conflict && !needsRead && feedback.querySelector(".ui-alert--success")) clearFeedback();
+    updateControls();
+  });
   // A blur error must not move the pressed action between pointer-down and click.
   addComponentEventListener(view, form, "pointerdown", event => {
     const target = event.target instanceof Element ? event.target.closest("button") : null;
@@ -123,6 +142,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     base = null;
     photoBase = null; photoNotice = ""; photoSuccess.textContent = ""; photoFeedback.replaceChildren(); photoConfirmation.hidden = true;
     input.value = "";
+    visibility.checked = false;
     currentValue.textContent = "";
     feedback.replaceChildren();
   });
@@ -166,8 +186,9 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   function updateControls() {
     setButtonLoading(submit, saving);
     input.disabled = busy || confirmingPhoto;
+    visibility.disabled = busy || confirmingPhoto;
     submit.disabled = busy || confirmingPhoto || needsRead || base === null || !!photoSection?.isPending() ||
-      (!!photoSection?.getSelected() && photoNeedsRead) || (input.value.trim() === base.displayName && !photoSection?.getSelected());
+      (!!photoSection?.getSelected() && photoNeedsRead) || (input.value.trim() === base.displayName && visibility.checked === (base.isVisibleInMemberSearch ?? false) && !photoSection?.getSelected());
     useCurrent.disabled = busy || confirmingPhoto || needsRead;
     form.setAttribute("aria-busy", String(busy));
     loading.hidden = !busy || saving || photoBusy;
@@ -185,6 +206,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     if (!active() || busy || confirmingPhoto || needsRead || base === null) return;
     photoSection?.clearSelection();
     input.value = base.displayName;
+    visibility.checked = base.isVisibleInMemberSearch ?? false;
     conflict = false;
     comparison.hidden = true;
     currentValue.textContent = "";
@@ -213,11 +235,12 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       conflict = mode === "conflict";
       comparison.hidden = !conflict;
       if (conflict) {
-        currentValue.textContent = "Valeur actuellement enregistrée : " + profile.displayName;
+        currentValue.textContent = recordedValues(profile);
         showFeedback({ variant: "warning", title: "Le profil a été modifié",
           message: "Ta saisie est conservée. Compare-la à la dernière valeur avant de choisir quoi enregistrer." });
       } else {
         input.value = profile.displayName;
+        visibility.checked = profile.isVisibleInMemberSearch ?? false;
         currentValue.textContent = "";
         if (mode === "saved") showFeedback({ variant: "success", title: "Modifications enregistrées", message: "Ton profil est à jour." });
         else clearFeedback();
@@ -269,7 +292,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       finally { if (active()) { busy = false; saving = false; updateControls(); } }
       if (!active() || !selectedPhoto) return;
     }
-    if (input.value.trim() === base.displayName) {
+    if (input.value.trim() === base.displayName && visibility.checked === (base.isVisibleInMemberSearch ?? false)) {
       if (selectedPhoto) await mutatePhoto(selectedPhoto);
       return;
     }
@@ -278,9 +301,10 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     saving = true;
     updateControls();
     try {
-      const result = await save(input.value, { etag: base.etag, signal: lifetime.signal });
+      const result = await save(input.value, { etag: base.etag, signal: lifetime.signal, isVisibleInMemberSearch: visibility.checked });
       if (!active()) return;
       input.value = result.displayName;
+      visibility.checked = result.isVisibleInMemberSearch ?? visibility.checked;
       base = Object.freeze({ ...base, ...result });
       showFeedback({ variant: "success", title: "Modifications enregistrées", message: "Actualisation du profil…" });
       busy = false;
@@ -309,8 +333,11 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
           message: "Certaines informations n’ont pas été acceptées." });
         validationSummary = validations.every(item => item.propertyName === "displayName");
       } else showTechnicalError(error);
-      if (error instanceof ApiError && error.kind === "invalidResponse") {
+      if (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode ?? 500) >= 500) {
         needsRead = true;
+        const translated = toUserFacingError(error);
+        showFeedback({ variant: "error", title: "Enregistrement à vérifier", message: "La modification du profil ne peut pas être confirmée. Relis le profil avant de réessayer.",
+          detail: translated.correlationId ? "Référence : " + translated.correlationId : null });
         feedback.append(createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void readProfile("conflict"); } }));
       }
       updateControls();
@@ -349,16 +376,16 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       if (!active()) return;
       photoBase = fresh; photoNeedsRead = false;
       if (mode !== "confirm") {
-        const hasDraft = base !== null && input.value !== base.displayName;
+        const hasDraft = base !== null && (input.value !== base.displayName || visibility.checked !== (base.isVisibleInMemberSearch ?? false));
         base = fresh; needsRead = false;
         conflict = hasDraft; comparison.hidden = !hasDraft;
-        currentValue.textContent = hasDraft ? "Valeur actuellement enregistrée : " + fresh.displayName : "";
-        if (!hasDraft) { input.value = fresh.displayName; clearValidation(); }
+        currentValue.textContent = hasDraft ? recordedValues(fresh) : "";
+        if (!hasDraft) { input.value = fresh.displayName; visibility.checked = fresh.isVisibleInMemberSearch ?? false; clearValidation(); }
       }
       if (!(fresh.photo?.imageUrl || fresh.photo?.imageUnavailable)) confirmingPhoto = false;
       photoMessage("");
       if (conflict && mode !== "confirm") showFeedback({ variant: "warning", title: "Ta saisie est conservée",
-        message: "Compare ton nom à la valeur enregistrée avant de choisir quoi enregistrer." });
+        message: "Compare tes choix aux valeurs enregistrées avant de choisir quoi enregistrer." });
       busy = false; photoBusy = false; updateControls();
       (confirmingPhoto ? photoConfirmationTitle : photoSection.title).focus();
     } catch (error) {
@@ -400,6 +427,11 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       photoMessage(message, error);
       if (photoNeedsRead) photoFeedback.append(createButton({ label: "Relire le profil", variant: "secondary", onClick: () => { void readPhoto("recover"); } }));
     } finally { if (active()) { busy = false; photoBusy = false; updateControls(); } }
+  }
+
+  /** @param {import("./profileService.js").Profile} profile Fresh recorded values. */
+  function recordedValues(profile) {
+    return "Valeur actuellement enregistrée : " + profile.displayName + ". Recherche de membres : " + (profile.isVisibleInMemberSearch ? "visible." : "masqué.");
   }
 }
 

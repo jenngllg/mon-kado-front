@@ -36,6 +36,44 @@ function edit(input, value) { input.value = value; input.dispatchEvent(new Event
 async function submit(form) { form.dispatchEvent(new Event("submit", { cancelable: true })); await settle(); }
 
 describe("profile editor", () => {
+  it.each([false, true])("edits visibility alone from %s with an accessible checkbox", async initial => {
+    // Arrange
+    let visible = initial;
+    const load = vi.fn(async () => ({ displayName: "Jenn", email: "jenn@example.test", etag: '"a"', isVisibleInMemberSearch: visible }));
+    const save = vi.fn(async (name, options) => { visible = options.isVisibleInMemberSearch; return { displayName: name, etag: '"b"', isVisibleInMemberSearch: visible }; });
+    const { view, form } = mount({ load, save }); await settle();
+    const checkbox = /** @type {HTMLInputElement} */ (view.querySelector('input[type="checkbox"]'));
+    // Act
+    expect(checkbox.checked).toBe(initial);
+    expect(view.querySelector('label[for="' + checkbox.id + '"]')?.textContent).toContain("Apparaître dans la recherche de membres");
+    expect(document.getElementById(checkbox.getAttribute("aria-describedby") ?? "")?.textContent).toContain("lien direct");
+    checkbox.click();
+    expect(button(view, "Enregistrer").disabled).toBe(false);
+    await submit(form);
+    // Assert
+    expect(save).toHaveBeenCalledExactlyOnceWith("Jenn", { etag: '"a"', signal: expect.any(AbortSignal), isVisibleInMemberSearch: !initial });
+    expect(checkbox.checked).toBe(!initial);
+    expect(button(view, "Enregistrer").disabled).toBe(true);
+    disposeComponent(view);
+    expect(checkbox.checked).toBe(false);
+  });
+  it("retains visibility through conflict and permits explicit recorded-version selection", async () => {
+    // Arrange
+    const load = vi.fn(async () => ({ displayName: "Jenn", email: "jenn@example.test", etag: '"a"', isVisibleInMemberSearch: false }));
+    const save = vi.fn(async () => { throw new ApiError({ kind: "http", statusCode: 412 }); });
+    const { view, form } = mount({ load, save }); await settle();
+    const checkbox = /** @type {HTMLInputElement} */ (view.querySelector('input[type="checkbox"]'));
+    checkbox.click();
+    load.mockResolvedValue({ displayName: "Autre onglet", email: "jenn@example.test", etag: '"b"', isVisibleInMemberSearch: false });
+    // Act
+    await submit(form);
+    // Assert
+    expect(checkbox.checked).toBe(true);
+    expect(view.textContent).toContain("Recherche de membres : masqué.");
+    button(view, "Utiliser la valeur enregistrée").click();
+    expect(checkbox.checked).toBe(false);
+    expect(button(view, "Enregistrer").disabled).toBe(true);
+  });
   it("omits redundant display-name help", async () => {
     // Arrange
     const { view } = mount();
@@ -58,7 +96,7 @@ describe("profile editor", () => {
     expect(input.hasAttribute("aria-describedby")).toBe(false);
     expect(view.textContent).not.toContain("jenn@example.test");
     expect(view.textContent).not.toContain("Adresse e-mail");
-    expect(view.querySelectorAll("input")).toHaveLength(1);
+    expect(view.querySelectorAll("input")).toHaveLength(2);
     expect(button(view, "Enregistrer").disabled).toBe(true);
     expect(load).toHaveBeenCalledOnce(); expect(save).not.toHaveBeenCalled();
   });
@@ -138,7 +176,7 @@ describe("profile editor", () => {
     // Assert
     expect(input.disabled).toBe(true); expect(form.getAttribute("aria-busy")).toBe("true");
     expect(/** @type {HTMLButtonElement | null} */ (form.querySelector('button[type="submit"]'))?.disabled).toBe(true); expect(save).toHaveBeenCalledOnce();
-    expect(save.mock.calls[0]).toEqual([" Nouvelle valeur ", { etag: '"a"', signal: expect.any(AbortSignal) }]);
+    expect(save.mock.calls[0]).toEqual([" Nouvelle valeur ", { etag: '"a"', signal: expect.any(AbortSignal), isVisibleInMemberSearch: false }]);
     gate.resolve(); await settle();
     expect(load).toHaveBeenCalledTimes(2); expect(input.value).toBe("Nouvelle valeur");
     expect(view.textContent).toContain("Modifications enregistrées"); expect(input.disabled).toBe(false);
@@ -171,7 +209,7 @@ describe("profile editor", () => {
     expect(button(view, "Enregistrer").disabled).toBe(false); expect(save).toHaveBeenCalledOnce();
     await submit(form);
     expect(save).toHaveBeenCalledTimes(2);
-    expect(save.mock.calls[1]).toEqual([" Ma saisie ", { etag: '"new"', signal: expect.any(AbortSignal) }]);
+    expect(save.mock.calls[1]).toEqual([" Ma saisie ", { etag: '"new"', signal: expect.any(AbortSignal), isVisibleInMemberSearch: false }]);
   });
   it("can choose the server value without writing and keeps HTML-like names as text", async () => {
     // Arrange

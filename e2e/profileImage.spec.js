@@ -20,7 +20,7 @@ for (const width of [390, 1440]) {
     await context.route("**/api/v1/auth/sessions/current", async route => {
       if (route.request().method() !== "GET") return route.fallback();
       await route.fulfill({ status: 200, headers, json: {
-        id: memberId, displayName: "Camille test", email: "test@example.test", roles: ["member"], isGoogleLinked: false,
+        id: memberId, displayName: "Camille test", email: "test@example.test", roles: ["member"], isGoogleLinked: false, isVisibleInMemberSearch: false,
         profileImageUrl: hasPhoto ? `http://localhost:7000${photoPath}?imageId=019c52dd-56c1-7cc6-8a95-243f3a032e09` : null,
       } });
     });
@@ -78,7 +78,7 @@ for (const width of [390, 768, 1440]) {
     await context.route("**/api/v1/auth/sessions/current", async route => {
       if (route.request().method() !== "GET") return route.fallback();
       await route.fulfill({ status: 200, headers: { ...headers, ETag: version }, json: {
-        id: memberId, displayName, email: "test@example.test", roles: ["member"], isGoogleLinked: false, profileImageUrl: imageUrl,
+        id: memberId, displayName, email: "test@example.test", roles: ["member"], isGoogleLinked: false, isVisibleInMemberSearch: false, profileImageUrl: imageUrl,
       } });
     });
     await context.route("**/api/v1/members/*/profile/image?*", route => route.fulfill({ status: 200, headers: { ...headers, "Content-Type": "image/webp" }, body: photo }));
@@ -86,7 +86,7 @@ for (const width of [390, 768, 1440]) {
       if (route.request().method() !== "PUT") return route.fallback();
       expect(route.request().headers()["if-match"]).toBe(version);
       displayName = route.request().postDataJSON().displayName; version = '"name-saved"'; writes.push("name");
-      await route.fulfill({ status: 200, headers: { ...headers, ETag: version }, json: { displayName, profileImageUrl: imageUrl } });
+      await route.fulfill({ status: 200, headers: { ...headers, ETag: version }, json: { displayName, profileImageUrl: imageUrl, isVisibleInMemberSearch: false } });
     });
     await context.route("**/api/v1/members/current/profile/image", async route => {
       if (route.request().method() !== "PUT") return route.fallback();
