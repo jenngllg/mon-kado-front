@@ -78,8 +78,10 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await expect(page.getByRole("heading", { name: api.wishlist.name, exact: true })).toBeVisible();
     await page.goBack(); await expect(card).toBeVisible();
     const cancel = card.getByRole("button", { name: "Annuler ma réservation de « Une théière »", exact: true });
-    await expect(cancel).toHaveCSS("width", "44px");
-    await expect(cancel).toHaveCSS("height", "44px");
+    await expect(cancel).toHaveText("Annuler");
+    const cancelBounds = await cancel.boundingBox();
+    expect(cancelBounds?.width).toBeGreaterThanOrEqual(44);
+    expect(cancelBounds?.height).toBeGreaterThanOrEqual(44);
     const beforeHover = await cancel.boundingBox();
     await cancel.hover();
     expect(await cancel.boundingBox()).toEqual(beforeHover);
