@@ -51,14 +51,20 @@ export function createReservationHistoryService(session, { apiBaseUrl = "http://
       if (item.ownerId != null && !isWishlistId(item.ownerId)) throw invalid();
       if (item.isArchived !== undefined && typeof item.isArchived !== "boolean") throw invalid();
       let wishHref = null;
-      if (item.shareUrl != null && !item.isArchived) {
+      const ownedPath = item.ownedWishPath;
+      if (ownedPath != null) {
+        if (ownedPath !== `/lists/${item.wishlistId}/wishes/${item.wishId}` || item.isArchived || item.shareUrl != null) throw invalid();
+        wishHref = ownedPath;
+      }
+      if (!wishHref && item.shareUrl != null && !item.isArchived) {
         const prefix = `${frontendOrigin}/shared-wishlists/${item.shareLinkId}#`;
         if (typeof item.shareUrl !== "string" || !item.shareLinkId || !item.shareUrl.startsWith(prefix) ||
           !/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(item.shareUrl.slice(prefix.length))) throw invalid();
         wishHref = `/shared-wishlists/${item.shareLinkId}/wishes/${item.wishId}#${item.shareUrl.slice(prefix.length)}`;
       }
       const candidate = item.imageUrl == null ? null : safeHttpUrl(item.imageUrl);
-      const path = `${base.pathname.replace(/\/$/, "")}/api/v1/shared-wishlists/${item.shareLinkId}/wishes/${item.wishId}/image`;
+      const resource = ownedPath ? `wishlists/${item.wishlistId}` : `shared-wishlists/${item.shareLinkId}`;
+      const path = `${base.pathname.replace(/\/$/, "")}/api/v1/${resource}/wishes/${item.wishId}/image`;
       const image = wishHref && candidate && candidate.origin === base.origin && candidate.pathname.toLowerCase() === path.toLowerCase() && !candidate.hash &&
         candidate.searchParams.getAll("token").length === 1 && !!candidate.searchParams.get("token") && [...candidate.searchParams.keys()].every(key => key === "token") ? candidate : null;
       return Object.freeze({ id: item.id, wishlistName: item.wishlistName, wishName: item.wishName, quantity: item.quantity,
@@ -66,7 +72,7 @@ export function createReservationHistoryService(session, { apiBaseUrl = "http://
         ...(item.isArchived !== undefined ? { isArchived: item.isArchived } : {}),
         ...(item.ownerDisplayName !== undefined ? { ownerDisplayName: item.ownerDisplayName } : {}),
         ...(item.ownerId !== undefined ? { ownerHref: item.ownerId ? `/members/${item.ownerId}` : null } : {}),
-        ...(item.shareUrl !== undefined ? { wishHref } : {}),
+        ...(item.shareUrl !== undefined || ownedPath !== undefined ? { wishHref } : {}),
         ...(item.imageUrl !== undefined ? { imageUrl: image?.href ?? null, imageUnavailable: item.imageUrl !== null && !image } : {}) });
     });
     return Object.freeze({ items: Object.freeze(items), currentPage: page.currentPage, pageSize: page.pageSize, totalCount: page.totalCount });

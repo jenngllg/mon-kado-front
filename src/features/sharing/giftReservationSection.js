@@ -12,10 +12,10 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
  * createCancel?: (onInvalidate: () => void, onClose: (confirmed: boolean) => void) => HTMLDialogElement,
  * createIdentification?: (onRecognized: (userInitiated?: boolean) => void) => HTMLElement,
  * onCancelled?: () => void, onUnrecognized?: () => void, fromMemberId?: string | null,
- * onBusy?: (busy: boolean) => void, signal?: AbortSignal}} options Dependencies.
+ * onBusy?: (busy: boolean) => void, canRefresh?: () => boolean, signal?: AbortSignal}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, createCancel, createIdentification, onCancelled, onBusy, onUnrecognized, signal, fromMemberId }) {
+export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, createCancel, createIdentification, onCancelled, onBusy, onUnrecognized, canRefresh, signal, fromMemberId }) {
   const section = document.createElement("section"); section.className = "reservation-panel flow";
   section.tabIndex = -1; section.setAttribute("aria-label", "Réservation");
   const content = document.createElement("div"); content.className = "flow";
@@ -28,7 +28,7 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
     if (signal.aborted) disposeComponent(section);
   }
   if (!disposed) void read(false);
-  if (!disposed) refreshOnReturn(section, () => { void read(false); });
+  if (!disposed) refreshOnReturn(section, () => { if (canRefresh?.() !== false) void read(false); });
   return section;
 
   /** @param {boolean} explicit User-initiated lookup. @param {boolean} [reserveImmediately] Explicit single-item reservation intent. */

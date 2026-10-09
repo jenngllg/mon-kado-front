@@ -129,6 +129,8 @@ Priority: explicit user decisions, original mockups, then this charter and share
 
 ## Delivery checklist
 
+Owner reservations (#992) reuse the existing reservation panel, quantity form and versioned cancellation dialog. The private wish detail allows an explicit normal reservation without a share link. In surprise mode, never fetch or display personal reservation state on page entry; show the surprise explanation and a permanent “Mes réservations” link. After an explicit success or verification of an existing reservation, direct the member to that screen without displaying its quantity. Outside surprise mode, show the current personal reservation and allow versioned editing/cancellation. Archived and suspended parents expose no reservation controls. Page entry and refresh never write; uncertain writes require an explicit verification before another confirmation.
+
 1. Inspect the relevant historical mockup and existing sibling components before implementation.
 2. Reuse shared action links, buttons, disclosure menus, form fields and toolbars; put reusable rules in shared CSS rather than patching one screen.
 3. Verify populated, empty, loading, error, disabled, selected and menu-open states relevant to the change. Use only the actual authenticated account capabilities.

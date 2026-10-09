@@ -47,7 +47,7 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
   /** @param {string} label Accessible wish name. @param {string} href Validated current sharing route. */
   function wishLink(label, href) {
     // Native new-tab navigation still enters through the original shared list.
-    const link = createActionLink({ label, href: href.replace(/\/wishes\/[^#]+/, ""), onClick: event => {
+    const link = createActionLink({ label, href: href.startsWith("/lists/") ? href : href.replace(/\/wishes\/[^#]+/, ""), onClick: event => {
       if (!onOpenWish || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       event.preventDefault(); onOpenWish(href);
     } });

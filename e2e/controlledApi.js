@@ -100,6 +100,7 @@ export async function controlledApi(context) {
         return send(200, wish, wish.entityTag);
       }
     }
+    if (path === `/api/v1/wishlists/${listId}/wishes/${wishId}/reservations/current` && method === "GET") return error(404, "GIFT_RESERVATION_NOT_FOUND");
     if (path === `/api/v1/wishlists/${listId}/share-link` && method === "GET") return error(404, "WISHLIST_SHARE_LINK_NOT_FOUND");
     if (path.startsWith(`/api/v1/shared-wishlists/${shareId}`)) {
       expect(request.headers()["x-monkado-share-token"]).toBe(secret);
