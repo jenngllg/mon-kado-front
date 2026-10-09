@@ -15,13 +15,48 @@ async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); 
 /** @param {HTMLElement} view Current history view. */
 function changeFilter(view) { view.querySelector("select")?.dispatchEvent(new Event("change")); }
 describe("reservation history presentation", () => {
+  it("explains unavailable access beside the status with a dismissible disposable tooltip", async () => {
+    const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, status: "unavailable", endedAt: item.lastActivityAt }] }) });
+    await settle();
+    const information = /** @type {HTMLElement} */ (view.querySelector(".reservation-history-card__information"));
+    const hint = /** @type {HTMLElement} */ (view.querySelector('[role="tooltip"]'));
+    expect(hint.hidden).toBe(true);
+    expect(information.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(hint.textContent).toContain("peut ne plus être partagée ou publique");
+    expect(view.querySelector(".reservation-history-card > p")).toBeNull();
+    information.focus(); expect(hint.hidden).toBe(false);
+    information.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(hint.hidden).toBe(true);
+    information.click(); expect(hint.hidden).toBe(true);
+    information.blur(); expect(hint.hidden).toBe(true);
+    const line = /** @type {HTMLElement} */ (information.parentElement);
+    information.dispatchEvent(new Event("pointerenter")); expect(hint.hidden).toBe(false);
+    line.dispatchEvent(new Event("pointerleave")); expect(hint.hidden).toBe(true);
+    disposeComponent(view);
+    information.click(); expect(hint.hidden).toBe(true);
+    expect(hint.textContent).toBe("");
+  });
+  it("groups the filter with the heading and keeps the status label accessible beside the dates", async () => {
+    // Arrange
+    const { view } = setup();
+    // Act
+    await settle();
+    // Assert
+    expect(view.querySelector(".reservation-history-header h1")?.textContent).toBe("Mes réservations");
+    expect(view.querySelector(".reservation-history-header select")?.getAttribute("id")).toBe(view.querySelector(".reservation-history-header label")?.getAttribute("for"));
+    const review = view.querySelector(".reservation-history-card__review");
+    expect(review?.querySelector(".reservation-history-card__status .visually-hidden")?.textContent).toBe("Statut : ");
+    expect(review?.querySelector("time")?.dateTime).toBe(item.createdAt);
+    expect(view.querySelector(".reservation-history-card__quantity strong")?.textContent).toBe("2");
+    expect(view.querySelector(".reservation-history-card__context")?.textContent).toBe("Noël");
+  });
   it("keeps an archived reservation active without wish navigation or cancellation", async () => {
     const createCancel = vi.fn();
     const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, isArchived: true, wishHref: "/shared-wishlists/test/wishes/product#access" }] }), createCancel });
     await settle();
     expect(view.textContent).toContain("Liste archivée"); expect(view.textContent).toContain("Statut : Active");
     expect(view.querySelector('a[href*="/shared-wishlists/"]')).toBeNull();
-    expect(view.querySelector(".icon-action--danger")).toBeNull(); expect(createCancel).not.toHaveBeenCalled();
+    expect(view.querySelector(".reservation-history-card__cancel")).toBeNull(); expect(createCancel).not.toHaveBeenCalled();
   });
   it.each([true, false])("keeps history stable through cancellation and refreshes only after confirmation=%s", async confirmed => {
     /** @type {Parameters<NonNullable<Parameters<typeof createReservationHistoryView>[0]["createCancel"]>>[1]} */ let callbacks = { onClose: () => {}, onInvalidate: () => {}, onUnavailable: () => {} };
@@ -30,7 +65,10 @@ describe("reservation history presentation", () => {
     const { view, load } = setup({ createCancel }); await settle();
     load.mockResolvedValue({ ...page, items: [{ ...item, wishHref: "/shared-wishlists/test/wishes/product#access" }] });
     changeFilter(view); await settle();
-    const cancel = /** @type {HTMLButtonElement} */ (view.querySelector(".icon-action--danger"));
+    const cancel = /** @type {HTMLButtonElement} */ (view.querySelector(".reservation-history-card__cancel"));
+    expect(cancel.textContent).toBe("Annuler");
+    expect(cancel.classList.contains("ui-button--primary")).toBe(true);
+    expect(cancel.closest(".reservation-history-card__review")?.querySelector("time")).not.toBeNull();
     cancel.click(); cancel.click();
     expect(createCancel).toHaveBeenCalledOnce();
     const before = load.mock.calls.length;
@@ -45,7 +83,7 @@ describe("reservation history presentation", () => {
     const { view, load } = setup({ createCancel }); await settle();
     load.mockResolvedValue({ ...page, items: [{ ...item, status: /** @type {typeof item.status} */ (status), endedAt: item.lastActivityAt, wishHref: "/shared-wishlists/test/wishes/product#access" }] });
     changeFilter(view); await settle();
-    expect(view.querySelector(".icon-action--danger")).toBeNull();
+    expect(view.querySelector(".reservation-history-card__cancel")).toBeNull();
     expect(createCancel).not.toHaveBeenCalled();
   });
   it.each(["invalidated", "unavailable", "disposed"])("handles cancellation lifecycle %s without retaining stale history", async outcome => {
@@ -57,7 +95,7 @@ describe("reservation history presentation", () => {
     load.mockResolvedValue({ ...page, items: [{ ...item, wishHref: "/shared-wishlists/test/wishes/product#access" }] });
     changeFilter(view); await settle();
     // Act
-    view.querySelector(".icon-action--danger")?.dispatchEvent(new MouseEvent("click"));
+    view.querySelector(".reservation-history-card__cancel")?.dispatchEvent(new MouseEvent("click"));
     const before = load.mock.calls.length;
     if (outcome === "disposed") { disposeComponent(view); callbacks.onClose(true); }
     else if (outcome === "unavailable") callbacks.onUnavailable();
@@ -146,7 +184,7 @@ describe("reservation history presentation", () => {
   });
   it.each(["cancelled", "unavailable"])("renders terminal status %s and treats names as text", async status => {
     const { view, load } = setup(); await settle(); load.mockResolvedValue({ ...page, items: [{ ...item, wishName: "<img src=x>", status: /** @type {typeof item.status} */ (status), endedAt: item.lastActivityAt }] });
-    changeFilter(view); await settle(); expect(view.querySelector("h2")?.textContent).toBe("<img src=x>"); expect(view.querySelector("img")).toBeNull();
+    changeFilter(view); await settle(); expect(view.querySelector("h2")?.textContent).toBe("<img src=x>"); expect(view.querySelector('img[src="x"]')).toBeNull();
     expect(view.textContent).toContain(status === "cancelled" ? "Annulée le : 2 sept. 2026" : "Indisponible depuis : 2 sept. 2026");
     expect(view.textContent).not.toMatch(/Dernière activité|Terminée le/);
     expect(view.querySelectorAll("time")).toHaveLength(2); expect(document.activeElement).toBe(view.querySelector("select"));

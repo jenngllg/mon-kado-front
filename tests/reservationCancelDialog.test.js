@@ -16,10 +16,23 @@ function setup() {
   return { dialog, load, cancel, onClose, onInvalidate, onUnavailable, button };
 }
 describe("reservation cancellation dialog", () => {
+  it.each([1, 2, 4])("shows only the useful quantity confirmation for quantity %s", async quantity => {
+    const ui = setup(); await settle();
+    ui.load.mockResolvedValue({ name: "Souhait", lookup: { state: "reserved", reservation: { id: "id", wishId: "wish", quantity, etag: '"fresh"' } } });
+    ui.cancel.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
+    ui.button("Confirmer l’annulation").click(); await settle();
+    ui.button("Relire ma réservation").click(); await settle();
+    const status = /** @type {HTMLElement} */ (ui.dialog.querySelector('[role="status"]'));
+    expect(status.textContent).toBe(quantity > 1 ? `Quantité réservée : ${quantity}.` : "");
+    expect(status.hidden).toBe(quantity === 1);
+    expect(ui.dialog.textContent).not.toContain("Ta réservation sera annulée");
+    expect(ui.dialog.textContent).not.toContain("Confirme l’annulation de toute cette quantité");
+    expect(ui.dialog.hasAttribute("aria-describedby")).toBe(false);
+  });
   it("loads before confirmation, renders text safely and keeps focus off the destructive action", async () => {
     const ui = setup(); expect(ui.button("Confirmer l’annulation").disabled).toBe(true); await settle();
     expect(ui.cancel).not.toHaveBeenCalled(); expect(ui.load).toHaveBeenCalledOnce(); expect(ui.dialog.querySelector("img")).toBeNull();
-    expect(ui.dialog.textContent).toContain("<img> Souhait"); expect(ui.dialog.textContent).toContain("Quantité réservée : 2");
+    expect(ui.dialog.querySelector("h2")?.textContent).toBe("Annuler ta réservation de <img> Souhait ?"); expect(ui.dialog.textContent).toContain("Quantité réservée : 2");
     expect(document.activeElement).toBe(ui.dialog.querySelector("h2")); expect(ui.dialog.getAttribute("aria-labelledby")).toBe(ui.dialog.querySelector("h2")?.id);
     ui.button("Conserver ma réservation").click(); expect(ui.onClose).toHaveBeenCalledWith(false); expect(ui.onInvalidate).not.toHaveBeenCalled();
   });

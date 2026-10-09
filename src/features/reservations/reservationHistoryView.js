@@ -2,7 +2,7 @@ import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createActionLink, createAlert, createButton, createEmptyState, createLoadingState, disposeComponent } from "../../components/index.js";
-import { applyActionIcon } from "../../components/actionIcon.js";
+import informationIcon from "../../assets/icons/information-circle.svg";
 import { createWishImage } from "../wishes/wishImage.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 
@@ -26,7 +26,9 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
   }
   filters.append(filterLabel, filter);
   const statusMessage = node("p", ""); statusMessage.setAttribute("role", "status"); statusMessage.className = "visually-hidden";
-  view.append(title, filters, statusMessage, results);
+  const header = node("div", ""); header.className = "reservation-history-header";
+  header.append(title, filters);
+  view.append(header, statusMessage, results);
   const lifetime = new AbortController(); let disposed = false, busy = false, dialogOpen = false;
   let requestedPage = 1;
   /** @type {import("./reservationHistoryService.js").HistoryStatus | undefined} */ let selectedStatus;
@@ -91,11 +93,37 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
           heading.append(wishHref ? wishLink(item.wishName, wishHref) : document.createTextNode(item.wishName));
           description.append(heading);
           const listHref = wishHref?.replace(/\/wishes\/[^#]+/, "");
-          description.append(metadata("Liste : ", item.wishlistName, listHref));
-          if (item.ownerDisplayName) description.append(metadata("Par ", item.ownerDisplayName, item.ownerHref));
-          description.append(node("p", `Quantité réservée : ${item.quantity}`));
+          const context = node("div", ""); context.className = "reservation-history-card__context";
+          context.append(metadata("", item.wishlistName, listHref));
+          if (item.ownerDisplayName) context.append(metadata("Par ", item.ownerDisplayName, item.ownerHref));
+          const quantity = node("p", "Quantité réservée : "); quantity.className = "reservation-history-card__quantity";
+          quantity.append(node("strong", String(item.quantity)));
+          description.append(context, quantity);
           if (item.isArchived) description.append(node("p", "Liste archivée"));
-          const state = node("p", `Statut : ${StatusLabels[item.status]}`); state.className = "reservation-history-card__status"; state.dataset.status = item.status;
+          const state = node("p", ""); state.className = "reservation-history-card__status"; state.dataset.status = item.status;
+          const statusLabel = node("span", "Statut : "); statusLabel.className = "visually-hidden";
+          state.append(statusLabel, document.createTextNode(StatusLabels[item.status]));
+          const statusLine = node("div", ""); statusLine.className = "reservation-history-card__status-line";
+          statusLine.append(state);
+          if (item.status === "unavailable") {
+            const information = node("span", ""); information.className = "reservation-history-card__information";
+            information.tabIndex = 0; information.setAttribute("role", "img");
+            const icon = node("img", ""); icon.src = informationIcon; icon.alt = ""; icon.setAttribute("aria-hidden", "true");
+            information.replaceChildren(icon);
+            information.setAttribute("aria-label", `À propos de la réservation indisponible de « ${item.wishName} »`);
+            const hint = node("span", "La liste ou le souhait n’est plus accessible. La liste peut ne plus être partagée ou publique. Ton historique reste conservé.");
+            hint.className = "reservation-history-card__tooltip"; hint.id = `reservation-information-${crypto.randomUUID()}`;
+            hint.setAttribute("role", "tooltip"); hint.hidden = true;
+            information.setAttribute("aria-describedby", hint.id);
+            const showHint = () => { hint.hidden = false; };
+            addComponentEventListener(statusLine, information, "pointerenter", showHint);
+            addComponentEventListener(statusLine, statusLine, "pointerleave", () => { if (document.activeElement !== information) hint.hidden = true; });
+            addComponentEventListener(statusLine, information, "focus", showHint);
+            addComponentEventListener(statusLine, information, "blur", () => { hint.hidden = true; });
+            addComponentEventListener(statusLine, statusLine, "keydown", event => { if (/** @type {KeyboardEvent} */ (event).key === "Escape") hint.hidden = true; });
+            registerComponentCleanup(statusLine, () => { hint.hidden = true; hint.textContent = ""; information.removeAttribute("aria-describedby"); icon.removeAttribute("src"); });
+            statusLine.append(information, hint);
+          }
           const dates = node("div", ""); dates.className = "reservation-history-card__dates flow";
           appendDate(dates, "Réservée le", item.createdAt);
           if (item.endedAt) appendDate(dates, item.status === "cancelled" ? "Annulée le" : "Indisponible depuis", item.endedAt);
@@ -104,12 +132,14 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
           if (imageLink) { imageLink.setAttribute("aria-label", `Voir le souhait « ${item.wishName} »`); imageLink.replaceChildren(media); }
           const thumbnail = imageLink ?? media;
           thumbnail.classList.add("reservation-history-card__media");
-          card.append(thumbnail, description, state, dates);
+          const review = node("div", ""); review.className = "reservation-history-card__review flow";
+          review.append(statusLine, dates);
+          card.append(thumbnail, description, review);
           if (item.wishHref && !item.isArchived) {
             if (item.status === "active" && createCancel) {
               const actions = node("div", ""); actions.className = "reservation-history-card__actions cluster";
-              card.append(actions);
-              const cancel = createButton({ label: `Annuler ma réservation de « ${item.wishName} »`, variant: "secondary", onClick: () => {
+              review.append(actions);
+              const cancel = createButton({ label: "Annuler", variant: "primary", onClick: () => {
                 if (disposed || busy || dialogOpen) return;
                 dialogOpen = true; filter.disabled = true;
                 let invalidated = false;
@@ -127,12 +157,11 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
                 });
                 card.append(dialog); dialog.showModal(); dialog.querySelector("h2")?.focus();
               } });
-              applyActionIcon(cancel, "delete", "Annuler ma réservation"); cancel.classList.add("icon-action--danger");
+              cancel.classList.add("reservation-history-card__cancel");
               cancel.setAttribute("aria-label", `Annuler ma réservation de « ${item.wishName} »`);
               actions.append(cancel);
             }
           }
-          if (item.status === "unavailable") card.append(node("p", "Cette réservation n’est plus disponible. Son historique reste conservé."));
           collection.append(card);
         }
         results.append(collection);
