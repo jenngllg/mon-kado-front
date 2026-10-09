@@ -16,7 +16,7 @@ function setup(options = {}) {
   const onCreated = vi.fn(/** @type {(created: typeof result) => Promise<void>} */ (async () => {}));
   const view = createWishlistView({ create, onCreated, now: () => new Date("2028-02-29T12:00:00Z"), ...options }); views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const controls = [...form.querySelectorAll("input,select,textarea")];
+  const controls = [...form.querySelectorAll("input:not([type=checkbox]),select,textarea")];
   const fields = /** @type {[HTMLInputElement, HTMLSelectElement, HTMLInputElement, HTMLTextAreaElement]} */ (controls);
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   /** @param {number} index Field index. @param {string} value Input value. */
@@ -28,19 +28,65 @@ function setup(options = {}) {
 async function settle() { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); }
 
 describe("create wishlist form", () => {
+  it("shows the surprise explanation on information hover, focus or click without changing the switch", () => {
+    const ui = setup();
+    const button = /** @type {HTMLButtonElement} */ (ui.form.querySelector('[aria-label="À propos du mode surprise"]'));
+    const hint = /** @type {HTMLElement} */ (ui.form.querySelector('[role="tooltip"]'));
+    const information = /** @type {HTMLElement} */ (button.parentElement);
+    const mode = /** @type {HTMLInputElement} */ (ui.form.querySelector('[role="switch"]'));
+    expect(hint.hidden).toBe(true);
+    expect(button.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(hint.textContent).toBe("Masquer les réservations sur mes souhaits.");
+    information.dispatchEvent(new Event("pointerenter")); expect(hint.hidden).toBe(false);
+    information.dispatchEvent(new Event("pointerleave")); expect(hint.hidden).toBe(true);
+    button.focus(); expect(hint.hidden).toBe(false);
+    information.dispatchEvent(new Event("pointerleave")); expect(hint.hidden).toBe(false);
+    button.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" })); expect(hint.hidden).toBe(false);
+    button.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); expect(hint.hidden).toBe(true);
+    button.click(); expect(hint.hidden).toBe(false);
+    button.blur(); expect(hint.hidden).toBe(true);
+    expect(mode.checked).toBe(true);
+    expect(ui.create).not.toHaveBeenCalled();
+  });
+  it("keeps creation focused on the form without preview or decorative image requests", () => {
+    const ui = setup();
+    ui.input(0, "Noël en famille"); ui.input(1, "christmas"); ui.input(2, "2028-12-25"); ui.input(3, "Nos idées");
+    expect(ui.view.querySelector("aside, img, .wishlist-live-preview, dialog")).toBeNull();
+    expect(ui.view.textContent).not.toContain("Aperçu");
+    expect(ui.fields.map(field => field.value)).toEqual(["Noël en famille", "christmas", "2028-12-25", "Nos idées"]);
+    expect(ui.form.querySelector(".wishlist-form__footer > .wishlist-surprise-control")).not.toBeNull();
+    expect(ui.submit.parentElement?.className).toBe("wishlist-form__footer");
+    expect(ui.fields[1].closest(".wishlist-form__occasion")).not.toBeNull();
+    expect(ui.fields[2].closest(".wishlist-form__eventDate")).not.toBeNull();
+    expect(ui.create).not.toHaveBeenCalled();
+    disposeComponent(ui.view);
+    expect(ui.fields.every(field => field.value === "")).toBe(true);
+  });
+  it("defaults to surprise mode and submits an explicit disabled mode", async () => {
+    const ui = setup(); ui.fill();
+    const mode = /** @type {HTMLInputElement} */ (ui.view.querySelector('[role="switch"]'));
+    expect(mode.checked).toBe(true);
+    mode.click(); ui.send();
+    expect(mode.disabled).toBe(true);
+    await settle();
+    expect(ui.create.mock.calls[0][0].surpriseMode).toBe(false);
+  });
   it("provides four native labelled fields and only contract-supported controls", () => {
     const ui = setup();
     expect(ui.view.querySelector("h1")?.textContent).toBe("Créer une liste");
+    expect(ui.view.textContent).not.toContain("facultatif");
     expect(ui.form.noValidate).toBe(true); expect(ui.fields.map(field => field.name)).toEqual(["name", "occasion", "eventDate", "message"]);
     expect(ui.fields.map(field => field.required)).toEqual([true, true, false, false]);
     expect(ui.fields[2].type).toBe("date"); expect(ui.fields[3].tagName).toBe("TEXTAREA");
     expect(ui.fields[1].value).toBe(""); expect([...ui.fields[1].options].map(option => option.textContent)).toEqual(["Choisir…", "Anniversaire", "Noël", "Mariage", "Naissance", "Autre"]);
     for (const field of ui.fields) {
       expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull();
-      expect(document.getElementById(field.getAttribute("aria-describedby") ?? "")).not.toBeNull();
+      expect(field.hasAttribute("aria-describedby")).toBe(false);
       expect(field.hasAttribute("maxlength")).toBe(false);
     }
     expect(ui.view.querySelector("a")?.getAttribute("href")).toBe("/lists");
+    expect(ui.view.firstElementChild?.classList.contains("back-link")).toBe(true);
+    expect(ui.view.querySelectorAll(".back-link")).toHaveLength(1);
     expect(document.activeElement).not.toBe(ui.fields[0]);
   });
   it("validates on submit, announces a summary, focuses the first invalid field and clears corrected errors", async () => {
@@ -85,7 +131,7 @@ describe("create wishlist form", () => {
     const gate = barrier(); const ui = setup(); ui.create.mockImplementation(async () => { await gate.promise; return result; }); ui.fill(); ui.send(); ui.send();
     expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.submit.disabled).toBe(true);
     expect(ui.form.getAttribute("aria-busy")).toBe("true"); expect(ui.view.querySelector('[role="status"]')?.textContent).toBe("Création de ta liste…");
-    expect(ui.create).toHaveBeenCalledWith({ name: " Liste 🎁 ", occasion: "birthday", eventDate: "2028-02-29", message: " Message\nmultiligne " }, { signal: expect.any(AbortSignal) });
+    expect(ui.create).toHaveBeenCalledWith({ name: " Liste 🎁 ", occasion: "birthday", eventDate: "2028-02-29", message: " Message\nmultiligne ", surpriseMode: true }, { signal: expect.any(AbortSignal) });
     gate.resolve(); await settle(); await settle();
     expect(ui.onCreated).toHaveBeenCalledExactlyOnceWith(result); expect(ui.fields.every(field => field.value === "")).toBe(true);
     ui.send(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.submit.disabled).toBe(true);
@@ -102,7 +148,7 @@ describe("create wishlist form", () => {
   });
   it.each(["name", "occasion", "eventDate", "message"])("maps server %s validation with French text", async name => {
     const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: name, errorMessage: "<img src=x> English secret" }] })); ui.fill(); ui.send(); await settle();
-    expect(document.activeElement).toBe(ui.fields.find(field => field.name === name)); expect(ui.view.textContent).not.toContain("English secret"); expect(ui.view.querySelector("img")).toBeNull();
+    expect(document.activeElement).toBe(ui.fields.find(field => field.name === name)); expect(ui.view.textContent).not.toContain("English secret"); expect(ui.view.querySelector('img[src="x"], img[onerror]')).toBeNull();
   });
   it("keeps unknown validations globally visible after correcting known ones", async () => {
     const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "name", errorMessage: "English" }, { propertyName: "ownerId", errorMessage: "English" }] })); ui.fill(); ui.send(); await settle(); ui.input(0, "Corrected");
@@ -120,7 +166,8 @@ describe("create wishlist form", () => {
   });
   it("keeps HTML-looking inputs as text", async () => {
     const ui = setup(); ui.fill(); ui.input(0, "<img src=x onerror=alert(1)>"); ui.create.mockRejectedValue(new ApiError({ kind: "network" })); ui.send(); await settle();
-    expect(ui.view.querySelector("img")).toBeNull(); expect(ui.fields[0].value).toContain("<img");
+    expect(ui.view.querySelector('img[src="x"], img[onerror]')).toBeNull(); expect(ui.fields[0].value).toContain("<img");
+    expect(ui.view.querySelector(".wishlist-live-preview")).toBeNull();
   });
   it("shows the common catalogue's support reference on technical failures", async () => {
     const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 503, correlationId: "support-fixture" })); ui.fill(); ui.send(); await settle();

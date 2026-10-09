@@ -21,7 +21,7 @@ test("shared navigation consumes the fragment and reload cannot recover it", asy
   await page.goto(`${sharedPath}#${secret}`);
   await expect(page.getByRole("heading", { name: "Anniversaire — test navigateur" })).toBeVisible();
   await expect(page).toHaveURL(sharedPath);
-  await page.getByRole("link", { name: "Voir le cadeau « Une théière »", exact: true }).click();
+  await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   await expect(page).toHaveURL(`${sharedPath}/wishes/${wishId}`);
   await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
   await page.reload();
@@ -35,10 +35,9 @@ test("a known revoked link removes public content on refresh", async ({ page, co
   const api = await controlledApi(context);
   await page.goto(`${sharedPath}#${secret}`);
   await expect(page.getByRole("heading", { name: "Anniversaire — test navigateur" })).toBeVisible();
-  // Wait for the independent initial participation read before revoking access.
-  await expect(page.getByRole("textbox", { name: /Nom d’affichage/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true })).toBeVisible();
   api.state.revoked = true;
-  await page.getByRole("button", { name: "Actualiser la liste", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Afficher uniquement les souhaits disponibles" }).check();
   await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Nom d’affichage" })).toHaveCount(0);
@@ -49,8 +48,9 @@ test("guest validation focuses the invalid field without creating a participant"
   const api = await controlledApi(context);
   await page.goto(`${sharedPath}#${secret}`);
   const name = page.getByRole("textbox", { name: /Nom d’affichage/ });
+  await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   await expect(name).toBeVisible();
-  await page.getByRole("button", { name: "Participer à cette liste", exact: true }).click();
+  await page.getByRole("button", { name: "Continuer", exact: true }).click();
   await expect(name).toBeFocused();
   await expect(name).toHaveAttribute("aria-invalid", "true");
   expect(api.state.joins).toBe(0);
@@ -60,8 +60,9 @@ test("guest validation focuses the invalid field without creating a participant"
 test("an uncertain guest participation requires verification before another POST", async ({ page, context }) => {
   const api = await controlledApi(context);
   await page.goto(`${sharedPath}#${secret}`);
+  await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   await page.getByRole("textbox", { name: /Nom d’affichage/ }).fill("Invité test");
-  await page.getByRole("button", { name: "Participer à cette liste", exact: true }).click();
+  await page.getByRole("button", { name: "Continuer", exact: true }).click();
   await expect(page.getByText("Ta participation ne peut pas être confirmée. Vérifie ta participation avant de réessayer.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Vérifier ma participation", exact: true })).toBeVisible();
   expect(api.state.joins).toBe(1);

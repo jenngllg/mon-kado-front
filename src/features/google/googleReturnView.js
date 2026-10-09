@@ -1,5 +1,5 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
-import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
+import { createBackLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { RoutePaths } from "../../app/routeContracts.js";
@@ -73,11 +73,7 @@ export function createGoogleReturnView({ google, session, consumeFragment, signa
       uncertainty.textContent = "Le résultat de la connexion ne peut pas être confirmé. Tu peux recommencer explicitement depuis la page de connexion.";
       view.append(uncertainty);
     }
-    const links = document.createElement("div");
-    links.className = "cluster";
-    links.append(createActionLink({ label: "Revenir à la connexion", href: RoutePaths.Login }),
-      createActionLink({ label: "Retour à l’accueil", href: RoutePaths.Home }));
-    view.append(links);
+    view.prepend(createBackLink({ label: "Revenir à la connexion", href: RoutePaths.Login }));
     queueMicrotask(() => { if (!disposed) alert.focus(); });
   }
 

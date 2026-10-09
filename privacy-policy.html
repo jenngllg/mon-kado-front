@@ -2,18 +2,24 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" sizes="any" href="/src/assets/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex,nofollow,noarchive" />
     <link rel="stylesheet" href="/src/styles/legal.css" />
     <title>Confidentialité · MonKado</title>
   </head>
-  <body>
-    <header><a href="/">MonKado — accueil</a></header>
-    <main>
+  <body class="legal-page">
+    <a class="skip-link" href="#main-content">Aller au contenu</a>
+    <header class="app-header"><div class="app-header__content container"><a class="app-brand" href="/">MonKado</a></div></header>
+    <main id="main-content" class="legal-main" tabindex="-1">
+      <a class="action-link action-link--default back-link" href="/" title="Retour à l’accueil">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M19 12H5m7-7-7 7 7 7"></path></svg>
+        <span>Retour à l’accueil</span>
+      </a>
       <h1>Confidentialité et données personnelles</h1>
       <p data-publication-draft>Brouillon de prévisualisation locale. L’identité du responsable, les bases légales, les destinataires, les transferts et les durées doivent être validés avant publication.</p>
       <h2>Compte, listes et partage</h2>
-      <p>Le service traite les informations du compte, les listes, les souhaits, les images et les participations nécessaires aux fonctionnalités utilisées. Le nom d’affichage et la photo de profil peuvent être publics. Un lien de partage peut être transmis par son destinataire : ne le partage pas comme un document privé nominatif.</p>
+      <p>Le service traite les informations du compte, les listes, les souhaits, les images et les participations nécessaires aux fonctionnalités utilisées. Le nom d’affichage et la photo de profil sont visibles sur le profil public. Les listes dont le partage est actif sont consultables depuis ce profil, même sans compte. Désactiver le partage retire la liste du profil et désactive son lien.</p>
       <p>Les données de compte comprennent l’adresse e-mail, le nom d’affichage, les rôles, les dates et les informations de sécurité nécessaires à la connexion. Un mot de passe n’est pas conservé en clair. Une personne invitée peut participer avec un pseudonyme et une session de navigateur, sans créer de compte.</p>
       <p>Les listes contiennent les textes, dates, liens marchands et images que tu choisis d’ajouter. Les réservations permettent de coordonner les cadeaux selon les droits du propriétaire et des participants. N’ajoute pas d’informations sensibles ou de données concernant d’autres personnes sans nécessité. Les images importées sont normalisées ; les originaux ne sont pas conservés.</p>
       <h2>Finalités et fondements à approuver</h2>
@@ -26,7 +32,7 @@
       <p>Les cookies assurent les sessions, la protection contre les requêtes falsifiées et les parcours temporaires de connexion. Le jeton d’accès MonKado reste en mémoire. Le navigateur conserve également des métadonnées de coordination entre onglets ; celles-ci ne sont pas des mots de passe ou des jetons d’accès.</p>
       <p>Le cookie invité permet de retrouver les participations depuis le même navigateur ; sa durée absolue configurée par défaut est de 180 jours. L’effacer ne supprime pas automatiquement les données conservées côté serveur. Les clés d’authentificateur, les codes de récupération et les preuves de confirmation ne sont pas enregistrés dans le stockage persistant du frontend. Les codes de récupération doivent être conservés séparément par leur titulaire.</p>
       <h2>Accès aux données et prestataires</h2>
-      <p>Les destinataires fonctionnels dépendent de tes partages : toi-même, les personnes autorisées par les liens et participations, et les administrateurs habilités lorsque le support ou la modération le nécessite. Un lien partagé peut être recopié ; révoque-le si son accès doit cesser. Les droits sur les réservations ne donnent pas accès aux données privées du compte d’un autre membre.</p>
+      <p>Les destinataires fonctionnels dépendent de tes partages : toi-même, les visiteurs de ton profil pour les listes partagées, les personnes utilisant les liens et participations, et les administrateurs habilités lorsque le support ou la modération le nécessite. Un lien partagé peut être recopié ; désactive le partage si son accès doit cesser. Les droits sur les réservations ne donnent pas accès aux données privées du compte d’un autre membre.</p>
       <p>DigitalOcean fournit l’hébergement du serveur. Google intervient pour les e-mails transactionnels, le stockage chiffré des sauvegardes sur Drive et, si elle est activée, la connexion Google. Hostinger gère le domaine. Les accès techniques sont limités aux besoins de ces fonctions.</p>
       <p data-publication-draft>Avant publication, vérifier les entités contractantes, la région effective du VPS, les destinataires et sous-traitants, les conditions applicables aux comptes Google utilisés et les éventuels transferts hors Espace économique européen avec leurs garanties. Le chiffrement des sauvegardes ne dispense pas de cette vérification. Aucune localisation exclusive en France ou dans l’Union européenne n’est promise ici.</p>
       <h2>Durées techniques et suppression</h2>
@@ -48,6 +54,10 @@
       <p>Aucune restriction d’âge n’est ajoutée dans cette bêta. Les informations et modalités applicables aux utilisateurs mineurs restent à valider. Membres et invités peuvent contacter <a href="mailto:monkado.app@gmail.com">monkado.app@gmail.com</a> pour une demande relative à leurs données.</p>
       <p>Informations sur les droits et les réclamations : <a href="https://www.cnil.fr/fr/les-droits-pour-maitriser-vos-donnees-personnelles">CNIL</a>.</p>
     </main>
-    <footer><nav aria-label="Informations légales"><a href="/legal-notice">Mentions légales</a><a href="/terms-of-use">Conditions d’utilisation</a></nav></footer>
+    <footer class="app-footer"><nav class="cluster container" aria-label="Informations légales">
+        <a class="action-link action-link--default" href="/legal-notice">Mentions légales</a>
+        <a class="action-link action-link--default" href="/privacy-policy" aria-current="page">Confidentialité</a>
+        <a class="action-link action-link--default" href="/terms-of-use">Conditions d’utilisation</a>
+    </nav></footer>
   </body>
 </html>

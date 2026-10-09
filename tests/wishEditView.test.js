@@ -9,12 +9,12 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-
 /** @type {import("../src/features/wishlists/wishlistsService.js").CreatedWishlist} */
 const list = { wishlist: { id, name: "Liste privée", occasion: "birthday", eventDate: null, message: null, isSuspended: false }, etag: '"list"' };
 /** @param {string} [name] Server name. @param {string} [etag] Server tag. @returns {import("../src/features/wishes/wishesService.js").EditableWish} Data. */
-function stored(name = "Cadeau", etag = '"gift"') {
+function stored(name = "Souhait", etag = '"gift"') {
   return { wish: { id: wishId, wishlistId: id, name, note: null, url: null, imageUrl: null, price: 0.29, quantity: 2, position: "1", entityTag: etag, imageUnavailable: false, productUnavailable: false },
     etag, values: { name, note: "", url: "", price: "0,29", quantity: "2" } };
 }
 /** @type {HTMLElement[]} */ const views = [];
-afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
+afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); vi.useRealTimers(); });
 /** @param {Partial<Parameters<typeof createWishEditView>[0]>} [options] Overrides. */
 function setup(options = {}) {
   const loadWishlist = vi.fn(/** @type {import("../src/features/wishlists/wishlistsService.js").LoadWishlist} */ (async () => list));
@@ -22,7 +22,7 @@ function setup(options = {}) {
   const update = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").UpdateWish} */ (async () => stored("Mis à jour", '"next"')));
   const view = createWishEditView({ wishlistId: id, wishId, loadWishlist, loadOne, update, ...options }); views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const fields = /** @type {Array<HTMLInputElement | HTMLTextAreaElement>} */ ([...form.querySelectorAll("input,textarea")]);
+  const fields = /** @type {Array<HTMLInputElement | HTMLTextAreaElement>} */ ([...form.querySelectorAll('input:not([type="checkbox"]),textarea')]);
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   /** @param {number} index Field. @param {string} value Raw value. */
   function input(index, value) { fields[index].value = value; fields[index].dispatchEvent(new Event("input", { bubbles: true })); }
@@ -33,36 +33,113 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 15; i++) await Promise.resolve(); }
 
+it("keeps wish deletion out of the edit page", async () => {
+  // Arrange
+  const remove = vi.fn();
+  const ui = setup({ remove });
+  // Act
+  await settle();
+  // Assert
+  expect(ui.view.querySelector(".wish-edit-view__deletion")).toBeNull();
+  expect(ui.view.textContent).not.toMatch(/Suppression du souhait|Supprimer ce souhait|action définitive/);
+  expect(ui.form.hidden).toBe(false);
+  expect(remove).not.toHaveBeenCalled();
+});
+
 describe("gift editor", () => {
-  it("owns a unique modal and keeps the exact editor draft and original ETag on cancellation", async () => {
-    const remove = vi.fn(async () => {}); const ui = setup({ remove }); await settle(); ui.input(0, "Mon brouillon");
-    ui.loadOne.mockResolvedValue(stored("Serveur récent", '"dialog-tag"')); ui.click("Supprimer ce cadeau"); ui.click("Supprimer ce cadeau"); await settle();
-    expect(ui.view.querySelectorAll("dialog")).toHaveLength(1); expect(ui.view.querySelector("dialog")?.textContent).toContain("Serveur récent"); expect(ui.fields[0].value).toBe("Mon brouillon");
-    ui.send(); expect(ui.update).not.toHaveBeenCalled(); const dialog = /** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog")); dialog.close(); await settle();
-    expect(ui.view.querySelector("dialog")).toBeNull(); expect(document.activeElement?.textContent).toBe("Supprimer ce cadeau"); expect(ui.fields[0].value).toBe("Mon brouillon");
-    ui.send(); await settle(); expect(ui.update.mock.calls[0][3].etag).toBe('"gift"'); expect(remove).not.toHaveBeenCalled();
+  it.each([404, 409])("honors loss of parent access discovered during product analysis (%s)", async statusCode => {
+    vi.useFakeTimers();
+    try {
+      const preview = vi.fn(async () => { throw new ApiError({ kind: "http", statusCode, errorCode: statusCode === 409 ? "WISHLIST_SUSPENDED" : "WISHLIST_NOT_FOUND" }); });
+      const ui = setup({ preview }); await settle();
+      const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="url"]'));
+      link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(2000); await settle(); ui.send();
+      expect(ui.update).not.toHaveBeenCalled();
+      if (statusCode === 404) expect(ui.view.querySelector("form")).toBeNull();
+      else expect(ui.fields.every(field => field.readOnly)).toBe(true);
+      expect(ui.view.textContent).toContain(statusCode === 404 ? "Liste introuvable" : "Liste suspendue");
+    } finally { vi.useRealTimers(); }
   });
-  it.each(["wishlistMissing", "wishMissing", "suspended"])("propagates safe dialog state %s to the editor", async state => {
-    const ui = setup({ remove: async () => {} }); await settle(); ui.input(0, "Brouillon privé");
-    if (state === "wishlistMissing") ui.loadWishlist.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
-    else if (state === "wishMissing") ui.loadOne.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
-    else ui.loadWishlist.mockResolvedValue({ ...list, wishlist: { ...list.wishlist, isSuspended: true } });
-    ui.click("Supprimer ce cadeau"); await settle(); const dialog = /** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog")); expect(dialog.open).toBe(true); dialog.close(); await settle();
-    ui.send(); expect(ui.update).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
-    if (state === "suspended") {
-      expect(ui.fields[0].value).toBe("Brouillon privé"); expect(ui.fields.every(field => field.disabled)).toBe(true);
-      ui.loadWishlist.mockResolvedValue(list); ui.click("Relire le cadeau"); await settle(); expect(ui.fields[0].disabled).toBe(false); expect(ui.fields[0].value).toBe("Brouillon privé");
-    } else { expect(ui.view.querySelector("form")).toBeNull(); expect(ui.fields.every(field => field.value === "")).toBe(true); }
+  it.each(["success", "failure"])("locks editing immediately through debounce and retrieval, then unlocks after %s", async outcome => {
+    // Arrange
+    vi.useFakeTimers(); const gate = barrier();
+    const preview = vi.fn(async () => {
+      await gate.promise;
+      if (outcome === "failure") throw new ApiError({ kind: "network" });
+      return { name: "Produit", price: "12", url: "https://shop.test/new", image: null, warnings: [] };
+    });
+    const ui = setup({ preview, uploadImage: vi.fn(), removeImage: vi.fn() }); await settle();
+    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
+    const controls = [...ui.form.querySelectorAll('input:not([name="url"]),textarea,.wish-image-section button,button[type="submit"]')];
+    const locked = () => controls.every(control => /** @type {HTMLInputElement} */ (control).disabled);
+    // Act
+    link.focus(); link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
+    // Assert
+    expect(locked()).toBe(true); expect(link.disabled).toBe(false);
+    expect(ui.form.getAttribute("aria-busy")).toBe("true"); expect(document.activeElement).toBe(link);
+    ui.send(); expect(ui.update).not.toHaveBeenCalled(); expect(preview).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(locked()).toBe(true); ui.send(); expect(ui.update).not.toHaveBeenCalled();
+    gate.resolve(); await settle();
+    expect(controls.every(control => !/** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
+    expect(ui.form.getAttribute("aria-busy")).toBe("false");
+    expect(/** @type {HTMLInputElement} */ (ui.form.querySelector('[name="name"]')).value).toBe(outcome === "success" ? "Produit" : "Souhait");
   });
-  it("locks and erases the editor after deletion even if navigation fails", async () => {
-    const remove = vi.fn(async () => {}), onDeleted = vi.fn(async () => { throw new Error("navigation"); }); const ui = setup({ remove, onDeleted }); await settle(); ui.input(0, "Brouillon"); ui.click("Supprimer ce cadeau"); await settle(); ui.click("Supprimer définitivement"); await settle();
-    expect(remove).toHaveBeenCalledTimes(1); expect(onDeleted).toHaveBeenCalledTimes(1); expect(ui.view.querySelector("dialog,form")).toBeNull(); expect(ui.fields.every(field => field.value === "")).toBe(true);
-    expect(ui.view.textContent).toContain("Cadeau supprimé"); ui.send(); ui.click("Supprimer ce cadeau"); expect(ui.update).not.toHaveBeenCalled(); expect(remove).toHaveBeenCalledTimes(1);
+  it.each(["", "invalid"])("unlocks editing when a pending link becomes %j", async value => {
+    // Arrange
+    vi.useFakeTimers(); const preview = vi.fn(); const ui = setup({ preview }); await settle();
+    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="url"]'));
+    link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
+    expect(ui.fields.filter(field => field !== link).every(field => field.disabled)).toBe(true);
+    // Act
+    link.value = value; link.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(2000);
+    // Assert
+    expect(ui.fields.every(field => !field.disabled)).toBe(true);
+    expect(ui.form.getAttribute("aria-busy")).toBe("false"); expect(preview).not.toHaveBeenCalled();
   });
-  it("cannot open before a read or during an update, and safely handles unavailable native dialog support", async () => {
-    const gate = barrier(); const ui = setup({ remove: async () => {}, update: async () => { await gate.promise; return stored(); } });
-    ui.click("Supprimer ce cadeau"); expect(ui.view.querySelector("dialog")).toBeNull(); await settle(); ui.input(0, "Autre"); ui.send(); ui.click("Supprimer ce cadeau"); expect(ui.view.querySelector("dialog")).toBeNull(); gate.resolve(); await settle();
-    const native = vi.spyOn(HTMLDialogElement.prototype, "showModal").mockImplementationOnce(() => { throw new Error("not available"); }); ui.click("Supprimer ce cadeau"); await settle(); expect(ui.view.querySelector("dialog")).toBeNull(); expect(ui.view.textContent).toContain("Confirmation indisponible"); native.mockRestore();
+  it("retrieves a changed product link after two seconds without saving", async () => {
+    // Arrange
+    vi.useFakeTimers();
+    const preview = vi.fn(async () => ({ name: "Nouveau produit", price: "25", url: "https://shop.test/new", image: null, warnings: [] }));
+    const ui = setup({ preview }); await settle();
+    for (const [name, value] of [["name", "Nom saisi avant analyse"], ["note", "Note personnelle\nà conserver"], ["quantity", "4"]]) {
+      const field = /** @type {HTMLInputElement | HTMLTextAreaElement} */ (ui.form.querySelector(`[name="${name}"]`));
+      field.value = value;
+      field.dispatchEvent(new Event("input"));
+    }
+    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
+    // Act
+    link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(preview).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1); await settle();
+    // Assert
+    expect(ui.form.querySelector("input")).toBe(link);
+    expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="name"]'))?.value).toBe("Nouveau produit");
+    expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="price"]'))?.value).toBe("25");
+    expect(/** @type {HTMLTextAreaElement | null} */ (ui.form.querySelector('textarea[name="note"]'))?.value).toBe("Note personnelle\nà conserver");
+    expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="quantity"]'))?.value).toBe("4");
+    expect(ui.view.textContent).not.toContain("Informations récupérées appliquées");
+    expect(ui.update).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+  it("discards obsolete product retrieval and keeps later edits", async () => {
+    // Arrange
+    vi.useFakeTimers(); const gate = barrier();
+    const preview = vi.fn(async () => { await gate.promise; return { name: "Obsolète", price: "25", url: "https://shop.test/old", image: null, warnings: [] }; });
+    const ui = setup({ preview }); await settle();
+    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
+    link.value = "https://shop.test/old"; link.dispatchEvent(new Event("input")); await vi.advanceTimersByTimeAsync(2000);
+    expect(ui.view.querySelector(".ui-spinner")?.hasAttribute("hidden")).toBe(false);
+    // Act
+    link.value = ""; link.dispatchEvent(new Event("input")); gate.resolve(); await settle();
+    // Assert
+    expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="name"]'))?.value).toBe("Souhait");
+    expect(ui.view.querySelector(".ui-spinner")?.hasAttribute("hidden")).toBe(true);
+    expect(ui.update).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
   it("reads parent then gift with one lifetime, renders five labelled fields and starts unchanged", async () => {
     const gate = barrier(); const parent = vi.fn(/** @type {import("../src/features/wishlists/wishlistsService.js").LoadWishlist} */ (async () => { await gate.promise; return list; })); const ui = setup({ loadWishlist: parent });
@@ -70,12 +147,14 @@ describe("gift editor", () => {
     gate.resolve(); await settle(); expect(ui.form.hidden).toBe(false); expect(ui.fields).toHaveLength(5); expect(ui.form.noValidate).toBe(true);
     expect(ui.loadOne).toHaveBeenCalledExactlyOnceWith(id, wishId, { signal: parent.mock.calls[0][1].signal });
     expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(Object.values(stored().values));
-    for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.getAttribute("aria-describedby")).toBeTruthy(); expect(field.hasAttribute("maxlength")).toBe(false); }
+    for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.hasAttribute("aria-describedby")).toBe(false); expect(field.hasAttribute("maxlength")).toBe(false); }
   });
-  it("compares serialized meanings and cancels locally without rereading", async () => {
-    const ui = setup(); await settle(); ui.input(0, " Cadeau "); ui.input(3, "0.29"); ui.input(4, "02"); expect(ui.submit.disabled).toBe(true);
-    ui.input(1, "Brouillon"); expect(ui.submit.disabled).toBe(false); ui.click("Annuler les modifications");
-    expect(ui.fields.map(field => field.value)).toEqual(Object.values(stored().values)); expect(ui.loadOne).toHaveBeenCalledTimes(1); expect(ui.update).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
+  it("compares serialized meanings and offers only Enregistrer for an edited draft", async () => {
+    const ui = setup(); await settle(); ui.input(0, " Souhait "); ui.input(3, "0.29"); ui.input(4, "02"); expect(ui.submit.disabled).toBe(true);
+    ui.input(1, "Brouillon"); expect(ui.submit.disabled).toBe(false);
+    expect(ui.submit.textContent).toBe("Enregistrer"); expect(ui.view.textContent).not.toContain("Annuler les modifications");
+    expect([...ui.form.querySelectorAll("button")].filter(button => !button.hidden)).toEqual([ui.submit]);
+    expect(ui.fields[1].value).toBe("Brouillon"); expect(ui.loadOne).toHaveBeenCalledTimes(1); expect(ui.update).not.toHaveBeenCalled();
   });
   it("validates dirty fields, corrections, submit focus and pointer blur without moving an activation", async () => {
     const ui = setup(); await settle(); ui.fields[0].dispatchEvent(new FocusEvent("blur")); expect(ui.fields[0].getAttribute("aria-invalid")).not.toBe("true");
@@ -86,13 +165,13 @@ describe("gift editor", () => {
   });
   it("enforces total byte size without truncation or transport", async () => {
     const ui = setup(); await settle(); const note = "🎁".repeat(500); ui.input(1, note); ui.input(2, "https://example.test/" + "é".repeat(1500)); ui.send();
-    expect(ui.update).not.toHaveBeenCalled(); expect(ui.view.textContent).toContain("Raccourcis la note ou le lien"); expect(ui.fields[1].value).toBe(note);
+    expect(ui.update).not.toHaveBeenCalled(); expect(ui.view.textContent).toContain("Informations trop volumineuses pour l’envoi"); expect(ui.fields[1].value).toBe(note);
   });
   it("sends once, disables controls, adopts the response and uses its ETag for the next edit", async () => {
     const gate = barrier(); const operation = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").UpdateWish} */ (async () => { await gate.promise; return stored("Normalisé", '"new"'); }));
     const ui = setup({ update: operation }); await settle(); ui.input(0, " nouveau "); ui.send(); ui.send();
-    expect(operation).toHaveBeenCalledExactlyOnceWith(id, wishId, { ...stored().values, name: " nouveau " }, { etag: '"gift"', signal: expect.any(AbortSignal) });
-    expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.view.textContent).toContain("Enregistrement de ton cadeau…");
+    expect(operation).toHaveBeenCalledExactlyOnceWith(id, wishId, { ...stored().values, name: " nouveau ", isFavorite: false }, { etag: '"gift"', signal: expect.any(AbortSignal) });
+    expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.view.textContent).toContain("Enregistrement de ton souhait…");
     gate.resolve(); await settle(); expect(ui.fields[0].value).toBe("Normalisé"); expect(ui.submit.disabled).toBe(true); expect(ui.view.textContent).toContain("Modifications enregistrées"); expect(ui.loadOne).toHaveBeenCalledTimes(1);
     ui.input(0, "Encore"); ui.send(); await settle(); expect(operation.mock.calls[1][3].etag).toBe('"new"');
   });
@@ -100,21 +179,23 @@ describe("gift editor", () => {
     const ui = setup(); await settle(); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISH_VERSION_CONFLICT" }));
     const draft = ["Mon nom", "Note\nprivée", "https://example.test/original", "14,20", "3"]; draft.forEach((value, index) => ui.input(index, value)); ui.send(); await settle();
     expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(draft); ui.send(); expect(ui.update).toHaveBeenCalledTimes(1);
-    ui.loadOne.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.click("Relire le cadeau"); await settle(); expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(draft);
-    ui.loadOne.mockResolvedValue(stored("Autre onglet", '"conflict-2"')); ui.click("Relire le cadeau"); await settle();
+    const reread = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Relire le souhait");
+    expect((reread?.compareDocumentPosition(ui.fields[0]) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    ui.loadOne.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.click("Relire le souhait"); await settle(); expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(draft);
+    ui.loadOne.mockResolvedValue(stored("Autre onglet", '"conflict-2"')); ui.click("Relire le souhait"); await settle();
     expect(ui.view.textContent).toContain("Version enregistrée"); expect(ui.view.textContent).toContain("Autre onglet"); expect(ui.fields.map(field => field.value)).toEqual(draft); expect(ui.update).toHaveBeenCalledTimes(1);
     const comparison = ui.view.querySelector(".wish-edit-view__comparison");
     expect(comparison?.querySelector("h2")?.textContent).toBe("Version enregistrée");
     expect(comparison?.querySelectorAll("dt")).toHaveLength(5);
     expect(comparison?.querySelectorAll("dd")).toHaveLength(5);
     expect(comparison?.contains(ui.form)).toBe(false);
-    ui.click("Enregistrer ma saisie"); await settle(); expect(ui.update.mock.calls[1][3].etag).toBe('"conflict-2"'); expect(ui.submit.disabled).toBe(true);
-    ui.loadOne.mockResolvedValue(stored("Version finale", '"conflict-3"')); ui.click("Relire le cadeau"); await settle(); ui.click("Utiliser la version enregistrée");
+    ui.click("Enregistrer"); await settle(); expect(ui.update.mock.calls[1][3].etag).toBe('"conflict-2"'); expect(ui.submit.disabled).toBe(true);
+    ui.loadOne.mockResolvedValue(stored("Version finale", '"conflict-3"')); ui.click("Relire le souhait"); await settle(); ui.click("Utiliser la version enregistrée");
     expect(ui.fields.map(field => field.value)).toEqual(Object.values(stored("Version finale").values)); expect(ui.submit.disabled).toBe(true); expect(ui.update).toHaveBeenCalledTimes(2); expect(ui.loadWishlist).toHaveBeenCalledTimes(4);
   });
   it.each([new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "ENGLISH" }] }), new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("blocks after uncertain or precondition failure %#", async error => {
     const ui = setup(); await settle(); ui.update.mockRejectedValue(error); ui.input(0, "Conserver"); ui.send(); await settle(); ui.send();
-    expect(ui.submit.disabled).toBe(true); expect(ui.fields[0].value).toBe("Conserver"); expect(ui.update).toHaveBeenCalledTimes(1); expect(ui.view.textContent).toContain("Relire le cadeau");
+    expect(ui.submit.disabled).toBe(true); expect(ui.fields[0].value).toBe("Conserver"); expect(ui.update).toHaveBeenCalledTimes(1); expect(ui.view.textContent).toContain("Relire le souhait");
     if (error.kind !== "http" || error.statusCode === 503) expect(ui.view.textContent).toContain("ne peut pas être confirmé");
   });
   it("explains a quantity refusal without revealing reservations, retaining every field and session", async () => {
@@ -133,17 +214,18 @@ describe("gift editor", () => {
   });
   it("loads suspended gifts as read-only and requires a fresh valid reread to resume", async () => {
     const parent = vi.fn(async () => ({ ...list, wishlist: { ...list.wishlist, isSuspended: true } })); const ui = setup({ loadWishlist: parent }); await settle();
-    expect(ui.form.hidden).toBe(false); expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.view.textContent).toContain("Consultation uniquement"); ui.send(); expect(ui.update).not.toHaveBeenCalled();
-    parent.mockResolvedValue(list); ui.click("Relire le cadeau"); await settle(); expect(ui.fields.every(field => !field.disabled)).toBe(true); expect(parent).toHaveBeenCalledTimes(2);
-    ui.input(0, "Préserver"); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); ui.send(); await settle(); expect(ui.fields[0].value).toBe("Préserver"); expect(ui.fields.every(field => field.disabled)).toBe(true);
+    expect(ui.form.hidden).toBe(false); expect(ui.fields.every(field => field.readOnly && !field.disabled)).toBe(true); expect(ui.view.textContent).toContain("Consultation uniquement"); ui.send(); expect(ui.update).not.toHaveBeenCalled();
+    ui.fields[0].focus(); expect(document.activeElement).toBe(ui.fields[0]);
+    parent.mockResolvedValue(list); ui.click("Relire le souhait"); await settle(); expect(ui.fields.every(field => !field.disabled && !field.readOnly)).toBe(true); expect(parent).toHaveBeenCalledTimes(2);
+    ui.input(0, "Préserver"); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); ui.send(); await settle(); expect(ui.fields[0].value).toBe("Préserver"); expect(ui.fields.every(field => field.readOnly && !field.disabled)).toBe(true);
   });
   it.each(["list", "gift", "update"])("removes fields and data for a missing %s", async source => {
     const failure = new ApiError({ kind: "http", statusCode: 404 }); const ui = setup(source === "list" ? { loadWishlist: async () => { throw failure; } } : source === "gift" ? { loadOne: async () => { throw failure; } } : {}); await settle();
     if (source === "update") { ui.update.mockRejectedValue(failure); ui.input(0, "Secret brouillon"); ui.send(); await settle(); }
-    expect(ui.view.querySelector("form")).toBeNull(); expect(ui.fields.every(field => field.value === "")).toBe(true); expect(ui.view.textContent).toContain(source === "list" ? "Liste introuvable" : "Cadeau introuvable");
+    expect(ui.view.querySelector("form")).toBeNull(); expect(ui.fields.every(field => field.value === "")).toBe(true); expect(ui.view.textContent).toContain(source === "list" ? "Liste introuvable" : "Souhait introuvable");
   });
   it("deduplicates initial retries and rejects a missing loaded ETag", async () => {
-    const ui = setup({ loadOne: async () => stored("Cadeau", 'W/"bad"') }); await settle(); expect(ui.form.hidden).toBe(true); expect(ui.update).not.toHaveBeenCalled();
+    const ui = setup({ loadOne: async () => stored("Souhait", 'W/"bad"') }); await settle(); expect(ui.form.hidden).toBe(true); expect(ui.update).not.toHaveBeenCalled();
     ui.click("Réessayer"); ui.click("Réessayer"); await settle(); expect(ui.loadWishlist).toHaveBeenCalledTimes(2);
   });
   it.each(["load", "update"])("cleans idempotently and ignores late %s results", async phase => {

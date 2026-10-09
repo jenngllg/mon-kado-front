@@ -26,6 +26,49 @@ function mount(path = "/", transport = createSessionTransport(), hub = createCoo
 }
 
 describe("session routes and shell", () => {
+  it.each(["", "?returnTo=/profile", "?returnTo=/reservations", "?returnTo=/lists/another-member"])("opens own lists after e-mail authentication regardless of the previous destination %s", async query => {
+    // Arrange
+    const transport = createSessionTransport(); transport.state.refreshStatus = 401;
+    const app = mount(`/login${query}`, transport); await app.start();
+    // Act
+    await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } }));
+    await waitRoute(app, "/lists");
+    // Assert
+    expect(window.location.pathname).toBe("/lists"); expect(window.location.search).toBe("");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes");
+  });
+  it.each(["/profile/email", "/profile/password"])("redirects Google-linked members away from %s before mounting a credential form", async path => {
+    // Arrange
+    const transport = createSessionTransport();
+    Object.assign(transport.state.user, { isGoogleLinked: true });
+    const app = mount(path, transport);
+    // Act
+    await app.start();
+    // Assert
+    expect(app.router.getCurrentRoute()?.url.pathname).toBe("/profile");
+    expect(app.shell.outlet.querySelector('input[type="password"]')).toBeNull();
+    expect(app.shell.outlet.querySelector('nav a[href="/profile/email"]')).toBeNull();
+    expect(app.shell.outlet.querySelector('nav a[href="/profile/password"]')).toBeNull();
+    expect(transport.fetch.mock.calls.some(call => /email-changes|password-changes/.test(String(call[0])))).toBe(false);
+  });
+  it("shows member home actions after restoration and guest actions after logout", async () => {
+    // Arrange
+    const app = mount("/");
+    // Act
+    await app.start();
+    await app.session.start();
+    // Assert
+    expect(app.shell.outlet.querySelector('a[href="/register"]')).toBeNull();
+    expect(app.shell.outlet.querySelector('a[href="/login"]')).toBeNull();
+    expect(app.shell.outlet.querySelector('a[href="/lists"]')?.textContent).toBe("Mes listes");
+    expect(app.shell.outlet.querySelector('a[href="/reservations"]')?.textContent).toBe("Mes réservations");
+    // Act
+    await app.session.logout();
+    await app.router.navigate("/");
+    // Assert
+    expect(app.shell.outlet.querySelector('a[href="/register"]')?.textContent).toBe("Créer un compte");
+    expect(app.shell.outlet.querySelector('a[href="/login"]')?.textContent).toBe("Se connecter");
+  });
   it("loads private reservation history freshly and removes it on coordinated logout during a read", async () => {
     const transport = createSessionTransport(), hub = createCoordinatorHub(), fallback = transport.fetch.getMockImplementation();
     const gate = barrier(), started = barrier(); let delay = false, reads = 0;
@@ -46,7 +89,7 @@ describe("session routes and shell", () => {
       await app.start(); await observe(() => app.shell.outlet.textContent?.includes("Private gift") === true);
       expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes réservations");
       await app.router.navigate("/"); await app.router.navigate("/reservations"); await observe(() => app.shell.outlet.textContent?.includes("Private gift") === true); expect(reads).toBe(2);
-      await other.start(); delay = true; app.shell.outlet.querySelector("button")?.click(); await started.promise;
+      await other.start(); delay = true; app.shell.outlet.querySelector("select")?.dispatchEvent(new Event("change")); await started.promise;
       await other.logout(); gate.resolve(); await observe(() => app.shell.outlet.textContent?.includes("Chargement de tes réservations") === false);
       expect(app.shell.outlet.textContent).not.toMatch(/Private gift|Private list/); expect(app.session.getSnapshot().user).toBeNull(); expect(JSON.stringify(hub.messages)).not.toContain("Private");
     } finally { gate.resolve(); other.dispose(); }
@@ -65,7 +108,8 @@ describe("session routes and shell", () => {
         expect(new Headers(init?.headers).has("X-CSRF-TOKEN")).toBe(false);
         if (delaySave) { saveEntered.resolve(); await saveGate.promise; }
         transport.state.user.displayName = JSON.parse(String(init?.body)).displayName;
-        return Response.json({ displayName: transport.state.user.displayName }, { headers: { ETag: '"identity-1"' } });
+        transport.state.user.isVisibleInMemberSearch = JSON.parse(String(init?.body)).isVisibleInMemberSearch;
+        return Response.json({ displayName: transport.state.user.displayName, isVisibleInMemberSearch: transport.state.user.isVisibleInMemberSearch }, { headers: { ETag: '"identity-1"' } });
       }
       if (!original) throw new Error("Missing test transport.");
       return original(input, init);
@@ -85,14 +129,14 @@ describe("session routes and shell", () => {
       // Act
       await app.start();
       await observe(() => app.shell.outlet.querySelector("form")?.hidden === false);
-      const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector("input"));
+      const input = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector('input[name="displayName"]'));
       const form = /** @type {HTMLFormElement} */ (app.shell.outlet.querySelector("form"));
       input.value = "Updated member"; input.dispatchEvent(new Event("input"));
       form.dispatchEvent(new Event("submit", { cancelable: true }));
       await observe(() => app.shell.outlet.textContent?.includes("Ton profil est à jour.") === true);
       // Assert
       expect(app.session.getSnapshot().user?.displayName).toBe("Updated member");
-      expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon profil");
+      expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
       await other.start(); delaySave = true; input.value = "Private draft";
       form.dispatchEvent(new Event("submit", { cancelable: true })); await saveEntered.promise;
       await other.logout(); saveGate.resolve();
@@ -127,7 +171,7 @@ describe("session routes and shell", () => {
     expect(app.shell.element.querySelector('nav a[href="/login"]')).toBeNull();
     gate.resolve(); await starting;
     expect(app.shell.outlet.textContent).toContain("Mon profil");
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon profil");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
     expect(document.activeElement).toBe(app.shell.outlet);
   });
 
@@ -220,7 +264,7 @@ describe("session routes and shell", () => {
     // Assert
     expect(app.shell.sessionFeedback.textContent).toContain("Déconnexion serveur non confirmée");
     expect(app.shell.sessionFeedback.querySelector("button")?.textContent).toBe("Réessayer");
-    expect([...app.shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')].map(link => link.textContent)).toEqual(["Accueil", "Connexion", "S’inscrire"]);
+    expect([...app.shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')].map(link => link.textContent)).toEqual(["Accueil", "Rechercher un membre", "Connexion", "S’inscrire"]);
   });
 
   it("revalidates a guarded route even when navigating to its current URL", async () => {
@@ -278,7 +322,7 @@ describe("session routes and shell", () => {
     // Arrange
     const app = mount(); await app.start(); await app.session.start();
     const routes = createApplicationRoutes({ session: app.session, apiBaseUrl: "http://localhost:7000" });
-    expect(routes).toHaveLength(25);
+    expect(routes).toHaveLength(32);
     const button = [...app.shell.element.querySelectorAll("button")].find(item => item.textContent === "Se déconnecter");
     app.dispose(); app.dispose();
     const requests = app.transport.fetch.mock.calls.length;
@@ -322,9 +366,9 @@ describe("authenticated password navigation", () => {
   it("links from profile, groups navigation, replaces history and shows one memory-only login confirmation", async () => {
     // Arrange
     const f = setupChange(); const app = mount("/profile", f.transport); await app.start();
-    expect(app.shell.outlet.querySelector('a[href="/profile/password"]')?.textContent).toBe("Changer mon mot de passe");
+    expect(app.shell.outlet.querySelector('a[href="/profile/password"]')?.textContent).toBe("Mot de passe");
     await app.router.navigate("/profile/password");
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon profil");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
     const historyLength = window.history.length; const fields = submitChange(app); await f.entered.promise;
     // Act
     f.gate.resolve(); await waitRoute(app, "/login");

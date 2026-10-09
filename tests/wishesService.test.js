@@ -8,7 +8,7 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
 const signal = new AbortController().signal;
 const imageUrl = `http://localhost:7000/api/v1/wishlists/${id}/wishes/${wishId}/image?token=controlled-grant`;
-const wish = { id: wishId, wishlistId: id, name: "Cadeau", note: "Note", url: "https://shop.example/product", imageUrl,
+const wish = { id: wishId, wishlistId: id, name: "Souhait", note: "Note", url: "https://shop.example/product", imageUrl,
   price: 19.99, quantity: 2, position: "9223372036854775807", entityTag: '"wish-version"' };
 /** @param {unknown} [data] Response. @param {number} [status] Status. @param {string | null} [etag] Collection version. */
 function setup(data = { wishes: [wish] }, status = 200, etag = /** @type {string | null} */ ('"collection-version"')) {
@@ -17,13 +17,75 @@ function setup(data = { wishes: [wish] }, status = 200, etag = /** @type {string
 }
 
 describe("owned gift collection service", () => {
+  it("copies an owned wish with CSRF and no share secret", async () => {
+    const service = setup({ ...wish, isFavorite: false }, 201, '"copied"');
+    const result = await service.copyOwned(wishId, id, id, { signal });
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${wishId}/wishes/${id}/copies`, {
+      method: "POST", authentication: "required", csrf: true, body: { destinationWishlistId: id }, signal,
+    });
+    expect(result.wish.wishlistId).toBe(id);
+  });
+  it.each(["../private", id])("rejects invalid or identical owned-copy destination %s", async destination => {
+    const service = setup();
+    await expect(service.copyOwned(id, wishId, destination, { signal })).rejects.toMatchObject({ statusCode: 400 });
+    expect(service.request).not.toHaveBeenCalled();
+  });
+  it("copies with authenticated transport, private bearer header and source identifiers only", async () => {
+    const service = setup({ ...wish, isFavorite: false }, 201, '"copied"');
+    const result = await service.copy(id, id, wishId, { shareToken: "private-secret", signal });
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes/copies`, {
+      method: "POST", authentication: "required", csrf: true, body: { sourceShareLinkId: id, sourceWishId: wishId }, shareToken: "private-secret", signal,
+    });
+    expect(result.wish.id).toBe(wishId); expect(result.wish.isFavorite).toBe(false); expect(result.etag).toBe('"copied"');
+    expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wish)).toBe(true);
+  });
+  it.each([0, 1, 2])("rejects invalid copy identifier at index %s before transport", async index => {
+    const service = setup(); const ids = [id, id, wishId]; ids[index] = "../private";
+    await expect(service.copy(ids[0], ids[1], ids[2], { shareToken: "private-secret", signal })).rejects.toMatchObject({ statusCode: 400 });
+    expect(service.request).not.toHaveBeenCalled();
+  });
+  it.each([200, 202, 204])("rejects copy HTTP %s without repeating the write", async status => {
+    const service = setup(wish, status);
+    await expect(service.copy(id, id, wishId, { shareToken: "private-secret", signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+    expect(service.request).toHaveBeenCalledTimes(1);
+  });
+  it.each([[0, 2], [1, 1], [2, 0], [3, 0], [null, null]])("projects reservation quantities %s / %s without participant data", async (reservedQuantity, availableQuantity) => {
+    // Arrange
+    const service = setup({ wishes: [{ ...wish, reservedQuantity, availableQuantity }] });
+    // Act
+    const result = await service.load(id, { signal });
+    // Assert
+    expect(result.wishes[0]).toMatchObject({ reservedQuantity, availableQuantity });
+  });
+  it.each([{ reservedQuantity: 1 }, { availableQuantity: 1 }, { reservedQuantity: -1, availableQuantity: 3 }, { reservedQuantity: 1.5, availableQuantity: 0.5 }, { reservedQuantity: 1, availableQuantity: 0 }, { reservedQuantity: "1", availableQuantity: 1 }])("rejects inconsistent collection quantities", async change => {
+    await expect(setup({ wishes: [{ ...wish, ...change }] }).load(id, { signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
+  it.each([false, true])("PATCHes only the favorite preference %s with the supplied version", async isFavorite => {
+    const service = setup({ ...wish, isFavorite }, 200, '"saved"');
+    const saved = await service.setFavorite(id, wishId, isFavorite, { etag: '"fresh"', signal });
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes/${wishId}`, { method: "PATCH", authentication: "required", body: { isFavorite }, ifMatch: '"fresh"', signal });
+    expect(saved.wish.isFavorite).toBe(isFavorite); expect(saved.values.isFavorite).toBe(isFavorite); expect(saved.etag).toBe('"saved"');
+  });
+  it.each([null, "", 'W/"weak"'])("rejects an absent or weak favorite version %s before transport", async etag => {
+    const service = setup();
+    await expect(service.setFavorite(id, wishId, true, { etag: /** @type {string} */ (etag), signal })).rejects.toMatchObject({ statusCode: 428 });
+    expect(service.request).not.toHaveBeenCalled();
+  });
+  it("rejects a non-boolean favorite preference before transport", async () => {
+    const service = setup();
+    await expect(service.setFavorite(id, wishId, /** @type {boolean} */ (/** @type {unknown} */ ("true")), { etag: '"fresh"', signal })).rejects.toBeInstanceOf(TypeError);
+    expect(service.request).not.toHaveBeenCalled();
+  });
+  it("rejects an invalid favorite response", async () => {
+    await expect(setup({ ...wish, isFavorite: "true" }).loadOne(id, wishId, { signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("GETs the complete collection with required authentication, exact signal and all three independent versions", async () => {
-    const service = setup({ wishes: [{ ...wish, reservedQuantity: 2, participants: ["private"], createdAt: "unused" }] });
+    const service = setup({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, participants: ["private"], createdAt: "unused" }] });
     const result = await service.load(id, { signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes`, { method: "GET", authentication: "required", signal });
-    expect(result).toEqual({ wishes: [{ ...wish, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
+    expect(result).toEqual({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, isFavorite: false, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wishes)).toBe(true); expect(Object.isFrozen(result.wishes[0])).toBe(true);
-    expect(JSON.stringify(result)).not.toMatch(/reservedQuantity|participants|createdAt|private/);
+    expect(JSON.stringify(result)).not.toMatch(/participants|createdAt|private/);
   });
   it("accepts empty collections and preserves server order independently of positions", async () => {
     expect(await setup({ wishes: [] }).load(id, { signal })).toEqual({ wishes: [], etag: '"collection-version"' });
@@ -45,7 +107,7 @@ describe("owned gift collection service", () => {
   it.each([
     { id: "bad" }, { wishlistId: wishId }, { name: " " }, { name: null }, { note: undefined }, { note: [] },
     { imageUrl: undefined }, { imageUrl: {} }, { url: undefined }, { url: 4 }, { quantity: undefined }, { quantity: "2" },
-    { quantity: 0 }, { quantity: 101 }, { quantity: 1.5 }, { price: undefined }, { price: -1 }, { price: 0 },
+    { quantity: 0 }, { quantity: 101 }, { quantity: 1.5 }, { price: undefined }, { price: -1 },
     { price: 100000000 }, { price: 12.345 }, { price: "NaN" }, { price: "12 EUR" }, { price: Infinity },
     { position: 9007199254740992 }, { position: "9223372036854775808" }, { position: "-9223372036854775809" },
     { position: null }, { position: 1.1 }, { position: "1e3" }, { entityTag: null }, { entityTag: 'W/"weak"' },
@@ -53,7 +115,7 @@ describe("owned gift collection service", () => {
     const error = await setup({ wishes: [{ ...wish, ...change }] }).load(id, { signal }).catch(error => error);
     expect(error).toMatchObject({ kind: "invalidResponse" }); expect(JSON.stringify(error)).not.toContain("controlled-grant");
   });
-  it.each([null, "0.01", 0.01, "99999999.99", 99999999.99])("normalizes EUR price %s", async price => {
+  it.each([null, "0", 0, "0.01", 0.01, "99999999.99", 99999999.99])("normalizes EUR price %s", async price => {
     const result = await setup({ wishes: [{ ...wish, price }] }).load(id, { signal }); expect(result.wishes[0].price).toBe(price === null ? null : Number(price));
   });
   it.each(["-9223372036854775808", "9223372036854775807", -1, Number.MAX_SAFE_INTEGER, "00020"])("retains exact Int64 position %s", async position => {

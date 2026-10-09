@@ -1,16 +1,18 @@
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { LegalDocuments, verifyPublication } from "./publicationPolicy.js";
+import { LegalDocuments, verifyPublication, verifyTemporaryPublication } from "./publicationPolicy.js";
 
 /** Verify the actual built documents, printing only the reviewed public Google flag.
  * @param {(path: string) => string} read Bounded local file reader.
  * @param {(value: string) => void} print Output boundary.
- * @returns {number} Shell status; an incomplete review never authorizes publication.
+ * @param {boolean} temporaryTest Explicit operator exception for a temporary production test.
+ * @returns {number} Shell status; ordinary publication still requires approval.
  */
-export function checkPublication(read, print) {
+export function checkPublication(read, print, temporaryTest = false) {
   try {
     const configuration = JSON.parse(read("publication.json"));
-    const enabled = verifyPublication(configuration, LegalDocuments.map(name => read("dist/" + name)));
+    const verify = temporaryTest ? verifyTemporaryPublication : verifyPublication;
+    const enabled = verify(configuration, LegalDocuments.map(name => read("dist/" + name)));
     print("googleEnabled=" + String(enabled));
     return 0;
   } catch {
@@ -20,5 +22,6 @@ export function checkPublication(read, print) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  process.exitCode = checkPublication(path => readFileSync(path, "utf8"), value => process.stdout.write(value + "\n"));
+  process.exitCode = checkPublication(path => readFileSync(path, "utf8"), value => process.stdout.write(value + "\n"),
+    process.argv[2] === "--temporary-test");
 }

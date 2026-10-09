@@ -50,6 +50,7 @@ describe("password change view", () => {
     expect(f.view.querySelector("h1")?.textContent).toBe("Changer mon mot de passe"); expect(f.form.noValidate).toBe(true);
     expect(f.fields.map(field => field.name)).toEqual(["currentPassword", "newPassword", "confirmation"]);
     expect(f.fields.map(field => field.autocomplete)).toEqual(["current-password", "new-password", "new-password"]);
+    expect(document.getElementById(f.fields[1].getAttribute("aria-describedby") ?? "")?.textContent).toBe("De 12 à 128 caractères. Différent du mot de passe actuel.");
     for (const [index, field] of f.fields.entries()) {
       expect(field.value).toBe(""); expect(field.required).toBe(true); expect(field.type).toBe("password");
       expect(field.hasAttribute("maxlength")).toBe(false); expect(field.hasAttribute("minlength")).toBe(false);
@@ -58,7 +59,7 @@ describe("password change view", () => {
       expect(f.buttons[index].getAttribute("aria-label")).toContain(f.buttons[index].textContent);
     }
     expect(new Set(f.buttons.slice(0, 3).map(button => button.getAttribute("aria-label"))).size).toBe(3);
-    expect(f.view.querySelector('a[href="/profile"]')).not.toBeNull(); expect(f.view.querySelector('a[href="/forgot-password"]')).not.toBeNull();
+    expect(f.view.querySelector('a[href="/profile"]')).toBeNull(); expect(f.view.querySelector('a[href="/forgot-password"]')).not.toBeNull();
     expect(f.view.textContent).toContain("Après modification, tu devras te reconnecter"); expect(f.changePassword).not.toHaveBeenCalled();
     f.fill(); f.buttons[1].focus(); f.buttons[1].click();
     expect(document.activeElement).toBe(f.buttons[1]); expect(f.fields.map(field => field.type)).toEqual(["password", "text", "password"]);

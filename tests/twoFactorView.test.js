@@ -74,6 +74,37 @@ describe("local authenticator QR", () => {
 });
 
 describe("second-factor continuation UI", () => {
+  it.each([false, true])("describes local code errors and clears them while correcting, recovery=%s", recovering => {
+    // Arrange
+    const f = fixture(); const view = f.mount();
+    if (recovering) button(view, "Utiliser un code de récupération").click();
+    // Act
+    const input = submit(view, "12");
+    // Assert
+    expect(view.querySelector("form")?.noValidate).toBe(true);
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    const description = document.getElementById(input.getAttribute("aria-describedby") ?? "");
+    expect(description?.textContent).toContain(recovering ? "Code de récupération invalide ou incomplet" : "six chiffres");
+    expect(f.session.secondFactor.complete).not.toHaveBeenCalled();
+    input.value = "1"; input.dispatchEvent(new Event("input"));
+    expect(input.hasAttribute("aria-invalid")).toBe(false);
+    expect(view.querySelector('[role="alert"]')).toBeNull();
+    input.value = "12"; input.dispatchEvent(new Event("input"));
+    expect(input.hasAttribute("aria-invalid")).toBe(false);
+    expect(f.session.secondFactor.complete).not.toHaveBeenCalled();
+  });
+  it("moves focus to the new code field and removes obsolete errors when changing method", () => {
+    // Arrange
+    const f = fixture(); const view = f.mount(); submit(view, "12");
+    // Act
+    button(view, "Utiliser un code de récupération").click();
+    // Assert
+    expect(document.activeElement).toBe(view.querySelector('input[name="recoveryCode"]'));
+    expect(view.querySelector('[role="alert"]')).toBeNull();
+    button(view, "Utiliser l’authentificateur").click();
+    expect(document.activeElement).toBe(view.querySelector('input[name="code"]'));
+    expect(f.session.secondFactor.complete).not.toHaveBeenCalled();
+  });
   it("abandons a completion when an optional session continuation disappears", () => {
     // Arrange
     const f = fixture("complete");
@@ -180,6 +211,8 @@ describe("second-factor continuation UI", () => {
     await vi.waitFor(() => expect(view.querySelectorAll("li")).toHaveLength(10));
     // Assert
     expect(input.value).toBe(""); expect(view.querySelector("svg")).toBeNull(); expect(view.textContent).not.toContain(ManualKey);
+    expect([...view.querySelectorAll(".recovery-codes li")].map(item => item.textContent)).toEqual(RecoveryCodes);
+    expect(view.querySelector(".recovery-codes-confirmation input")?.getAttribute("type")).toBe("checkbox");
     const finish = button(view, "Terminer la connexion"); expect(finish.disabled).toBe(true);
     finish.disabled = false; finish.dispatchEvent(new MouseEvent("click")); expect(f.session.secondFactor.complete).not.toHaveBeenCalled();
     // Act

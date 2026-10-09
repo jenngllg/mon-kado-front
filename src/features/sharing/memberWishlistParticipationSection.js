@@ -1,37 +1,41 @@
+import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createAlert, createButton, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
-import { ParticipationRightsMessage } from "./participationMessages.js";
+
 
 /** @typedef {{displayName: string, shareLinkId: string,
  * loadCurrentMember: import("./wishlistParticipationService.js").LoadCurrentParticipant,
  * joinMember: import("./wishlistParticipationService.js").JoinMember,
- * onUnavailable: () => void, continueAfterSignIn?: boolean, signal?: AbortSignal}} MemberParticipationOptions */
+ * onUnavailable: () => void, onRecognized?: (userInitiated?: boolean) => void, continueAfterSignIn?: boolean, signal?: AbortSignal}} MemberParticipationOptions */
 
 /** Account participation is explicit; the server owns any guest attachment.
  * @param {MemberParticipationOptions} options Disposable account-bound dependencies.
  * @returns {HTMLElement} Inline participation section.
  */
-export function createMemberWishlistParticipationSection({ displayName, shareLinkId, loadCurrentMember, joinMember, onUnavailable, continueAfterSignIn = false, signal }) {
+export function createMemberWishlistParticipationSection({ displayName, shareLinkId, loadCurrentMember, joinMember, onUnavailable, onRecognized, continueAfterSignIn = false, signal }) {
   const section = node("section", ""); section.className = "wishlist-participation flow";
-  const title = node("h2", "Participer avec mon compte"); title.tabIndex = -1;
-  const identity = node("p", `Nom d’affichage : ${displayName}`);
-  const explanation = node("p", "Tu participeras avec ton compte MonKado. Si ce navigateur reconnaît une participation invitée à cette liste, elle pourra être rattachée à ton compte.");
+  const title = node("h2", "Participer"); title.tabIndex = -1;
+  const identity = node("p", displayName);
+  const explanation = node("p", "Ta participation invitée pourra être liée à ton compte.");
   const status = node("p", ""); status.setAttribute("role", "status");
   const feedback = node("div", ""); feedback.hidden = true;
-  const join = createButton({ label: continueAfterSignIn ? "Poursuivre avec mon compte" : "Participer avec mon compte", onClick: () => { void run(true); } });
+  const join = createButton({ label: onRecognized ? "Je réserve ce cadeau" : continueAfterSignIn ? "Poursuivre avec mon compte" : "Participer avec mon compte", onClick: () => { void run(true); } });
   const refresh = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void run(false, true); } });
-  section.append(title, identity, explanation, node("p", ParticipationRightsMessage), status, feedback, join, refresh);
+  section.append(title);
+  if (!onRecognized) section.append(identity);
+  section.append(explanation, status, feedback, join, refresh);
   const lifetime = new AbortController();
   let disposed = false, busy = false, mustRead = true, joined = false, owner = false;
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); feedback.hidden = true; }
-  function controls() { join.disabled = busy || mustRead || (joined && !continueAfterSignIn) || owner; join.hidden = (joined && !continueAfterSignIn) || owner; explanation.hidden = join.hidden; refresh.disabled = busy; section.setAttribute("aria-busy", String(busy)); }
+  function controls() { join.disabled = busy || mustRead || (joined && !continueAfterSignIn) || owner; join.hidden = (joined && !continueAfterSignIn) || owner; explanation.hidden = join.hidden || !continueAfterSignIn; refresh.disabled = busy; section.setAttribute("aria-busy", String(busy)); }
   /** @param {string} label Safe action text. */
   function lookup(label) { const text = refresh.querySelector(".ui-button__label"); if (text) text.textContent = label; refresh.hidden = false; }
   registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); displayName = ""; identity.textContent = ""; status.textContent = ""; clearFeedback(); join.disabled = true; refresh.disabled = true; });
   if (signal) { addComponentEventListener(section, signal, "abort", () => disposeComponent(section), { once: true }); if (signal.aborted) disposeComponent(section); }
   if (!disposed) void run(false);
+  if (!disposed) refreshOnReturn(section, () => { void run(false); });
   return section;
 
   /** @param {boolean} mutation Explicit join, never inferred from a read.
@@ -40,7 +44,7 @@ export function createMemberWishlistParticipationSection({ displayName, shareLin
   async function run(mutation, explicit = false) {
     if (disposed || busy || (mutation && (mustRead || (joined && !continueAfterSignIn) || owner))) return;
     busy = true; clearFeedback(); refresh.hidden = true;
-    if (!mutation) { mustRead = true; joined = false; identity.textContent = `Nom d’affichage : ${displayName}`; title.textContent = "Participer avec mon compte"; }
+    if (!mutation) { mustRead = true; joined = false; identity.textContent = displayName; title.textContent = onRecognized ? "Pour réserver ce souhait" : "Participer"; }
     controls(); status.textContent = mutation ? "Participation en cours…" : "Vérification de ta participation…";
     let announcement = "";
     try {
@@ -49,9 +53,10 @@ export function createMemberWishlistParticipationSection({ displayName, shareLin
       mustRead = false;
       if (mutation) continueAfterSignIn = false;
       if (participant) {
-        joined = true; title.textContent = "Tu participes à cette liste"; identity.textContent = `Nom d’affichage : ${participant.displayName}`;
-        lookup("Actualiser ma participation");
+        joined = true; title.textContent = "Tu participes à cette liste"; identity.textContent = participant.displayName;
+        refresh.hidden = true;
         if (mutation) announcement = "created" in participant && participant.created ? "Participation enregistrée" : "Participation reconnue";
+        onRecognized?.(mutation);
       }
       if (mutation || explicit) title.focus();
     } catch (error) {

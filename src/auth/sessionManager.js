@@ -909,7 +909,12 @@ function readUser(response) {
   const value = response.data;
   if (!isRecord(value) || ![value.id, value.email, value.displayName].every(item => typeof item === "string" && item.trim().length > 0) ||
     !Array.isArray(value.roles) || !value.roles.every(role => typeof role === "string" && role.trim().length > 0)) throw invalidResponse(response);
-  return Object.freeze({ id: String(value.id), email: String(value.email), displayName: String(value.displayName), roles: Object.freeze([...value.roles]) });
+  if (value.isGoogleLinked !== undefined && typeof value.isGoogleLinked !== "boolean") throw invalidResponse(response);
+  if (value.isVisibleInMemberSearch !== undefined && typeof value.isVisibleInMemberSearch !== "boolean") throw invalidResponse(response);
+  return Object.freeze({ id: String(value.id), email: String(value.email), displayName: String(value.displayName), roles: Object.freeze([...value.roles]),
+    ...(typeof value.isGoogleLinked === "boolean" ? { isGoogleLinked: value.isGoogleLinked } : {}),
+    ...(typeof value.isVisibleInMemberSearch === "boolean" ? { isVisibleInMemberSearch: value.isVisibleInMemberSearch } : {}),
+    ...(typeof value.profileImageUrl === "string" || value.profileImageUrl === null ? { profileImageUrl: value.profileImageUrl } : {}) });
 }
 
 /** @param {unknown} value Candidate object.

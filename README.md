@@ -2,6 +2,89 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Profil public et listes du membre — #970
+
+Un résultat de `/members` ouvre `/members/:memberId`, accessible sans connexion.
+La page présente le pseudo, l’avatar circulaire et les listes dont le partage est
+actif, hors listes suspendues. Cela inclut les partages déjà existants : activer
+un partage rend désormais la liste découvrable depuis le profil public.
+Le panneau de partage indique cette règle. Aucun réglage de visibilité parallèle.
+
+Chaque liste ouvre le parcours partagé existant, avec les mêmes règles de
+participation et réservation. Le secret est consommé depuis le fragment puis
+gardé uniquement dans le contexte mémoire existant. `fromMember` est un identifiant
+de navigation, jamais une autorisation. Les liens du profil sont supprimés au départ.
+Une révocation, suppression ou suspension retire la liste à la prochaine lecture.
+
+Les flèches de retour conservent le parcours souhait → liste → profil → recherche.
+La dernière recherche soumise et sa page restent en mémoire de l’application,
+sans stockage navigateur ; revenir relance une lecture fraîche. Le profil est aussi
+relu à chaque entrée, sans bouton d’actualisation ni de réessai.
+
+La MR backend #970 doit être intégrée **avant** cette version du front : le contrôle
+OpenAPI de CI compare toujours au backend `develop`, sans contournement.
+Pour vérifier sans arrêter un serveur local déjà ouvert, définir
+`MONKADO_E2E_PORT=5178` avant `pnpm test:e2e`. Les tests navigateur utilisent
+exclusivement des données synthétiques et bloquent les API réelles.
+
+## Photos et avatars — #951
+
+La recherche de membres, la photo actuelle de `/profile` et le lien « Mon profil »
+du menu partagent un avatar décoratif. Sans photo utilisable, une grille symétrique
+locale fondée sur l’identifiant du membre remplace l’image ; le motif ne dépend pas
+du nom et n’est pas garanti unique. Aucun fournisseur d’avatar externe n’est appelé.
+
+Seules les URLs publiques de photo correspondant à l’origine API et au membre
+sont utilisées. Le remplacement reste visible pendant le chargement et après erreur,
+sans retry automatique. Les dimensions sont réservées et les sources nettoyées au
+départ ou au changement de compte. Une nouvelle lecture ou URL permet une nouvelle
+tentative. Les listes partagées et participants n’exposent pas de photo via leur contrat.
+Les actions et aperçus temporaires de #950 restent indépendants de cet affichage.
+
+## Photo de profil — #950
+
+Dans `/profile`, la photo s’enregistre séparément du nom : sélectionner un fichier
+ne l’envoie pas, annuler le nom ne retire pas la sélection et une mutation de photo
+conserve le nom non enregistré. La photo est publique, sans lien signé expirant.
+Les autres affichages et avatars de remplacement sont décrits dans #951 ci-dessus.
+
+JPEG, PNG et WebP non animés sont acceptés jusqu’à 10 Mio et 40 millions de pixels.
+Le navigateur vérifie signature et lisibilité sans transformer le fichier ; le
+backend reste responsable de l’analyse et produit une version WebP de 512 px au
+maximum. Les aperçus temporaires sont révoqués à leur remplacement ou au départ.
+
+La suppression se confirme directement dans la section après lecture fraîche du
+profil. Annuler conserve les brouillons et l’ETag du nom. Photo et nom partagent
+l’ETag du compte, mais leurs versions de référence ne sont jamais remplacées
+silencieusement : une relecture après mutation de photo présente une comparaison
+lorsqu’un nom non enregistré existe. Les opérations sont exclusives.
+
+Un conflit ou résultat incertain impose une relecture et une nouvelle décision.
+Après succès confirmé, seul l’échec de lecture peut être repris, jamais la mutation
+déjà réussie. Les erreurs d’image restent locales et une source indisponible exige
+une actualisation explicite. Quitter la page annule l’attente, pas nécessairement
+la mutation serveur. Aucun effacement physique immédiat des fichiers n’est promis.
+
+## Recherche publique de membres — #949
+
+La page `/members`, accessible dans le menu avec ou sans connexion, recherche
+explicitement les membres par nom d’affichage. Aucun appel n’est effectué avant
+« Rechercher » ou Entrée. La saisie accepte au maximum 80 caractères Unicode
+après nettoyage, avant normalisation, et au moins deux après normalisation NFC.
+Les séquences Unicode invalides et caractères de contrôle sont refusés.
+
+Les résultats conservent l’ordre serveur et se parcourent par pages de 20 membres.
+Une nouvelle recherche repart de la première page ; modifier le champ seul ne
+change pas la recherche utilisée par les boutons de pagination. Une page devenue
+indisponible propose un retour explicite à la première page, sans retry automatique.
+Chargement, absence de résultat et erreurs disposent d’annonces et de récupération.
+
+Les résultats restent dans la vue montée, sans stockage ni terme dans l’URL frontend.
+La recherche soumise et sa page sont conservées en mémoire pour le retour depuis
+un profil (#970). Le nom est transmis uniquement comme paramètre de recherche
+à l’API publique, sans JWT. Ouvrir un résultat ne crée aucune participation ni
+invitation. Les photos et avatars sont affichés conformément à #951.
+
 ## Publication approuvée sur le VPS — #811
 
 La cible retenue est le VPS existant, et non GitHub Pages. Le site canonique est
@@ -1749,6 +1832,35 @@ n’est rejoué automatiquement ; quitter la page ne garantit pas son annulation
 côté serveur. Le renouvellement, la désactivation et la consultation publique sont
 décrits ci-dessous.
 
+## Partage Messenger direct (#983)
+
+Le bouton Messenger ouvre le dialogue Meta `/dialog/send` sur ordinateur, avec
+le lien complet (suffixe secret inclus) et le choix du destinataire. Il ne copie
+plus le message et n'ouvre plus simplement la page d'accueil Messenger. Sur Android
+et iOS, les URI de partage suivent l'implémentation `sdk.openMessenger` du
+[SDK officiel Meta](https://connect.facebook.net/en_US/sdk/debug.js).
+Aucun SDK externe n'est chargé et aucun message n'est envoyé par le backend.
+L'utilisateur choisit le destinataire et confirme dans Messenger ; ouvrir la
+fenêtre ne prouve jamais qu'un envoi a eu lieu. Les autres canaux sont inchangés.
+
+`src/config/metaSharing.js` versionne uniquement l'App ID public MonKado
+`1072330919122670` et le retour fixe `https://www.monkado.fr/`. Aucun App Secret,
+jeton ni droit d'accès aux conversations n'est utilisé. Le lien secret figure
+uniquement dans le paramètre `link` du dialogue ou dans l'URI mobile, jamais dans
+le retour fixe. Le transfert du lien à Meta est déclenché seulement par un clic
+explicite sur une liste effectivement partagée. Aucun stockage ou log n'est ajouté.
+
+Avant une utilisation publique, configurer l'application Meta pour le site
+`https://www.monkado.fr/` et les domaines MonKado correspondants, puis vérifier
+le dialogue avec le compte administrateur de l'application et avec un compte
+non administrateur après publication de l'application. Les restrictions et les
+éventuelles exigences de Meta doivent être examinées dans son tableau de bord.
+Les tests locaux interceptent les destinations : ils ne prouvent pas l'acceptation
+par Meta. La connexion à Messenger sur le PC ne garantit pas une session Web Meta ;
+le dialogue peut encore demander une connexion dans le navigateur. Sur mobile,
+Messenger doit être installé et autorisé à ouvrir ses liens ; aucun renvoi
+automatique vers une boutique d'applications n'est effectué.
+
 ## Renouvellement du lien (#896)
 
 « Actualiser le lien » effectue seulement une lecture. « Renouveler le lien »
@@ -2026,7 +2138,109 @@ Le renouvellement ou la révocation à distance se constate à la prochaine requ
 polling ni promesse de propagation instantanée. L’historique membre est retiré
 à la déconnexion et relu pour le compte suivant, sans repli invité.
 
+### Signaler une liste partagée (#954)
+
+Après une lecture valide, « Signaler cette liste » ouvre une confirmation native,
+sans créer de participation. Le motif est obligatoire ; « Autre » exige des
+précisions. Les précisions sont limitées à 1 000 caractères Unicode et le corps
+JSON à 4 096 octets UTF-8, sans troncature. Le POST public utilise le contexte de
+partage en mémoire et la protection antiforgery commune, sans JWT ni version.
+
+Un succès confirmé annonce « Signalement envoyé » sans relire les souhaits.
+Après un résultat incertain, la saisie reste dans la modale et une nouvelle
+tentative exige un clic explicite, avec avertissement du risque de doublon.
+Aucun endpoint ne permet de vérifier la réception. Fermer ou quitter efface
+le brouillon ; cela ne garantit pas l’annulation d’un envoi reçu par le serveur.
+Une perte d’accès retire la liste et invalide le contexte. Aucun secret, motif
+ou précision n’est conservé dans un stockage, une notification inter-onglets
+ou un journal applicatif.
+
+### Accéder à la modération (#955)
+
+L’entrée « Modération » ouvre directement les listes signalées, sans accueil
+intermédiaire. Elle nécessite une session stable et le rôle exact `Admin` reçu
+du serveur. Une session en cours de résolution ne monte pas la file ; un membre
+sans ce rôle voit « Accès administrateur requis » et un lien vers « Mes listes ».
+La connexion conserve sa destination habituelle, sans ajout à `returnTo`.
+
+Le rôle local sert uniquement à la présentation : le backend vérifie les droits
+actuels en base à chaque requête. Un refus `403` retire toute la file et bloque
+ses lectures, sans déconnecter le membre ni réécrire ses rôles. Les erreurs
+techniques restent récupérables, et les `401` conservent le traitement de session
+commun. Une déconnexion ou un changement d’identité/rôle annule les opérations
+et retire les données précédentes ; un nouveau compte admin effectue de nouvelles
+lectures. Aucun polling n’est ajouté : une révocation distante non encore connue
+se constate lors d’une nouvelle requête.
+
+### Consulter les listes signalées (#956)
+
+La route protégée `/admin/reported-wishlists` est proposée uniquement au compte
+administrateur stable. Le backend reste l’autorité d’accès. Les filtres de statut
+(en attente par défaut), de motif et de suspension relisent les résultats ; les
+comptages et dates correspondent aux filtres sélectionnés, pas à tous les signalements.
+
+Une liste à la fois peut dévoiler ses signalements anonymes : motif, précisions,
+date et statut. Les listes et leurs signalements ont des paginations indépendantes
+de 20 éléments. Aucun souhait, image, auteur du signalement, note de traitement
+ou historique de modération n’est exposé, et aucune mutation n’est proposée.
+
+Un refus administrateur retire toute la file ; une liste introuvable retire son
+entrée et permet de recharger explicitement les résultats. Un changement de
+compte, de rôle ou de session nettoie les lectures et ignore les réponses tardives.
+Les erreurs techniques restent locales, avec récupération explicite sans rejeu.
+
+### Examiner et rouvrir un signalement (#957)
+
+Depuis la file, « Examiner » ouvre
+`/admin/reported-wishlists/:wishlistId/reports/:reportId`. Cette page admin relit
+le signalement et son ETag individuel ; elle présente uniquement le motif, les
+précisions originales et la dernière décision (statut, note privée, date).
+Aucune identité de déclarant ou d’administrateur, aucun souhait ni historique
+complet n’est chargé. Le retour à la file effectue une lecture fraîche.
+
+Les décisions possibles sont « En attente », « Retenu » et « Classé sans suite ».
+Traiter ne suspend pas la liste. Revenir à « En attente » rouvre le signalement,
+sans effacer sa note. Effacer explicitement la note puis enregistrer la supprime.
+La note accepte 1 000 caractères Unicode après nettoyage des extrémités, sans
+normalisation ni troncature ; retours à la ligne et tabulations sont autorisés.
+
+Un conflit ou résultat incertain conserve exactement la saisie et impose une
+relecture. La comparaison permet ensuite d’enregistrer explicitement les deux
+informations avec le nouvel ETag ou d’adopter la version enregistrée, sans fusion
+ni rejeu automatique. Après succès, la version reçue devient la référence et la
+page reste ouverte. Quitter abandonne le brouillon ; cela ne garantit pas
+l’annulation d’un PUT déjà reçu par le serveur. Un refus admin, une disparition
+ou un changement de compte retire les données et invalide les réponses tardives.
+
 Ce dépôt contient le socle frontend, ses fondations graphiques, ses composants
 communs, son routeur, son shell applicatif et sa couche HTTP. Les fonctionnalités
 métier, l’intégration continue et le déploiement sont traités dans leurs US
 dédiées.
+## Suspension administrative des listes — #958
+
+La file de modération propose « Gérer la suspension », une page dédiée réservée aux administrateurs. Elle relit l’état courant, le motif privé et l’ETag de **liste** avant toute décision. Suspendre, corriger le motif et réactiver exigent une confirmation native ; ces actions ne traitent ni ne rouvrent les signalements.
+
+Le motif est obligatoire pour une suspension (1 000 caractères Unicode après nettoyage et NFC pour le contrôle de longueur). La réactivation envoie un motif `null`. Le frontend ne supprime aucune liste, aucun souhait, lien ou participant ; il ne crée ni ne renouvelle le partage lors d’une réactivation. Aucun historique complet ni identité administrative n’est affiché.
+
+Les conflits et résultats incertains conservent la saisie, bloquent les écritures et imposent une relecture suivie d’une décision et d’une nouvelle confirmation explicites. Aucun PUT n’est rejoué automatiquement. Un départ ou changement de compte nettoie la page et ferme sa confirmation, sans garantir l’annulation d’une mutation déjà reçue par le serveur.
+
+## Historiques administratifs — #959
+
+Les pages d’examen et de suspension proposent chacune leur historique dédié :
+`/admin/reported-wishlists/:wishlistId/reports/:reportId/history` et
+`/admin/reported-wishlists/:wishlistId/moderation/history`. Elles exigent une session
+administrateur stable et relisent uniquement les événements demandés, par pages
+de 20, dans l’ordre serveur. Les dates identiques ne provoquent aucun tri local.
+
+Le traitement présente les transitions de statut et les notes privées originales,
+y compris les corrections sans changement de statut. La modération présente les
+suspensions, corrections de motif et réactivations, sans inventer de motif lors
+d’une réactivation. Aucun nom de liste non fourni, identité administrative,
+contenu de cadeau ou état courant déduit de l’historique n’est affiché.
+
+La pagination, les reprises et le retour aux décisions déclenchent des lectures
+fraîches. Une page devenue hors limites propose une récupération explicite,
+sans navigation automatique. Les refus administrateur et ressources introuvables
+retirent les données ; une sortie ou un changement de compte annule les lectures
+et empêche les réponses tardives de réafficher le contenu. Aucun historique n’est
+mis en cache ou conservé dans un stockage du navigateur.

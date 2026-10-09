@@ -18,7 +18,7 @@ function setup(options = {}, initial = original) {
   const view = createWishlistEditView({ wishlistId: original.wishlist.id, loadOne, update, now: () => new Date("2028-03-01T12:00:00Z"), ...options });
   views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const fields = /** @type {Array<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} */ ([...form.querySelectorAll("input,select,textarea")]);
+  const fields = /** @type {Array<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>} */ ([...form.querySelectorAll("input:not([type=checkbox]),select,textarea")]);
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   /** @param {string} label Button text. */
   function button(label) { const button = [...view.querySelectorAll("button")].find(button => button.textContent === label); if (!button) throw Error(label); return button; }
@@ -33,6 +33,61 @@ async function conflict(ui) {
   ui.input(0, " Mon brouillon "); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISHLIST_VERSION_CONFLICT" })); ui.send(); await settle();
 }
 describe("wishlist editor", () => {
+  it("groups surprise mode and save commands in the same footer as creation", async () => {
+    // Arrange
+    const ui = setup();
+    await settle();
+    // Act
+    const footer = ui.form.querySelector(".wishlist-form__footer");
+    // Assert
+    expect(footer?.querySelector(".wishlist-surprise-control")).not.toBeNull();
+    expect(footer?.contains(ui.submit)).toBe(true);
+    expect(footer?.contains(ui.button("Utiliser la version enregistrée"))).toBe(true);
+    expect(ui.fields[1].closest(".wishlist-form__occasion")).not.toBeNull();
+    expect(ui.fields[2].closest(".wishlist-form__eventDate")).not.toBeNull();
+    expect(ui.submit.disabled).toBe(true);
+    expect(ui.update).not.toHaveBeenCalled();
+  });
+  it("places conflict recovery before the preserved form without starting another operation", async () => {
+    // Arrange
+    const ui = setup(); await settle(); await conflict(ui);
+    // Act
+    const reread = ui.button("Relire la liste");
+    const alert = ui.view.querySelector('[role="alert"]');
+    // Assert
+    expect(reread.hidden).toBe(false);
+    expect((alert?.compareDocumentPosition(reread) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(reread.compareDocumentPosition(ui.form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ui.form.contains(reread)).toBe(false);
+    expect(ui.fields[0].value).toBe(" Mon brouillon ");
+    expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.update).toHaveBeenCalledOnce();
+  });
+  it("returns to the current list rather than the overview", async () => {
+    // Arrange / Act
+    const ui = setup(); await settle();
+    // Assert
+    expect(ui.view.querySelector(".back-link")?.getAttribute("href")).toBe(`/lists/${original.wishlist.id}`);
+    expect(ui.view.querySelector(".back-link")?.textContent).toBe("Retour à la liste");
+  });
+  it("falls back to the overview when the list no longer exists", async () => {
+    // Arrange
+    const ui = setup(); await settle();
+    ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
+    // Act
+    ui.input(0, "Nouveau nom"); ui.send(); await settle();
+    // Assert
+    expect(ui.view.querySelector(".back-link")?.getAttribute("href")).toBe("/lists");
+    expect(ui.view.querySelector(".back-link")?.textContent).toBe("Retour à Mes listes");
+  });
+  it("saves a mode-only change with Enregistrer", async () => {
+    const initial = { ...original, wishlist: { ...original.wishlist, surpriseMode: false } };
+    const ui = setup({}, initial); await settle();
+    const mode = /** @type {HTMLInputElement} */ (ui.view.querySelector('[role="switch"]'));
+    expect(mode.checked).toBe(false); expect(ui.submit.disabled).toBe(true);
+    mode.click(); expect(ui.submit.disabled).toBe(false);
+    expect(ui.submit.textContent).toBe("Enregistrer"); ui.send(); await settle();
+    expect(ui.update.mock.calls[0][1].surpriseMode).toBe(true);
+  });
   it("loads fresh, leaves initial focus to the router, uses four labelled fields and prevents unchanged writes", async () => {
     const ui = setup(); expect(ui.form.hidden).toBe(true); expect(ui.view.textContent).toContain("Chargement de ta liste…"); await settle();
     expect(ui.form.hidden).toBe(false); expect(ui.form.noValidate).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(["Liste initiale", "birthday", "2020-02-29", "Message initial"]);
@@ -40,10 +95,12 @@ describe("wishlist editor", () => {
     for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.hasAttribute("maxlength")).toBe(false); }
     ui.input(0, " Liste initiale "); ui.input(3, " Message initial\n "); expect(ui.submit.disabled).toBe(true);
   });
-  it("cancels locally, including errors and deferred blur, without another read", async () => {
+  it("does not offer cancellation or deletion in the edit form and preserves its draft", async () => {
     const ui = setup(); await settle(); ui.input(0, ""); ui.fields[0].dispatchEvent(new FocusEvent("blur"));
-    ui.button("Annuler les modifications").click(); expect(ui.fields[0].value).toBe("Liste initiale"); expect(ui.fields[0].hasAttribute("aria-invalid")).toBe(false);
-    expect(ui.submit.disabled).toBe(true); expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.update).not.toHaveBeenCalled();
+    expect(ui.view.textContent).not.toContain("Annuler les modifications"); expect(ui.view.textContent).not.toContain("Suppression de la liste");
+    expect(ui.view.querySelector('a[href$="/delete"]')).toBeNull(); expect(ui.submit.textContent).toBe("Enregistrer");
+    expect(ui.fields[0].value).toBe(""); expect(ui.fields[0].getAttribute("aria-invalid")).toBe("true");
+    expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.update).not.toHaveBeenCalled();
   });
   it("validates modified fields, preserves button activation and focuses the first error", async () => {
     const ui = setup(); await settle(); ui.fields[0].dispatchEvent(new FocusEvent("blur")); expect(ui.fields[0].hasAttribute("aria-invalid")).toBe(false);
@@ -57,7 +114,7 @@ describe("wishlist editor", () => {
     ui.update.mockImplementation(async () => { await gate.promise; return { ...original, wishlist: { ...original.wishlist, name: "Nom enregistré" }, etag: '"v2"' }; });
     ui.input(0, " Mon brouillon "); ui.send(); ui.send();
     expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.form.getAttribute("aria-busy")).toBe("true");
-    expect(ui.update).toHaveBeenCalledExactlyOnceWith(original.wishlist.id, { name: " Mon brouillon ", occasion: "birthday", eventDate: "2020-02-29", message: "Message initial" }, { etag: '"v1"', signal: expect.any(AbortSignal) });
+    expect(ui.update).toHaveBeenCalledExactlyOnceWith(original.wishlist.id, { name: " Mon brouillon ", occasion: "birthday", eventDate: "2020-02-29", message: "Message initial", surpriseMode: true }, { etag: '"v1"', signal: expect.any(AbortSignal) });
     gate.resolve(); await settle(); expect(ui.view.textContent).toContain("Modifications enregistrées"); expect(ui.fields[0].value).toBe("Nom enregistré"); expect(ui.submit.disabled).toBe(true); expect(ui.loadOne).toHaveBeenCalledOnce();
     ui.input(0, "Deuxième édition"); ui.send(); await settle(); expect(ui.update.mock.calls[1][2].etag).toBe('"v2"');
   });
@@ -72,7 +129,8 @@ describe("wishlist editor", () => {
     const ui = setup(); await settle(); ui.input(3, " Mon message\n "); await conflict(ui);
     expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.submit.disabled).toBe(true); ui.send(); expect(ui.update).toHaveBeenCalledOnce();
     ui.loadOne.mockResolvedValue({ ...original, wishlist: { ...original.wishlist, name: "Autre onglet", message: "Concurrent" }, etag: '"v8"' });
-    ui.button("Relire la liste").click(); await settle(); expect(ui.view.textContent).toContain("Autre onglet"); expect(ui.view.textContent).toContain("sans fusion automatique");
+    ui.button("Relire la liste").click(); await settle(); expect(ui.view.textContent).toContain("Autre onglet"); expect(ui.view.textContent).toContain("L’enregistrer remplacera les informations ci-dessous.");
+    expect(ui.view.querySelector(".wishlist-edit-view__comparison")?.textContent).toContain("29 février 2020");
     expect(ui.fields[0].value).toBe(" Mon brouillon "); expect(ui.fields[3].value).toBe(" Mon message\n "); expect(ui.update).toHaveBeenCalledOnce();
     ui.send(); await settle(); expect(ui.update.mock.calls[1][2].etag).toBe('"v8"'); expect(ui.submit.disabled).toBe(true);
     ui.loadOne.mockResolvedValue({ ...original, etag: '"v9"' }); ui.button("Relire la liste").click(); await settle();
@@ -83,14 +141,14 @@ describe("wishlist editor", () => {
     ui.loadOne.mockResolvedValue({ ...original, wishlist: { ...original.wishlist, name: "Nouvelle base", eventDate: "2021-01-01" }, etag: '"v2"' });
     ui.button("Relire la liste").click(); await settle(); ui.send(); expect(ui.update).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(ui.fields[2]);
     ui.button("Utiliser la version enregistrée").click(); expect(ui.fields[0].value).toBe("Nouvelle base"); expect(ui.fields[2].value).toBe("2021-01-01"); expect(ui.submit.disabled).toBe(true);
-    ui.input(0, "Encore"); ui.button("Annuler les modifications").click(); expect(ui.fields[0].value).toBe("Nouvelle base"); expect(ui.loadOne).toHaveBeenCalledTimes(2);
+    ui.input(0, "Encore"); expect(ui.fields[0].value).toBe("Encore"); expect(ui.loadOne).toHaveBeenCalledTimes(2);
   });
   it("keeps drafts blocked over failed re-reads and prevents duplicate reads", async () => {
     const ui = setup(); await settle(); await conflict(ui); const gate = barrier();
     ui.loadOne.mockImplementation(async () => { await gate.promise; throw new ApiError({ kind: "network" }); });
     ui.button("Relire la liste").click(); ui.button("Relire la liste").click(); expect(ui.loadOne).toHaveBeenCalledTimes(2);
     gate.resolve(); await settle(); expect(ui.fields[0].value).toBe(" Mon brouillon "); expect(ui.submit.disabled).toBe(true);
-    ui.button("Annuler les modifications").click(); expect(ui.submit.disabled).toBe(true); ui.input(0, "Nouveau brouillon"); ui.send(); expect(ui.update).toHaveBeenCalledOnce();
+    expect(ui.submit.disabled).toBe(true); ui.input(0, "Nouveau brouillon"); ui.send(); expect(ui.update).toHaveBeenCalledOnce();
   });
   it.each([new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "English" }] }),
     new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })])("requires re-read after precondition or suspension failure", async error => {
@@ -104,8 +162,31 @@ describe("wishlist editor", () => {
   });
   it("blocks suspended lists, conceals reasons, permits re-read and never enables editing from local cancel", async () => {
     const ui = setup({}, { ...original, wishlist: { ...original.wishlist, isSuspended: true, ...{ suspensionReason: "private" } } }); await settle();
-    expect(ui.view.textContent).toContain("Liste suspendue"); expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.view.textContent).not.toContain("private"); expect(ui.fields.every(field => field.disabled)).toBe(true);
+    expect(ui.view.textContent).toContain("Liste suspendue"); expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.view.textContent).not.toContain("private");
+    for (const field of ui.fields) {
+      if (field instanceof HTMLSelectElement) expect(field.disabled).toBe(true);
+      else {
+        expect(field.disabled).toBe(false); expect(field.readOnly).toBe(true);
+        field.focus(); expect(document.activeElement).toBe(field);
+      }
+    }
+    expect(ui.submit.disabled).toBe(true);
     ui.send(); expect(ui.update).not.toHaveBeenCalled();
+  });
+  it("keeps suspended fields readable after a failed re-read and restores editing only after a valid read", async () => {
+    // Arrange
+    const ui = setup({}, { ...original, wishlist: { ...original.wishlist, isSuspended: true } }); await settle();
+    ui.loadOne.mockRejectedValueOnce(new ApiError({ kind: "network" }));
+    // Act
+    ui.button("Relire la liste").click(); await settle();
+    // Assert
+    expect(ui.fields[0].hasAttribute("readonly")).toBe(true); expect(ui.submit.disabled).toBe(true);
+    ui.send(); expect(ui.update).not.toHaveBeenCalled();
+    // Act
+    ui.loadOne.mockResolvedValueOnce(original); ui.button("Relire la liste").click(); await settle();
+    // Assert
+    expect(ui.fields.every(field => !field.disabled && !field.hasAttribute("readonly"))).toBe(true);
+    expect(ui.update).not.toHaveBeenCalled();
   });
   it.each(["initial", "read", "write"])("presents a safe missing-list state during %s", async phase => {
     const gate = barrier(); const missing = new ApiError({ kind: "http", statusCode: 404 });

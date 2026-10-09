@@ -36,7 +36,55 @@ function edit(input, value) { input.value = value; input.dispatchEvent(new Event
 async function submit(form) { form.dispatchEvent(new Event("submit", { cancelable: true })); await settle(); }
 
 describe("profile editor", () => {
-  it("loads once and presents a labelled form and read-only selectable email", async () => {
+  it.each([false, true])("edits visibility alone from %s with an accessible checkbox", async initial => {
+    // Arrange
+    let visible = initial;
+    const load = vi.fn(async () => ({ displayName: "Jenn", email: "jenn@example.test", etag: '"a"', isVisibleInMemberSearch: visible }));
+    const save = vi.fn(async (name, options) => { visible = options.isVisibleInMemberSearch; return { displayName: name, etag: '"b"', isVisibleInMemberSearch: visible }; });
+    const { view, form } = mount({ load, save }); await settle();
+    const checkbox = /** @type {HTMLInputElement} */ (view.querySelector('input[type="checkbox"]'));
+    // Act
+    expect(checkbox.checked).toBe(initial);
+    expect(view.querySelector('label[for="' + checkbox.id + '"]')?.textContent).toContain("Apparaître dans la recherche de membres");
+    expect(document.getElementById(checkbox.getAttribute("aria-describedby") ?? "")?.textContent).toContain("lien direct");
+    checkbox.click();
+    expect(button(view, "Enregistrer").disabled).toBe(false);
+    await submit(form);
+    // Assert
+    expect(save).toHaveBeenCalledExactlyOnceWith("Jenn", { etag: '"a"', signal: expect.any(AbortSignal), isVisibleInMemberSearch: !initial });
+    expect(checkbox.checked).toBe(!initial);
+    expect(button(view, "Enregistrer").disabled).toBe(true);
+    disposeComponent(view);
+    expect(checkbox.checked).toBe(false);
+  });
+  it("retains visibility through conflict and permits explicit recorded-version selection", async () => {
+    // Arrange
+    const load = vi.fn(async () => ({ displayName: "Jenn", email: "jenn@example.test", etag: '"a"', isVisibleInMemberSearch: false }));
+    const save = vi.fn(async () => { throw new ApiError({ kind: "http", statusCode: 412 }); });
+    const { view, form } = mount({ load, save }); await settle();
+    const checkbox = /** @type {HTMLInputElement} */ (view.querySelector('input[type="checkbox"]'));
+    checkbox.click();
+    load.mockResolvedValue({ displayName: "Autre onglet", email: "jenn@example.test", etag: '"b"', isVisibleInMemberSearch: false });
+    // Act
+    await submit(form);
+    // Assert
+    expect(checkbox.checked).toBe(true);
+    expect(view.textContent).toContain("Recherche de membres : masqué.");
+    button(view, "Utiliser la valeur enregistrée").click();
+    expect(checkbox.checked).toBe(false);
+    expect(button(view, "Enregistrer").disabled).toBe(true);
+  });
+  it("omits redundant display-name help", async () => {
+    // Arrange
+    const { view } = mount();
+    await settle();
+    // Act
+    const text = view.textContent;
+    // Assert
+    expect(text).not.toContain("Le nom que les autres verront");
+    expect(text).not.toContain("Choisis un pseudonyme");
+  });
+  it("loads once and presents a labelled form without repeating the email", async () => {
     // Arrange / Act
     const { view, input, form, load, save } = mount(); await settle();
     // Assert
@@ -45,10 +93,11 @@ describe("profile editor", () => {
     expect(input.value).toBe("Jenn"); expect(input.required).toBe(true);
     expect(input.getAttribute("autocomplete")).toBe("nickname"); expect(input.hasAttribute("maxlength")).toBe(false);
     expect(view.querySelector('label[for="' + input.id + '"]')).not.toBeNull();
-    expect(input.getAttribute("aria-describedby")).toBeTruthy();
-    expect(view.querySelector("dd")?.textContent).toBe("jenn@example.test");
-    expect(view.querySelectorAll("input")).toHaveLength(1);
-    expect(button(view, "Enregistrer les modifications").disabled).toBe(true);
+    expect(input.hasAttribute("aria-describedby")).toBe(false);
+    expect(view.textContent).not.toContain("jenn@example.test");
+    expect(view.textContent).not.toContain("Adresse e-mail");
+    expect(view.querySelectorAll("input")).toHaveLength(2);
+    expect(button(view, "Enregistrer").disabled).toBe(true);
     expect(load).toHaveBeenCalledOnce(); expect(save).not.toHaveBeenCalled();
   });
   it("shows initial loading, recovers an error, and focuses the enabled field", async () => {
@@ -63,15 +112,15 @@ describe("profile editor", () => {
     button(view, "Réessayer").click(); await settle();
     expect(form.hidden).toBe(false); expect(document.activeElement).toBe(input); expect(load).toHaveBeenCalledTimes(2);
   });
-  it("does not send unchanged or whitespace-only changes and cancels locally", async () => {
+  it("does not send unchanged or whitespace-only changes and has no cancellation button", async () => {
     // Arrange
     const { view, form, input, save, load } = mount(); await settle();
     // Act
     edit(input, " Jenn "); await submit(form);
-    button(view, "Annuler les modifications").click();
+    expect(view.textContent).not.toContain("Annuler les modifications");
     // Assert
     expect(save).not.toHaveBeenCalled(); expect(load).toHaveBeenCalledOnce();
-    expect(input.value).toBe("Jenn"); expect(document.activeElement).toBe(input);
+    expect(input.value).toBe(" Jenn ");
   });
   it.each(["", "   ", "😀".repeat(81), "a\u0000", "a\ud800"])("validates unsafe name %s on submit", async value => {
     // Arrange
@@ -95,7 +144,7 @@ describe("profile editor", () => {
   it("does not move an action during pointer activation but still validates submission", async () => {
     // Arrange
     const { view, input, form, save } = mount(); await settle(); edit(input, "");
-    const action = button(view, "Enregistrer les modifications");
+    const action = button(view, "Enregistrer");
     // Act / Assert
     action.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     input.dispatchEvent(new FocusEvent("blur", { relatedTarget: action }));
@@ -108,7 +157,7 @@ describe("profile editor", () => {
   it.each(["pointerup", "pointercancel"])("validates a deferred blur after cancelled action %s", async type => {
     // Arrange
     const { view, input } = mount(); await settle(); edit(input, "");
-    const action = button(view, "Enregistrer les modifications");
+    const action = button(view, "Enregistrer");
     // Act
     action.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
     input.dispatchEvent(new FocusEvent("blur", { relatedTarget: action }));
@@ -126,12 +175,12 @@ describe("profile editor", () => {
     edit(input, " Nouvelle valeur "); await submit(form); await submit(form);
     // Assert
     expect(input.disabled).toBe(true); expect(form.getAttribute("aria-busy")).toBe("true");
-    expect(button(view, "Annuler les modifications").disabled).toBe(true); expect(save).toHaveBeenCalledOnce();
-    expect(save.mock.calls[0]).toEqual([" Nouvelle valeur ", { etag: '"a"', signal: expect.any(AbortSignal) }]);
+    expect(/** @type {HTMLButtonElement | null} */ (form.querySelector('button[type="submit"]'))?.disabled).toBe(true); expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0]).toEqual([" Nouvelle valeur ", { etag: '"a"', signal: expect.any(AbortSignal), isVisibleInMemberSearch: false }]);
     gate.resolve(); await settle();
     expect(load).toHaveBeenCalledTimes(2); expect(input.value).toBe("Nouvelle valeur");
     expect(view.textContent).toContain("Modifications enregistrées"); expect(input.disabled).toBe(false);
-    expect(button(view, "Enregistrer les modifications").disabled).toBe(true);
+    expect(button(view, "Enregistrer").disabled).toBe(true);
   });
   it("retries only the read when the write succeeded but synchronization failed", async () => {
     // Arrange
@@ -141,7 +190,7 @@ describe("profile editor", () => {
     edit(input, "Nouveau"); await submit(form);
     // Assert
     expect(view.textContent).toContain("Modifications enregistrées, actualisation impossible");
-    expect(input.value).toBe("Nouveau"); expect(button(view, "Enregistrer les modifications").disabled).toBe(true);
+    expect(input.value).toBe("Nouveau"); expect(button(view, "Enregistrer").disabled).toBe(true);
     await submit(form); expect(save).toHaveBeenCalledOnce();
     load.mockResolvedValue({ displayName: "Nouveau", email: "jenn@example.test", etag: '"b"' });
     button(view, "Réessayer").click(); await settle();
@@ -157,10 +206,10 @@ describe("profile editor", () => {
     edit(input, " Ma saisie "); await submit(form);
     // Assert
     expect(input.value).toBe(" Ma saisie "); expect(view.textContent).toContain("Valeur actuellement enregistrée : Autre onglet");
-    expect(button(view, "Enregistrer ma saisie").disabled).toBe(false); expect(save).toHaveBeenCalledOnce();
+    expect(button(view, "Enregistrer").disabled).toBe(false); expect(save).toHaveBeenCalledOnce();
     await submit(form);
     expect(save).toHaveBeenCalledTimes(2);
-    expect(save.mock.calls[1]).toEqual([" Ma saisie ", { etag: '"new"', signal: expect.any(AbortSignal) }]);
+    expect(save.mock.calls[1]).toEqual([" Ma saisie ", { etag: '"new"', signal: expect.any(AbortSignal), isVisibleInMemberSearch: false }]);
   });
   it("can choose the server value without writing and keeps HTML-like names as text", async () => {
     // Arrange
@@ -168,10 +217,15 @@ describe("profile editor", () => {
     save.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
     load.mockResolvedValue({ displayName: "<b>Serveur</b>", email: "<i>email</i>", etag: '"new"' });
     // Act
-    edit(input, "Draft"); await submit(form); button(view, "Utiliser la valeur enregistrée").click();
+    edit(input, "Draft"); await submit(form);
+    const useCurrent = button(view, "Utiliser la valeur enregistrée");
+    edit(input, "Dernier brouillon"); useCurrent.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    input.dispatchEvent(new FocusEvent("blur", { relatedTarget: useCurrent }));
+    expect(input.getAttribute("aria-invalid")).not.toBe("true");
+    useCurrent.dispatchEvent(new PointerEvent("pointerup", { bubbles: true })); useCurrent.click();
     // Assert
     expect(input.value).toBe("<b>Serveur</b>"); expect(view.querySelector("b,i")).toBeNull();
-    expect(button(view, "Enregistrer les modifications").disabled).toBe(true); expect(save).toHaveBeenCalledOnce();
+    expect(button(view, "Enregistrer").disabled).toBe(true); expect(save).toHaveBeenCalledOnce();
     expect(view.querySelector(".profile-view__comparison")?.hasAttribute("hidden")).toBe(true);
   });
   it("keeps the draft and blocks writes if conflict recovery fails, including repeated conflicts", async () => {
@@ -197,7 +251,7 @@ describe("profile editor", () => {
     // Act
     edit(input, "Draft"); await submit(form);
     // Assert
-    expect(view.textContent).toContain("Vérifie ton nom"); expect(view.textContent).not.toContain("English");
+    expect(view.textContent).toContain("Nom d’affichage invalide"); expect(view.textContent).not.toContain("English");
     expect(document.activeElement).toBe(input);
     edit(input, "Corrigé"); expect(view.textContent).toContain("Certaines informations n’ont pas été acceptées.");
   });
@@ -224,7 +278,7 @@ describe("profile editor", () => {
     // Act
     edit(input, "Draft"); await submit(form); await submit(form);
     // Assert
-    expect(save).toHaveBeenCalledOnce(); expect(button(view, "Enregistrer les modifications").disabled).toBe(true);
+    expect(save).toHaveBeenCalledOnce(); expect(button(view, "Enregistrer").disabled).toBe(true);
     button(view, "Réessayer").click(); await settle(); expect(input.value).toBe("Draft");
   });
   it.each(["read", "write"])("cleans inputs and ignores late %s responses idempotently", async operation => {

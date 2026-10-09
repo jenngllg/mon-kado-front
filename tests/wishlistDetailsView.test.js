@@ -9,7 +9,7 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 /** @type {import("../src/features/wishlists/wishlistsService.js").CreatedWishlist} */
 const list = { wishlist: { id, name: "Anniversaire en famille", occasion: "birthday", eventDate: "2020-02-29", message: "Un message\nsur deux lignes", isSuspended: false }, etag: '"list"' };
 /** @type {import("../src/features/wishes/wishesService.js").Wish} */
-const wish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: id, name: "Un cadeau", note: "Une note\nsur deux lignes", price: 19.99, quantity: 2,
+const wish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: id, name: "Un souhait", note: "Une note\nsur deux lignes", price: 19.99, quantity: 2,
   position: "9223372036854775807", entityTag: '"wish"', imageUrl: `http://localhost:7000/api/v1/wishlists/${id}/wishes/019c52dd-56c1-7cc6-8a95-243f3a032e05/image?token=controlled`,
   url: "https://shop.example/product", imageUnavailable: false, productUnavailable: false };
 const collection = { wishes: [wish], etag: '"collection"' };
@@ -20,52 +20,228 @@ function setup(options = {}) {
   const loadOne = vi.fn(async () => list); const loadWishes = vi.fn(async () => collection);
   const view = createWishlistDetailsView({ wishlistId: id, loadOne, loadWishes, ...options }); document.body.append(view); views.push(view);
   /** @param {string} text Label. */
-  function click(text) { const button = [...view.querySelectorAll("button")].find(button => button.textContent === text); expect(button).toBeDefined(); button?.click(); }
+  function click(text) { const button = [...(view.querySelector("dialog") ?? view).querySelectorAll("button")].find(button => (button.getAttribute("aria-label") || button.textContent) === text); expect(button).toBeDefined(); button?.click(); }
   return { view, loadOne, loadWishes, click };
 }
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
 describe("wishlist owner detail", () => {
+  it("recovers failed images only after an explicit fresh collection read", async () => {
+    // Arrange
+    const ui = setup(); await settle();
+    const image = ui.view.querySelector("img");
+    const retry = /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("button")].find(button => button.textContent === "Réessayer les images"));
+    expect(retry.hidden).toBe(true);
+    // Act
+    image?.dispatchEvent(new Event("error"));
+    expect(retry.hidden).toBe(false); expect(ui.loadWishes).toHaveBeenCalledOnce();
+    ui.loadWishes.mockImplementation(async () => ({ ...collection, wishes: [{ ...wish, imageUrl: "https://api.test/fresh" }] }));
+    retry.click(); await settle();
+    // Assert
+    expect(ui.loadWishes).toHaveBeenCalledTimes(2); expect(ui.loadOne).toHaveBeenCalledOnce();
+    expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("https://api.test/fresh"); expect(retry.hidden).toBe(true);
+  });
+  it.each(["availableFirst"])("retains URL availability sort %s until the visible collection has loaded", async initialSort => {
+    // Arrange
+    const gate = barrier(); const onSortChange = vi.fn();
+    const ui = setup({ initialSort, onSortChange, loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, surpriseMode: false } }),
+      loadWishes: async () => { await gate.promise; return { ...collection, wishes: [{ ...wish, reservedQuantity: 0, availableQuantity: 2 }] }; } });
+    await settle();
+    const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select"));
+    // Act
+    expect(select.value).toBe(initialSort); expect(select.disabled).toBe(true);
+    gate.resolve(); await settle();
+    // Assert
+    expect(select.value).toBe(initialSort); expect(select.disabled).toBe(false);
+    expect(onSortChange).toHaveBeenLastCalledWith(initialSort);
+  });
+  it("sorts loaded wishes locally, preserves return links and restores manual reordering", async () => {
+    // Arrange
+    const wishes = [wish, { ...wish, id, name: "Album", price: null, availableQuantity: 0 }, { ...wish, id: "019c52dd-56c1-7cc6-8a95-243f3a032e06", name: "Zéro", price: 0, availableQuantity: 1 }].map(item => ({ ...item, reservedQuantity: 0, availableQuantity: item.availableQuantity ?? 2 }));
+    const loadWishes = vi.fn(async () => ({ ...collection, wishes })); const onSortChange = vi.fn();
+    const ui = setup({ loadWishes, initialSort: "nameAsc", onSortChange, reorder: vi.fn() }); await settle();
+    const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector(".wish-sort-control select"));
+    const originalImages = [...ui.view.querySelectorAll("img")];
+    // Act
+    select.value = "priceAsc"; select.dispatchEvent(new Event("change"));
+    // Assert
+    expect([...ui.view.querySelectorAll(".wish-card h3")].map(item => item.textContent)).toEqual(["Zéro", wish.name, "Album"]);
+    expect(loadWishes).toHaveBeenCalledOnce(); expect(onSortChange).toHaveBeenLastCalledWith("priceAsc");
+    expect([...ui.view.querySelectorAll("img")].every(image => originalImages.includes(image))).toBe(true);
+    expect(originalImages.every(image => image.hasAttribute("src"))).toBe(true);
+    expect(ui.view.querySelector(".wish-card h3 a")?.getAttribute("href")).toContain("?sort=priceAsc");
+    expect(ui.view.querySelector('button[aria-label="Réorganiser les souhaits"]')?.hasAttribute("hidden")).toBe(true);
+    select.value = "listOrder"; select.dispatchEvent(new Event("change"));
+    expect([...ui.view.querySelectorAll(".wish-card h3")].map(item => item.textContent)).toEqual(wishes.map(item => item.name));
+    expect(ui.view.querySelector('button[aria-label="Réorganiser les souhaits"]')?.hasAttribute("hidden")).toBe(false);
+  });
+  it("removes hidden reservation sorts and normalizes a surprise preference", async () => {
+    // Arrange
+    const onSortChange = vi.fn();
+    const ui = setup({ initialSort: "availableFirst", onSortChange });
+    // Act
+    await settle();
+    // Assert
+    const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select"));
+    expect(select.value).toBe("listOrder"); expect(select.querySelector('[value="availableFirst"]')).toBeNull();
+    expect(onSortChange).toHaveBeenLastCalledWith("listOrder");
+  });
+  it("keeps sorting disabled while reading and does not replace a loading or failed collection", async () => {
+    // Arrange
+    const gate = barrier(); const onSortChange = vi.fn();
+    const ui = setup({ initialSort: "nameAsc", onSortChange, loadWishes: async () => { await gate.promise; throw new ApiError({ kind: "http", statusCode: 503 }); } });
+    await settle(); const select = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select"));
+    // Act
+    select.value = "priceDesc"; select.dispatchEvent(new Event("change"));
+    // Assert
+    expect(select.disabled).toBe(true); expect(select.value).toBe("nameAsc"); expect(onSortChange).not.toHaveBeenCalled();
+    gate.resolve(); await settle();
+    expect(select.disabled).toBe(true); expect(ui.view.querySelector('[role="alert"]')).not.toBeNull();
+  });
+  it("shows a favorite conflict without replaying the mutation", async () => {
+    const current = { wish, etag: '"fresh"', values: { name: wish.name, note: "", url: "", price: "19,99", quantity: "2" } };
+    const favorite = { loadOne: vi.fn(async () => current), setFavorite: vi.fn(async () => { throw new ApiError({ kind: "http", statusCode: 412, errorCode: "WISH_VERSION_CONFLICT" }); }) };
+    const ui = setup({ favorite }); await settle();
+    const button = /** @type {HTMLButtonElement} */ (ui.view.querySelector(".wish-favorite-button"));
+    button.click(); await settle();
+    expect(ui.view.querySelector('[role="alert"]')).not.toBeNull();
+    expect(favorite.setFavorite).toHaveBeenCalledOnce(); expect(ui.loadWishes).toHaveBeenCalledOnce(); expect(button.disabled).toBe(false);
+  });
+  it("does not abort a favorite mutation when the window regains focus", async () => {
+    const gate = barrier();
+    const current = { wish: { ...wish, isFavorite: false }, etag: '"fresh"', values: { name: wish.name, note: "", url: "", price: "19,99", quantity: "2", isFavorite: false } };
+    const favorite = { loadOne: vi.fn(async () => current), setFavorite: vi.fn(async () => { await gate.promise; return { ...current, wish: { ...wish, isFavorite: true } }; }) };
+    const ui = setup({ favorite }); await settle();
+    const button = /** @type {HTMLButtonElement} */ (ui.view.querySelector(".wish-favorite-button"));
+    button.click(); await settle();
+    window.dispatchEvent(new Event("focus")); await settle();
+    expect(ui.view.querySelector("select")?.disabled).toBe(true);
+    expect(ui.loadWishes).toHaveBeenCalledOnce();
+    expect(button.isConnected).toBe(true); expect(button.disabled).toBe(true);
+    gate.resolve(); await settle();
+    expect(favorite.setFavorite).toHaveBeenCalledOnce();
+    expect(ui.loadWishes).toHaveBeenCalledTimes(2);
+    expect(ui.view.querySelector("select")?.disabled).toBe(false);
+  });
+  it("places list actions above the shared-style banner without a disclosure", async () => {
+    const ui = setup({ setArchived: vi.fn() }); await settle();
+    const header = ui.view.querySelector(".wishlist-details-header");
+    if (!header) throw new Error("Missing list title toolbar");
+    expect(ui.view.querySelector(".shared-wishlist-identity h1")?.textContent).toBe(list.wishlist.name);
+    expect(ui.view.querySelector(".shared-wishlist-owner")).toBeNull();
+    expect(ui.view.querySelector(".wishlist-details-note")?.textContent).toBe(list.wishlist.message);
+    expect([...header.querySelectorAll(".icon-action")].map(control => control.getAttribute("aria-label")))
+      .toEqual(["Ajouter un souhait", "Modifier les informations", "Supprimer cette liste", "Archiver"]);
+    expect(header.querySelectorAll(".wishlist-details-actions svg")).toHaveLength(4);
+    expect(header.querySelector("details")).toBeNull();
+  });
+  it.each([false, true])("uses the outlined destructive icon instead of a solid danger button (archived: %s)", async isArchived => {
+    // Arrange
+    const removeWishlist = vi.fn();
+    const ui = setup({ removeWishlist, loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, isArchived } }) });
+    // Act
+    await settle();
+    const remove = ui.view.querySelector('.wishlist-details-actions button[aria-label="Supprimer cette liste"]');
+    // Assert
+    expect(remove?.classList.contains("ui-button--secondary")).toBe(true);
+    expect(remove?.classList.contains("ui-button--danger")).toBe(false);
+    expect(remove?.classList.contains("icon-action--danger")).toBe(true);
+    expect(remove?.querySelector('svg[aria-hidden="true"] path')?.getAttribute("d")).toContain("M3 6h18");
+    expect(removeWishlist).not.toHaveBeenCalled();
+  });
+  it("places the named round reorder icon between edit and delete instead of beside sorting", async () => {
+    // Arrange
+    const ui = setup({ reorder: vi.fn(), loadWishes: async () => ({ ...collection, wishes: [wish, { ...wish, id: "other" }] }) });
+    await settle();
+    // Act
+    const trigger = ui.view.querySelector('button[aria-label="Réorganiser les souhaits"]');
+    // Assert
+    expect(trigger?.parentElement?.className).toBe("wishlist-details-actions");
+    expect(trigger?.previousElementSibling?.getAttribute("aria-label")).toBe("Modifier les informations");
+    expect(trigger?.nextElementSibling?.getAttribute("aria-label")).toBe("Supprimer cette liste");
+    expect(trigger?.getAttribute("title")).toBe("Réorganiser les souhaits");
+    expect(trigger?.textContent?.trim()).toBe(""); expect(trigger?.querySelectorAll("svg circle")).toHaveLength(6);
+    expect(ui.view.querySelector('.section-toolbar button[aria-label="Réorganiser les souhaits"]')).toBeNull();
+  });
+  it("confirms card deletion and refreshes the wishes without opening the editor", async () => {
+    const remove = vi.fn(async () => {});
+    const loadOne = vi.fn(async () => ({ wish, etag: '"fresh"', values: { name: wish.name, note: "", url: "", price: "19,99", quantity: "2" } }));
+    const ui = setup({ deletion: { loadOne, remove } }); await settle();
+    const trigger = ui.view.querySelector(".wish-card button.icon-action--danger");
+    expect(trigger).not.toBeNull();
+    /** @type {HTMLButtonElement} */ (trigger).click(); await settle();
+    expect(ui.view.querySelector("dialog")).not.toBeNull();
+    expect(remove).not.toHaveBeenCalled();
+    ui.click("Annuler");
+    expect(document.activeElement).toBe(trigger);
+    /** @type {HTMLButtonElement} */ (trigger).click(); await settle();
+    ui.click("Supprimer"); await settle();
+    expect(remove).toHaveBeenCalledExactlyOnceWith(id, wish.id, { etag: '"fresh"', signal: expect.any(AbortSignal) });
+    expect(ui.view.querySelector("dialog")).toBeNull();
+    expect(ui.loadWishes).toHaveBeenCalledTimes(2);
+  });
   it("blocks list actions when the gift collection reports suspension", async () => {
     const ui = setup({ loadWishes: async () => { throw new ApiError({ kind: "http", statusCode: 403, errorCode: "WISHLIST_SUSPENDED" }); } }); await settle(); expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.view.querySelector(`a[href="/lists/${id}/edit"]`)).toBeNull(); expect(ui.view.querySelector(`a[href="/lists/${id}/wishes/new"]`)).toBeNull(); expect(ui.view.querySelector("textarea")).toBeNull();
   });
   it("aborts gifts when sharing loses access, including responses ignoring cancellation", async () => {
     const giftGate = barrier(), shareGate = barrier(); let sent = /** @type {AbortSignal | null} */ (null);
-    const ui = setup({ loadWishes: async (_id, { signal }) => { sent = signal; await giftGate.promise; return collection; }, share: { load: async () => { await shareGate.promise; throw new ApiError({ kind: "http", statusCode: 404 }); }, create: async () => { throw Error("unexpected"); }, copyText: async () => {} } }); await settle(); shareGate.resolve(); await settle(); expect(/** @type {AbortSignal | null} */ (sent)?.aborted).toBe(true); giftGate.resolve(); await settle(); expect(ui.view.querySelector("h1")?.textContent).toBe("Liste introuvable"); expect(ui.view.querySelector("img,textarea,li")).toBeNull();
+    const ui = setup({ loadWishes: async (_id, { signal }) => { sent = signal; await giftGate.promise; return collection; }, share: { load: async () => { await shareGate.promise; throw new ApiError({ kind: "http", statusCode: 404 }); }, create: async () => { throw Error("unexpected"); }, copyText: async () => {} } }); await settle(); ui.click("Partager"); shareGate.resolve(); await settle(); expect(/** @type {AbortSignal | null} */ (sent)?.aborted).toBe(true); giftGate.resolve(); await settle(); expect(ui.view.querySelector("h1")?.textContent).toBe("Liste introuvable"); expect(ui.view.querySelector("img,textarea,li")).toBeNull();
   });
   function sharing() {
     return { load: vi.fn(async () => ({ id, shareUrl: "https://example.test/#test-secret", etag: '"share"' })),
       create: vi.fn(async () => ({ id, shareUrl: "https://example.test/#test-secret", etag: '"share"' })), copyText: vi.fn(async () => {}) };
   }
+  it("loads sharing only in the modal, copies the full secret and clears it on close", async () => {
+    const share = sharing();
+    const ui = setup({ share });
+    await settle();
+    expect(ui.view.querySelector('.wishlist-settings, .wishlist-share')).toBeNull();
+    expect(share.load).not.toHaveBeenCalled();
+    const trigger = [...ui.view.querySelectorAll('button')].find(button => button.textContent === "Partager");
+    ui.click("Partager"); await settle();
+    const input = ui.view.querySelector('textarea');
+    expect(input?.value).toContain("test-secret");
+    expect(ui.view.querySelector('dialog')?.open).toBe(true);
+    ui.click("Copier le lien");
+    await settle();
+    expect(share.copyText).toHaveBeenCalledExactlyOnceWith("https://example.test/#test-secret");
+    ui.view.querySelector('dialog')?.dispatchEvent(new Event("cancel", { cancelable: true }));
+    expect(input?.value).toBe(""); expect(ui.view.querySelector('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    ui.click("Partager"); await settle(); expect(share.load).toHaveBeenCalledTimes(2);
+  });
   it("loads share independently of pending gifts and does not create on entry", async () => {
     const share = sharing(); const gate = barrier();
-    const ui = setup({ share, loadWishes: async () => { await gate.promise; return collection; } }); await settle();
+    const ui = setup({ share, loadWishes: async () => { await gate.promise; return collection; } }); await settle(); ui.click("Partager"); await settle();
     expect(ui.view.querySelector("textarea")?.value).toContain("test-secret"); expect(share.create).not.toHaveBeenCalled();
-    expect(ui.view.textContent).toContain("Chargement de tes cadeaux"); gate.resolve(); await settle();
+    expect(ui.view.textContent).toContain("Chargement de tes souhaits"); gate.resolve(); await settle();
   });
   it("keeps gifts available when the share read fails", async () => {
     const share = sharing(); share.load.mockRejectedValue(new ApiError({ kind: "network" }));
-    const ui = setup({ share }); await settle(); expect(ui.view.querySelector(".wish-card")).not.toBeNull();
+    const ui = setup({ share }); await settle(); ui.click("Partager"); await settle(); expect(ui.view.querySelector(".wish-card")).not.toBeNull();
     expect(ui.view.querySelector(".wishlist-share [role=alert]")).not.toBeNull();
   });
   it("does not request a suspended list's share and preserves an empty collection on later suspension", async () => {
     const share = sharing(); const suspended = setup({ share, loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, isSuspended: true } }) }); await settle();
     expect(share.load).not.toHaveBeenCalled(); expect(suspended.view.textContent).toContain("Partage indisponible");
-    const ui = setup({ share, loadWishes: async () => ({ wishes: [], etag: '"empty"' }) }); await settle();
+    const ui = setup({ share, loadWishes: async () => ({ wishes: [], etag: '"empty"' }) }); await settle(); ui.click("Partager"); await settle();
     const input = ui.view.querySelector("textarea"); share.load.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" }));
-    ui.click("Actualiser le lien"); await settle(); expect(input?.value).toBe(""); expect(ui.view.querySelector("textarea")).toBeNull();
-    expect(ui.view.textContent).toContain("Cette liste ne contient pas encore de cadeau"); expect(ui.view.querySelector('a[href$="/wishes/new"]')).toBeNull();
+    window.dispatchEvent(new Event("focus")); await settle(); expect(input?.value).toBe(""); expect(ui.view.querySelector("textarea")).toBeNull();
+    expect(ui.view.textContent).toContain("Aucun souhait pour le moment"); expect(ui.view.querySelector('a[href$="/wishes/new"]')).toBeNull();
   });
   it.each([false, true])("never republishes gifts after share reports inaccessible, rejected=%s", async rejected => {
     const share = sharing(); const gate = barrier(); const ui = setup({ share, loadWishes: async () => { await gate.promise; if (rejected) throw new ApiError({ kind: "network" }); return collection; } });
-    await settle(); share.load.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 })); ui.click("Actualiser le lien"); await settle();
+    await settle(); share.load.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 })); ui.click("Partager"); await settle();
     gate.resolve(); await settle(); expect(ui.view.querySelector("h1")?.textContent).toBe("Liste introuvable"); expect(ui.view.querySelector(".wish-card,textarea")).toBeNull();
   });
-  it("cleans the share during reordering and reloads it on cancellation", async () => {
+  it("does not fetch or retain sharing during reordering or on cancellation", async () => {
     const share = sharing(); const ui = setup({ share, loadWishes: async () => ({ ...collection, wishes: [wish, { ...wish, id: "other" }] }), reorder: async () => ({ wishes: [], etag: '"reorder"' }) });
-    await settle(); const input = ui.view.querySelector("textarea"); ui.click("Réorganiser les cadeaux"); await settle();
+    await settle(); ui.click("Partager"); await settle(); const input = ui.view.querySelector("textarea");
+    ui.view.querySelector('dialog')?.dispatchEvent(new Event("cancel", { cancelable: true }));
+    ui.click("Réorganiser les souhaits"); await settle();
     expect(input?.value).toBe(""); expect(ui.view.querySelector(".wishlist-share")).toBeNull(); ui.click("Annuler"); await settle();
-    expect(share.load).toHaveBeenCalledTimes(2); expect(ui.view.querySelector("textarea")?.value).toContain("test-secret");
+    expect(share.load).toHaveBeenCalledOnce(); expect(ui.view.querySelector("textarea")).toBeNull();
+    ui.click("Partager"); await settle(); expect(share.load).toHaveBeenCalledTimes(2);
     disposeComponent(ui.view); expect(ui.view.querySelector("textarea")).toBeNull();
   });
   it("loads metadata before the collection and leaves initial focus to the router", async () => {
@@ -74,41 +250,45 @@ describe("wishlist owner detail", () => {
     expect(ui.loadWishes).toHaveBeenCalledExactlyOnceWith(id, { signal: expect.any(AbortSignal) });
     expect(ui.view.querySelector("h1")?.textContent).toBe(list.wishlist.name); expect(document.activeElement).toBe(document.body);
     expect(ui.view.querySelector("time")?.dateTime).toBe("2020-02-29"); expect(ui.view.textContent).toContain("29 février 2020");
-    expect(ui.view.querySelector(`a[href="/lists/${id}/edit"]`)?.textContent).toBe("Modifier les informations");
-    expect(ui.view.querySelector(`a[href="/lists/${id}/delete"]`)?.textContent).toBe("Supprimer cette liste");
+    expect(ui.view.querySelector(`a[href="/lists/${id}/edit"]`)?.getAttribute("aria-label")).toBe("Modifier les informations");
+    expect(ui.view.querySelector('button[aria-label="Supprimer cette liste"]')?.getAttribute("aria-label")).toBe("Supprimer cette liste");
   });
-  it("shows a semantic full collection with exact copy, notes, price, desired quantity and safe product links", async () => {
+  it("shows photo-name-price tiles linking to details without product or editor commands", async () => {
     const ui = setup(); await settle();
     expect(ui.view.querySelector('ul[role="list"] li h3')?.textContent).toBe(wish.name);
-    expect(ui.view.textContent).toContain("19,99"); expect(ui.view.textContent).toContain("Quantité souhaitée : 2"); expect(ui.view.textContent).toContain(wish.note);
-    const link = ui.view.querySelector('a[target="_blank"]'); expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
-    expect(link?.getAttribute("aria-label")).toBe("Voir le produit « Un cadeau » (nouvel onglet)");
+    expect(ui.view.textContent).toContain("19,99"); expect(ui.view.textContent).not.toContain("Quantité souhaitée"); expect(ui.view.textContent).not.toContain(wish.note);
+    expect(ui.view.querySelector(".wish-grid--gallery")).not.toBeNull();
+    expect(ui.view.querySelector(".section-toolbar h2")?.classList.contains("visually-hidden")).toBe(true);
+    expect(ui.view.querySelector('.wish-card a[target="_blank"],.wish-card a[href$="/edit"]')).toBeNull();
+    expect(ui.view.querySelector(".wish-card h3 a")?.getAttribute("href")).toBe(`/lists/${id}/wishes/${wish.id}`);
     expect(ui.view.textContent).not.toMatch(/Réservé|Disponible|participant|controlled|collection|922337/);
     expect(ui.view.querySelector("form,[data-etag]")).toBeNull();
   });
   it("keeps the backend order and renders all gifts without a page or arbitrary limit", async () => {
-    const rows = Array.from({ length: 125 }, (_, i) => ({ ...wish, id: String(i), name: "Cadeau " + i, position: String(125 - i), imageUrl: null }));
+    const rows = Array.from({ length: 125 }, (_, i) => ({ ...wish, id: String(i), name: "Souhait " + i, position: String(125 - i), imageUrl: null }));
     const ui = setup({ loadWishes: async () => ({ wishes: rows, etag: '"full"' }) }); await settle();
     expect([...ui.view.querySelectorAll("li h3")].map(heading => heading.textContent)).toEqual(rows.map(row => row.name));
     expect(ui.view.textContent).not.toMatch(/Page suivante|Page précédente/);
   });
   it("shows an empty state with the implemented manual creation action", async () => {
     const ui = setup({ loadWishes: async () => ({ wishes: [], etag: '"empty"' }) }); await settle();
-    expect(ui.view.textContent).toContain("Cette liste ne contient pas encore de cadeau"); expect(ui.view.querySelectorAll("li")).toHaveLength(0);
-    expect(ui.view.querySelector(`a[href="/lists/${id}/wishes/new"]`)?.textContent).toBe("Ajouter un cadeau"); expect(ui.view.querySelector("button:not([hidden])")?.textContent).toBe("Actualiser les cadeaux");
-    expect([...ui.view.querySelectorAll("button")].find(button => button.textContent === "Réorganiser les cadeaux")?.hidden).toBe(true);
+    expect(ui.view.textContent).toContain("Aucun souhait pour le moment"); expect(ui.view.querySelectorAll("li")).toHaveLength(0);
+    expect(ui.view.querySelector(`a[href="/lists/${id}/wishes/new"]`)?.getAttribute("aria-label")).toBe("Ajouter un souhait"); expect(ui.view.textContent).not.toContain("Actualiser les souhaits");
+    expect(ui.view.querySelector('button[aria-label="Réorganiser les souhaits"]')).toBeNull();
   });
-  it.each([["birthday", "Anniversaire"], ["christmas", "Noël"], ["wedding", "Mariage"], ["birth", "Naissance"], ["other", "Autre"]])("supports occasion %s and optional date/message/price/note/image", async (occasion, label) => {
+  it.each([["birthday", "Anniversaire"], ["christmas", "Noël"], ["wedding", "Mariage"], ["birth", "Naissance"], ["other", undefined]])("supports occasion %s and optional date/message/price/note/image", async (occasion, label) => {
     const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, occasion: /** @type {typeof list.wishlist.occasion} */ (occasion), eventDate: null, message: null } }),
       loadWishes: async () => ({ ...collection, wishes: [{ ...wish, price: null, note: null, imageUrl: null, url: null }] }) }); await settle();
-    expect(ui.view.querySelector(".wishlist-details-info p")?.textContent).toBe(label);
-    expect(ui.view.textContent).toContain("Sans date"); expect(ui.view.textContent).toContain("Prix non renseigné"); expect(ui.view.textContent).toContain("Sans image");
+    expect(ui.view.querySelector(".shared-wishlist-occasion")?.textContent).toBe(label);
+    expect(ui.view.textContent).not.toContain("Sans date"); expect(ui.view.querySelector(".wish-card__price")).toBeNull(); expect(ui.view.textContent).toContain("Sans image");
+    expect(ui.view.querySelectorAll(".shared-wishlist-metadata")).toHaveLength(occasion === "other" ? 0 : 1);
     expect(ui.view.querySelector("img,time")).toBeNull(); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
   });
   it("allows suspended-list consultation without mutation links or private moderation details", async () => {
     const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, isSuspended: true, ...{ suspensionReason: "PRIVATE_REASON" } } }) }); await settle();
     expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.view.querySelector("li h3")).not.toBeNull(); expect(ui.view.querySelector(`a[href="/lists/${id}/edit"]`)).toBeNull();
-    expect(ui.view.querySelector('.wish-card a[href$="/edit"]')?.textContent).toBe("Consulter");
+    expect(ui.view.querySelector('.wish-card a[href$="/edit"],.wish-card button')).toBeNull();
+    expect(ui.view.querySelector(".wish-card h3 a")?.getAttribute("href")).toBe(`/lists/${id}/wishes/${wish.id}`);
     expect(ui.view.querySelector(`a[href$="/delete"]`)).toBeNull(); expect(ui.view.textContent).not.toContain("PRIVATE_REASON");
   });
   it("renders hostile text without markup interpretation", async () => {
@@ -120,19 +300,19 @@ describe("wishlist owner detail", () => {
     const ui = setup(); await settle(); const image = /** @type {HTMLImageElement} */ (ui.view.querySelector("img"));
     expect(image.alt).toBe(""); expect(image.width).toBe(400); expect(image.height).toBe(300); expect(image.loading).toBe("lazy"); expect(image.referrerPolicy).toBe("no-referrer");
     image.dispatchEvent(new Event("error")); expect(image.hasAttribute("src")).toBe(false); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.textContent).toContain("Image indisponible");
-    expect(ui.loadWishes).toHaveBeenCalledOnce(); ui.click("Actualiser les cadeaux"); await settle(); expect(ui.view.querySelector("img")).not.toBeNull();
+    expect(ui.loadWishes).toHaveBeenCalledOnce(); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("img")).not.toBeNull();
   });
   it("does not create elements for discarded unsafe product/image URLs", async () => {
     const ui = setup({ loadWishes: async () => ({ ...collection, wishes: [{ ...wish, url: null, imageUrl: null, productUnavailable: true, imageUnavailable: true }] }) }); await settle();
-    expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.textContent).toContain("Lien produit indisponible"); expect(ui.view.textContent).toContain("Image indisponible");
+    expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull(); expect(ui.view.textContent).toContain("Image indisponible");
   });
-  it("refreshes only gifts, replaces stale cards and grants, blocks duplicate reads and focuses their title", async () => {
+  it("refreshes only gifts, replaces stale cards and grants, blocks duplicate reads without stealing focus", async () => {
     const ui = setup(); await settle(); const oldImage = /** @type {HTMLImageElement} */ (ui.view.querySelector("img")); const gate = barrier();
     ui.loadWishes.mockImplementation(async () => { await gate.promise; return { wishes: [{ ...wish, name: "Version actualisée", quantity: 3, entityTag: '"new-wish"' }], etag: '"new-collection"' }; });
-    ui.click("Actualiser les cadeaux"); ui.click("Actualiser les cadeaux"); expect(ui.loadWishes).toHaveBeenCalledTimes(2); expect(oldImage.hasAttribute("src")).toBe(false);
+    window.dispatchEvent(new Event("focus")); window.dispatchEvent(new Event("focus")); expect(ui.loadWishes).toHaveBeenCalledTimes(2); expect(oldImage.hasAttribute("src")).toBe(false);
     expect(ui.view.querySelector('[aria-busy="true"]')).not.toBeNull(); gate.resolve(); await settle();
-    expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.view.textContent).toContain("Version actualisée"); expect(ui.view.textContent).toContain("Quantité souhaitée : 3");
-    expect(document.activeElement?.textContent).toBe("Les cadeaux de ta liste");
+    expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.view.textContent).toContain("Version actualisée"); expect(ui.view.textContent).not.toContain("Quantité souhaitée");
+    expect(document.activeElement).toBe(document.body);
   });
   it("retries initial metadata failures before any gift request", async () => {
     const read = vi.fn(/** @type {import("../src/features/wishlists/wishlistsService.js").LoadWishlist} */ (async () => { throw new ApiError({ kind: "network" }); })); const ui = setup({ loadOne: read }); await settle();
@@ -148,7 +328,7 @@ describe("wishlist owner detail", () => {
   });
   it.each(["list", "gifts", "refresh"])("removes metadata, versions and images on %s 404", async phase => {
     const missing = new ApiError({ kind: "http", statusCode: 404 }); const ui = setup({ ...(phase === "list" ? { loadOne: async () => { throw missing; } } : {}), ...(phase === "gifts" ? { loadWishes: async () => { throw missing; } } : {}) }); await settle();
-    if (phase === "refresh") { ui.loadWishes.mockRejectedValue(missing); ui.click("Actualiser les cadeaux"); await settle(); }
+    if (phase === "refresh") { ui.loadWishes.mockRejectedValue(missing); window.dispatchEvent(new Event("focus")); await settle(); }
     expect(ui.view.querySelector("h1")?.textContent).toBe("Liste introuvable"); expect(ui.view.textContent).not.toContain(list.wishlist.name); expect(ui.view.querySelector("img")).toBeNull();
     expect(ui.view.querySelector(`a[href$="/edit"]`)).toBeNull(); expect(ui.view.querySelector(`a[href="/lists"]`)).not.toBeNull();
   });

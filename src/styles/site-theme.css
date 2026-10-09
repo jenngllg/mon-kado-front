@@ -1,0 +1,358 @@
+/* The remaining routes use the same surfaces and rhythm as mockups 03–09.
+   Keep these scoped by view: reservation history is not an illustrated list card. */
+.app-main {
+  --container-max-width: 86rem;
+  padding-block: 2.8rem 4rem;
+}
+.app-main:has(> .home-hero) {
+  padding-block: 2.8rem 1rem;
+}
+.app-footer { background: var(--color-background); }
+.ui-button--primary { box-shadow: none; }
+.ui-button--secondary { border-color: var(--color-border-strong); }
+.empty-state { padding: 2rem 0; border: 0; border-radius: 0; background: transparent; text-align: start; }
+.empty-state h2 { font-size: 1.375rem; }
+.empty-state > p { color: var(--color-text-muted); }
+@media (min-width: 80rem) {
+  .app-navigation__list:has(.app-navigation__link--primary) { justify-content: end; }
+  .app-navigation__list:has(.app-navigation__link--primary) > li { margin-inline: 0; }
+}
+
+:is(.registration-view, .recovery-view, .login-view, .google-return-view,
+  .google-link-view, .email-confirmation-view, .profile-view, .placeholder-view) {
+  --flow-space: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+:is(.registration-view, .recovery-view, .login-view, .google-return-view,
+  .google-link-view, .email-confirmation-view, .two-factor-view, .authenticator-view) {
+  width: min(100%, var(--form-width-auth));
+}
+:is(.registration-view, .recovery-view, .login-view, .google-return-view,
+  .google-link-view, .email-confirmation-view, .profile-view, .placeholder-view,
+  .reservation-history-view, .shared-wish-view, .two-factor-view, .authenticator-view) h1 {
+  font-size: clamp(2rem, 3.8vw, 3rem);
+  line-height: 1.15;
+  text-wrap: pretty;
+}
+.profile-layout {
+  grid-template-columns: 12rem minmax(0, 1fr);
+  gap: var(--space-7) var(--space-7);
+  width: min(100%, 56rem);
+  max-width: none;
+}
+.profile-layout > h1 { grid-column: 1 / -1; margin: 0; font-size: clamp(2rem, 3vw, 2.5rem); line-height: 1.15; text-wrap: pretty; }
+.profile-layout > .profile-view { padding: 0; min-height: 0; width: 100%; margin-inline: 0; }
+.profile-view__settings {
+  align-self: stretch;
+  padding: 0 var(--space-5) 0 0;
+  border: 0;
+  border-inline-end: 1px solid var(--color-border);
+  background: transparent;
+  border-radius: 0;
+}
+.profile-view__settings nav { gap: var(--space-3); }
+.profile-view__settings a { min-height: 44px; padding: var(--space-3) var(--space-2); border-inline-start-width: 4px; border-radius: var(--radius-sm); font-weight: var(--font-weight-medium); gap: var(--space-3); }
+.profile-view__settings a > span:last-child { min-width: 0; }
+.profile-view__settings a[aria-current="page"] { background: transparent; border-inline-start-color: var(--color-accent); border-radius: 0; font-weight: var(--font-weight-bold); }
+.account-icon { display: inline-flex; flex: 0 0 1.5rem; width: 1.5rem; height: 1.5rem; }
+.account-icon svg { display: block; width: 100%; height: 100%; }
+.profile-layout .profile-form,
+.profile-layout .recovery-form { max-width: var(--form-width-account); }
+.profile-layout .profile-view h2 { font-size: var(--font-size-xl); line-height: 1.3; }
+
+.profile-visibility__label { min-height: 44px; gap: var(--space-2); flex-wrap: nowrap; cursor: pointer; }
+.profile-visibility__label span { min-width: 0; }
+.profile-visibility__label input { flex-shrink: 0; accent-color: var(--color-text); }
+.personal-data-view, .personal-data-view__deletion { --flow-space: var(--space-4); }
+.personal-data-view__status { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-md); background: var(--color-surface-sage); }
+.personal-data-view__status p { margin: 0; }
+.personal-data-view > div:empty { display: none; }
+.personal-data-view__deletion { padding-block-start: var(--space-5); border-block-start: 1px solid var(--color-border); }
+.home-hero { gap: var(--space-7); }
+
+/* Overview headings share one origin; readable content widths belong below them. */
+:is(.wishlists-view, .reservation-history-view, .member-search-view) {
+  width: 100%;
+  max-width: none;
+  margin-inline: auto;
+  --flow-space: 1.5rem;
+}
+:is(.registration-view, .recovery-view, .login-view, .google-return-view,
+  .google-link-view, .email-confirmation-view, .two-factor-view, .authenticator-view) h1 {
+  font-size: clamp(1.75rem, 3.8vw, 2.5rem);
+}
+:is(.wishlists-view, .reservation-history-view, .member-search-view) h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3.8vw, 3rem);
+  line-height: 1.15;
+  text-wrap: pretty;
+}
+.wishlists-view__header {
+  min-height: 0;
+  padding: 0;
+  align-items: flex-start;
+}
+.member-search-view > :is(form, div) { max-width: 48rem; }
+.app-main:has(> :is(.wishlists-view, .reservation-history-view, .member-search-view)) {
+  padding-block-start: 2.8rem;
+}
+@media (max-width: 48rem) {
+  .app-main:has(> :is(.wishlists-view, .reservation-history-view, .member-search-view)) {
+    padding-block-start: 1.75rem;
+  }
+}
+.member-search-results { display: grid; gap: 0.75rem; padding: 0; list-style: none; }
+.member-search-result { max-width: none; min-width: 0; }
+.member-search-result > a { padding: 1rem 1.5rem; border-radius: var(--radius-md); }
+.member-search-result__name { min-width: 0; overflow-wrap: anywhere; }
+.reservation-history-view { container-type: inline-size; }
+.reservation-history-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-5); }
+.reservation-history-header h1 { margin: 0; }
+.reservation-history-filters { gap: var(--space-3); }
+.reservation-history-filters select { border: 1px solid var(--color-border); border-radius: var(--radius-sm); background-color: var(--color-surface); }
+.reservation-history-list { display: grid; gap: var(--space-4); padding: 0; list-style: none; }
+.reservation-cancel-dialog { width: min(33rem, calc(100% - min(var(--space-6), 8vw))); padding: min(var(--space-5), 4vw); }
+.reservation-cancel-dialog h2 { font-size: var(--font-size-xl); text-wrap: wrap; }
+.reservation-cancel-dialog .wishlist-form__actions { justify-content: flex-start; }
+.reservation-history-card {
+  display: grid;
+  grid-template-columns: 18rem minmax(0, 1fr) 12rem;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4);
+  max-width: none;
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+.reservation-history-card > * { min-width: 0; }
+.reservation-history-card__media { grid-column: 1; grid-row: 1; width: 100%; height: auto; aspect-ratio: 1; border-radius: var(--radius-md); background: var(--color-surface-muted); overflow: hidden; }
+.reservation-history-card__media img { width: 100%; height: 100%; object-fit: contain; }
+.reservation-history-card__wish-link { padding: 0; justify-content: flex-start; font-size: inherit; font-weight: inherit; line-height: inherit; }
+.reservation-history-card__media > .wish-card__media { width: 100%; height: 100%; }
+.reservation-history-card__metadata-link { display: inline; min-height: 0; padding: 0; color: inherit; font-size: inherit; font-weight: inherit; vertical-align: baseline; }
+.reservation-history-card__actions { gap: var(--space-1); }
+.reservation-history-card__status-line { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.reservation-history-card__status-line > p { margin: 0; flex-shrink: 0; max-width: 100%; }
+.reservation-history-card__information { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; flex: none; }
+.reservation-history-card__information:focus-visible { outline: 2px solid var(--color-text); outline-offset: 3px; border-radius: var(--radius-full); }
+.reservation-history-card__information img { width: 1.25rem; height: 1.25rem; }
+.reservation-history-card__tooltip { position: absolute; inset-inline-end: 0; top: 100%; z-index: 3; width: min(20rem, calc(100vw - 3rem)); padding: min(var(--space-4), 3vw); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text); font-size: var(--font-size-md); overflow-wrap: anywhere; }
+.reservation-history-card h2 { font-size: 1.75rem; overflow-wrap: anywhere; }
+.reservation-history-card__description { grid-column: 2; grid-row: 1; --flow-space: var(--space-4); }
+.reservation-history-card__context { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); }
+.reservation-history-card__context > p { margin: 0; overflow-wrap: anywhere; }
+.reservation-history-card__quantity strong { color: var(--color-text); }
+.reservation-history-card__description > p,
+.reservation-history-card__context,
+.reservation-history-card__dates { color: var(--color-text-muted); font-size: var(--font-size-md); }
+.reservation-history-card__review { grid-column: 3; grid-row: 1; align-self: center; --flow-space: var(--space-4); }
+.reservation-history-card__dates { --flow-space: var(--space-2); }
+.reservation-history-card__dates time { display: block; color: var(--color-text); }
+.reservation-history-card__status {
+  width: fit-content;
+  padding: var(--space-1) min(var(--space-5), 4vw);
+  background: var(--color-surface-muted);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+.reservation-history-card__status[data-status="active"] { background: var(--color-surface-sage); }
+.reservation-history-card__status[data-status="cancelled"] { background: var(--color-accent-soft); color: var(--color-accent-text); }
+.reservation-history-card__status[data-status="unavailable"] { background: var(--color-warning-soft); }
+
+.shared-wishlist-view .wishlist-details-layout {
+  grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 2.5rem;
+}
+.shared-wishlist-view .wishlist-details-info {
+  padding: 4rem 2rem;
+  min-height: 42rem;
+  text-align: center;
+  background: var(--color-surface-sage) url("../assets/design/corner-leaf-isolated.webp") left top / 9rem auto no-repeat;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+.shared-wishlist-view .wishlist-details-info h1 { font-size: clamp(2rem, 3vw, 2.75rem); }
+.shared-wishlist-view .wishlist-details-note { padding-block: 1.5rem; border-block: 1px solid var(--color-border-strong); }
+.shared-wishlist-view .wish-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.shared-wishlist-view .wish-card {
+  display: grid;
+  grid-template-columns: 45% minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  max-width: none;
+  box-shadow: none;
+  border-radius: var(--radius-sm);
+}
+.shared-wishlist-view .wish-card__media { grid-row: 1 / 3; aspect-ratio: auto; height: 100%; background: var(--color-surface-muted); }
+.shared-wishlist-view .wish-card__media img { object-fit: cover; }
+.shared-wishlist-view .wish-card__content { padding: 1rem; --flow-space: 0.5rem; }
+.shared-wishlist-view .wish-card__content h3 { font-size: 1.125rem; line-height: 1.3; text-wrap: pretty; }
+.shared-wishlist-view .wish-card__price { font-size: 1rem; }
+.shared-wishlist-view .wish-card__quantity,
+.shared-wishlist-view .shared-wish-quantities { font-size: 0.8125rem; --flow-space: 0.25rem; color: var(--color-text-muted); }
+.shared-wishlist-view .wish-card__actions { grid-column: 2; padding: 0 1rem 1rem; display: grid; gap: 0.375rem; justify-content: stretch; }
+.shared-wishlist-view .wish-card__actions .action-link { font-size: 0.875rem; }
+.shared-wishlist-view .wish-card__actions .action-link:first-child { border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); }
+.shared-wishlist-filter { font-size: 0.9375rem; }
+.shared-wishlist-view .wish-card--preview { display: block; }
+.wish-card__preview-link {
+  display: grid;
+  grid-template-columns: 45% minmax(0, 1fr);
+  align-items: center;
+  height: 100%;
+  min-height: 10rem;
+  color: inherit;
+  text-decoration: none;
+}
+.wish-card__preview-link:is(:hover, :focus-visible) { background: var(--color-surface-muted); text-decoration: none; }
+.wish-card__preview-link:focus-visible { outline: 2px solid var(--color-text); outline-offset: -3px; }
+.wish-card__preview-link h3 { padding: 1rem; margin: 0; font-size: 1.125rem; overflow-wrap: anywhere; }
+.shared-wishlist-view .wish-card__preview-link .wish-card__media { grid-row: auto; min-height: 10rem; }
+.shared-wishlist-view .wish-card__preview-link .wish-card__media img { object-fit: contain; }
+.shared-wishlist-filter + p { font-size: 0.875rem; color: var(--color-text-muted); }
+
+.shared-wish-results:has(> .shared-wish-layout) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 3rem;
+}
+.shared-wish-results > .shared-wish-layout { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+.shared-wish-layout .wish-card__media { aspect-ratio: 16 / 10; border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.shared-wish-information { padding: 0; border: 0; background: transparent; --flow-space: 0.75rem; }
+.shared-wish-information > .action-link { padding-inline: 0; }
+.shared-wish-information .shared-wish-quantities { padding-block: 1rem; border-block: 1px solid var(--color-border); --flow-space: 0.375rem; }
+.shared-wish-results > .reservation-panel {
+  margin: 0;
+  padding: clamp(1.5rem, 3vw, 2.75rem);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  --flow-space: 1.5rem;
+}
+.reservation-panel h2 { font-size: 1.5rem; }
+.reservation-panel .form-field input[type="number"] { max-width: 8rem; text-align: center; }
+.reservation-panel .wishlist-form__actions > .ui-button--primary { width: 100%; }
+
+@media (max-width: 70rem) {
+  .shared-wishlist-view .wishlist-details-layout { grid-template-columns: 15rem minmax(0, 1fr); gap: 1.5rem; }
+  .shared-wishlist-view .wish-grid { grid-template-columns: minmax(0, 1fr); }
+  .shared-wishlist-view .wishlist-details-info { padding: 3rem 1.25rem; }
+  .reservation-history-card { grid-template-columns: 11rem minmax(0, 1fr) 12rem; gap: var(--space-5); }
+}
+@media (max-width: 48rem) {
+  .app-main { padding-block: 1.75rem 3rem; }
+  .profile-layout { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+  .profile-view__settings nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-view__settings a { font-size: 0.9375rem; }
+  .shared-wishlist-view .wishlist-details-layout,
+  .shared-wish-results:has(> .shared-wish-layout) { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+  .shared-wishlist-view .wishlist-details-info { min-height: 0; padding-block: 2.5rem; }
+  .shared-wishlist-view .wish-card { grid-template-columns: 40% minmax(0, 1fr); }
+  .reservation-history-card { grid-template-columns: 9rem minmax(0, 1fr); gap: var(--space-4); }
+  .reservation-history-card__media { grid-row: 1 / span 2; align-self: start; }
+  .reservation-history-card__description { grid-column: 2; }
+  .reservation-history-card__review { grid-column: 2 / -1; grid-row: 2; }
+}
+@media (max-width: 30rem) {
+  .profile-view__settings { padding: 1rem; }
+  .profile-view__settings nav { grid-template-columns: minmax(0, 1fr); }
+  .shared-wishlist-view .wish-card__content { padding: 0.75rem; }
+  .shared-wishlist-view .wish-card__actions { padding-inline: 0.75rem; }
+}
+@container (max-width: 30rem) {
+  .reservation-history-card { grid-template-columns: minmax(0, 1fr); }
+  .reservation-history-card__media { grid-column: 1 / -1; grid-row: 1; }
+  .reservation-history-card__description { grid-column: 1 / -1; grid-row: 2; padding-inline-end: 0; }
+  .reservation-history-card__review { grid-column: 1 / -1; grid-row: 3; }
+}
+.profile-photo-crop {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-6);
+}
+.profile-photo-crop > * { margin-block: 0; }
+.profile-photo-crop__viewport {
+  position: relative;
+  width: min(100%, 10rem);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--color-surface-sage);
+  outline: 1px solid var(--color-border);
+  cursor: grab;
+  touch-action: none;
+}
+.profile-photo-crop__viewport:active { cursor: grabbing; }
+.profile-photo-crop__viewport:focus-visible { outline: 0.1875rem solid var(--color-focus-ring); outline-offset: 0.1875rem; }
+.profile-photo-crop__viewport img {
+  position: absolute;
+  max-width: none;
+  max-height: none;
+  pointer-events: none;
+  user-select: none;
+}
+.profile-photo-crop__controls { --flow-space: 0.5rem; border: 0; margin: 0; padding: 0; max-width: 16rem; min-width: 0; }
+.profile-photo-crop__controls legend { font-weight: var(--font-weight-bold); margin-block-end: var(--space-4); }
+.profile-photo-crop__controls input[type="range"] {
+  width: 100%; min-height: 44px; padding: 0; border: 0; box-shadow: none;
+  accent-color: var(--color-text); background: transparent;
+}
+.profile-image-section__photo { width: 8rem; height: 8rem; border-radius: 50%; object-fit: cover; }
+.profile-image-section { --flow-space: var(--space-4); max-width: 28rem; border-block-start: 0; padding-block-start: 0; }
+.profile-image-section > :empty { display: none; }
+.profile-image-section > .profile-image-section__body,
+.profile-image-section > .wish-image-section__preview { margin-block-start: 0; }
+.profile-image-section__body { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: var(--space-6); align-items: center; }
+.profile-image-section__actions { flex-wrap: wrap; gap: var(--space-3); }
+.profile-photo-crop__controls .profile-image-section__actions { margin-block-start: var(--space-4); }
+.profile-image-section__frame { width: min(10rem, 100%); }
+.profile-image-section__frame .member-avatar { width: 100%; height: auto; aspect-ratio: 1; }
+.profile-form > .profile-image-section + .form-field { margin-block-start: var(--space-6); }
+.profile-form > .form-field { max-width: 26rem; }
+@media (max-width: 36rem) {
+  .profile-photo-crop, .profile-image-section__body { grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+}
+
+/* Keep empty states and forms quiet; reserve large media areas for real previews. */
+.empty-state p { margin-inline: 0; text-align: start; }
+.wish-create-view > .wishlist-form { padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+.wish-create-view .wish-import__image-empty {
+  min-height: 0;
+  padding: var(--space-4);
+  background: transparent;
+  border: 0;
+}
+.auth-method-separator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  margin-block: var(--space-3);
+}
+.auth-method-separator::before,
+.auth-method-separator::after { content: ""; flex: 1; border-block-start: 1px solid var(--color-border); }
+.login-view > .cluster { gap: var(--space-2) var(--space-4); }
+
+/* Constrain the fields, not the page heading or account navigation. */
+:is(.registration-view, .login-view) { --flow-space: var(--space-4); }
+:is(.registration-form, .login-form) { --flow-space: var(--space-4); }
+.profile-layout :is(.profile-form, .recovery-form) > .ui-button { width: fit-content; max-width: 100%; }
+@media (max-width: 48rem) {
+  .profile-view__settings { padding: 0 0 var(--space-4); border-inline-end: 0; border-block-end: 1px solid var(--color-border); }
+  .profile-view__settings nav { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--space-1); }
+  .profile-view__settings a { min-height: 44px; padding: var(--space-2); overflow-wrap: anywhere; }
+  .shared-wishlist-view .wishlist-details-info { padding: var(--space-4); min-height: 0; --flow-space: var(--space-3); }
+  .shared-wishlist-view .wishlist-details-note { padding-block: var(--space-3); }
+  .shared-wishlist-view .wishlist-details-info > * { margin-block-start: var(--space-3); }
+  .shared-wishlist-view .wishlist-details-info > :first-child { margin-block-start: 0; }
+  .shared-wishlist-view .wishlist-participation { --flow-space: var(--space-3); }
+}

@@ -1,5 +1,5 @@
 import { ApiError } from "../../api/apiError.js";
-import { createActionLink, createAlert, disposeComponent } from "../../components/index.js";
+import { createBackLink, createActionLink, createAlert, disposeComponent } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 
@@ -34,7 +34,7 @@ export function createConfirmationLinks() {
   const links = document.createElement("div");
   links.className = "cluster";
   links.append(createActionLink({ label: "Se connecter", href: RoutePaths.Login }),
-    createActionLink({ label: "Retour à l’accueil", href: RoutePaths.Home }));
+    createBackLink({ label: "Retour à l’accueil", href: RoutePaths.Home }));
   return links;
 }
 
@@ -56,6 +56,9 @@ export function confirmationText(tag, text) {
 export function replaceConfirmationContent(view, ...children) {
   for (const child of view.children) if (child instanceof HTMLElement) disposeComponent(child);
   view.replaceChildren(...children);
+  // A nested subview owns its navigation through its own state transitions.
+  const back = children.some(child => child.tagName === "H1") ? view.querySelector(".back-link") : null;
+  if (back) view.prepend(back);
   const heading = view.querySelector("h1");
   if (heading && view.isConnected) {
     heading.tabIndex = -1;

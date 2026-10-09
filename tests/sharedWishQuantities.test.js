@@ -4,6 +4,10 @@ import { createSharedWishQuantities } from "../src/features/sharing/sharedWishQu
 import { createWishCard } from "../src/features/wishes/wishCard.js";
 
 describe("shared quantities", () => {
+  it("shows no quantity or availability hint when the server hides reservations", () => {
+    const view = createSharedWishQuantities({ reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null });
+    expect(view.textContent).toBe("");
+  });
   it.each([null, 0, 2])("renders only the recognized personal quantity %s", currentParticipantReservedQuantity => {
     const view = createSharedWishQuantities({ reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity });
     expect(view.textContent).toContain("Quantité réservée : 2");
@@ -13,7 +17,7 @@ describe("shared quantities", () => {
     expect(view.querySelector("button,a,input")).toBeNull();
   });
   it("never adds aggregate quantities to owner cards", () => {
-    const card = createWishCard({ id: "gift", name: "Cadeau", quantity: 2, price: null, url: null, imageUrl: null, productUnavailable: false, imageUnavailable: false }, false);
+    const card = createWishCard({ id: "gift", name: "Souhait", quantity: 2, price: null, url: null, imageUrl: null, productUnavailable: false, imageUnavailable: false }, false);
     expect(card.textContent).not.toMatch(/réservée|disponible|Entièrement/);
   });
 });

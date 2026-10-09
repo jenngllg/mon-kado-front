@@ -1,4 +1,5 @@
 import { addComponentEventListener, disposeComponent, registerComponentCleanup } from "../../components/componentLifecycle.js";
+import { createAlert, createLoadingState } from "../../components/index.js";
 
 /** Rebuild identity-dependent public data without retaining the previous participant.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "getSnapshot" | "subscribe">} session Session metadata only.
@@ -16,11 +17,19 @@ export function createSharedSessionView(session, createView, signal) {
     const stable = !state.authenticationPending && !state.logoutPending;
     const member = stable && state.status === "authenticated" ? state.user : null;
     const guest = stable && state.status === "anonymous";
-    const next = member ? `member:${member.id}` : guest ? "guest" : "unresolved";
+    const next = member ? `member:${member.id}` : guest ? "guest" : `unresolved:${state.status}`;
     if (next === key) return;
     key = next;
     if (child) disposeComponent(child);
     host.replaceChildren(); child = null;
+    // Do not reveal anonymous availability while the owner identity is unresolved.
+    if (!member && !guest) {
+      child = state.issue
+        ? createAlert({ title: state.issue.title, message: state.issue.message, variant: "error" })
+        : createLoadingState({ label: "Chargement…" });
+      host.append(child);
+      return;
+    }
     const candidate = createView({ authentication: member ? "required" : "none", includeCurrent: !!member || guest });
     if (disposed || key !== next) { disposeComponent(candidate); return; }
     child = candidate; host.append(child);

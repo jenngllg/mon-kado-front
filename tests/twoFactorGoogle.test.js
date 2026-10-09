@@ -29,6 +29,28 @@ function confirm(view) {
 }
 
 describe("Google to MFA handoff", () => {
+  it.each(["enroll", "verify"])("opens Google MFA %s with the browser clock 54 ms behind", async requiredAction => {
+    // Arrange
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-06T20:30:15.894Z"));
+    const f = setup(); await f.google.start(StartOptions);
+    f.completion.status = 202;
+    const expiresAt = "2026-10-06T20:35:15.9489681Z";
+    f.completion.body = { flow: TwoFactorFlow, requiredAction, expiresAt };
+    const onAuthenticated = vi.fn();
+    // Act
+    const view = createGoogleReturnView({ google: f.google, session: f.session, consumeFragment: () => `#flow=${Flow}`,
+      onDestination: vi.fn(), onAuthenticated, onLinkRequired: vi.fn() }); document.body.append(view);
+    await vi.waitFor(() => expect(f.session.getSnapshot().twoFactor).toBeDefined());
+    // Assert
+    expect(f.session.getSnapshot().twoFactor).toEqual({ requiredAction, expiresAt });
+    expect(f.session.getSnapshot().status).toBe("anonymous");
+    expect(onAuthenticated).not.toHaveBeenCalled();
+    expect(view.textContent).toContain("Vérification en deux étapes");
+    expect(view.textContent).not.toContain("Réponse inattendue");
+    expect(f.posts()).toHaveLength(1);
+    expect(JSON.stringify([...f.values])).not.toContain(TwoFactorFlow);
+  });
   it("finishes a linking response that does not require a second factor", async () => {
     // Arrange
     const f = setup(); const continuation = await requireGoogleLink(f); const onAuthenticated = vi.fn();

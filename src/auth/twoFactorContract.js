@@ -1,6 +1,9 @@
 import { ApiError } from "../api/apiError.js";
 import { isUtcTimestamp } from "../api/utcTimestamp.js";
 
+const ChallengeLifetimeMilliseconds = 300_000;
+const InitialClockSkewMilliseconds = 5_000;
+
 /** @typedef {Readonly<{flow: string, requiredAction: "enroll" | "verify" | "replace" | "complete", expiresAt: string}>} TwoFactorProof */
 /** @typedef {Readonly<Omit<TwoFactorProof, "flow">>} TwoFactorState */
 /** @typedef {{setup: (options?: {signal?: AbortSignal}) => Promise<{manualKey: string, otpAuthUri: string}>,
@@ -8,13 +11,15 @@ import { isUtcTimestamp } from "../api/utcTimestamp.js";
  * complete: (values: {code?: string, recoveryCode?: string}, options?: {signal?: AbortSignal}) => Promise<import("./sessionManager.js").SessionSnapshot>,
  * cancel: () => void}} SecondFactorActions */
 
-/** Validate a short-lived proof without extending its initial deadline.
+/** Validate a short-lived proof without extending its server-issued deadline.
  * @param {unknown} data Backend challenge.
  * @param {number} now Injectable clock.
  * @param {number} [deadline] Original deadline when continuing.
  * @returns {TwoFactorProof} Memory-only credential.
  */
-export function readTwoFactorProof(data, now, deadline = now + 300_000) {
+export function readTwoFactorProof(data, now, deadline = now + ChallengeLifetimeMilliseconds + InitialClockSkewMilliseconds) {
+  // Only the initial upper bound tolerates clock skew. Keep expiresAt unchanged;
+  // subsequent steps cannot extend it, and the server still enforces five minutes.
   const value = /** @type {Partial<TwoFactorProof> | null} */ (data);
   if (!value || typeof value.flow !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(value.flow) ||
     !["enroll", "verify", "replace", "complete"].includes(String(value.requiredAction)) ||

@@ -1,5 +1,5 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
-import { createActionLink, createAlert, createButton, disposeComponent } from "../../components/index.js";
+import { createBackLink, createActionLink, createAlert, createButton, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createLoginView } from "../login/loginView.js";
@@ -12,20 +12,22 @@ import { readAccountDeletionLink } from "./accountDeletionService.js";
  * service: ReturnType<typeof import("./accountDeletionService.js").createAccountDeletionService>,
  * consumeFragment: () => string, signal?: AbortSignal}} options Private continuation dependencies.
  */
-export function createAccountDeletionView({ session, service, consumeFragment, signal }) {
+export function createAccountDeletionLinkView({ session, service, consumeFragment, signal }) {
   let token = readAccountDeletionLink(consumeFragment());
   const view = document.createElement("section"); view.className = "flow";
   const content = document.createElement("div"); content.className = "flow";
   const feedback = document.createElement("div"); feedback.tabIndex = -1;
-  const heading = document.createElement("h1"); heading.textContent = "Confirmer la suppression du compte";
+  const heading = document.createElement("h1"); heading.textContent = "Mon compte";
   view.append(heading, feedback, content);
   const lifetime = new AbortController();
   let disposed = false, busy = false, completed = false;
   /** @type {HTMLElement | null} */ let login = null;
   /** @type {string | null} */ let presentedUser = null;
+  /** @type {HTMLDialogElement | null} */ let dialog = null;
   let unsubscribe = () => {};
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); unsubscribe(); token = null; login = null; presentedUser = null;
+    if (dialog?.open) dialog.close(); dialog = null;
     disposeComponent(content); content.replaceChildren(); feedback.replaceChildren();
   });
   if (signal) {
@@ -35,7 +37,11 @@ export function createAccountDeletionView({ session, service, consumeFragment, s
   if (!disposed) { unsubscribe = session.subscribe(render); render(); }
   return view;
 
-  function clearContent() { disposeComponent(content); content.replaceChildren(); login = null; presentedUser = null; }
+  function clearContent() {
+    if (dialog?.open) dialog.close(); dialog = null;
+    view.insertBefore(feedback, content);
+    disposeComponent(content); content.replaceChildren(); login = null; presentedUser = null;
+  }
   function render() {
     if (disposed || busy || completed) return;
     if (token === null) {
@@ -57,39 +63,75 @@ export function createAccountDeletionView({ session, service, consumeFragment, s
     }
     if (presentedUser === state.user.id) return;
     clearContent(); presentedUser = state.user.id;
-    content.append(message("Compte connecté : " + state.user.displayName), createAlert({ variant: "warning", title: "Suppression définitive",
-      message: "Ton compte et ses données seront supprimés selon les règles décrites dans la politique de confidentialité. Tes sessions seront fermées. Télécharge ton export avant de continuer si tu veux le conserver." }));
+    const modal = document.createElement("dialog"); modal.className = "account-deletion-dialog";
+    dialog = modal;
+    const body = document.createElement("div"); body.className = "flow";
+    const title = document.createElement("h2"); title.textContent = "Supprimer définitivement ton compte ?";
+    title.id = `account-deletion-${crypto.randomUUID()}`; title.tabIndex = -1; title.setAttribute("autofocus", "");
+    modal.setAttribute("aria-labelledby", title.id);
+    const warning = createAlert({ variant: "warning", title: "Suppression définitive",
+      message: "Ton compte et ses données seront supprimés selon les règles décrites dans la politique de confidentialité. Tes sessions seront fermées. Télécharge ton export avant de continuer si tu veux le conserver." });
+    warning.id = `${title.id}-warning`; modal.setAttribute("aria-describedby", warning.id);
     const accepted = document.createElement("input"); accepted.type = "checkbox";
-    const label = document.createElement("label"); label.append(accepted, message("Je confirme vouloir supprimer définitivement ce compte"));
-    const confirm = createButton({ label: "Supprimer définitivement mon compte", onClick: () => {
-      if (!accepted.checked || busy || token === null || presentedUser !== session.getSnapshot().user?.id) return;
-      void submit(token);
+    const label = document.createElement("label"); label.className = "account-deletion-confirmation";
+    const consentText = document.createElement("span"); consentText.textContent = "Je confirme vouloir supprimer définitivement ce compte";
+    label.append(accepted, consentText);
+    const confirm = createButton({ label: "Supprimer définitivement mon compte", variant: "danger", onClick: () => {
+      if (!modal.open || !accepted.checked || busy || token === null || presentedUser !== session.getSnapshot().user?.id) return;
+      void submit(token, modal, title);
     } }); confirm.disabled = true;
     addComponentEventListener(content, accepted, "change", () => { confirm.disabled = !accepted.checked; });
-    content.append(label, confirm, createActionLink({ label: "Annuler", href: "/profile/data" }));
+    const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: () => modal.close() });
+    const actions = document.createElement("div"); actions.className = "cluster"; actions.append(cancel, confirm);
+    body.append(title, message("Compte connecté : " + state.user.displayName), warning, label, feedback, actions); modal.append(body);
+    const open = createButton({ label: "Supprimer mon compte", variant: "danger", onClick: () => {
+      if (disposed || busy || completed || modal.open || presentedUser !== session.getSnapshot().user?.id) return;
+      accepted.checked = false; confirm.disabled = true; modal.showModal();
+    } });
+    addComponentEventListener(content, modal, "cancel", event => { if (busy) event.preventDefault(); });
+    addComponentEventListener(content, modal, "close", () => {
+      if (disposed || dialog !== modal) return;
+      accepted.checked = false; confirm.disabled = true;
+      if (open.isConnected) open.focus();
+    });
+    content.append(open, createActionLink({ label: "Mes données personnelles", href: "/profile/data" }), modal);
   }
   /** @param {unknown} error Safe error boundary. */
   function showError(error) {
     if (disposed || isAbortError(error)) return;
     disposeComponent(feedback); feedback.replaceChildren(createAlert({ ...toUserFacingError(error), variant: "error" })); feedback.focus();
   }
-  /** @param {string} confirmationToken Proof captured by the checked current-member click handler. */
-  async function submit(confirmationToken) {
+  /** @param {string} confirmationToken Proof captured by the checked current-member click handler.
+   * @param {HTMLDialogElement} confirmation Current checked modal.
+   * @param {HTMLHeadingElement} title Its focus target.
+   */
+  async function submit(confirmationToken, confirmation, title) {
     busy = true; view.setAttribute("aria-busy", "true"); disposeComponent(feedback); feedback.replaceChildren();
+    confirmation.setAttribute("aria-busy", "true");
+    title.tabIndex = 0; title.focus();
     for (const control of content.querySelectorAll("button,input")) /** @type {HTMLInputElement} */ (control).disabled = true;
     try {
       const result = await service.confirm(confirmationToken, { signal: lifetime.signal });
       if (disposed) return;
       completed = true; token = null; clearContent();
-      content.append(createAlert({ title: "Compte supprimé", message: "La suppression a été confirmée. Tu n’as pas besoin de renvoyer le lien.", variant: "success" }),
-        createActionLink({ label: "Retour à l’accueil", href: "/" }));
+      view.prepend(createBackLink({ label: "Retour à l’accueil", href: "/" }));
+      content.append(createAlert({ title: "Compte supprimé", message: "La suppression a été confirmée. Tu n’as pas besoin de renvoyer le lien.", variant: "success" }));
       if (result.sessionIssue) content.append(createAlert({ title: "Synchronisation à vérifier", message: "La suppression a réussi. Utilise le bandeau de session pour réessayer uniquement la synchronisation.", variant: "warning" }));
     } catch (error) {
       showError(error);
       if (!disposed && error instanceof ApiError && error.kind === "http" && error.statusCode === 400) token = null;
       else if (!disposed && !isAbortError(error)) feedback.append(message("Si le résultat est incertain, vérifie l’état du compte avant toute nouvelle tentative. Aucune confirmation n’est rejouée automatiquement."));
     } finally {
-      if (!disposed) { busy = false; view.setAttribute("aria-busy", "false"); if (!completed) { clearContent(); render(); } }
+      if (!disposed) {
+        const reopen = dialog?.open === true;
+        busy = false; view.setAttribute("aria-busy", "false");
+        if (!completed) {
+          clearContent(); render();
+          if (reopen && dialog !== null && view.isConnected) {
+            /** @type {HTMLDialogElement} */ (dialog).showModal(); feedback.focus();
+          }
+        }
+      }
     }
   }
 }

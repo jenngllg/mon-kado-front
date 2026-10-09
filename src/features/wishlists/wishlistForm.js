@@ -3,13 +3,13 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { WishlistOccasions, WishlistServerMessages } from "./wishlistValidation.js";
 
 /** @typedef {import("./wishlistValidation.js").WishlistField} WishlistField */
-/** @typedef {{name: WishlistField, label: string, description: string, required: boolean}} Definition */
+/** @typedef {{name: WishlistField, label: string, required: boolean}} Definition */
 /** @type {ReadonlyArray<Definition>} */
 const Fields = Object.freeze([
-  { name: "name", label: "Nom de la liste", description: "100 caractères maximum.", required: true },
-  { name: "occasion", label: "Occasion", description: "Choisis l’occasion de ta liste.", required: true },
-  { name: "eventDate", label: "Date de l’événement (facultatif)", description: "Aujourd’hui ou plus tard, selon le jour UTC.", required: false },
-  { name: "message", label: "Message (facultatif)", description: "500 caractères maximum. Les retours à la ligne sont autorisés.", required: false },
+  { name: "name", label: "Nom de la liste", required: true },
+  { name: "occasion", label: "Occasion", required: true },
+  { name: "eventDate", label: "Date de l’événement", required: false },
+  { name: "message", label: "Message", required: false },
 ]);
 
 /** Domain form shared by creation and editing; operations remain owned by each view.
@@ -33,8 +33,8 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
         const option = document.createElement("option"); option.value = value; option.textContent = text; control.append(option);
       }
     }
-    const description = editing && definition.name === "eventDate" ? "Tu peux conserver la date actuelle, même passée, ou choisir une date à partir d’aujourd’hui (jour UTC)." : definition.description;
-    const element = createFormField({ ...definition, description, control }); form.append(element);
+    const element = createFormField({ ...definition, control }); form.append(element);
+    element.classList.add(`wishlist-form__${definition.name}`);
     const field = { ...definition, element, control, dirty: false, checked: false, error: /** @type {string | null} */ (null) };
     const update = () => {
       if (disposed || inactive()) return;
@@ -51,6 +51,33 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
     });
     return field;
   });
+  const surpriseMode = document.createElement("input");
+  surpriseMode.type = "checkbox"; surpriseMode.name = "surpriseMode"; surpriseMode.checked = true;
+  surpriseMode.setAttribute("role", "switch");
+  const surpriseLabel = document.createElement("label"); surpriseLabel.className = "wishlist-surprise-switch";
+  const surpriseText = document.createElement("span"); surpriseText.textContent = "Mode surprise";
+  surpriseLabel.append(surpriseMode, surpriseText);
+  const surpriseRow = document.createElement("div"); surpriseRow.className = "wishlist-surprise-control";
+  const information = document.createElement("span"); information.className = "wishlist-surprise-information";
+  const informationButton = document.createElement("button"); informationButton.type = "button";
+  informationButton.className = "wishlist-surprise-information__button";
+  informationButton.setAttribute("aria-label", "À propos du mode surprise");
+  const informationIcon = document.createElement("span"); informationIcon.textContent = "i";
+  informationIcon.setAttribute("aria-hidden", "true"); informationButton.append(informationIcon);
+  const surpriseHint = document.createElement("span"); surpriseHint.textContent = "Masquer les réservations sur mes souhaits.";
+  surpriseHint.className = "wishlist-surprise-information__tooltip";
+  surpriseHint.id = `${fields[0].control.id}-surprise-hint`;
+  surpriseHint.setAttribute("role", "tooltip"); surpriseHint.hidden = true;
+  informationButton.setAttribute("aria-describedby", surpriseHint.id);
+  information.append(informationButton, surpriseHint); surpriseRow.append(surpriseLabel, information); form.append(surpriseRow);
+  const showHint = () => { surpriseHint.hidden = false; };
+  addComponentEventListener(form, information, "pointerenter", showHint);
+  addComponentEventListener(form, information, "pointerleave", () => { if (document.activeElement !== informationButton) surpriseHint.hidden = true; });
+  addComponentEventListener(form, informationButton, "focus", showHint);
+  addComponentEventListener(form, informationButton, "blur", () => { surpriseHint.hidden = true; });
+  addComponentEventListener(form, informationButton, "click", showHint);
+  addComponentEventListener(form, informationButton, "keydown", event => { if (/** @type {KeyboardEvent} */ (event).key === "Escape") surpriseHint.hidden = true; });
+  addComponentEventListener(form, surpriseMode, "change", () => { if (!disposed && !inactive()) onChange(); });
   addComponentEventListener(form, form, "pointerdown", event => {
     const target = event.target instanceof Element ? event.target.closest("button") : null;
     pressedAction = target instanceof HTMLButtonElement ? target : null;
@@ -61,7 +88,7 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
   });
   addComponentEventListener(form, document, "pointercancel", () => { pressedAction = null; flushBlur(); });
   registerComponentCleanup(form, () => { disposed = true; deferredBlur = null; pressedAction = null; reset(); });
-  return { form, fields, validate, discardDeferredBlur: () => { deferredBlur = null; }, reset };
+  return { form, fields, surpriseMode, validate, discardDeferredBlur: () => { deferredBlur = null; }, reset };
 
   function flushBlur() { const check = deferredBlur; deferredBlur = null; check?.(); }
   /** @param {typeof fields[number]} field Field to validate. */
@@ -70,8 +97,9 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
     field.error = field.name === "eventDate" && field.control.validity.badInput ? WishlistServerMessages.eventDate : validateValue(field.name, field.control.value);
     setFormFieldValidation(field.element, field.error);
   }
-  /** @param {Partial<Record<WishlistField, string | null>>} [values] Raw field values, empty by default. */
+  /** @param {Partial<Record<WishlistField, string | null>> & {surpriseMode?: boolean}} [values] Raw field values, empty by default. */
   function reset(values = {}) {
+    surpriseMode.checked = values.surpriseMode ?? true;
     deferredBlur = null;
     for (const field of fields) {
       field.control.value = values[field.name] ?? ""; field.dirty = false; field.checked = false; field.error = null;

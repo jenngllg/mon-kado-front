@@ -1,0 +1,66 @@
+import { test, expect } from "@playwright/test";
+import { controlledApi, listId, wishId, sharedPath, secret } from "./controlledApi.js";
+
+for (const width of [390, 1440]) {
+  test(`owner favorites persist without moving wishes at ${width}px`, async ({ page, context }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const api = await controlledApi(context); api.state.authenticated = true;
+    await page.goto(`/lists/${listId}`);
+    const favorite = page.getByRole("button", { name: "Marquer comme coup de cœur « Une théière »", exact: true });
+    await expect(favorite).toBeVisible();
+    await expect(favorite).toHaveAttribute("aria-pressed", "false");
+    await page.mouse.move(0, 0);
+    await expect(favorite).toHaveCSS("opacity", "1");
+    await expect(favorite).toHaveCSS("pointer-events", "auto");
+    await expect(favorite.locator("svg")).toHaveCSS("fill", "none");
+    await expect(favorite).toHaveCSS("width", "44px"); await expect(favorite).toHaveCSS("height", "44px");
+    await favorite.scrollIntoViewIfNeeded();
+    // Settle Playwright's whole-card auto-scroll before comparing hover geometry.
+    await page.locator(".wish-card--gallery").first().hover();
+    const position = api.wish.position; const before = await favorite.boundingBox();
+    await favorite.hover(); expect(await favorite.boundingBox()).toEqual(before);
+    await favorite.focus(); await favorite.press("Enter");
+    const selected = page.getByRole("button", { name: "Retirer le coup de cœur « Une théière »", exact: true });
+    await expect(selected).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator('.wish-card h3 [aria-label="Coup de cœur"]')).toHaveCount(0);
+    expect(api.wish.position).toBe(position); expect(api.state.wishWrites).toBe(1);
+    await expect(selected.locator("svg")).toHaveCSS("fill", "rgb(185, 62, 50)");
+    await page.mouse.move(0, 0); await page.locator(".app-main").focus();
+    await expect(selected).toHaveCSS("opacity", "1");
+    await expect(selected).toHaveCSS("pointer-events", "auto");
+    expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("favorite-owner.png"), fullPage: true });
+    await page.goto(`/lists/${listId}/wishes/${wishId}/edit`);
+    const choice = page.getByRole("checkbox", { name: "Coup de cœur", exact: true });
+    await expect(choice).toBeChecked();
+    await page.screenshot({ path: testInfo.outputPath("favorite-edit.png"), fullPage: true });
+    await choice.uncheck();
+    const saveResponse = page.waitForResponse(response => response.url().endsWith(`/api/v1/wishlists/${listId}/wishes/${wishId}`) && response.request().method() === "PUT");
+    await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
+    expect((await saveResponse).status()).toBe(200);
+    await expect(page.getByRole("button", { name: "Enregistrer", exact: true })).toBeDisabled();
+    expect(api.wish.isFavorite).toBe(false);
+    await page.goto(`/lists/${listId}/wishes/new`);
+    await expect(choice).not.toBeChecked(); await choice.check();
+    await page.screenshot({ path: testInfo.outputPath("favorite-create.png"), fullPage: true });
+    await page.getByLabel("Nom du produit", { exact: false }).fill("Coup de cœur créé");
+    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+    await expect(page).toHaveURL(`/lists/${listId}`);
+    expect(api.wish.isFavorite).toBe(true);
+    await page.getByRole("button", { name: "Archiver", exact: true }).click();
+    await expect(page.getByText("Liste archivée", { exact: true })).toBeVisible();
+    await expect(page.locator(".wish-favorite-button")).toHaveCount(0);
+    await expect(page.getByRole("img", { name: "Coup de cœur", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Désarchiver", exact: true }).click();
+    await expect(page.locator(".wish-favorite-button")).toHaveAttribute("aria-pressed", "true");
+    expect(api.wish.isFavorite).toBe(true);
+    await page.goto(`${sharedPath}#${secret}`);
+    await expect(page.getByRole("img", { name: "Coup de cœur", exact: true })).toBeVisible();
+    await expect(page.locator(".wish-card .wish-favorite-button")).toHaveCount(0);
+    await expect(page.locator(".wish-card .wish-gallery__copy")).toHaveCount(1);
+    await page.locator(".wish-gallery__photo").click();
+    await expect(page.getByRole("img", { name: "Coup de cœur", exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("favorite-shared.png"), fullPage: true });
+    expect(api.unexpected).toEqual([]);
+  });
+}

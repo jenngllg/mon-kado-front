@@ -12,19 +12,18 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 export function createReservationCancelDialog({ load, cancel, onInvalidate, onUnavailable, onClose, signal }) {
   const dialog = document.createElement("dialog"); dialog.className = "reservation-cancel-dialog flow";
   const title = document.createElement("h2"); title.textContent = "Annuler ma réservation ?"; title.id = `reservation-cancel-${crypto.randomUUID()}`; title.tabIndex = -1; title.setAttribute("autofocus", "");
-  const warning = document.createElement("p"); warning.id = `${title.id}-warning`; warning.textContent = "Ta réservation sera annulée. Le cadeau restera dans la liste et les autres réservations seront conservées.";
-  dialog.setAttribute("aria-labelledby", title.id); dialog.setAttribute("aria-describedby", warning.id);
+  dialog.setAttribute("aria-labelledby", title.id);
   const status = document.createElement("p"); status.setAttribute("role", "status");
   const feedback = document.createElement("div");
   const keep = createButton({ label: "Conserver ma réservation", variant: "secondary", onClick: () => { if (!mutating) finish(false); } });
   const confirm = createButton({ label: "Confirmer l’annulation", variant: "danger", onClick: () => { void execute(true); } });
   const reread = createButton({ label: "Relire ma réservation", variant: "secondary", onClick: () => { void execute(false); } });
   const actions = document.createElement("div"); actions.className = "cluster wishlist-form__actions"; actions.append(keep, confirm);
-  dialog.append(title, warning, status, feedback, reread, actions);
+  dialog.append(title, status, feedback, reread, actions);
   const lifetime = new AbortController();
   let disposed = false, busy = false, mutating = false, blocked = true, completed = false, version = "";
   function clear() { disposeComponent(feedback); feedback.replaceChildren(); }
-  function sync() { confirm.disabled = disposed || busy || blocked || completed; keep.disabled = mutating; reread.disabled = busy; reread.hidden = !blocked || completed; dialog.setAttribute("aria-busy", String(busy)); }
+  function sync() { confirm.disabled = disposed || busy || blocked || completed; keep.disabled = mutating; reread.disabled = busy; reread.hidden = !blocked || completed; status.hidden = !status.textContent; dialog.setAttribute("aria-busy", String(busy)); }
   /** @param {boolean} success Confirmed cancellation only. */
   function finish(success) { if (disposed) return; disposeComponent(dialog); onClose(success); }
   addComponentEventListener(dialog, dialog, "cancel", event => { event.preventDefault(); if (!mutating) finish(false); });
@@ -39,6 +38,7 @@ export function createReservationCancelDialog({ load, cancel, onInvalidate, onUn
     if (disposed || busy || completed || (mutation && blocked)) return;
     busy = true; mutating = mutation; blocked = true; clear(); sync();
     status.textContent = mutation ? "Annulation de ta réservation…" : "Chargement de ta réservation…";
+    status.hidden = false;
     if (mutation) onInvalidate();
     try {
       if (mutation) {
@@ -48,12 +48,12 @@ export function createReservationCancelDialog({ load, cancel, onInvalidate, onUn
       const current = await load(lifetime.signal); if (disposed) return;
       if (current.lookup.state !== "reserved") {
         version = ""; title.textContent = "Réservation indisponible";
-        status.textContent = "Aucune réservation n’est reconnue pour toi sur ce cadeau. Cela ne confirme pas le résultat d’une tentative précédente.";
+        status.textContent = "Aucune réservation n’est reconnue pour toi sur ce souhait. Cela ne confirme pas le résultat d’une tentative précédente.";
         onInvalidate(); title.focus(); return;
       }
       version = current.lookup.reservation.etag; blocked = false;
-      title.textContent = `Annuler ta réservation de « ${current.name} » ?`;
-      status.textContent = `Quantité réservée : ${current.lookup.reservation.quantity}. Confirme l’annulation de toute cette quantité.`; title.focus();
+      title.textContent = `Annuler ta réservation de ${current.name} ?`;
+      status.textContent = current.lookup.reservation.quantity > 1 ? `Quantité réservée : ${current.lookup.reservation.quantity}.` : ""; title.focus();
     } catch (error) {
       if (disposed || isAbortError(error)) return;
       version = ""; status.textContent = "";

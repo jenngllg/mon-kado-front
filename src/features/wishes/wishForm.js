@@ -3,20 +3,20 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { validateWishField, WishServerMessages } from "./wishValidation.js";
 
 /** @typedef {import("./wishValidation.js").WishField} WishField */
-/** @type {ReadonlyArray<{name: WishField, label: string, description: string, required: boolean}>} */
+/** @type {ReadonlyArray<{name: WishField, label: string, required: boolean}>} */
 const Fields = Object.freeze([
-  { name: "name", label: "Nom du cadeau", description: "100 caractères maximum.", required: true },
-  { name: "note", label: "Note (facultatif)", description: "500 caractères maximum. Les retours à la ligne sont autorisés.", required: false },
-  { name: "url", label: "Lien produit (facultatif)", description: "Lien HTTP ou HTTPS, sans identifiants. 2 048 caractères maximum.", required: false },
-  { name: "price", label: "Prix en euros (facultatif)", description: "Exemple : 19,90. Deux décimales maximum, sans séparateur de milliers.", required: false },
-  { name: "quantity", label: "Quantité souhaitée", description: "Entre 1 et 100.", required: true },
+  { name: "name", label: "Nom du produit", required: true },
+  { name: "note", label: "Note", required: false },
+  { name: "url", label: "Lien produit", required: false },
+  { name: "price", label: "Prix en euros", required: false },
+  { name: "quantity", label: "Quantité souhaitée", required: true },
 ]);
 
 /** Shared manual gift fields; each consuming view owns its operation.
  * @param {{inactive: () => boolean, onChange: () => void, label?: string}} options Lifecycle and validation feedback.
  */
-export function createWishForm({ inactive, onChange, label = "Ajouter un cadeau" }) {
-  const form = document.createElement("form"); form.noValidate = true; form.className = "wishlist-form flow"; form.setAttribute("aria-label", label);
+export function createWishForm({ inactive, onChange, label = "Ajouter un souhait" }) {
+  const form = document.createElement("form"); form.noValidate = true; form.className = "wishlist-form wish-form flow"; form.setAttribute("aria-label", label);
   let disposed = false;
   /** @type {HTMLButtonElement | null} */ let pressedAction = null;
   /** @type {(() => void) | null} */ let deferredBlur = null;
@@ -30,7 +30,7 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un cadeau"
       if (definition.name === "price") control.inputMode = "decimal";
       if (definition.name === "url") { control.inputMode = "url"; control.setAttribute("autocomplete", "url"); control.spellcheck = false; control.autocapitalize = "none"; }
     }
-    const element = createFormField({ ...definition, control }); form.append(element);
+    const element = createFormField({ ...definition, control }); element.classList.add(`wish-form__${definition.name}`); form.append(element);
     const field = { ...definition, element, control, dirty: false, checked: false, error: /** @type {string | null} */ (null) };
     const update = () => { if (disposed || inactive()) return; field.dirty = true; if (field.checked) validate(field); onChange(); };
     addComponentEventListener(form, control, "input", update); addComponentEventListener(form, control, "change", update);
@@ -43,6 +43,10 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un cadeau"
     });
     return field;
   });
+  const favorite = document.createElement("input"); favorite.type = "checkbox"; favorite.name = "isFavorite";
+  const favoriteLabel = document.createElement("label"); favoriteLabel.className = "wish-favorite-choice";
+  favoriteLabel.append(favorite, document.createTextNode("Coup de cœur")); form.append(favoriteLabel);
+  addComponentEventListener(form, favorite, "change", () => { if (!disposed && !inactive()) onChange(); });
   addComponentEventListener(form, form, "pointerdown", event => {
     const target = event.target instanceof Element ? event.target.closest("button") : null;
     pressedAction = target instanceof HTMLButtonElement ? target : null;
@@ -53,8 +57,8 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un cadeau"
   });
   addComponentEventListener(form, document, "pointercancel", () => { pressedAction = null; flushBlur(); });
   registerComponentCleanup(form, () => { disposed = true; deferredBlur = null; pressedAction = null; clear(); });
-  return { form, fields, validate, clear, reset, discardDeferredBlur: () => { deferredBlur = null; },
-    getValues: () => /** @type {import("./wishValidation.js").WishValues} */ (Object.fromEntries(fields.map(field => [field.name, field.control.value]))) };
+  return { form, fields, favorite, validate, clear, reset, discardDeferredBlur: () => { deferredBlur = null; },
+    getValues: () => /** @type {import("./wishValidation.js").WishValues} */ ({ ...Object.fromEntries(fields.map(field => [field.name, field.control.value])), isFavorite: favorite.checked }) };
 
   function flushBlur() { const check = deferredBlur; deferredBlur = null; check?.(); }
   /** @param {typeof fields[number]} field Validated field. */
@@ -63,7 +67,7 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un cadeau"
     field.error = field.control.validity.badInput ? WishServerMessages[field.name] : validateWishField(field.name, field.control.value);
     setFormFieldValidation(field.element, field.error);
   }
-  function clear() { for (const field of fields) { field.control.value = ""; field.dirty = false; field.checked = false; field.error = null; setFormFieldValidation(field.element, null); } }
+  function clear() { favorite.checked = false; for (const field of fields) { field.control.value = ""; field.dirty = false; field.checked = false; field.error = null; setFormFieldValidation(field.element, null); } }
   /** @param {Readonly<import("./wishValidation.js").WishValues>} values Latest server values. */
-  function reset(values) { clear(); for (const field of fields) field.control.value = values[field.name]; }
+  function reset(values) { clear(); favorite.checked = values.isFavorite === true; for (const field of fields) field.control.value = values[field.name]; }
 }

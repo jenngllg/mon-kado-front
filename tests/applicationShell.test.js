@@ -31,6 +31,23 @@ afterEach(() => {
 });
 
 describe("application shell", () => {
+  it.each(["anonymous", "initializing", "authenticated", "signingOut", "unavailable"])("keeps member search available in session state %s", status => {
+    const shell = createTestShell();
+    shell.setSession({ status: /** @type {import("../src/auth/sessionManager.js").SessionSnapshot["status"]} */ (status), user: null, etag: null, logoutPending: false, issue: null });
+    expect(shell.element.querySelector('nav a[href="/members"]')?.textContent).toBe("Rechercher un membre");
+  });
+  it("styles logout as a navigation item while retaining button behavior", () => {
+    let calls = 0;
+    const shell = createApplicationShell({ onLogout: () => { calls += 1; } });
+    shellElements.push(shell.element);
+    shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
+    const logout = /** @type {HTMLButtonElement} */ (shell.element.querySelector("button.app-navigation__link"));
+    expect(logout.textContent).toBe("Se déconnecter");
+    expect(logout.type).toBe("button");
+    expect(logout.hasAttribute("aria-current")).toBe(false);
+    logout.click();
+    expect(calls).toBe(1);
+  });
   it("groups session recovery feedback in a named landmark without a duplicate live region", () => {
     // Arrange
     const shell = createTestShell();
@@ -73,11 +90,13 @@ describe("application shell", () => {
     const links = [...shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')];
     expect(links.map((link) => link.textContent)).toEqual([
       "Accueil",
+      "Rechercher un membre",
       "Connexion",
       "S’inscrire",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/",
+      "/members",
       "/login",
       "/register",
     ]);
@@ -151,10 +170,11 @@ describe("application shell", () => {
 
   it.each([
     [RouteNames.Home, "Accueil"],
+    [RouteNames.Members, "Rechercher un membre"],
+    [RouteNames.MemberProfile, "Rechercher un membre"],
     [RouteNames.Lists, "Mes listes"],
     [RouteNames.NewList, "Mes listes"],
     [RouteNames.EditList, "Mes listes"],
-      [RouteNames.DeleteList, "Mes listes"],
       [RouteNames.NewWish, "Mes listes"],
       [RouteNames.EditWish, "Mes listes"],
     [RouteNames.ListDetails, "Mes listes"],
@@ -169,7 +189,7 @@ describe("application shell", () => {
     const shell = createTestShell();
     document.body.append(shell.element);
     getMenuButton(shell.element).click();
-    if ([RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.DeleteList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.ListDetails, RouteNames.Reservations].some(name => name === routeName)) {
+    if ([RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.ListDetails, RouteNames.Reservations].some(name => name === routeName)) {
       shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
     }
 
@@ -183,6 +203,13 @@ describe("application shell", () => {
     expect(currentLinks).toHaveLength(1);
     expect(currentLinks[0]?.textContent).toBe(expectedLabel);
     expect(getNavigation(shell.element).dataset.open).toBe("false");
+  });
+
+  it.each([RouteNames.Profile, RouteNames.EmailChange, RouteNames.PasswordChange, RouteNames.PersonalData, RouteNames.Authenticator])("keeps account navigation active on %s", routeName => {
+    const shell = createTestShell();
+    shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
+    shell.setCurrentRoute(createRouteSnapshot(routeName));
+    expect(shell.element.querySelector('.app-navigation__link[href="/profile"]')?.getAttribute("aria-current")).toBe("page");
   });
 
   it("clears the current item for a route outside the primary navigation", () => {

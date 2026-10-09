@@ -19,26 +19,43 @@ function setup(overrides = {}) {
   return { view, loadCurrentMember, joinMember, onUnavailable, button };
 }
 describe("member participation", () => {
-  it("hides the invitation after recognition and restores it when participation is absent", async () => {
+  it("omits the account name from wish identification and exposes the requested reservation action", async () => {
+    const onRecognized = vi.fn();
+    const ui = setup({ onRecognized }); await settle();
+    expect(ui.view.textContent).not.toContain("Compte actuel");
+    expect(ui.button("Je réserve ce cadeau").disabled).toBe(false);
+    expect(ui.joinMember).not.toHaveBeenCalled();
+    ui.button("Je réserve ce cadeau").click(); await settle();
+    expect(ui.joinMember).toHaveBeenCalledOnce();
+    expect(onRecognized).toHaveBeenCalledOnce();
+    expect(onRecognized).toHaveBeenCalledWith(true);
+    expect(ui.view.textContent).not.toContain(participant.displayName);
+  });
+  it("never treats an existing participation lookup as a reservation intent", async () => {
+    const onRecognized = vi.fn();
+    setup({ onRecognized, loadCurrentMember: async () => participant }); await settle();
+    expect(onRecognized).toHaveBeenCalledExactlyOnceWith(false);
+  });
+  it("keeps attachment copy hidden outside the sign-in continuation", async () => {
     const load = vi.fn(/** @type {import("../src/features/sharing/wishlistParticipationService.js").LoadCurrentParticipant} */ (async () => null)).mockResolvedValueOnce(participant);
     const ui = setup({ loadCurrentMember: load }); await settle();
-    const explanation = [...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Tu participeras"));
-    expect(explanation?.hidden).toBe(true); ui.button("Actualiser ma participation").click(); await settle();
-    expect(explanation?.hidden).toBe(false); expect(ui.joinMember).not.toHaveBeenCalled();
+    const explanation = [...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Ta participation invitée"));
+    expect(explanation?.hidden).toBe(true); window.dispatchEvent(new Event("focus")); await settle();
+    expect(explanation?.hidden).toBe(true); expect(ui.view.querySelector("h2")?.textContent).toBe("Participer"); expect(ui.view.textContent).not.toContain("Nom d’affichage"); expect(ui.joinMember).not.toHaveBeenCalled();
   });
   it("keeps the attachment explanation until explicit continuation succeeds", async () => {
     const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); await settle();
-    const explanation = [...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Tu participeras"));
+    const explanation = [...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Ta participation invitée"));
     expect(explanation?.hidden).toBe(false); ui.button("Poursuivre avec mon compte").click(); await settle();
     expect(explanation?.hidden).toBe(true);
   });
   it("does not invite a refused owner to participate", async () => {
     const ui = setup({ joinMember: async () => { throw new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_OWNER_CANNOT_JOIN" }); } }); await settle();
     ui.button("Participer avec mon compte").click(); await settle();
-    expect([...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Tu participeras"))?.hidden).toBe(true);
+    expect([...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Ta participation invitée"))?.hidden).toBe(true);
     expect(ui.view.textContent).toContain("Tu ne peux pas participer à ta propre liste.");
   });
-  it("explains that recognized membership grants no editing rights", async () => { const ui = setup({ loadCurrentMember: async () => participant }); await settle(); expect(ui.view.textContent).toContain("Tu peux consulter cette liste. Participer ne permet pas de modifier ses cadeaux."); expect(ui.view.querySelector('a[href*="/edit"]')).toBeNull(); });
+  it("omits redundant rights copy and exposes no editing action", async () => { const ui = setup({ loadCurrentMember: async () => participant }); await settle(); expect(ui.view.textContent).not.toContain("Participer ne permet pas"); expect(ui.view.querySelector('a[href*="/edit"]')).toBeNull(); });
   it("requires an explicit continuation even for a recognized member", async () => {
     const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); await settle(); expect(ui.joinMember).not.toHaveBeenCalled(); expect(ui.button("Poursuivre avec mon compte").disabled).toBe(false); ui.button("Poursuivre avec mon compte").click(); await settle(); expect(ui.joinMember).toHaveBeenCalledOnce(); expect(ui.button("Poursuivre avec mon compte").hidden).toBe(true);
   });
@@ -51,7 +68,7 @@ describe("member participation", () => {
   it.each([true, false])("uses the returned identity and status-created flag %s", async created => {
     const ui = setup({ joinMember: async () => ({ ...participant, displayName: "<b>Nom</b>", created }) }); await settle(); ui.button("Participer avec mon compte").click(); await settle(); expect(ui.view.querySelector("b")).toBeNull(); expect(ui.view.textContent).toContain("<b>Nom</b>"); expect(ui.view.querySelector('[role="status"]')?.textContent).toBe(created ? "Participation enregistrée" : "Participation reconnue"); expect(document.activeElement).toBe(ui.view.querySelector("h2")); expect(ui.loadCurrentMember).toHaveBeenCalledOnce();
   });
-  it("recognizes an existing participation without posting", async () => { const ui = setup({ loadCurrentMember: async () => participant }); await settle(); expect(ui.button("Participer avec mon compte").hidden).toBe(true); expect(ui.view.textContent).toContain("Nom serveur"); expect(ui.joinMember).not.toHaveBeenCalled(); ui.button("Actualiser ma participation").click(); await settle(); expect(document.activeElement).toBe(ui.view.querySelector("h2")); });
+  it("recognizes an existing participation without posting", async () => { const ui = setup({ loadCurrentMember: async () => participant }); await settle(); expect(ui.button("Participer avec mon compte").hidden).toBe(true); expect(ui.view.textContent).toContain("Nom serveur"); expect(ui.joinMember).not.toHaveBeenCalled(); window.dispatchEvent(new Event("focus")); await settle(); expect(document.activeElement).toBe(document.body); });
   it("blocks a refused owner for this instance without inferring ownership", async () => {
     const ui = setup({ joinMember: async () => { throw new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_OWNER_CANNOT_JOIN" }); } }); await settle(); ui.button("Participer avec mon compte").click(); await settle(); expect(ui.view.textContent).toContain("Tu ne peux pas participer à ta propre liste."); expect(ui.button("Participer avec mon compte").disabled).toBe(true); expect(document.activeElement?.getAttribute("role")).toBe("alert");
   });

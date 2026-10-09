@@ -4,13 +4,13 @@
  */
 export function validateDisplayName(value) {
   const trimmed = value.trim();
-  if (!trimmed) return "Indique ton nom d’affichage.";
+  if (!trimmed) return "Nom d’affichage obligatoire.";
   if ([...value].some(character => {
     const code = character.codePointAt(0) ?? 0;
     return code >= 0xd800 && code <= 0xdfff;
-  }) || /\p{Cc}/u.test(value)) return "Le nom ne doit pas contenir de caractères de contrôle ou invalides.";
-  if ([...trimmed].length > 80) return "Le nom doit contenir au maximum 80 caractères.";
+  }) || /\p{Cc}/u.test(value)) return DisplayNameServerMessage;
+  if ([...trimmed].length > 80) return "Nom d’affichage trop long : 80 caractères maximum.";
   return null;
 }
 
-export const DisplayNameServerMessage = "Vérifie ton nom : 80 caractères maximum, sans caractères de contrôle ou invalides.";
+export const DisplayNameServerMessage = "Nom d’affichage invalide.";

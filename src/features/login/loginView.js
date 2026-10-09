@@ -1,5 +1,5 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
-import { createActionLink, createAlert, createButton, createFormField, disposeComponent,
+import { createBackLink, createActionLink, createAlert, createButton, createFormField, disposeComponent,
   setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
@@ -7,7 +7,6 @@ import { RoutePaths } from "../../app/routeContracts.js";
 import { LoginErrorMessages, LoginServerMessages, validateLoginField } from "./loginValidation.js";
 import { createGoogleButton } from "../google/googleButton.js";
 import { GoogleMessages } from "../google/googleMessages.js";
-import { createPrivacyNotice } from "../../components/legalLinks.js";
 import { createTwoFactorView } from "../twoFactor/twoFactorView.js";
 
 /** Creates the public login view. Redirects belong exclusively to session/router integration.
@@ -86,17 +85,20 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   const submit = createButton({ label: "Se connecter", type: "submit" });
   form.append(rememberLabel, submit);
   const googleButton = startGoogle ? createGoogleButton(() => { void departGoogle(); }) : null;
-  if (googleButton) form.append(textElement("p", "ou"), googleButton);
+  if (googleButton) {
+    const separator = textElement("p", "ou"); separator.className = "auth-method-separator";
+    form.append(separator, googleButton);
+  }
   const links = textElement("div", "");
   links.className = "cluster";
   links.append(createActionLink({ label: "Mot de passe oublié ?", href: RoutePaths.ForgotPassword }),
     createActionLink({ label: "Créer un compte", href: RoutePaths.Register }));
-  view.append(textElement("h1", "Se connecter"), textElement("p", "Retrouve tes listes et les cadeaux que tu prépares pour tes proches."),
-    status, feedback, form, links, createPrivacyNotice());
+  view.append(textElement("h1", "Se connecter"),
+    status, feedback, form, links);
   if (sharedReturn && !sharedReturn.signal.aborted) {
     const continuation = textElement("div", ""); continuation.className = "flow";
-    continuation.append(textElement("p", "Après connexion, tu retrouveras cette liste partagée."), createActionLink({ label: "Retour à la liste sans se connecter", href: sharedReturn.href }));
-    view.insertBefore(continuation, status);
+    continuation.append(createBackLink({ label: "Retour à la liste sans se connecter", href: sharedReturn.href }));
+    view.prepend(continuation);
     addComponentEventListener(view, sharedReturn.signal, "abort", () => { disposeComponent(continuation); continuation.remove(); }, { once: true });
   }
   if (passwordChanged) view.insertBefore(createAlert({ variant: "success", title: "Mot de passe modifié",
@@ -249,7 +251,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
     for (const field of fields) validate(field);
     const invalid = fields.find(field => field.error !== null);
     if (invalid) {
-      showFeedback({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." });
+      showFeedback({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." });
       summary = true;
       invalid.control.focus();
       return;
@@ -273,7 +275,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
               setFormFieldValidation(field.element, field.error);
             }
           }
-          showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées. Vérifie tes saisies puis réessaie." });
+          showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées." });
           summary = validations.every(item => fields.some(field => field.name === item.propertyName));
         } else showTranslated(toUserFacingError(error, LoginErrorMessages));
         if (error instanceof ApiError && error.errorCode === "ACCOUNT_EMAIL_NOT_CONFIRMED") {

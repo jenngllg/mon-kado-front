@@ -4,8 +4,8 @@ import { createApiClient } from "../src/api/apiClient.js";
 import { ApiError } from "../src/api/apiError.js";
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
-const values = { name: " Cadeau 🎁 ", note: " Note\nmultiligne ", url: " https://example.test/product ", price: "19,90", quantity: "2" };
-const item = { id: wishId, wishlistId: id, name: "Cadeau 🎁", note: "Note\nmultiligne", url: "https://example.test/product", price: 19.9, quantity: 2, imageUrl: null, position: "9223372036854775807", createdAt: "2026-09-08T00:00:00Z", updatedAt: null };
+const values = { name: " Souhait 🎁 ", note: " Note\nmultiligne ", url: " https://example.test/product ", price: "19,90", quantity: "2" };
+const item = { id: wishId, wishlistId: id, name: "Souhait 🎁", note: "Note\nmultiligne", url: "https://example.test/product", price: 19.9, quantity: 2, imageUrl: null, position: "9223372036854775807", createdAt: "2026-09-08T00:00:00Z", updatedAt: null };
 const signal = new AbortController().signal;
 /** @param {unknown} [data] Payload. @param {number} [status] HTTP status. @param {string | null} [etag] Gift version. */
 function setup(data = item, status = 201, etag = /** @type {string | null} */ ('"created"')) {

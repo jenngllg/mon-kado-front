@@ -4,6 +4,18 @@ import { describe, expect, it } from "vitest";
 const config = readFileSync(new URL("../deployments/caddy/Caddyfile", import.meta.url), "utf8");
 
 describe("deployed frontend policy", () => {
+  it("routes social previews to the fixed API origin before the normal SPA fallback", () => {
+    expect(config).toContain("facebookexternalhit|Facebot|WhatsApp|Discordbot");
+    expect(config).toContain("path_regexp sharePreview ^/shared-wishlists/");
+    expect(config).toContain("header_regexp shareCrawler User-Agent");
+    expect(config).not.toContain("header_regexp User-Agent");
+    expect(config).toContain("rewrite * /api/v1/shared-wishlists/{re.sharePreview.1}/preview");
+    expect(config).toContain("rewrite * /api/v1/shared-wishlists/{re.previewImage.1}/preview/image");
+    expect(config.match(/reverse_proxy \{\$FRONTEND_API_ORIGIN\}/g)).toHaveLength(2);
+    expect(config).not.toContain("tls_insecure_skip_verify");
+    expect(config.indexOf("handle @sharePreview")).toBeLessThan(config.indexOf("try_files {path} /index.html"));
+  });
+
   it("restricts scripts, embedding and resource destinations without CSP reporting of private URLs", () => {
     for (const directive of ["default-src 'none'", "script-src 'self'", "base-uri 'none'", "object-src 'none'", "frame-ancestors 'none'", "form-action 'self'"])
       expect(config).toContain(directive);

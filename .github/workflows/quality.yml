@@ -33,6 +33,23 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:coverage
       - run: pnpm build
+      - name: Check the reviewed production archive contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: jenngllg/mon-kado
+          ref: a3491b9eb2cc4b6355898ecd8c29edb20c1cc77d
+          path: .publication-backend
+          persist-credentials: false
+      - name: Package the build using the production allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          configuration_hash=$(python3 .publication-backend/deployments/production/release_manifest.py hash)
+          google_enabled=$(node --input-type=module -e 'import p from "./publication.json" with { type: "json" }; console.log(String(p.googleEnabled))')
+          python3 .publication-backend/src/Operations.Frontend/frontend_cli.py package \
+            --dist dist --output "$RUNNER_TEMP/frontend-quality-package" --revision "$GITHUB_SHA" \
+            --backend-revision a3491b9eb2cc4b6355898ecd8c29edb20c1cc77d \
+            --configuration-hash "$configuration_hash" --google-enabled "$google_enabled"
       - name: Validate deployed Caddy configuration
         run: >-
           docker run --rm --network none
@@ -82,11 +99,14 @@ jobs:
           package-manager-cache: false
       - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
       - run: pnpm install --frozen-lockfile
-      - name: Check out current backend contract
+      - name: Check out the matching backend contract
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: jenngllg/mon-kado
-          ref: develop
+          # Social preview types depend on mon-kado#117; sorting depends on #116.
+          # Other PRs and develop/main
+          # continue checking backend develop; production checks the deployed API.
+          ref: ${{ github.head_ref == 'codex/MK-983-share-channels' && '171c4c79f372a3451f11632708d7d151703e201d' || github.head_ref == 'codex/MK-981-wish-sorting' && '00cc1c61190e11e26360b7bb9af0f83f8dc3a0d1' || 'develop' }}
           path: .backend
           persist-credentials: false
       - name: Record backend revision and generate disposable key

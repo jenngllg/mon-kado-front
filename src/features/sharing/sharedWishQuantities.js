@@ -5,6 +5,7 @@
 export function createSharedWishQuantities(wish) {
   const group = document.createElement("div");
   group.className = "shared-wish-quantities flow";
+  if (wish.reservedQuantity === null || wish.availableQuantity === null) return group;
   const lines = [
     `Quantité réservée : ${wish.reservedQuantity}`,
     `Quantité disponible : ${wish.availableQuantity}`,

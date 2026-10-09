@@ -14,11 +14,12 @@ function setup() {
     if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}`) return Response.json(item, { headers: { ETag: '"created"' } });
     if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}/wishes`) return Response.json({ wishes: [] }, { headers: { ETag: '"collection"' } });
     if (new URL(String(input)).pathname === "/api/v1/wishlists") {
+      if (init?.method === "GET") return Response.json([item]);
       state.writes++; expect(init?.method).toBe("POST");
       const headers = new Headers(init?.headers);
       expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("Content-Type")).toBe("application/json");
       expect(headers.has("If-Match")).toBe(false); expect(headers.has("X-CSRF-TOKEN")).toBe(false); expect(init?.credentials).toBe("include");
-      expect(JSON.parse(String(init?.body))).toEqual({ name: item.name, occasion: "birthday", eventDate: null, message: null });
+      expect(JSON.parse(String(init?.body))).toEqual({ name: item.name, occasion: "birthday", eventDate: null, message: null, surpriseMode: true });
       await state.beforeWrite();
       return Response.json(state.status === 201 ? item : { statusCode: state.status, title: "Private English", message: "Private message" }, { status: state.status, headers: { ETag: '"created"' } });
     }
@@ -55,7 +56,7 @@ describe("wishlist creation application integration", () => {
     const form = app.fillAndSend();
     await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Liste créée") === true);
     expect(window.location.pathname).toBe("/lists/" + item.id); expect(window.history.length).toBe(length);
-    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Cette liste ne contient pas encore de cadeau") === true);
+    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Aucun souhait pour le moment") === true);
     expect(app.shell.outlet.querySelector("h1")?.textContent).toBe(item.name);
     expect(document.activeElement).toBe(app.shell.outlet); expect(app.state.writes).toBe(1);
     expect(app.shell.notificationRegion.children).toHaveLength(1);

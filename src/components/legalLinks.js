@@ -19,11 +19,13 @@ export function createLegalLinks() {
  * @param {string} [message] Collection-specific explanation, never user-supplied HTML.
  * @returns {HTMLElement} Collection-point notice.
  */
-export function createPrivacyNotice(message = "Consulte les informations sur l’utilisation de tes données et tes droits avant de continuer.") {
+export function createPrivacyNotice(message = "") {
   const notice = document.createElement("aside");
   notice.className = "flow";
-  const text = document.createElement("p");
-  text.textContent = message;
-  notice.append(text, createLegalLinks());
+  if (message) {
+    const text = document.createElement("p");
+    text.textContent = message;
+    notice.append(text);
+  }
   return notice;
 }

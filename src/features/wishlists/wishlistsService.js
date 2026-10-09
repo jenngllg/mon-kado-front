@@ -3,10 +3,10 @@ import { isStrongEntityTag } from "../../api/entityTag.js";
 import { isCalendarDate, isWishlistId, isWishlistOccasion, trimWishlistText } from "./wishlistValidation.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishlistResponse"]} WishlistResponse */
-/** @typedef {Readonly<Pick<WishlistResponse, "id" | "name" | "occasion" | "eventDate"> & {isSuspended: boolean}>} Wishlist */
-/** @typedef {(options: {signal: AbortSignal}) => Promise<ReadonlyArray<Wishlist>>} LoadWishlists */
+/** @typedef {Readonly<Pick<WishlistResponse, "id" | "name" | "occasion" | "eventDate"> & {isSuspended: boolean, isArchived?: boolean, surpriseMode?: boolean}>} Wishlist */
+/** @typedef {(options: {signal: AbortSignal, isArchived?: boolean}) => Promise<ReadonlyArray<Wishlist>>} LoadWishlists */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["CreateWishlistRequest"]} CreateWishlistRequest */
-/** @typedef {{name: string, occasion: import("./wishlistValidation.js").WishlistOccasion, eventDate: string, message: string}} WishlistValues */
+/** @typedef {{name: string, occasion: import("./wishlistValidation.js").WishlistOccasion, eventDate: string, message: string, surpriseMode?: boolean}} WishlistValues */
 /** @typedef {Readonly<{wishlist: Readonly<Wishlist & Pick<WishlistResponse, "message">>, etag: string}>} CreatedWishlist */
 /** @typedef {(values: WishlistValues, options: {signal: AbortSignal}) => Promise<CreatedWishlist>} CreateWishlist */
 
@@ -14,15 +14,16 @@ import { isCalendarDate, isWishlistId, isWishlistOccasion, trimWishlistText } fr
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<CreatedWishlist>} LoadWishlist */
 /** @typedef {(wishlistId: string, values: WishlistValues, options: {etag: string, signal: AbortSignal}) => Promise<CreatedWishlist>} UpdateWishlist */
 /** @typedef {(wishlistId: string, options: {etag: string, signal: AbortSignal}) => Promise<void>} RemoveWishlist */
+/** @typedef {(wishlistId: string, isArchived: boolean, options: {etag: string, signal: AbortSignal}) => Promise<CreatedWishlist>} SetArchivedWishlist */
 
 /** Creates owned-list operations without retaining unused API fields.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
- * @returns {{load: LoadWishlists, create: CreateWishlist, loadOne: LoadWishlist, update: UpdateWishlist, remove: RemoveWishlist}} Injectable wishlist operations.
+ * @returns {{load: LoadWishlists, create: CreateWishlist, loadOne: LoadWishlist, update: UpdateWishlist, remove: RemoveWishlist, setArchived: SetArchivedWishlist}} Injectable wishlist operations.
  */
 export function createWishlistsService(session) {
   return {
-    load: async ({ signal }) => {
-      const response = await session.request("/api/v1/wishlists", {
+    load: async ({ signal, isArchived = false }) => {
+      const response = await session.request(isArchived ? "/api/v1/wishlists?isArchived=true" : "/api/v1/wishlists", {
         method: "GET", authentication: "required", signal,
       });
       const ids = new Set();
@@ -39,7 +40,7 @@ export function createWishlistsService(session) {
     create: async (values, { signal }) => {
       /** @type {CreateWishlistRequest} */
       const body = { name: trimWishlistText(values.name), occasion: values.occasion,
-        eventDate: values.eventDate || null, message: trimWishlistText(values.message) || null };
+        eventDate: values.eventDate || null, message: trimWishlistText(values.message) || null, surpriseMode: values.surpriseMode ?? true };
       const response = await session.request("/api/v1/wishlists", {
         method: "POST", authentication: "required", body, signal,
       });
@@ -56,9 +57,17 @@ export function createWishlistsService(session) {
       if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428, errorCode: "REQUEST_PRECONDITION_REQUIRED" });
       /** @type {UpdateWishlistRequest} */
       const body = { name: trimWishlistText(values.name), occasion: values.occasion,
-        eventDate: values.eventDate || null, message: trimWishlistText(values.message) || null };
+        eventDate: values.eventDate || null, message: trimWishlistText(values.message) || null, surpriseMode: values.surpriseMode ?? true };
       return versionedWishlist(await session.request(`/api/v1/wishlists/${wishlistId}`, {
         method: "PUT", authentication: "required", body, ifMatch: etag, signal,
+      }), 200, wishlistId);
+    },
+    setArchived: async (wishlistId, isArchived, { etag, signal }) => {
+      requireWishlistId(wishlistId);
+      if (typeof isArchived !== "boolean") throw new TypeError("Invalid archive state.");
+      if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428, errorCode: "REQUEST_PRECONDITION_REQUIRED" });
+      return versionedWishlist(await session.request(`/api/v1/wishlists/${wishlistId}`, {
+        method: "PATCH", authentication: "required", body: { isArchived }, ifMatch: etag, signal,
       }), 200, wishlistId);
     },
     remove: async (wishlistId, { etag, signal }) => {
@@ -83,12 +92,13 @@ function isWishlist(value) {
   return isWishlistId(item.id) &&
     typeof item.name === "string" && trimWishlistText(item.name).length > 0 &&
     isWishlistOccasion(item.occasion) &&
-    (item.eventDate === null || isCalendarDate(item.eventDate)) && typeof item.isSuspended === "boolean";
+    (item.eventDate === null || isCalendarDate(item.eventDate)) && typeof item.isSuspended === "boolean" &&
+    (item.isArchived === undefined || typeof item.isArchived === "boolean") && (item.surpriseMode === undefined || typeof item.surpriseMode === "boolean");
 }
 
 /** @param {Wishlist} item Validated API data. @returns {Wishlist} Safe immutable projection. */
 function projectWishlist(item) {
-  return Object.freeze({ id: item.id, name: item.name, occasion: item.occasion, eventDate: item.eventDate, isSuspended: item.isSuspended });
+  return Object.freeze({ id: item.id, name: item.name, occasion: item.occasion, eventDate: item.eventDate, isSuspended: item.isSuspended, surpriseMode: item.surpriseMode ?? true, isArchived: item.isArchived ?? false });
 }
 
 /** @param {string} id Untrusted ID. */

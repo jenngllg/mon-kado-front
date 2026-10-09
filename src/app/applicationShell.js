@@ -1,5 +1,8 @@
 import { createNotificationRegion, createButton, createLoadingState, disposeComponent } from "../components/index.js";
-import { addComponentEventListener } from "../components/componentLifecycle.js";
+import { addComponentEventListener, registerComponentCleanup } from "../components/componentLifecycle.js";
+import { createMemberAvatar } from "../components/memberAvatar.js";
+import { readProfilePhoto } from "../features/profile/profileImageService.js";
+import { hasAdminAccess } from "../features/admin/adminAccess.js";
 import {
   NavigationItems,
   RouteNames,
@@ -23,10 +26,10 @@ let shellIdentifier = 0;
 /**
  * Creates the persistent application shell.
  *
- * @param {{onLogout?: () => void}} [options] Session actions.
+ * @param {{onLogout?: () => void, apiBaseUrl?: string}} [options] Session actions and trusted photo origin.
  * @returns {ApplicationShell} Application shell API.
  */
-export function createApplicationShell({ onLogout = () => {} } = {}) {
+export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } = {}) {
   shellIdentifier += 1;
   const navigationIdentifier = `primary-navigation-${shellIdentifier}`;
   const element = document.createElement("div");
@@ -57,6 +60,8 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   const navigationLinks = new Map();
 
   let navigationMode = "";
+  let avatarKey = "";
+  registerComponentCleanup(element, () => { avatarKey = ""; });
   /** @type {import("../router/router.js").RouteSnapshot | null} */
   let currentRoute = null;
 
@@ -76,15 +81,20 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   sessionFeedback.setAttribute("aria-label", "État de la session");
   sessionFeedback.hidden = true;
   const footer = document.createElement("footer");
-  footer.className = "container container--regular";
-  footer.append(createLegalLinks());
+  footer.className = "app-footer";
+  const footerContent = document.createElement("div");
+  footerContent.className = "container container--regular";
+  footerContent.append(createLegalLinks());
+  footer.append(footerContent);
   element.append(skipLink, header, sessionFeedback, outlet, footer, notificationRegion);
   // Native focus scrolling can leave a field behind the sticky header.
   addComponentEventListener(element, outlet, "focusin", event => {
     const target = event.target;
     if (!(target instanceof HTMLElement) || target === outlet) return;
-    if (target.getBoundingClientRect().top < header.getBoundingClientRect().bottom) {
-      target.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+    const coveredByHeader = target.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
+    if (coveredByHeader < 0) {
+      // Centering a tall alert can still leave its beginning behind the header.
+      window.scrollBy({ top: coveredByHeader - 8, behavior: "instant" });
     }
   });
   // Skipping content is a focus action: hash navigation would remount views whose link was consumed.
@@ -173,15 +183,17 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
   function setSession(state) {
     const mode = state.status === "authenticated" ? "member" :
       ["initializing", "signingOut"].includes(state.status) ? "pending" : "anonymous";
-    if (navigationMode === mode) return;
-    navigationMode = mode;
+    const key = `${mode}:${hasAdminAccess(state)}`;
+    if (navigationMode === key) { updateAvatar(state); return; }
+    navigationMode = key;
     const restoreFocus = navigationList.contains(document.activeElement);
     disposeComponent(navigationList);
     navigationList.replaceChildren();
     navigationLinks.clear();
     for (const item of NavigationItems) {
+      if (item.routeName === RouteNames.ReportedWishlists && !hasAdminAccess(state)) continue;
       const isAccountAction = item.routeName === RouteNames.Login || item.routeName === RouteNames.Register;
-      if (item.routeName !== RouteNames.Home &&
+      if (item.routeName !== RouteNames.Home && item.routeName !== RouteNames.Members &&
         (mode === "pending" || (mode === "member" ? isAccountAction : !isAccountAction))) continue;
       const listItem = document.createElement("li");
       const link = document.createElement("a");
@@ -195,13 +207,31 @@ export function createApplicationShell({ onLogout = () => {} } = {}) {
     }
     if (mode !== "anonymous") {
       const item = document.createElement("li");
-      item.append(mode === "member"
+      const action = mode === "member"
         ? createButton({ label: "Se déconnecter", variant: "ghost", onClick: onLogout })
-        : createLoadingState({ label: state.status === "signingOut" ? "Déconnexion…" : "Vérification de la session…" }));
+        : createLoadingState({ label: state.status === "signingOut" ? "Déconnexion…" : "Vérification de la session…" });
+      if (mode === "member") action.classList.add("app-navigation__link");
+      item.append(action);
       navigationList.append(item);
     }
     setCurrentRoute(currentRoute);
+    avatarKey = "";
+    updateAvatar(state);
     if (restoreFocus) brand.focus();
+  }
+
+  /** @param {import("../auth/sessionManager.js").SessionSnapshot} state Current identity, never persisted here. */
+  function updateAvatar(state) {
+    const link = navigationLinks.get(RouteNames.Profile);
+    if (!link) { avatarKey = ""; return; }
+    const member = state.status === "authenticated" && !state.logoutPending && !state.authenticationPending ? state.user : null;
+    const photo = member ? readProfilePhoto(member.profileImageUrl, member.id, apiBaseUrl) : null;
+    const key = member ? JSON.stringify([member.id, photo?.imageUrl]) : "";
+    if (key === avatarKey) return;
+    avatarKey = key;
+    const previous = link.querySelector(".member-avatar");
+    if (previous instanceof HTMLElement) { disposeComponent(previous); previous.remove(); }
+    if (member) link.prepend(createMemberAvatar({ memberId: member.id, imageUrl: photo?.imageUrl, size: 32 }));
   }
 
   /**
@@ -257,12 +287,13 @@ function createMenuButton(navigationIdentifier) {
  * @returns {string | null} Navigation item route name.
  */
 function getActiveNavigationRoute(routeName) {
-  if (routeName === RouteNames.PasswordChange || routeName === RouteNames.EmailChange) return RouteNames.Profile;
+  if (routeName === RouteNames.WishlistReportReview || routeName === RouteNames.WishlistModeration || routeName === RouteNames.WishlistReportHistory || routeName === RouteNames.WishlistModerationHistory) return RouteNames.ReportedWishlists;
+  if (routeName === RouteNames.MemberProfile) return RouteNames.Members;
+  if ([RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.PersonalData, RouteNames.Authenticator].some(name => name === routeName)) return RouteNames.Profile;
   if (
     routeName === RouteNames.Lists ||
     routeName === RouteNames.NewList ||
     routeName === RouteNames.EditList ||
-    routeName === RouteNames.DeleteList ||
     routeName === RouteNames.NewWish ||
     routeName === RouteNames.EditWish ||
     routeName === RouteNames.ListDetails

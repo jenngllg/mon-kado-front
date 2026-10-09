@@ -1,5 +1,5 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
-import { createActionLink, createAlert, createButton, createFormField, disposeComponent } from "../../components/index.js";
+import { createActionLink, createAlert, createButton, createFormField, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createLocalQrCode } from "./localQrCode.js";
@@ -10,7 +10,7 @@ import { createLocalQrCode } from "./localQrCode.js";
  * signal?: AbortSignal, onFinished: () => void}} options Protected dependencies.
  */
 export function createAuthenticatorView({ service, session, signal, onFinished }) {
-  const view = document.createElement("section"); view.className = "flow";
+  const view = document.createElement("section"); view.className = "authenticator-view flow";
   const content = document.createElement("div"); content.className = "flow";
   const feedback = document.createElement("div"); feedback.tabIndex = -1;
   view.append(text("h1", "Mon authentificateur"), feedback, content);
@@ -69,7 +69,12 @@ export function createAuthenticatorView({ service, session, signal, onFinished }
     }
     content.append(text("p", "Saisis un nouveau code de ton authentificateur actuel. Un code déjà utilisé peut être refusé."), codeForm(false));
     if (purpose === "replaceAuthenticator") content.append(createButton({ label: recovery ? "Utiliser l’authentificateur" : "Utiliser un code de récupération",
-      variant: "secondary", onClick: () => { recovery = !recovery; render(); } }));
+      variant: "secondary", onClick: () => {
+        if (busy) return;
+        recovery = !recovery;
+        disposeComponent(feedback); feedback.replaceChildren();
+        render(); content.querySelector("input")?.focus();
+      } }));
     content.append(createButton({ label: "Annuler", variant: "secondary", onClick: () => { service.cancel(); phase = "choice"; render(); } }));
   }
   /** @param {boolean} setup Whether to verify the replacement authenticator. */
@@ -78,13 +83,27 @@ export function createAuthenticatorView({ service, session, signal, onFinished }
     const useRecovery = !setup && recovery;
     const input = document.createElement("input"); input.type = "text"; input.name = useRecovery ? "recoveryCode" : "code";
     input.autocomplete = useRecovery ? "off" : "one-time-code"; input.inputMode = useRecovery ? "text" : "numeric"; input.spellcheck = false;
-    form.append(createFormField({ control: input, label: useRecovery ? "Code de récupération" : setup ? "Code du nouvel authentificateur" : "Code de l’authentificateur actuel", required: true }),
+    const field = createFormField({ control: input, label: useRecovery ? "Code de récupération" : setup ? "Code du nouvel authentificateur" : "Code de l’authentificateur actuel", required: true });
+    let invalid = false;
+    form.append(field,
       createButton({ label: setup ? "Confirmer le remplacement et fermer mes sessions" : "Vérifier mon identité", type: "submit" }));
     registerComponentCleanup(form, () => { input.value = ""; });
+    addComponentEventListener(form, input, "input", () => {
+      if (!invalid) return;
+      invalid = false; setFormFieldValidation(field, "");
+      disposeComponent(feedback); feedback.replaceChildren();
+    });
     addComponentEventListener(form, form, "submit", event => {
       event.preventDefault(); if (busy) return;
       const code = input.value.trim(); input.value = "";
-      if (!(useRecovery ? /^[a-f\d-]{32,39}$/i : /^\d{6}$/).test(code)) { showError(new ApiError({ kind: "http", statusCode: 400 })); input.focus(); return; }
+      if (!(useRecovery ? /^[a-f\d-]{32,39}$/i : /^\d{6}$/).test(code)) {
+        const message = useRecovery
+          ? "Code de récupération invalide ou incomplet."
+          : "Code d’authentification invalide : six chiffres attendus.";
+        invalid = true; setFormFieldValidation(field, message);
+        disposeComponent(feedback); feedback.replaceChildren(createAlert({ title: "Code à vérifier", message, variant: "error" }));
+        input.focus(); return;
+      }
       if (setup) { void complete(code); return; }
       void execute(async () => {
         const grant = await service.begin(purpose, useRecovery ? { recoveryCode: code } : { code }, { signal: lifetime.signal });
@@ -117,9 +136,9 @@ export function createAuthenticatorView({ service, session, signal, onFinished }
     content.append(text("p", "La modification est confirmée et tes anciennes sessions sont révoquées. Une nouvelle connexion complète est nécessaire."));
     if (codes === null) { content.append(text("p", "Les codes ne sont plus disponibles dans cette page. Reconnecte-toi pour vérifier ton authentificateur."), createActionLink({ label: "Se reconnecter", href: "/login" })); return; }
     content.append(text("p", "Enregistre ces dix codes dans un endroit sûr. Ils ne seront affichés qu’une fois."));
-    const list = document.createElement("ul"); for (const code of codes) list.append(text("li", code));
+    const list = document.createElement("ul"); list.className = "recovery-codes"; for (const code of codes) list.append(text("li", code));
     const saved = document.createElement("input"); saved.type = "checkbox";
-    const label = document.createElement("label"); label.append(saved, text("span", "J’ai enregistré mes codes de récupération"));
+    const label = document.createElement("label"); label.className = "recovery-codes-confirmation"; label.append(saved, text("span", "J’ai enregistré mes codes de récupération"));
     const finish = createButton({ label: "Fermer les codes et me reconnecter", onClick: () => {
       if (!saved.checked) return;
       codes = null; clearContent(); phase = "closed"; render(); onFinished();

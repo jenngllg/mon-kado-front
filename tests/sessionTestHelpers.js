@@ -65,7 +65,7 @@ export function createSessionTransport() {
     logoutStatus: 204,
     refreshCount: 0,
     token: { accessToken: "jwt-fixture-1", expiresIn: 900, tokenType: "Bearer" },
-    user: { id: "user-fixture", email: "fixture@example.test", displayName: "Fixture", roles: ["member"] },
+    user: { id: "user-fixture", email: "fixture@example.test", displayName: "Fixture", roles: ["member"], isVisibleInMemberSearch: false },
     beforeRefresh: async () => {},
     beforeIdentity: async () => {},
   };

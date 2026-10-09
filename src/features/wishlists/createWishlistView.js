@@ -1,6 +1,6 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { RoutePaths } from "../../app/routeContracts.js";
-import { createActionLink, createAlert, createButton, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
+import { createBackLink, createAlert, createButton, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistOccasion, validateWishlistField, WishlistServerMessages } from "./wishlistValidation.js";
@@ -15,18 +15,21 @@ import { createWishlistForm } from "./wishlistForm.js";
 export function createWishlistView({ create, onCreated, signal, now = () => new Date() }) {
   const view = textElement("section", ""); view.className = "wishlist-create-view flow";
   const title = textElement("h1", "Créer une liste");
-  const intro = textElement("p", "Donne un nom à ta liste et précise l’occasion."); intro.className = "registration-view__intro";
   const feedback = textElement("div", ""); feedback.hidden = true;
   const status = textElement("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   let disposed = false; let submitting = false; let completed = false; let validationSummary = false;
-  const { form, fields, validate, discardDeferredBlur } = createWishlistForm({
+  const { form, fields, surpriseMode, validate, discardDeferredBlur } = createWishlistForm({
     label: "Créer une liste", validateValue: (field, value) => validateWishlistField(field, value, now),
     inactive: () => submitting || completed || disposed, onChange: updateSummary,
   });
-  const submit = createButton({ label: "Créer ma liste", type: "submit" }); form.append(submit);
-  const back = createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
-  view.append(title, intro, feedback, status, form, back);
+  const submit = createButton({ label: "Créer ma liste", type: "submit" });
+  const actions = textElement("div", ""); actions.className = "wishlist-form__footer";
+  const surpriseControl = surpriseMode.closest(".wishlist-surprise-control");
+  if (surpriseControl) actions.append(surpriseControl);
+  actions.append(submit); form.append(actions);
+  const back = createBackLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
+  view.append(back, title, feedback, status, form);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void submitWishlist(); });
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); discardDeferredBlur();
@@ -48,11 +51,12 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
     return alert;
   }
   function summary() {
-    showFeedback({ title: "Informations à vérifier", message: "Vérifie les champs indiqués avant de continuer." }); validationSummary = true;
+    showFeedback({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." }); validationSummary = true;
   }
   /** @param {boolean} loading Pending operation. */
   function setLoading(loading) {
     submitting = loading; setButtonLoading(submit, loading);
+    surpriseMode.disabled = loading || completed;
     for (const field of fields) field.control.disabled = loading || completed;
     submit.disabled = loading || completed;
     form.setAttribute("aria-busy", String(loading)); status.textContent = loading ? "Création de ta liste…" : "";
@@ -68,7 +72,7 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
     setLoading(true);
     /** @type {import("./wishlistsService.js").CreatedWishlist} */ let created;
     try {
-      created = await create({ name: fields[0].control.value, occasion, eventDate: fields[2].control.value, message: fields[3].control.value }, { signal: lifetime.signal });
+      created = await create({ name: fields[0].control.value, occasion, eventDate: fields[2].control.value, message: fields[3].control.value, surpriseMode: surpriseMode.checked }, { signal: lifetime.signal });
     } catch (error) {
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) presentFailure(error);
       return;
@@ -95,7 +99,7 @@ export function createWishlistView({ create, onCreated, signal, now = () => new 
       fields[0].checked = true; fields[0].error = "Tu as déjà une liste avec ce nom.";
       setFormFieldValidation(fields[0].element, fields[0].error); summary();
     } else if (validations.length > 0) {
-      if (unknown) showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées. Vérifie tes saisies puis réessaie." });
+      if (unknown) showFeedback({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées." });
       else summary();
     } else {
       const details = [];

@@ -62,20 +62,20 @@ describe("login routing and session integration", () => {
     expect(getLoginDestination(new URLSearchParams(query))).toBe(destination);
   });
 
-  it("replaces the login history entry with a validated return destination", async () => {
+  it("replaces the login history entry with own lists regardless of return parameters", async () => {
     // Arrange
     const app = mount("/login?returnTo=%2Freservations%3Fprivate%3Dx%23secret"); await app.start();
     const length = window.history.length;
-    const complete = routed(app, "reservations");
+    const complete = routed(app, "lists");
     // Act
     const fields = send(app); await complete;
     // Assert
-    expect(window.location.pathname).toBe("/reservations");
+    expect(window.location.pathname).toBe("/lists");
     expect(window.location.search + window.location.hash).toBe("");
     expect(window.history.length).toBe(length);
     expect(fields[0].value).toBe(""); expect(fields[1].value).toBe("");
     expect(app.shell.element.textContent).not.toMatch(/private|secret/);
-    expect(app.shell.outlet.textContent).toContain("Mes réservations");
+    expect(app.shell.outlet.textContent).toContain("Mes listes");
   });
 
   it("does not redirect a successful background login after leaving the form", async () => {
@@ -90,7 +90,7 @@ describe("login routing and session integration", () => {
     release.resolve(); await complete;
     // Assert
     expect(window.location.pathname).toBe("/");
-    expect(app.shell.outlet.textContent).toContain("Bienvenue sur MonKado");
+    expect(app.shell.outlet.textContent).toContain("Petites envies, grandes occasions.");
     expect(fields[1].value).toBe("");
     expect(app.f.posts()).toHaveLength(1);
     expect(app.shell.element.querySelector('nav a[href="/profile"]')).not.toBeNull();
@@ -130,7 +130,7 @@ describe("login routing and session integration", () => {
     const shown = visible(app.shell.outlet, "Réessayer la vérification de session");
     send(app); await shown;
     app.f.state.identityStatus = 200;
-    const complete = routed(app, "reservations");
+    const complete = routed(app, "lists");
     // Act
     [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Réessayer la vérification de session")?.click();
     await complete;
@@ -140,19 +140,19 @@ describe("login routing and session integration", () => {
     expect(app.session.getSnapshot().status).toBe("authenticated");
   });
 
-  it("clears a form and uses its safe return destination after another tab signs in", async () => {
+  it("clears a form and opens own lists after another tab signs in", async () => {
     // Arrange
     const hub = createCoordinatorHub();
     const app = mount("/login?returnTo=%2Freservations", hub); await app.start();
     const other = loginFixture(hub); fixtures.push(other); await other.session.start();
     const fields = [...app.shell.outlet.querySelectorAll("input")]; fields[1].value = "private-draft";
     app.f.state.refreshStatus = 200;
-    const complete = routed(app, "reservations");
+    const complete = routed(app, "lists");
     // Act
     await other.login(LoginValues, { signal: new AbortController().signal }); await complete;
     // Assert
     expect(fields[1].value).toBe("");
-    expect(window.location.pathname).toBe("/reservations");
+    expect(window.location.pathname).toBe("/lists");
     expect(app.f.posts()).toHaveLength(0);
   });
 });

@@ -4,8 +4,8 @@ import { ApiError } from "../src/api/apiError.js";
 import { createApiClient } from "../src/api/apiClient.js";
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
-const item = { id: wishId, wishlistId: id, name: "Cadeau", note: "Ligne\nDeux", url: "https://EXAMPLE.test:443/product", imageUrl: null, price: "0.29", quantity: "2", position: "9223372036854775807" };
-const values = { name: " Cadeau ", note: " Ligne\nDeux ", url: " https://EXAMPLE.test:443/product ", price: "0,29", quantity: "2" };
+const item = { id: wishId, wishlistId: id, name: "Souhait", note: "Ligne\nDeux", url: "https://EXAMPLE.test:443/product", imageUrl: null, price: "0.29", quantity: "2", position: "9223372036854775807" };
+const values = { name: " Souhait ", note: " Ligne\nDeux ", url: " https://EXAMPLE.test:443/product ", price: "0,29", quantity: "2" };
 const signal = new AbortController().signal;
 /** @param {unknown} [data] Body. @param {number} [status] Status. @param {string | null} [etag] Entity tag. */
 function setup(data = item, status = 200, etag = /** @type {string | null} */ ('"gift-2"')) {
@@ -16,10 +16,10 @@ describe("gift editing service", () => {
   it("reads a fresh immutable gift and preserves raw editable text independently of safe presentation", async () => {
     const s = setup(); const result = await s.loadOne(id, wishId, { signal });
     expect(s.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes/${wishId}`, { method: "GET", authentication: "required", signal });
-    expect(result.values).toEqual({ name: item.name, note: item.note, url: item.url, price: "0,29", quantity: "2" });
+    expect(result.values).toEqual({ name: item.name, note: item.note, url: item.url, price: "0,29", quantity: "2", isFavorite: false });
     expect(result.wish.url).toBe("https://example.test/product"); expect(result.wish.position).toBe(item.position); expect(result.etag).toBe('"gift-2"');
     for (const value of [result, result.wish, result.values]) expect(Object.isFrozen(value)).toBe(true);
-    expect(result.values).not.toHaveProperty("imageUrl"); expect(result.wish).not.toHaveProperty("reservedQuantity");
+    expect(result.values).not.toHaveProperty("imageUrl"); expect(result.wish.reservedQuantity).toBeNull();
   });
   it("keeps unsafe stored URLs as text to correct, never as navigable links", async () => {
     const result = await setup({ ...item, url: "javascript:alert(1)" }).loadOne(id, wishId, { signal });

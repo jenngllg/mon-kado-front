@@ -19,19 +19,19 @@ function setup() {
   return { view, input, update, verify, onSaved, edit, submit, click };
 }
 describe("reservation quantity editing", () => {
-  it("groups save and local cancellation in the shared wrapping action layout", () => {
+  it("keeps only save in the shared wrapping action layout", () => {
     const ui = setup();
     const actions = ui.view.querySelector("form > .cluster.wishlist-form__actions");
-    expect([...actions?.querySelectorAll("button") ?? []].map(button => button.textContent)).toEqual(["Enregistrer la quantité", "Annuler les modifications"]);
+    expect([...actions?.querySelectorAll("button") ?? []].map(button => button.textContent)).toEqual(["Enregistrer la quantité"]);
     expect(actions?.querySelector("button")?.type).toBe("submit");
   });
   it("ignores a late update after disposal and clears its draft", async () => {
     const ui = setup(), gate = barrier(); ui.update.mockImplementation(async () => { await gate.promise; return {}; }); ui.edit("2"); ui.submit();
     disposeComponent(ui.view); gate.resolve(); await settle(); expect(ui.input.value).toBe(""); expect(ui.onSaved).not.toHaveBeenCalled(); expect(ui.view.textContent).not.toContain("Réservation modifiée");
   });
-  it("prefills and cancels locally without an unchanged PUT", async () => {
+  it("prefills without an unchanged PUT and preserves edits without a cancel button", async () => {
     const ui = setup(); expect(ui.input.value).toBe("3"); ui.submit(); expect(ui.update).not.toHaveBeenCalled();
-    ui.edit("2"); ui.click("Annuler les modifications"); expect(ui.input.value).toBe("3"); expect(ui.verify).not.toHaveBeenCalled();
+    ui.edit("2"); expect(ui.view.textContent).not.toContain("Annuler les modifications"); expect(ui.input.value).toBe("2"); expect(ui.verify).not.toHaveBeenCalled();
   });
   it("allows a decrease with no availability and uses the individual version", async () => {
     const ui = setup(); ui.edit("2"); ui.submit(); await settle(); expect(ui.update).toHaveBeenCalledExactlyOnceWith("2", '"original"', expect.any(AbortSignal));
@@ -48,7 +48,7 @@ describe("reservation quantity editing", () => {
   });
   it("can adopt the rel read value without writing", async () => {
     const ui = setup(); ui.edit("1"); ui.update.mockRejectedValue(new ApiError({ kind: "timeout" })); ui.submit(); await settle(); ui.click("Vérifier ma réservation"); await settle();
-    ui.click("Annuler les modifications"); expect(ui.input.value).toBe("2"); ui.submit(); expect(ui.update).toHaveBeenCalledOnce();
+    ui.edit("2"); ui.submit(); expect(ui.update).toHaveBeenCalledOnce();
   });
   it.each(["absent", "unrecognized"])("never recreates a reservation after lookup %s", async state => {
     const ui = setup(); ui.edit("1"); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 })); ui.submit(); await settle();
