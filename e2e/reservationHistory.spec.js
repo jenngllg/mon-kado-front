@@ -82,6 +82,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     const cancelBounds = await cancel.boundingBox();
     expect(cancelBounds?.width).toBeGreaterThanOrEqual(44);
     expect(cancelBounds?.height).toBeGreaterThanOrEqual(44);
+    await cancel.scrollIntoViewIfNeeded();
     const beforeHover = await cancel.boundingBox();
     await cancel.hover();
     expect(await cancel.boundingBox()).toEqual(beforeHover);
