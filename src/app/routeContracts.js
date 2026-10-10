@@ -17,6 +17,7 @@ export const RouteNames = Object.freeze({
   PasswordChange: "password-change",
   EmailChange: "email-change",
   Lists: "lists",
+  FollowedLists: "followed-lists",
   NewList: "new-list",
   EditList: "edit-list",
   NewWish: "new-wish",
@@ -52,6 +53,7 @@ export const RoutePaths = Object.freeze({
   PasswordChange: "/profile/password",
   EmailChange: "/profile/email",
   Lists: "/lists",
+  FollowedLists: "/followed-lists",
   NewList: "/lists/new",
   EditList: "/lists/:listId/edit",
   NewWish: "/lists/:listId/wishes/new",
@@ -85,6 +87,7 @@ export const NavigationItems = Object.freeze([
     href: RoutePaths.Reservations,
     routeName: RouteNames.Reservations,
   }),
+  Object.freeze({ label: "Listes suivies", href: RoutePaths.FollowedLists, routeName: RouteNames.FollowedLists }),
   Object.freeze({ label: "Modération", href: RoutePaths.ReportedWishlists, routeName: RouteNames.ReportedWishlists }),
   Object.freeze({
     label: "Mon compte",

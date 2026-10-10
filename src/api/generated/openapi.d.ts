@@ -10039,6 +10039,406 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/shared-wishlists/{shareLinkId}/subscriptions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /** Subscribes the current member to a verified shared list. */
+        readonly post: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header: {
+                    /** @description Request token obtained from GET /security/csrf-token. */
+                    readonly "X-CSRF-TOKEN": string;
+                    readonly "X-MonKado-Share-Token"?: string;
+                };
+                readonly path: {
+                    /** @description The active share-link identifier. */
+                    readonly shareLinkId: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description Created */
+                readonly 201: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description URL of the created resource. */
+                        readonly Location?: string;
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["WishlistSubscriptionResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Conflict */
+                readonly 409: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/shared-wishlists/{shareLinkId}/subscriptions/current": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Gets the current member's subscription to a verified share link. */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: {
+                    readonly "X-MonKado-Share-Token"?: string;
+                };
+                readonly path: {
+                    /** @description The active share-link identifier. */
+                    readonly shareLinkId: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["WishlistSubscriptionResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        /** @description Prevents indexing and archiving of shared-wishlist responses. */
+                        readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/shared-wishlists/{shareLinkId}/wishes/{wishId}": {
         readonly parameters: {
             readonly query?: never;
@@ -10710,6 +11110,349 @@ export interface paths {
                     headers: {
                         /** @description Prevents indexing and archiving of shared-wishlist responses. */
                         readonly "X-Robots-Tag"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/wishlist-subscriptions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Gets a page of currently accessible followed lists. */
+        readonly get: {
+            readonly parameters: {
+                readonly query?: {
+                    /** @description The optional one-based page. */
+                    readonly page?: number | string;
+                    /** @description The optional page size. */
+                    readonly pageSize?: number | string;
+                };
+                readonly header?: never;
+                readonly path?: never;
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description OK */
+                readonly 200: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["PaginatedResponseOfWishlistSubscriptionResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                readonly 400: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+            };
+        };
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/wishlist-subscriptions/{id}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Gets one current member-owned subscription. */
+        readonly get: operations["GetWishlistSubscription"];
+        readonly put?: never;
+        readonly post?: never;
+        /** Removes a current member-owned subscription without affecting reservations. */
+        readonly delete: {
+            readonly parameters: {
+                readonly query?: never;
+                readonly header?: never;
+                readonly path: {
+                    /** @description The subscription identifier. */
+                    readonly id: string;
+                };
+                readonly cookie?: never;
+            };
+            readonly requestBody?: never;
+            readonly responses: {
+                /** @description No Content */
+                readonly 204: {
+                    headers: {
+                        /** @description Always no-store for this response. */
+                        readonly "Cache-Control"?: string;
+                        readonly [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Authentication is required */
+                readonly 401: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description The authenticated user is not authorized */
+                readonly 403: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Not Found */
+                readonly 404: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": components["schemas"]["ErrorResponse"];
+                    };
+                };
+                /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+                readonly 429: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Internal server error */
+                readonly 500: {
+                    headers: {
+                        readonly [name: string]: unknown;
+                    };
+                    content: {
+                        readonly "application/json": {
+                            /** @description Gets error code. */
+                            readonly errorCode: null | string;
+                            /** @description Gets message. */
+                            readonly message: null | string;
+                            /**
+                             * Format: int32
+                             * @description Gets status code.
+                             */
+                            readonly statusCode: number | string;
+                            /** @description Gets title. */
+                            readonly title: null | string;
+                            /** @description Gets validation errors. */
+                            readonly validationErrors: null | readonly {
+                                /** @description Gets error message. */
+                                readonly errorMessage: null | string;
+                                /** @description Gets property name. */
+                                readonly propertyName: null | string;
+                            }[];
+                        };
+                    };
+                };
+                /** @description Service Unavailable */
+                readonly 503: {
+                    headers: {
                         readonly [name: string]: unknown;
                     };
                     content: {
@@ -15730,6 +16473,35 @@ export interface components {
              */
             readonly totalPages?: number | string;
         };
+        /** @description Represents one page of API results. */
+        readonly PaginatedResponseOfWishlistSubscriptionResponse: {
+            /**
+             * Format: int32
+             * @description Gets the requested one-based page number.
+             */
+            readonly currentPage: number | string;
+            /** @description Gets whether a following page containing items exists. */
+            readonly hasNextPage?: boolean;
+            /** @description Gets whether a preceding page containing items exists. */
+            readonly hasPreviousPage?: boolean;
+            /** @description Gets the current page items. */
+            readonly items: readonly components["schemas"]["WishlistSubscriptionResponse"][];
+            /**
+             * Format: int32
+             * @description Gets the requested page size.
+             */
+            readonly pageSize: number | string;
+            /**
+             * Format: int32
+             * @description Gets the total matching item count.
+             */
+            readonly totalCount: number | string;
+            /**
+             * Format: int32
+             * @description Gets the total number of pages containing matching items.
+             */
+            readonly totalPages?: number | string;
+        };
         /** @description Describes a member-owned asynchronous personal-data export. */
         readonly PersonalDataExportResponse: {
             /**
@@ -16032,6 +16804,8 @@ export interface components {
         };
         /** @description Represents a wishlist exposed through a share link. */
         readonly SharedWishlistResponse: {
+            /** @description Gets whether the caller may explicitly follow this list. */
+            readonly canSubscribe?: boolean;
             readonly currentParticipant?: null | components["schemas"]["WishlistParticipantResponse"];
             /**
              * Format: date
@@ -16551,6 +17325,37 @@ export interface components {
              */
             readonly updatedAt: null | string;
         };
+        /** @description Represents one accessible followed list. */
+        readonly WishlistSubscriptionResponse: {
+            /**
+             * Format: date-time
+             * @description Gets the UTC subscription creation time.
+             */
+            readonly createdAt?: string;
+            /**
+             * Format: date
+             * @description Gets the optional event date.
+             */
+            readonly eventDate?: null | string;
+            /**
+             * Format: uuid
+             * @description Gets the subscription identifier.
+             */
+            readonly id?: string;
+            /** @description Gets the current list name. */
+            readonly name?: string;
+            /** @description Gets the occasion. */
+            readonly occasion?: components["schemas"]["WishlistOccasion"];
+            /** @description Gets the author's display name. */
+            readonly ownerDisplayName?: string;
+            /** @description Gets the shared-list URL with its secret in the fragment. */
+            readonly shareUrl?: string;
+            /**
+             * Format: uuid
+             * @description Gets the wishlist identifier.
+             */
+            readonly wishlistId?: string;
+        };
         /** @description Represents one gift wish inside a complete order response. */
         readonly WishOrderItemResponse: {
             /** @description Gets the individual strong entity tag. */
@@ -16899,6 +17704,161 @@ export interface operations {
                 headers: {
                     /** @description Prevents indexing and archiving of shared-wishlist responses. */
                     readonly "X-Robots-Tag"?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly GetWishlistSubscription: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                /** @description The subscription identifier. */
+                readonly id: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK */
+            readonly 200: {
+                headers: {
+                    /** @description Always no-store for this response. */
+                    readonly "Cache-Control"?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishlistSubscriptionResponse"];
+                };
+            };
+            /** @description Authentication is required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
+                };
+            };
+            /** @description The authenticated user is not authorized */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Not Found */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request quota exceeded; Retry-After indicates seconds before retrying */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Internal server error */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": {
+                        /** @description Gets error code. */
+                        readonly errorCode: null | string;
+                        /** @description Gets message. */
+                        readonly message: null | string;
+                        /**
+                         * Format: int32
+                         * @description Gets status code.
+                         */
+                        readonly statusCode: number | string;
+                        /** @description Gets title. */
+                        readonly title: null | string;
+                        /** @description Gets validation errors. */
+                        readonly validationErrors: null | readonly {
+                            /** @description Gets error message. */
+                            readonly errorMessage: null | string;
+                            /** @description Gets property name. */
+                            readonly propertyName: null | string;
+                        }[];
+                    };
+                };
+            };
+            /** @description Service Unavailable */
+            readonly 503: {
+                headers: {
                     readonly [name: string]: unknown;
                 };
                 content: {

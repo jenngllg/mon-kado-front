@@ -23,6 +23,11 @@ import { createMemberProfileView } from "../features/members/memberProfileView.j
 import { createMemberNavigation } from "../features/members/memberNavigation.js";
 import { createReservationHistoryService } from "../features/reservations/reservationHistoryService.js";
 import { createReservationHistoryView } from "../features/reservations/reservationHistoryView.js";
+import { createWishlistSubscriptionsService } from "../features/subscriptions/wishlistSubscriptionsService.js";
+import { createWishlistSubscriptionsView } from "../features/subscriptions/wishlistSubscriptionsView.js";
+import { createWishlistSubscriptionControl } from "../features/subscriptions/wishlistSubscriptionControl.js";
+import { createButton } from "../components/button.js";
+import { applyActionIcon } from "../components/actionIcon.js";
 import { registerComponentCleanup } from "../components/componentLifecycle.js";
 import { createRegistrationService } from "../features/registration/registrationService.js";
 import { createRegistrationView } from "../features/registration/registrationView.js";
@@ -121,6 +126,15 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
+    {
+      name: RouteNames.FollowedLists, path: RoutePaths.FollowedLists, title: "Listes suivies · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        createWishlistSubscriptionsView({ ...createWishlistSubscriptionsService(session), signal: context.signal,
+          onOpen: href => {
+            const target = new URL(href, window.location.origin);
+            if (sharing.enter(target.pathname.split("/")[2], target.hash) === "ready") void context.navigate(target.pathname);
+          } }),
+    },
     {
       name: RouteNames.WishlistReportHistory, path: RoutePaths.WishlistReportHistory, title: "Historique du signalement · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
@@ -362,6 +376,16 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
         return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal, fromMemberId,
           ...(identity.authentication === "required" ? { copy: copyOperations(context.params.shareLinkId) } : {}),
+          createSubscription: ({ signal, onUnavailable }) => {
+            if (identity.authentication === "required") return createWishlistSubscriptionControl({
+              shareLinkId: context.params.shareLinkId, ...createWishlistSubscriptionsService(session, { context: sharing }), signal, onUnavailable,
+            });
+            const button = createButton({ label: "Se connecter pour s’abonner", variant: "secondary",
+              onClick: () => { sharingSignIn.onSignIn?.(context.params.shareLinkId); } });
+            applyActionIcon(button, "bell", "Se connecter pour s’abonner");
+            button.classList.add("wishlist-subscription-action");
+            return button;
+          },
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           report: createWishlistReportService(session, { context: sharing }).report,

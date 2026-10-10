@@ -35,6 +35,7 @@ const unusedSession = {
 /** @type {Array<[string, string]>} */
 const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
+  [RouteNames.FollowedLists, RoutePaths.FollowedLists],
   [RouteNames.WishlistReportHistory, RoutePaths.WishlistReportHistory],
   [RouteNames.WishlistModerationHistory, RoutePaths.WishlistModerationHistory],
   [RouteNames.WishlistModeration, RoutePaths.WishlistModeration],

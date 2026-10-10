@@ -1,4 +1,17 @@
 /* Owner, reading and reorder modes share the same gallery tiles and tracks. */
+.shared-wishlist-navigation { display: flex; justify-content: space-between; align-items: start; gap: var(--space-4); }
+.shared-wishlist-navigation > :last-child { min-width: 0; }
+.wishlist-subscription-control { display: flex; justify-content: end; align-items: start; flex-wrap: wrap; gap: var(--space-3); }
+.wishlist-subscription-control > div:not(:empty) { flex-basis: 100%; max-width: 30rem; }
+.wishlist-subscription-action.icon-action {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; min-width: 44px; padding: 0;
+  border: 1px solid var(--color-border); border-radius: var(--radius-full); background: var(--color-surface);
+}
+.wishlist-subscription-action[aria-pressed="true"], .wishlist-subscriptions-view .icon-action[aria-pressed="true"] { background: var(--color-surface-sage); }
+.wishlist-subscription-action[aria-pressed="true"] svg, .wishlist-subscriptions-view .icon-action[aria-pressed="true"] svg { fill: var(--color-surface-sage); }
+.wishlist-subscriptions-view .wishlist-card__actions { opacity: 1; pointer-events: auto; }
+.wishlist-card__author { color: var(--color-text-muted); }
 .wishlist-details-view--gallery { --wish-gallery-tile-min-width: 14rem; --wish-gallery-column-gap: calc(var(--space-4) + 0.625rem); }
 .wishlist-details-view:is(.shared-wishlist-view, .wishlist-details-view--banner) .wishlist-details-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
 .wishlist-details-view:is(.shared-wishlist-view, .wishlist-details-view--banner) .wishlist-details-info {
