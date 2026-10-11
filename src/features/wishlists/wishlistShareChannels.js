@@ -2,15 +2,19 @@ import whatsapp from "../../assets/share/whatsapp.svg";
 import facebook from "../../assets/share/facebook.png";
 import messenger from "../../assets/share/messenger.svg";
 import email from "../../assets/share/email.svg";
+import discord from "../../assets/share/discord.svg";
+import x from "../../assets/share/x.svg";
 import { wishlistMessengerDestination } from "./wishlistMessengerShare.js";
 
-/** @typedef {"whatsapp" | "facebook" | "messenger" | "email"} ShareChannel */
+/** @typedef {"whatsapp" | "facebook" | "messenger" | "discord" | "x" | "email"} ShareChannel */
 /** @typedef {{navigate: (url: string) => void, close: () => void}} ShareWindow */
 
 export const ShareChannels = Object.freeze([
   { id: "whatsapp", name: "WhatsApp", icon: whatsapp, copy: false },
   { id: "facebook", name: "Facebook", icon: facebook, copy: true },
   { id: "messenger", name: "Messenger", icon: messenger, copy: false },
+  { id: "discord", name: "Discord", icon: discord, copy: false },
+  { id: "x", name: "X", icon: x, copy: false },
   { id: "email", name: "mail", icon: email, copy: false },
 ]);
 
@@ -28,6 +32,9 @@ export function wishlistShareDestination(channel, name, link, userAgent = naviga
   if (channel === "whatsapp") return `https://wa.me/?text=${encodeURIComponent(message)}`;
   if (channel === "facebook") return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`;
   if (channel === "messenger") return wishlistMessengerDestination(link, userAgent);
+  if (channel === "x") return `https://x.com/intent/tweet?text=${encodeURIComponent(message)}`;
+  // Discord sharing uses the system picker, which has no destination URL.
+  if (channel === "discord") return "";
   const subject = `Ma liste${name ? ` « ${name} »` : ""} sur MonKado`;
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
 }
@@ -61,7 +68,21 @@ export function openWishlistMessengerComposer(url) {
   openExternalComposer(url);
 }
 
-/** @param {string} url Explicit user-selected external composer destination. */
+/** Hands the prepared message to the system picker during the initiating click.
+ * The user selects Discord and confirms recipients in the receiving app.
+ * @param {string | undefined} name List name.
+ * @param {string} link Complete validated bearer link, including its fragment.
+ * @returns {Promise<void>} Handoff only; it does not confirm delivery. */
+export function shareWishlistWithSystem(name, link) {
+  const data = { title: name ? `Ma liste « ${name} » · MonKado` : "Ma liste · MonKado", text: wishlistShareMessage(name, link) };
+  if (typeof navigator.share !== "function" || (typeof navigator.canShare === "function" && !navigator.canShare(data))) {
+    throw new DOMException("System sharing is unavailable.", "NotSupportedError");
+  }
+  // Include the complete link once in the text; separate url fields can duplicate it in receiving apps.
+  return navigator.share(data);
+}
+
+/** @param {string} url Explicit user-selected destination. */
 function openExternalComposer(url) {
   const anchor = document.createElement("a"); anchor.href = url;
   anchor.rel = "noopener noreferrer"; anchor.referrerPolicy = "no-referrer";

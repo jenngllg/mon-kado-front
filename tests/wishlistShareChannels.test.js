@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { openWishlistMailComposer, openWishlistMessengerComposer, openWishlistShareWindow, ShareChannels, wishlistShareDestination, wishlistShareMessage } from "../src/features/wishlists/wishlistShareChannels.js";
+import { shareWishlistWithSystem, openWishlistMailComposer, openWishlistMessengerComposer, openWishlistShareWindow, ShareChannels, wishlistShareDestination, wishlistShareMessage } from "../src/features/wishlists/wishlistShareChannels.js";
 import { createWishlistShareSection } from "../src/features/wishlists/wishlistShareSection.js";
 import { disposeComponent } from "../src/components/index.js";
 import { barrier } from "./sessionTestHelpers.js";
@@ -8,7 +8,7 @@ import { barrier } from "./sessionTestHelpers.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const link = Object.freeze({ id, shareUrl: `https://monkado.test/shared-wishlists/${id}#${"A".repeat(43)}`, etag: '"link"' });
 /** @type {HTMLElement[]} */ const views = [];
-afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); vi.restoreAllMocks(); });
+afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 /** @param {Partial<Parameters<typeof createWishlistShareSection>[0]>} [options] Dependencies. */
 function setup(options = {}) {
   const load = vi.fn(async () => link), create = vi.fn(async () => link), copyText = vi.fn(async () => {});
@@ -23,8 +23,41 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("share channel destinations", () => {
-  it("offers exactly four agreed channels without Discord", () => {
-    expect(ShareChannels.map(channel => channel.id)).toEqual(["whatsapp", "facebook", "messenger", "email"]);
+  it("offers Discord and X alongside the existing channels", () => {
+    expect(ShareChannels.map(channel => channel.id)).toEqual(["whatsapp", "facebook", "messenger", "discord", "x", "email"]);
+  });
+  it("prefills X and preserves the complete bearer link", () => {
+    const destination = new URL(wishlistShareDestination("x", "Été & Noël", link.shareUrl));
+    expect(destination.origin).toBe("https://x.com");
+    expect(destination.pathname).toBe("/intent/tweet");
+    expect(destination.searchParams.get("text")).toBe(wishlistShareMessage("Été & Noël", link.shareUrl));
+  });
+  it.each(["Windows", "Android", "iPhone"])("does not invent a Discord external-link composer on %s", userAgent => {
+    expect(wishlistShareDestination("discord", "Été; & Noël", link.shareUrl, userAgent)).toBe("");
+  });
+  it("hands the complete message to Web Share synchronously without duplicating its bearer URL", async () => {
+    const share = vi.fn(async () => {}), canShare = vi.fn(() => true);
+    vi.stubGlobal("navigator", { share, canShare });
+    const pending = shareWishlistWithSystem("Été & Noël", link.shareUrl);
+    const expected = { title: "Ma liste « Été & Noël » · MonKado", text: wishlistShareMessage("Été & Noël", link.shareUrl) };
+    expect(canShare).toHaveBeenCalledExactlyOnceWith(expected);
+    expect(share).toHaveBeenCalledExactlyOnceWith(expected);
+    expect(expected.text.split(link.shareUrl)).toHaveLength(2);
+    await pending;
+  });
+  it("supports Web Share when canShare is absent", async () => {
+    const share = vi.fn(async () => {}); vi.stubGlobal("navigator", { share });
+    await shareWishlistWithSystem(undefined, link.shareUrl);
+    expect(share).toHaveBeenCalledExactlyOnceWith({ title: "Ma liste · MonKado", text: wishlistShareMessage(undefined, link.shareUrl) });
+  });
+  it("rejects unavailable Web Share without attempting a share", () => {
+    vi.stubGlobal("navigator", {});
+    expect(() => shareWishlistWithSystem(undefined, link.shareUrl)).toThrow(expect.objectContaining({ name: "NotSupportedError" }));
+  });
+  it("rejects unsupported content without invoking Web Share", () => {
+    const share = vi.fn(), canShare = vi.fn(() => false); vi.stubGlobal("navigator", { share, canShare });
+    expect(() => shareWishlistWithSystem(undefined, link.shareUrl)).toThrow(expect.objectContaining({ name: "NotSupportedError" }));
+    expect(share).not.toHaveBeenCalled();
   });
   it.each([undefined, "Été & Noël ? #1\n"])("encodes the complete link and name %s", name => {
     const message = wishlistShareMessage(name, link.shareUrl);
@@ -88,13 +121,12 @@ describe("owner channel actions", () => {
     const channels = /** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-share__channels"));
     expect(channels.hidden).toBe(true); expect([...channels.querySelectorAll("button")].every(button => button.disabled)).toBe(true);
     gate.resolve(); await settle(); expect(channels.hidden).toBe(false); expect(channels.previousElementSibling?.contains(ui.input)).toBe(true);
-    expect([...channels.querySelectorAll("button")].map(button => button.getAttribute("aria-label"))).toEqual(["Partager par WhatsApp", "Partager par Facebook", "Partager par Messenger", "Partager par mail"]);
-    expect(ui.view.querySelector('[aria-label="Partager par Discord"]')).toBeNull();
+    expect([...channels.querySelectorAll("button")].map(button => button.getAttribute("aria-label"))).toEqual(["Partager par WhatsApp", "Partager par Facebook", "Partager par Messenger", "Partager par Discord", "Partager par X", "Partager par mail"]);
     expect([...channels.querySelectorAll("img")].map(image => image.getAttribute("src"))).toEqual(ShareChannels.map(channel => channel.icon));
     expect([...channels.querySelectorAll("img")].every(image => image.alt === "")).toBe(true);
     expect(ui.create).not.toHaveBeenCalled(); expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.openShareWindow).not.toHaveBeenCalled();
   });
-  it.each(["WhatsApp", "Facebook", "Messenger"])("opens %s only on explicit click without a link mutation", async name => {
+  it.each(["WhatsApp", "Facebook", "Messenger", "X"])("opens %s only on explicit click without a link mutation", async name => {
     const ui = setup(); await settle(); ui.click(name); await settle();
     expect(ui.openShareWindow).toHaveBeenCalledOnce(); expect(ui.navigate).toHaveBeenCalledOnce();
     expect([...new URL(ui.navigate.mock.calls[0][0]).searchParams.values()].join(" ")).toContain(link.shareUrl);
@@ -108,6 +140,52 @@ describe("owner channel actions", () => {
     expect(ui.openMailComposer).toHaveBeenCalledExactlyOnceWith(wishlistShareDestination("email", "Été & Noël", link.shareUrl));
     expect(ui.openShareWindow).not.toHaveBeenCalled(); expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
     expect(ui.view.textContent).not.toContain("envoyé");
+  });
+  it.each(["Windows", "Android", "iPhone"])("opens system sharing on %s only after the Discord click without copying or claiming delivery", async userAgent => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue(userAgent);
+    const shareWithSystem = vi.fn(async () => {});
+    const ui = setup({ shareWithSystem }); await settle();
+    expect(shareWithSystem).not.toHaveBeenCalled();
+    ui.click("Discord"); await settle();
+    expect(shareWithSystem).toHaveBeenCalledExactlyOnceWith("Été & Noël", link.shareUrl);
+    expect(ui.view.textContent).toContain("Contenu transmis au partage de l’appareil");
+    expect(ui.openShareWindow).not.toHaveBeenCalled(); expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
+    expect(ui.view.textContent).not.toContain("envoyé");
+  });
+  it.each([
+    ["AbortError", "Partage fermé."],
+    ["NotSupportedError", "Le partage de l’appareil est indisponible dans ce navigateur."],
+    ["NotAllowedError", "Le partage de l’appareil n’a pas pu être ouvert."],
+  ])("recovers from %s without copying or leaking an error", async (name, message) => {
+    const shareWithSystem = vi.fn(async () => { throw new DOMException(link.shareUrl, name); });
+    const ui = setup({ shareWithSystem }); await settle(); ui.click("Discord"); await settle();
+    expect(ui.view.textContent).toContain(message); expect(ui.view.textContent).not.toContain(link.shareUrl);
+    expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.openShareWindow).not.toHaveBeenCalled();
+    expect([...ui.view.querySelectorAll("button")].every(item => !item.disabled)).toBe(true);
+  });
+  it.each(["discord", "x"])("does not suggest copying or disclose a provider error when %s fails", async channel => {
+    vi.spyOn(navigator, "userAgent", "get").mockReturnValue("Android");
+    const ui = setup({ shareWithSystem: async () => { throw Error(link.shareUrl); }, openShareWindow: () => { throw Error(link.shareUrl); } });
+    await settle(); ui.click(channel === "discord" ? "Discord" : "X"); await settle();
+    expect(ui.copyText).not.toHaveBeenCalled(); expect(ui.view.textContent).not.toContain(link.shareUrl);
+    expect(ui.view.textContent).not.toContain("Copie le lien manuellement");
+    expect(ui.view.textContent).toContain(channel === "discord" ? "Le partage de l’appareil n’a pas pu être ouvert" : "La fenêtre de partage n’a pas pu être ouverte");
+  });
+  it("blocks duplicate sharing and refresh while the system picker is pending", async () => {
+    const gate = barrier(), shareWithSystem = vi.fn(async () => { await gate.promise; });
+    const ui = setup({ shareWithSystem }); await settle(); ui.click("Discord"); ui.click("Discord");
+    window.dispatchEvent(new Event("focus"));
+    expect(shareWithSystem).toHaveBeenCalledOnce(); expect(ui.load).toHaveBeenCalledOnce();
+    expect([...ui.view.querySelectorAll("button")].every(item => item.disabled)).toBe(true);
+    gate.resolve(); await settle();
+    expect([...ui.view.querySelectorAll("button")].every(item => !item.disabled)).toBe(true);
+  });
+  it("clears bearer data and ignores a late system handoff after disposal", async () => {
+    const gate = barrier(), shareWithSystem = vi.fn(async () => { await gate.promise; });
+    const ui = setup({ shareWithSystem }); await settle(); ui.click("Discord"); disposeComponent(ui.view);
+    gate.resolve(); await settle();
+    expect(ui.input.value).toBe(""); expect(ui.view.textContent).not.toContain("Contenu transmis");
+    expect(/** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-share__channels")).hidden).toBe(true);
   });
   it.each(["Facebook"])("copies before opening %s and blocks duplicate clicks", async name => {
     const gate = barrier(), copyText = vi.fn(async () => { await gate.promise; }); const ui = setup({ copyText }); await settle();

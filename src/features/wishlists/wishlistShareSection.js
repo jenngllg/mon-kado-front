@@ -5,17 +5,17 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishlistShareRenewDialog } from "./wishlistShareRenewDialog.js";
 import { createWishlistShareRevokeDialog } from "./wishlistShareRevokeDialog.js";
-import { openWishlistMailComposer, openWishlistMessengerComposer, openWishlistShareWindow, ShareChannels, wishlistShareDestination, wishlistShareMessage } from "./wishlistShareChannels.js";
+import { shareWishlistWithSystem, openWishlistMailComposer, openWishlistMessengerComposer, openWishlistShareWindow, ShareChannels, wishlistShareDestination, wishlistShareMessage } from "./wishlistShareChannels.js";
 
 /** Owner-only share section, independent of the gift collection.
  * @param {{wishlistId: string, wishlistName?: string, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, load: import("./wishlistShareService.js").LoadWishlistShare,
  * create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, copyText: (text: string) => Promise<void>,
  * onUnavailable: (state: "wishlistMissing" | "suspended") => void, onRevoked?: () => void, onBusy?: (pending: boolean) => void, signal?: AbortSignal,
  * openShareWindow?: () => import("./wishlistShareChannels.js").ShareWindow | null, openMailComposer?: (url: string) => void,
- * openMessengerComposer?: (url: string) => void}} options Dependencies.
+ * openMessengerComposer?: (url: string) => void, shareWithSystem?: (name: string | undefined, link: string) => Promise<void>}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, onRevoked, onBusy = () => {}, signal, openShareWindow = openWishlistShareWindow, openMailComposer = openWishlistMailComposer, openMessengerComposer = openWishlistMessengerComposer }) {
+export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, onRevoked, onBusy = () => {}, signal, openShareWindow = openWishlistShareWindow, openMailComposer = openWishlistMailComposer, openMessengerComposer = openWishlistMessengerComposer, shareWithSystem = shareWishlistWithSystem }) {
   const section = document.createElement("section"); section.className = "wishlist-share flow";
   const title = document.createElement("h2"); title.textContent = "Partager ma liste"; title.tabIndex = -1;
   const help = document.createElement("p"); help.textContent = "Une liste partagée est visible sur ton profil et accessible à tous.";
@@ -30,6 +30,7 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     const button = createButton({ label: `Partager par ${channel.name}`, variant: "secondary", onClick: () => { void shareOn(/** @type {import("./wishlistShareChannels.js").ShareChannel} */ (channel.id)); } });
     button.classList.add("icon-action"); button.title = button.getAttribute("aria-label") ?? `Partager par ${channel.name}`;
     button.setAttribute("aria-label", `Partager par ${channel.name}`);
+    button.dataset.shareChannel = channel.id;
     const icon = document.createElement("img"); icon.src = channel.icon; icon.alt = ""; icon.width = 24; icon.height = 24;
     const label = document.createElement("span"); label.className = "wishlist-share__channel-name"; label.textContent = channel.id === "email" ? "E-mail" : channel.name;
     const entry = document.createElement("div"); entry.className = "wishlist-share__channel"; entry.append(button, label);
@@ -149,6 +150,12 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     busy = true; clearFeedback(); status.textContent = ""; sync();
     try {
       const destination = wishlistShareDestination(channel, wishlistName, currentLink);
+      if (channel === "discord") {
+        status.textContent = "Choisis Discord dans le menu de partage.";
+        await shareWithSystem(wishlistName, currentLink);
+        if (!disposed) status.textContent = "Contenu transmis au partage de l’appareil.";
+        return;
+      }
       if (channel === "email") { openMailComposer(destination); return; }
       if (channel === "messenger" && !destination.startsWith("https:")) {
         openMessengerComposer(destination);
@@ -176,12 +183,22 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
           input.focus(); input.select();
         }
       }
-    } catch {
+    } catch (error) {
       pendingWindow?.close(); pendingWindow = null;
       if (!disposed) {
-        status.textContent = "Le partage automatique est indisponible. Copie le lien manuellement.";
-        input.focus(); input.select();
+        if (channel === "discord") {
+          const name = error instanceof DOMException ? error.name : "";
+          status.textContent = name === "AbortError" ? "Partage fermé." : name === "NotSupportedError"
+            ? "Le partage de l’appareil est indisponible dans ce navigateur."
+            : "Le partage de l’appareil n’a pas pu être ouvert.";
+        } else if (channel === "x") {
+          status.textContent = "La fenêtre de partage n’a pas pu être ouverte.";
+        } else {
+          status.textContent = "Le partage automatique est indisponible. Copie le lien manuellement.";
+          input.focus(); input.select();
+        }
       }
     } finally { busy = false; if (!disposed) sync(); }
   }
+
 }

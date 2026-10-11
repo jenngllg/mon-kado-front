@@ -4,6 +4,8 @@ const port = Number(process.env.MONKADO_E2E_PORT || 5173);
 
 export default defineConfig({
   testDir: "./e2e",
+  // Local historical prototypes live under test-results; Playwright clears its output directory.
+  outputDir: "./.e2e-results",
   fullyParallel: true,
   forbidOnly: true,
   retries: 0,
