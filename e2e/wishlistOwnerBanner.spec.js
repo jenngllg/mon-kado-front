@@ -71,7 +71,9 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     const trigger = page.getByRole("button", { name: "Partager", exact: true }); await trigger.click();
     const modal = page.getByRole("dialog", { name: "Partager la liste", exact: true });
     await expect(modal).toBeVisible(); await expect(modal.getByRole("textbox", { name: "Lien de partage" })).toHaveValue(api.link);
-    await expect(modal.getByRole("heading")).toBeFocused(); await expect(modal.getByRole("group").getByRole("button")).toHaveCount(4);
+    await expect(modal.getByRole("heading")).toBeFocused(); await expect(modal.getByRole("group").getByRole("button")).toHaveCount(6);
+    await expect(modal.getByRole("button", { name: "Partager par Discord", exact: true })).toBeVisible();
+    await expect(modal.getByRole("button", { name: "Partager par X", exact: true })).toBeVisible();
     expect(api.share.reads).toBe(1); expect(api.share.writes).toBe(0);
     const box = await modal.boundingBox(); expect(box?.width).toBeLessThanOrEqual(width - 32);
     await page.screenshot({ path: testInfo.outputPath("owner-share-modal.png") }); await modal.screenshot({ path: testInfo.outputPath("modal-detail.png") });

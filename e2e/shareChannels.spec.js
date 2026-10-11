@@ -17,21 +17,30 @@ for (const width of [390, 1440]) {
       if (!active) { await route.fulfill({ status: 404, json: { statusCode: 404, errorCode: "WISHLIST_SHARE_LINK_NOT_FOUND" }, headers }); return; }
       await route.fulfill({ json: { id: shareId, shareUrl: shareUrl() }, headers });
     });
-    await context.route(/^https:\/\/(wa\.me|www\.facebook\.com)\//, async route => {
+    await context.route(/^https:\/\/(wa\.me|www\.facebook\.com|x\.com)\//, async route => {
       destinations.push(route.request().url());
       expect(route.request().headers().referer).toBeUndefined();
       await route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Controlled destination</title><p>Choose recipient</p>" });
     });
     await page.addInitScript(() => {
       const copied = /** @type {string[]} */ ([]);
+      const shared = /** @type {ShareData[]} */ ([]);
       Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (/** @type {string} */ value) => { copied.push(value); } } });
       Object.defineProperty(globalThis, "copiedShareMessages", { value: copied });
+      // Verify the browser handoff contract without opening an OS picker or sending real messages.
+      Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
+      Object.defineProperty(navigator, "share", { configurable: true, value: async (/** @type {ShareData} */ data) => {
+        if (!navigator.userActivation.isActive) throw new Error("Sharing lost the initiating click.");
+        shared.push(data);
+        throw new DOMException("Cancelled controlled share.", "AbortError");
+      } });
+      Object.defineProperty(globalThis, "systemShareMessages", { value: shared });
     });
     await page.goto(`/lists/${listId}`);
     await page.getByRole("button", { name: "Partager", exact: true }).click();
     const group = page.getByRole("group", { name: "Partager la liste sur un canal" });
-    await expect(group).toBeVisible(); await expect(group.getByRole("button")).toHaveCount(4);
-    await expect(page.getByRole("button", { name: "Partager par Discord", exact: true })).toHaveCount(0);
+    await expect(group).toBeVisible(); await expect(group.getByRole("button")).toHaveCount(6);
+    await expect(page.getByRole("button", { name: "Partager par Discord", exact: true })).toBeVisible();
     expect(destinations).toEqual([]); expect(shareWrites).toBe(0);
     for (const icon of await group.locator("img").all()) expect(await icon.evaluate(node => /** @type {HTMLImageElement} */ (node).naturalWidth)).toBeGreaterThan(0);
     const input = page.getByRole("textbox", { name: "Lien de partage" });
@@ -42,13 +51,25 @@ for (const width of [390, 1440]) {
     expect(after).toEqual(before); expect(before?.width).toBe(44); expect(before?.height).toBe(44);
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("share-channels.png"), fullPage: true });
-    for (const name of ["WhatsApp", "Facebook", "Messenger"]) {
+    await group.getByRole("button", { name: "Partager par Discord", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Partage fermé." })).toBeVisible();
+    await expect(group.getByRole("button", { name: "Partager par Discord", exact: true })).toBeEnabled();
+    expect(await page.evaluate(() => Reflect.get(globalThis, "systemShareMessages"))).toEqual([
+      { title: `Ma liste « ${api.wishlist.name} » · MonKado`, text: `Découvre ma liste « ${api.wishlist.name} » sur MonKado : ${shareUrl()}` },
+    ]);
+    expect(await page.evaluate(() => Reflect.get(globalThis, "copiedShareMessages"))).toEqual([]);
+    expect(context.pages()).toHaveLength(1); expect(shareWrites).toBe(0);
+    for (const name of ["WhatsApp", "Facebook", "Messenger", "X"]) {
       const popupPromise = page.waitForEvent("popup");
       await group.getByRole("button", { name: `Partager par ${name}`, exact: true }).click();
       const popup = await popupPromise; await popup.waitForURL(/^https:/);
       expect(await popup.evaluate(() => globalThis.opener)).toBeNull();
       if (name === "WhatsApp") expect(new URL(popup.url()).searchParams.get("text")).toContain(shareUrl());
       if (name === "Facebook") expect(new URL(popup.url()).searchParams.get("u")).toBe(shareUrl());
+      if (name === "X") {
+        expect(new URL(popup.url()).pathname).toBe("/intent/tweet");
+        expect(new URL(popup.url()).searchParams.get("text")).toContain(shareUrl());
+      }
       if (name === "Messenger") {
         const dialog = new URL(popup.url());
         expect(dialog.pathname).toBe("/dialog/send");
