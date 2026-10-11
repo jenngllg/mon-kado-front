@@ -14,10 +14,11 @@ import { createWishCopyActions } from "./wishCopyActions.js";
 /** Public collection; only its transport retains access to a bearer context.
  * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null,
  * copy?: import("./wishCopyActions.js").WishCopyOperations, report?: import("./wishlistReportService.js").ReportWishlist, initialSort?: string | null, onSortChange?: (sort: import("../wishes/wishSorting.js").WishSort) => void,
- * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
+ * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement,
+ * createSubscription?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishlistView({ shareLinkId, load, report, copy, signal, accessSignal, createParticipation, fromMemberId, initialSort, onSortChange = () => {} }) {
+export function createSharedWishlistView({ shareLinkId, load, report, copy, signal, accessSignal, createParticipation, createSubscription, fromMemberId, initialSort, onSortChange = () => {} }) {
   const view = element("section", ""); view.className = "wishlist-details-view shared-wishlist-view wishlist-details-view--gallery flow";
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
   const information = element("section", ""); information.className = "wishlist-details-info flow";
@@ -38,7 +39,10 @@ export function createSharedWishlistView({ shareLinkId, load, report, copy, sign
   toolbar.append(heading, filterControls, sorting.element, retryImages);
   gifts.append(toolbar, results); gifts.hidden = true;
   details.append(title); information.append(details); layout.append(information, gifts);
-  view.append(fromMemberId ? createBackLink({ label: "Retour au profil", href: memberProfileHref(fromMemberId) }) : createBackLink({ label: "Retour à l’accueil", href: "/" }), layout);
+  const navigation = element("div", ""); navigation.className = "shared-wishlist-navigation";
+  const subscriptionActions = element("div", "");
+  navigation.append(fromMemberId ? createBackLink({ label: "Retour au profil", href: memberProfileHref(fromMemberId) }) : createBackLink({ label: "Retour à l’accueil", href: "/" }), subscriptionActions);
+  view.append(navigation, layout);
   let disposed = false, busy = false, terminal = false, copying = false;
   let availableOnly = false;
   let reported = false;
@@ -64,7 +68,7 @@ export function createSharedWishlistView({ shareLinkId, load, report, copy, sign
   /** @param {boolean} explicit User-initiated reread. @param {boolean} [filterChange] Keep focus on the filter after its activation. */
   async function read(explicit, filterChange = false) {
     if (disposed || busy || terminal || copying) return;
-    closeReport(); reportButton.hidden = true;
+    closeReport(); reportButton.hidden = true; clear(subscriptionActions);
     busy = true; currentList = null; retryImages.hidden = true; sorting.select.disabled = true; clear(details); clear(results); gifts.hidden = filterControls.hidden; filter.disabled = true;
     title.textContent = "Liste de souhaits partagée"; details.setAttribute("aria-busy", "true"); details.append(title, createLoadingState({ label: "Chargement de la liste…" }));
     try {
@@ -78,6 +82,7 @@ export function createSharedWishlistView({ shareLinkId, load, report, copy, sign
       onSortChange(sorting.value()); renderWishes();
       if (explicit && !filterChange) title.focus();
       if (createParticipation) details.append(createParticipation({ onUnavailable: unavailable, signal: lifetime.signal }));
+      if (createSubscription && list.canSubscribe !== false) subscriptionActions.append(createSubscription({ onUnavailable: unavailable, signal: lifetime.signal }));
     } catch (error) {
       if (disposed || terminal || isAbortError(error)) return;
       clear(details); details.append(title);
@@ -115,7 +120,7 @@ export function createSharedWishlistView({ shareLinkId, load, report, copy, sign
   }
   function unavailable() {
     if (disposed || terminal) return;
-    terminal = true; lifetime.abort(); closeReport(); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; clear(details); details.append(title); clear(results); gifts.hidden = true; retryImages.hidden = true;
+    terminal = true; lifetime.abort(); closeReport(); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; clear(subscriptionActions); clear(details); details.append(title); clear(results); gifts.hidden = true; retryImages.hidden = true;
     title.textContent = "Lien de partage indisponible";
     details.append(element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
     title.focus();

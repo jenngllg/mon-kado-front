@@ -131,6 +131,8 @@ Priority: explicit user decisions, original mockups, then this charter and share
 
 ## Delivery checklist
 
+List subscriptions (#998) use a separate “Listes suivies” page with the existing four-column list gallery, author name and optional event date. The shared-list follow command is a named 44-pixel round bell above the banner, on the right; its pressed state remains visible. Following never participates or reserves a wish. Withdrawn sharing removes subscriptions permanently; notifications and communication preferences belong to a later US.
+
 Owner reservations (#992) reuse the existing reservation panel, quantity form and versioned cancellation dialog. The private wish detail allows an explicit normal reservation without a share link. In surprise mode, never fetch or display personal reservation state on page entry; show the surprise explanation and a permanent “Mes réservations” link. After an explicit success or verification of an existing reservation, direct the member to that screen without displaying its quantity. Outside surprise mode, show the current personal reservation and allow versioned editing/cancellation. Archived and suspended parents expose no reservation controls. Page entry and refresh never write; uncertain writes require an explicit verification before another confirmation.
 
 1. Inspect the relevant historical mockup and existing sibling components before implementation.

@@ -8,6 +8,7 @@ const ProtectedRoutes = new Set([RouteNames.WishlistModeration, RouteNames.Wishl
 const AnonymousRoutes = new Set([RouteNames.Login, RouteNames.Register]);
 ProtectedRoutes.add(RouteNames.WishlistReportHistory);
 ProtectedRoutes.add(RouteNames.WishlistModerationHistory);
+ProtectedRoutes.add(RouteNames.FollowedLists);
 
 /** @param {string} name Route name.
  * @param {Pick<import("./sessionManager.js").SessionManager, "ensureSession">} session Session boundary.
@@ -53,7 +54,7 @@ export function getSafeReturnTo(target) {
     if (detailWish && isWishlistId(detailWish[1]) && isWishlistId(detailWish[2])) return path;
     const editWish = /^\/lists\/([^/]+)\/wishes\/([^/]+)\/edit$/.exec(path);
     if (editWish && isWishlistId(editWish[1]) && isWishlistId(editWish[2])) return path;
-    if (path === RoutePaths.Authenticator || path === RoutePaths.PersonalData || path === RoutePaths.Profile || path === RoutePaths.PasswordChange || path === RoutePaths.EmailChange || path === RoutePaths.Lists || path === RoutePaths.Reservations ||
+    if (path === RoutePaths.Authenticator || path === RoutePaths.PersonalData || path === RoutePaths.Profile || path === RoutePaths.PasswordChange || path === RoutePaths.EmailChange || path === RoutePaths.Lists || path === RoutePaths.Reservations || path === RoutePaths.FollowedLists ||
       (/^\/lists\/[^/]+$/.test(path) && /^\/lists\/[^/]+$/.test(decoded))) return path;
   } catch { /* Malformed destinations are never reflected. */ }
   return RoutePaths.Lists;

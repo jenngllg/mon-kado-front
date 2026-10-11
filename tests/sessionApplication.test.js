@@ -145,7 +145,7 @@ describe("session routes and shell", () => {
     } finally { other.dispose(); saveGate.resolve(); }
   });
 
-  it.each(["/profile", "/profile/password", "/profile/email", "/lists", "/lists/new", "/lists/list-1", "/reservations"])("guards direct anonymous access to %s", async path => {
+  it.each(["/profile", "/profile/password", "/profile/email", "/lists", "/lists/new", "/lists/list-1", "/reservations", "/followed-lists"])("guards direct anonymous access to %s", async path => {
     // Arrange
     const transport = createSessionTransport(); transport.state.refreshStatus = 401;
     const app = mount(path + "?private=discard#secret-discard", transport);
@@ -322,7 +322,7 @@ describe("session routes and shell", () => {
     // Arrange
     const app = mount(); await app.start(); await app.session.start();
     const routes = createApplicationRoutes({ session: app.session, apiBaseUrl: "http://localhost:7000" });
-    expect(routes).toHaveLength(32);
+    expect(routes).toHaveLength(33);
     const button = [...app.shell.element.querySelectorAll("button")].find(item => item.textContent === "Se déconnecter");
     app.dispose(); app.dispose();
     const requests = app.transport.fetch.mock.calls.length;

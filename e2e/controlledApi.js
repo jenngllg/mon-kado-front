@@ -106,6 +106,7 @@ export async function controlledApi(context) {
       expect(request.headers()["x-monkado-share-token"]).toBe(secret);
       expect(request.url()).not.toContain(secret);
       if (state.revoked) return error(404, "SHARED_WISHLIST_NOT_FOUND");
+      if (path === `/api/v1/shared-wishlists/${shareId}/subscriptions/current` && method === "GET") return error(404, "WISHLIST_SUBSCRIPTION_NOT_FOUND");
       if (path === `/api/v1/shared-wishlists/${shareId}/participants/current` && method === "GET") return error(404, "WISHLIST_PARTICIPANT_NOT_FOUND");
       if (path === `/api/v1/shared-wishlists/${shareId}/wishes/${wishId}/reservations/current` && ["GET", "PUT", "DELETE"].includes(method)) {
         const reservation = () => ({ id: "019c52dd-56c1-7cc6-8a95-243f3a032e20", wishId, quantity: state.reservedQuantity });

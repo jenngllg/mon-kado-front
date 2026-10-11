@@ -9,7 +9,7 @@ import { safeHttpUrl } from "../wishes/wishValidation.js";
  * imageUrl: string | null, isFavorite?: boolean, productUnavailable: boolean, imageUnavailable: boolean,
  * reservedQuantity: number | null, availableQuantity: number | null, currentParticipantReservedQuantity: number | null}>} SharedWish */
 /** @typedef {Readonly<{id: string, name: string, ownerDisplayName: string, occasion: import("../wishlists/wishlistValidation.js").WishlistOccasion,
- * eventDate: string | null, message: string | null, wishes: ReadonlyArray<SharedWish>}>} SharedWishlist */
+ * eventDate: string | null, message: string | null, canSubscribe?: boolean, wishes: ReadonlyArray<SharedWish>}>} SharedWishlist */
 /** @typedef {(id: string, options: {signal: AbortSignal, availableOnly?: boolean}) => Promise<SharedWishlist>} LoadSharedWishlist */
 /** @typedef {Readonly<SharedWish & {note: string | null}>} SharedWishDetail */
 /** @typedef {(shareLinkId: string, wishId: string, options: {signal: AbortSignal}) => Promise<SharedWishDetail>} LoadSharedWish */
@@ -40,6 +40,7 @@ export function createSharedWishlistService(session, { apiBaseUrl, context, auth
       const item = /** @type {Partial<SharedWishlistResponse> | null} */ (response.data);
       if (response.status !== 200 || !item || !isWishlistId(item.id) || !name(item.name) || !name(item.ownerDisplayName) || !isWishlistOccasion(item.occasion) ||
         !(item.eventDate === null || isCalendarDate(item.eventDate)) || !text(item.message) || !Array.isArray(item.wishes)) throw invalid();
+      if (item.canSubscribe !== undefined && typeof item.canSubscribe !== "boolean") throw invalid();
       const seen = new Set();
       const wishes = item.wishes.map((/** @type {SharedWishResponse} */ wish) => {
         const projected = projectWish(wish, id, base, invalid, includeCurrent);
@@ -48,7 +49,7 @@ export function createSharedWishlistService(session, { apiBaseUrl, context, auth
         return projected;
       });
       return Object.freeze({ id: item.id, name: item.name, ownerDisplayName: item.ownerDisplayName, occasion: item.occasion,
-        eventDate: item.eventDate, message: item.message, wishes: Object.freeze(wishes) });
+        eventDate: item.eventDate, message: item.message, canSubscribe: item.canSubscribe, wishes: Object.freeze(wishes) });
     });
   }, loadOne: async (id, wishId, { signal }) => {
     if (!isWishlistId(id)) {
