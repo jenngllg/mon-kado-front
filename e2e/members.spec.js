@@ -41,7 +41,7 @@ test("anonymous search → profile → shared list → wish and back preserves t
     body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jSeoAAAAASUVORK5CYII=", "base64"),
   }));
   await page.goto("/members");
-  await page.getByRole("searchbox", { name: /Nom d’affichage/ }).fill("Camille");
+  await page.getByRole("searchbox", { name: /Pseudo ou identifiant/ }).fill("Camille");
   await page.getByRole("button", { name: "Rechercher", exact: true }).click();
   await page.getByRole("button", { name: "Page suivante" }).click();
   await expect(page.getByText("21 membres trouvés. Page 2 sur 2.").first()).toBeVisible();
@@ -65,7 +65,7 @@ test("anonymous search → profile → shared list → wish and back preserves t
   await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
   await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
   await page.getByRole("link", { name: "Retour à la recherche", exact: true }).click();
-  await expect(page.getByRole("searchbox", { name: /Nom d’affichage/ })).toHaveValue("Camille");
+  await expect(page.getByRole("searchbox", { name: /Pseudo ou identifiant/ })).toHaveValue("Camille");
   await expect(page.getByText("21 membres trouvés. Page 2 sur 2.").first()).toBeVisible();
   expect(api.memberState.searches).toHaveLength(3);
   expect(api.memberState.searches[2]).toContain("page=2");
