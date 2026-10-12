@@ -16,7 +16,7 @@ describe("manual gift creation service", () => {
   it("posts only five normalized fields with JWT required, exact signal and no precondition or extra CSRF", async () => {
     const service = setup(); const result = await service.create(id, values, { signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes`, { method: "POST", authentication: "required", signal,
-      body: { name: item.name, note: item.note, url: item.url, price: 19.9, quantity: 2 } });
+      body: { name: item.name, note: item.note, url: item.url, price: 19.9, quantity: 2, color: null, size: null } });
     expect(result.wish.position).toBe("9223372036854775807"); expect(result.etag).toBe('"created"'); expect(result.wish.entityTag).toBe('"created"');
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wish)).toBe(true); expect(result.wish).not.toHaveProperty("createdAt");
   });

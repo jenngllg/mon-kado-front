@@ -6,6 +6,7 @@ import other from "../../assets/design/other.webp";
 import birthdayIcon from "../../assets/design/birthday-icon.webp";
 import christmasIcon from "../../assets/design/christmas-icon.webp";
 import weddingIcon from "../../assets/design/wedding-icon.webp";
+import birthIcon from "../../assets/design/birth-icon.svg";
 import otherIcon from "../../assets/design/other-icon.webp";
 
 /** Decorative local occasion cover selected by the user.
@@ -28,5 +29,6 @@ export function wishlistOccasionIcon(occasion) {
   if (occasion === "birthday") return birthdayIcon;
   if (occasion === "christmas") return christmasIcon;
   if (occasion === "wedding") return weddingIcon;
+  if (occasion === "birth") return birthIcon;
   return otherIcon;
 }

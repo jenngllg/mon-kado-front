@@ -1,4 +1,6 @@
-import { WishlistOccasions } from "./wishlistValidation.js";
+import { createActionLink } from "../../components/index.js";
+import { memberProfileHref } from "../members/memberNavigation.js";
+import { isWishlistId, WishlistOccasions } from "./wishlistValidation.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const MillisecondsPerDay = 86_400_000;
@@ -8,12 +10,23 @@ const MillisecondsPerDay = 86_400_000;
  * @param {HTMLHeadingElement} title Existing route focus target.
  * @param {{name: string, occasion: keyof typeof WishlistOccasions, message: string | null, eventDate: string | null}} list List metadata.
  * @param {string | null | undefined} ownerDisplayName Verified owner identity, never a placeholder.
+ * @param {string | null | undefined} [ownerId] Verified author's member ID from the shared-list response.
  */
-export function populateWishlistSummary(summary, title, list, ownerDisplayName) {
+export function populateWishlistSummary(summary, title, list, ownerDisplayName, ownerId) {
   title.textContent = list.name;
   const identity = element("div", "", "shared-wishlist-identity");
   identity.append(title);
-  if (ownerDisplayName) identity.append(element("p", `Par ${ownerDisplayName}`, "shared-wishlist-owner"));
+  if (ownerDisplayName) {
+    const owner = element("p", "Par ", "shared-wishlist-owner");
+    if (isWishlistId(ownerId)) {
+      const link = createActionLink({ label: ownerDisplayName, href: memberProfileHref(ownerId) });
+      link.classList.add("shared-wishlist-owner__profile");
+      link.setAttribute("aria-label", `Voir le profil de ${ownerDisplayName}`);
+      link.title = `Voir le profil de ${ownerDisplayName}`;
+      owner.append(link);
+    } else owner.append(document.createTextNode(ownerDisplayName));
+    identity.append(owner);
+  }
   if (list.message) identity.append(element("p", list.message, "wishlist-details-note"));
   summary.append(identity);
   if (list.occasion === "other" && list.eventDate === null) return;
@@ -21,6 +34,11 @@ export function populateWishlistSummary(summary, title, list, ownerDisplayName) 
   if (list.occasion !== "other") metadata.append(element("p", WishlistOccasions[list.occasion], "shared-wishlist-occasion"));
   summary.append(metadata);
   if (list.eventDate === null) return;
+  if (list.occasion !== "other") {
+    const separator = element("span", "·", "wishlist-event-separator");
+    separator.setAttribute("aria-hidden", "true");
+    metadata.append(separator);
+  }
   const eventTime = new Date(list.eventDate + "T00:00:00Z");
   const date = document.createElement("time"); date.textContent = DateFormat.format(eventTime); date.dateTime = list.eventDate;
   metadata.append(date);

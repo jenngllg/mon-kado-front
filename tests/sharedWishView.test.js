@@ -19,6 +19,13 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("shared gift presentation", () => {
+  it("shows only the reserved badge instead of quantities for one reserved unit", async () => {
+    const ui = setup({ loadOne: async () => ({ ...wish, quantity: 1, reservedQuantity: 1, availableQuantity: 0, currentParticipantReservedQuantity: 0 }) });
+    await settle();
+    expect(ui.view.querySelector('.wish-detail__reservation')?.textContent?.trim()).toBe("Réservé");
+    expect(ui.view.textContent).not.toMatch(/Quantité réservée|Quantité disponible|Ma quantité réservée|Entièrement réservé/);
+    expect(ui.view.textContent).toContain("Quantité souhaitée : 1");
+  });
   it("ignores verification from an earlier reservation section after refreshing the gift", async () => {
     // Arrange
     /** @type {Array<(value: typeof wish) => void>} */

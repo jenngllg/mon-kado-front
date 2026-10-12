@@ -2,13 +2,13 @@ import { ApiError } from "../../api/apiError.js";
 import { isCalendarDate, isWishlistId, isWishlistOccasion } from "../wishlists/wishlistValidation.js";
 import { safeHttpUrl } from "../wishes/wishValidation.js";
 
-/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["SharedWishlistResponse"]} SharedWishlistResponse */
+/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["SharedWishlistResponse"] & {ownerId?: string}} SharedWishlistResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["SharedWishResponse"]} SharedWishResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["SharedWishDetailResponse"]} SharedWishDetailResponse */
 /** @typedef {Readonly<{id: string, name: string, price: number | null, quantity: number, url: string | null,
- * imageUrl: string | null, isFavorite?: boolean, productUnavailable: boolean, imageUnavailable: boolean,
+ * imageUrl: string | null, note?: string | null, isFavorite?: boolean, color?: string | null, size?: string | null, productUnavailable: boolean, imageUnavailable: boolean,
  * reservedQuantity: number | null, availableQuantity: number | null, currentParticipantReservedQuantity: number | null}>} SharedWish */
-/** @typedef {Readonly<{id: string, name: string, ownerDisplayName: string, occasion: import("../wishlists/wishlistValidation.js").WishlistOccasion,
+/** @typedef {Readonly<{id: string, name: string, ownerId?: string, ownerDisplayName: string, occasion: import("../wishlists/wishlistValidation.js").WishlistOccasion,
  * eventDate: string | null, message: string | null, canSubscribe?: boolean, wishes: ReadonlyArray<SharedWish>}>} SharedWishlist */
 /** @typedef {(id: string, options: {signal: AbortSignal, availableOnly?: boolean}) => Promise<SharedWishlist>} LoadSharedWishlist */
 /** @typedef {Readonly<SharedWish & {note: string | null}>} SharedWishDetail */
@@ -38,7 +38,7 @@ export function createSharedWishlistService(session, { apiBaseUrl, context, auth
       if (signal.aborted || contextSignal.aborted) throw new DOMException("Read aborted.", "AbortError");
       const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
       const item = /** @type {Partial<SharedWishlistResponse> | null} */ (response.data);
-      if (response.status !== 200 || !item || !isWishlistId(item.id) || !name(item.name) || !name(item.ownerDisplayName) || !isWishlistOccasion(item.occasion) ||
+      if (response.status !== 200 || !item || !isWishlistId(item.id) || !name(item.name) || !name(item.ownerDisplayName) || (item.ownerId !== undefined && !isWishlistId(item.ownerId)) || !isWishlistOccasion(item.occasion) ||
         !(item.eventDate === null || isCalendarDate(item.eventDate)) || !text(item.message) || !Array.isArray(item.wishes)) throw invalid();
       if (item.canSubscribe !== undefined && typeof item.canSubscribe !== "boolean") throw invalid();
       const seen = new Set();
@@ -49,6 +49,7 @@ export function createSharedWishlistService(session, { apiBaseUrl, context, auth
         return projected;
       });
       return Object.freeze({ id: item.id, name: item.name, ownerDisplayName: item.ownerDisplayName, occasion: item.occasion,
+        ...(item.ownerId === undefined ? {} : { ownerId: item.ownerId }),
         eventDate: item.eventDate, message: item.message, canSubscribe: item.canSubscribe, wishes: Object.freeze(wishes) });
     });
   }, loadOne: async (id, wishId, { signal }) => {
@@ -100,7 +101,8 @@ function projectWish(wish, id, base, invalid, includeCurrent) {
   const path = `${base.pathname.replace(/\/$/, "")}/api/v1/shared-wishlists/${id}/wishes/${wish.id}/image`;
   const image = candidate && candidate.origin === base.origin && candidate.pathname.toLowerCase() === path.toLowerCase() && !candidate.hash &&
     candidate.searchParams.getAll("token").length === 1 && !!candidate.searchParams.get("token") && [...candidate.searchParams.keys()].every(key => key === "token") ? candidate : null;
-  return Object.freeze({ id: wish.id, name: wish.name, price, quantity: wish.quantity, isFavorite: wish.isFavorite === true, url: url?.href ?? null, imageUrl: image?.href ?? null,
+  if (!text(wish.color ?? null) || !text(wish.size ?? null)) throw invalid();
+  return Object.freeze({ id: wish.id, name: wish.name, color: wish.color ?? null, size: wish.size ?? null, price, quantity: wish.quantity, isFavorite: wish.isFavorite === true, url: url?.href ?? null, imageUrl: image?.href ?? null,
     reservedQuantity: reserved, availableQuantity: available, currentParticipantReservedQuantity: includeCurrent ? current : null,
     productUnavailable: wish.url !== null && !url, imageUnavailable: wish.imageUrl !== null && !image });
 }

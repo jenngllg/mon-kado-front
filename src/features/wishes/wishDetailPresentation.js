@@ -5,18 +5,45 @@ import checkCircle from "../../assets/icons/check-circle.svg?raw";
 const Prices = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
 
 /** Creates text-only product information from a validated projection.
- * @param {{url: string | null, note: string | null, price: number | null}} wish Safe product data.
+ * @param {{url: string | null, note: string | null, price: number | null, color?: string | null, size?: string | null}} wish Safe product data.
  * @param {HTMLHeadingElement} title Existing routed heading.
  * @returns {HTMLElement} Readable information column.
  */
 export function createWishDetailInformation(wish, title) {
   const information = document.createElement("div");
   information.className = "shared-wish-information wish-detail-information flow";
+  const favorite = title.querySelector(".wish-favorite-indicator");
+  if (favorite) {
+    favorite.remove();
+    const name = document.createElement("span"); name.className = "wish-detail__name";
+    name.append(...title.childNodes);
+    title.replaceChildren(favorite, name);
+  }
   information.append(title);
+  const metadata = document.createElement("div");
+  metadata.className = "wish-detail__metadata";
   const merchant = wishMerchant(wish.url);
-  if (merchant) information.append(line(merchant, "wish-detail__merchant"));
+  if (merchant) metadata.append(line(merchant, "wish-detail__merchant"));
+  if (wish.price !== null) metadata.append(line(Prices.format(wish.price), "wish-detail__price wish-card__price"));
+  if (metadata.childElementCount) information.append(metadata);
+  if (wish.color || wish.size) {
+    const variants = document.createElement("dl");
+    variants.className = "wish-detail__variants";
+    /** @type {[string, string | null | undefined, string][]} */
+    const values = [
+      ["Couleur", wish.color, "wish-detail__color"],
+      ["Taille / dimensions", wish.size, "wish-detail__size"],
+    ];
+    for (const [label, value, className] of values) {
+      if (!value) continue;
+      const row = document.createElement("div"); row.className = className;
+      const term = document.createElement("dt"); term.textContent = label;
+      const detail = document.createElement("dd"); detail.textContent = value;
+      row.append(term, detail); variants.append(row);
+    }
+    information.append(variants);
+  }
   if (wish.note) information.append(line(wish.note, "wish-detail__note wishlist-details-note"));
-  if (wish.price !== null) information.append(line(Prices.format(wish.price), "wish-detail__price wish-card__price"));
   return information;
 }
 

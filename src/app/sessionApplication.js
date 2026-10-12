@@ -22,7 +22,9 @@ import { createSharedSignInContinuation } from "../features/sharing/sharedSignIn
 export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, reportError, session = createSessionManager({ apiBaseUrl }),
   google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
   let disposed = false;
-  const sharing = createSharedWishlistContext();
+  /** @type {Storage | null} */ let sharingStorage = null;
+  try { sharingStorage = window.sessionStorage; } catch { /* Sharing remains usable in memory when storage is restricted. */ }
+  const sharing = createSharedWishlistContext({ storage: sharingStorage });
   const sharedSignIn = createSharedSignInContinuation(sharing);
   let routeErrorVisible = false;
   let passwordChangeNotice = false;
@@ -148,6 +150,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   });
   let previous = session.getSnapshot();
   const unsubscribeRouter = router.subscribe(route => {
+    if (route && route.name !== RouteNames.SharedWishlist && route.name !== RouteNames.SharedWish) sharing.forgetContinuity();
     if (route?.name !== RouteNames.Login) sharedSignIn.cancel();
     if (route?.name !== RouteNames.Login) passwordChangeNotice = false;
     if (route?.name !== googleFlowRoute) { googleDestination = null; googleVerified = false; }
@@ -162,6 +165,8 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     const current = router.getCurrentRoute();
     const lostAccess = previous.status === "authenticated" && state.status !== "authenticated";
     const gainedAccess = previous.status !== "authenticated" && state.status === "authenticated";
+    // Public bearer access survives logout in memory; only reload continuity is discarded.
+    if (lostAccess || (previous.user && state.user && previous.user.id !== state.user.id)) sharing.forgetContinuity();
     if (lostAccess) protectedViewEpoch++;
     previous = state;
     renderFeedback();

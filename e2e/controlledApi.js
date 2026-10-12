@@ -16,8 +16,9 @@ export const frontendOrigin = `http://localhost:${Number(process.env.MONKADO_E2E
 
 /** Test-only transport: no API request may reach a real backend.
  * @param {import('@playwright/test').BrowserContext} context
+ * @param {{sharedWishlistId?: string}} [options] Explicit source-list identity for copy eligibility scenarios.
  */
-export async function controlledApi(context) {
+export async function controlledApi(context, { sharedWishlistId = listId } = {}) {
   const state = { authenticated: false, isGoogleLinked: false, joins: 0, reservations: 0, reads: 0, revoked: false, listExists: true, listWrites: 0, listVersion: 1, reservedQuantity: 0, reservationVersion: 1, wishExists: true, wishWrites: 0, wishVersion: 1 };
   const wishlist = { id: listId, name: "Anniversaire — test navigateur", occasion: "birthday", eventDate: "2027-12-20", message: "Liste de test", isSuspended: false, isArchived: false };
   const wish = { id: wishId, wishlistId: listId, name: "Une théière", note: "Une note\nsur deux lignes.", url: "https://example.test/produit", price: 25, quantity: 3, isFavorite: false, position: 1, entityTag: '"wish-1"', imageUrl: /** @type {string | null} */ (null), reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null };
@@ -80,7 +81,7 @@ export async function controlledApi(context) {
     if (path === `/api/v1/wishlists/${listId}/wishes`) {
       if (method === "GET") return send(200, { wishes: state.wishExists ? [wish] : [] }, '"collection-1"');
       if (method === "POST") {
-        expect(Object.keys(request.postDataJSON()).sort()).toEqual(["isFavorite", "name", "note", "price", "quantity", "url"]);
+        expect(Object.keys(request.postDataJSON()).sort()).toEqual(["color", "isFavorite", "name", "note", "price", "quantity", "size", "url"]);
         expect(request.headers()["if-match"]).toBeUndefined();
         Object.assign(wish, request.postDataJSON());
         state.wishExists = true; state.wishWrites++;
@@ -135,7 +136,7 @@ export async function controlledApi(context) {
       if (method === "GET" && [ `/api/v1/shared-wishlists/${shareId}`, `/api/v1/shared-wishlists/${shareId}/wishes/${wishId}` ].includes(path)) {
         state.reads++;
         const currentWish = { ...wish, reservedQuantity: state.reservedQuantity, availableQuantity: wish.quantity - state.reservedQuantity, currentParticipantReservedQuantity: state.reservedQuantity };
-        return send(200, path.endsWith(`/wishes/${wishId}`) ? currentWish : { ...wishlist, ownerDisplayName: "Alex test", wishes: [currentWish] });
+        return send(200, path.endsWith(`/wishes/${wishId}`) ? currentWish : { ...wishlist, id: sharedWishlistId, ownerDisplayName: "Alex test", wishes: [currentWish] });
       }
     }
     unexpected.push(`${method} ${path}`);

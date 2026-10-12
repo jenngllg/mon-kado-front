@@ -26,10 +26,12 @@ for (const width of [390, 1440]) {
         try {
           await page.goto(mode === "create" ? `/lists/${listId}/wishes/new` : `/lists/${listId}/wishes/${wishId}/edit`);
           const link = page.locator(".wish-import__url-field input");
-          const name = page.getByRole("textbox", { name: /Nom du produit/ });
+          const name = page.locator('input[name="name"]');
           const loader = page.getByRole("status", { name: "Récupération des informations en cours", exact: true });
           await expect(link).toBeEnabled();
+          if (mode === "create") await page.getByRole("button", { name: "Continuer sans lien", exact: true }).click();
           await name.fill("Mon brouillon");
+          if (mode === "create") await page.getByRole("button", { name: "Retour", exact: true }).click();
           await link.fill(outcome === "replaced-link" ? "https://example.test/first" : "https://example.test/current");
           await expect(name).toBeDisabled();
           if (outcome === "replaced-link") {

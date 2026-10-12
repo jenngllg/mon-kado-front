@@ -5,6 +5,21 @@ import { populateWishlistSummary } from "../src/features/wishlists/wishlistSumma
 afterEach(() => vi.useRealTimers());
 
 describe("wishlist summary", () => {
+  it("links the verified author to their public profile", () => {
+    const summary = document.createElement("div"), title = document.createElement("h1");
+    const ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e07";
+    populateWishlistSummary(summary, title, { name: "Mes envies", occasion: "other", eventDate: null, message: null }, "Camille", ownerId);
+    const link = summary.querySelector(".shared-wishlist-owner a");
+    expect(link?.getAttribute("href")).toBe(`/members/${ownerId}`);
+    expect(link?.getAttribute("aria-label")).toBe("Voir le profil de Camille");
+    expect(summary.querySelector(".shared-wishlist-owner")?.textContent).toBe("Par Camille");
+  });
+  it.each([undefined, null, "invalid", "javascript:alert(1)"])("keeps author text without a verified ID: %s", ownerId => {
+    const summary = document.createElement("div"), title = document.createElement("h1");
+    populateWishlistSummary(summary, title, { name: "Mes envies", occasion: "other", eventDate: null, message: null }, "Camille", ownerId);
+    expect(summary.querySelector(".shared-wishlist-owner a")).toBeNull();
+    expect(summary.querySelector(".shared-wishlist-owner")?.textContent).toBe("Par Camille");
+  });
   it.each([
     { occasion: "other", eventDate: null, label: null },
     { occasion: "birthday", eventDate: null, label: "Anniversaire" },
@@ -29,6 +44,13 @@ describe("wishlist summary", () => {
     expect(summary.children).toHaveLength(label || eventDate ? 2 : 1);
     expect(summary.querySelector("time")?.dateTime ?? null).toBe(eventDate);
     expect(summary.querySelector("time")?.textContent ?? null).toBe(eventDate ? "18 janvier 2027" : null);
+    const separator = summary.querySelector(".wishlist-event-separator");
+    expect(separator?.textContent ?? null).toBe(label && eventDate ? "·" : null);
+    if (separator) {
+      expect(separator.getAttribute("aria-hidden")).toBe("true");
+      expect(separator.previousElementSibling?.className).toBe("shared-wishlist-occasion");
+      expect(separator.nextElementSibling?.tagName).toBe("TIME");
+    }
     expect(summary.querySelector(".wishlist-event-countdown")?.textContent ?? null).toBe(eventDate ? "103 jours restants" : null);
   });
 });

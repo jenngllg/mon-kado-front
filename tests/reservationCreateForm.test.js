@@ -19,6 +19,48 @@ function setup(options = {}) {
   return { view, create, verify, onSaved, onUnavailable, onBusy, form, input, submit, reread };
 }
 describe("reservation creation", () => {
+  it("requires confirmation even when identification carries an immediate single-item intent", async () => {
+    // Arrange
+    const ui = setup({ available: 1, singleItem: true, submitOnReady: true, confirmation: true });
+    await settle();
+    expect(ui.create).not.toHaveBeenCalled();
+    expect(ui.view.textContent).toContain("Quantité : 1");
+    expect(ui.view.querySelector('button[type="submit"]')?.textContent).toBe("Confirmer la réservation");
+    // Act
+    ui.submit(); ui.submit(); await settle();
+    // Assert
+    expect(ui.create).toHaveBeenCalledExactlyOnceWith("1", expect.any(AbortSignal));
+    expect(ui.onSaved).toHaveBeenCalledOnce();
+  });
+  it("cancels confirmation without creating a reservation", async () => {
+    const onCancel = vi.fn(); const ui = setup({ available: 1, singleItem: true, confirmation: true, onCancel });
+    await settle();
+    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Annuler")?.click();
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(ui.create).not.toHaveBeenCalled();
+    expect(ui.onSaved).not.toHaveBeenCalled();
+  });
+  it("changes only the local quantity within bounds and disables the stepper during a write", async () => {
+    // Arrange
+    const gate = barrier(); const ui = setup({ create: async () => { await gate.promise; } });
+    const decrease = /** @type {HTMLButtonElement} */ (ui.view.querySelector('[aria-label="Diminuer la quantité"]'));
+    const increase = /** @type {HTMLButtonElement} */ (ui.view.querySelector('[aria-label="Augmenter la quantité"]'));
+    // Act / Assert
+    expect(decrease.disabled).toBe(true);
+    increase.click(); increase.click(); increase.click();
+    expect(ui.input.value).toBe("3"); expect(increase.disabled).toBe(true);
+    decrease.click(); expect(ui.input.value).toBe("2");
+    expect(ui.verify).not.toHaveBeenCalled(); expect(ui.onSaved).not.toHaveBeenCalled();
+    ui.submit(); expect(increase.disabled).toBe(true); expect(decrease.disabled).toBe(true);
+    gate.resolve(); await settle();
+    expect(ui.onSaved).toHaveBeenCalledOnce();
+  });
+  it("omits the redundant fully reserved message for a single-item wish without allowing submission", async () => {
+    const ui = setup({ available: 0, singleItem: true }); ui.submit(); await settle();
+    expect(ui.view.textContent).not.toContain("Ce souhait est entièrement réservé.");
+    expect(ui.create).not.toHaveBeenCalled();
+    expect(/** @type {HTMLButtonElement | null} */ (ui.view.querySelector('button[type="submit"]'))?.disabled).toBe(true);
+  });
   it("reserves one item with one action and no quantity field", async () => {
     const ui = setup({ available: 1, singleItem: true }); await settle();
     expect(ui.view.querySelector("input")).toBeNull();
@@ -64,9 +106,10 @@ describe("reservation creation", () => {
   });
   it.each(["", "0", "101", "1.5", "1e1", "-1", "+1", "NaN", "Infinity"])("rejects quantity syntax %s", value => { expect(validateReservationQuantity(value, 100)).not.toBeNull(); });
   it("accepts a valid bounded integer without silent rounding", () => { expect(validateReservationQuantity(" 03 ", 3)).toBeNull(); expect(validateReservationQuantity("3", 2)).not.toBeNull(); });
-  it("requires a recheck when nothing is available", async () => {
+  it("keeps a fully reserved wish blocked without offering a verification action on entry", async () => {
     const ui = setup({ available: 0 }); ui.submit(); await settle(); expect(ui.create).not.toHaveBeenCalled(); expect(ui.input.disabled).toBe(true); expect(ui.view.textContent).toContain("entièrement réservé");
-    ui.reread(); await settle(); expect(ui.input.disabled).toBe(false); expect(ui.create).not.toHaveBeenCalled();
+    const reread = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Vérifier ma réservation");
+    expect(reread?.hidden).toBe(true); expect(ui.verify).not.toHaveBeenCalled();
   });
   it("locks concurrent submissions and permanently locks a confirmed creation", async () => {
     const gate = barrier(); const ui = setup(); ui.create.mockImplementation(async () => { await gate.promise; return {}; });

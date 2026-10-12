@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-/* global window, document */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createWishDetailsView } from "../src/features/wishes/wishDetailsView.js";
 import { disposeComponent } from "../src/components/componentLifecycle.js";
@@ -19,6 +18,20 @@ function mount(loadOne, signal, visible = false) {
 }
 
 describe("owner wish detail", () => {
+  it("copies from an authorized owner detail without changing the source or navigating", async () => {
+    const destination = "019c52dd-56c1-7cc6-8a95-243f3a032e09";
+    const copy = vi.fn(async () => result);
+    const view = createWishDetailsView({ wishlistId: "list", wishId: "wish", loadOne: async () => result,
+      loadWishlist: async () => ({ wishlist: { id: "list", name: "Liste", occasion: "other", eventDate: null, message: null, isSuspended: false }, etag: '"list"' }),
+      copy: { loadLists: async () => [{ id: destination, name: "Destination", occasion: "other", eventDate: null, isSuspended: false }], copy } });
+    views.push(view); document.body.append(view);
+    await vi.waitFor(() => expect(view.querySelector('.wish-detail__commands button[aria-label="Ajouter à une autre liste"]')?.hasAttribute("hidden")).toBe(false));
+    view.querySelector('.wish-detail__commands button[aria-label="Ajouter à une autre liste"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(view.querySelector("dialog select option")).not.toBeNull());
+    [...view.querySelectorAll("button")].find(button => button.textContent === "Ajouter")?.click();
+    await vi.waitFor(() => expect(copy).toHaveBeenCalledOnce());
+    expect(view.textContent).toContain("Produit"); expect(view.querySelector("dialog")).toBeNull();
+  });
   it.each([true, undefined])("hides reservations for surprise mode %s even if a supplied projection contains quantities", async surpriseMode => {
     const view = createWishDetailsView({ wishlistId: "list", wishId: "wish", loadOne: async () => result,
       loadWishlist: vi.fn().mockResolvedValue({ wishlist: { surpriseMode, isSuspended: false } }) });

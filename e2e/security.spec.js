@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 import { controlledApi, sharedPath, secret } from "./controlledApi.js";
 
-test("untrusted gift text remains inert and sharing secrets stay out of browser storage", async ({ page, context }) => {
+test("untrusted text remains inert and only bounded tab continuity retains the share credential", async ({ page, context }) => {
   const api = await controlledApi(context);
   const payload = '<img src=x onerror="document.title=\'injected\'">';
   api.wish.name = payload;
@@ -16,7 +16,17 @@ test("untrusted gift text remains inert and sharing secrets stay out of browser 
     url: window.location.href, history: window.history.state,
     local: { ...localStorage }, session: { ...sessionStorage },
   }));
-  expect(JSON.stringify(retained)).not.toContain(secret);
+  const cacheKey = "monkado.shared-wishlist.v1";
+  expect(Object.keys(retained.session)).toEqual([cacheKey]);
+  const continuity = JSON.parse(retained.session[cacheKey]);
+  expect(continuity.id).toBe(sharedPath.split("/").at(-1));
+  expect(continuity.secret).toBe(secret);
+  const now = await page.evaluate(() => Date.now());
+  expect(continuity.expiresAt).toBeGreaterThan(now);
+  expect(continuity.expiresAt).toBeLessThanOrEqual(now + 30 * 60 * 1000);
+  expect(JSON.stringify({ ...retained, session: {} })).not.toContain(secret);
   expect(await page.locator("body").textContent()).not.toContain(secret);
+  await page.goto("/");
+  expect(await page.evaluate(() => globalThis.sessionStorage.getItem("monkado.shared-wishlist.v1"))).toBeNull();
   expect(api.unexpected).toEqual([]);
 });

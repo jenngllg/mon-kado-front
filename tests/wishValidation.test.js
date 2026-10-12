@@ -23,8 +23,8 @@ describe("manual gift validation", () => {
   it.each(["1", "100", " 2 "])("accepts desired quantity %s", value => expect(validateWishField("quantity", value)).toBeNull());
   it("builds only the contract fields, trims Unicode whitespace but preserves internal text and normalization", () => {
     expect(createWishPayload({ ...values, ...{ ownerId: "private", image: "unused", position: "99" }, name: "\u0085e\u0301\u0085", note: " \tNote\n\tSuivante\n ", url: " https://example.test/🎁 ", price: "19,90", quantity: "2" }))
-      .toEqual({ name: "e\u0301", note: "Note\n\tSuivante", url: "https://example.test/🎁", price: 19.9, quantity: 2 });
-    expect(createWishPayload(values)).toEqual({ name: "Souhait", note: null, url: null, price: null, quantity: 1 });
+      .toEqual({ name: "e\u0301", note: "Note\n\tSuivante", url: "https://example.test/🎁", price: 19.9, quantity: 2, color: null, size: null });
+    expect(createWishPayload(values)).toEqual({ name: "Souhait", note: null, url: null, price: null, quantity: 1, color: null, size: null });
   });
   it("aggregates safe field validation errors before preparing any transport body", () => {
     try { createWishPayload({ ...values, name: "", price: "private", quantity: "0" }); throw new Error("Expected failure"); }

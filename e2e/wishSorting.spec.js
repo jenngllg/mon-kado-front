@@ -83,7 +83,7 @@ for (const width of [390, 1440]) {
     await select.selectOption("nameAsc");
     await expect(page.locator(".wish-card h3")).toHaveText(["Album", "Une théière"]);
     expect(reads).toBe(initialReads);
-    await page.getByRole("checkbox", { name: "Afficher uniquement les souhaits disponibles", exact: true }).check();
+    await page.getByRole("switch", { name: "Afficher uniquement les souhaits disponibles", exact: true }).check();
     await expect(select).toHaveValue("nameAsc");
     await expect(page).toHaveURL(`${sharedPath}?sort=nameAsc`);
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);

@@ -35,6 +35,7 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   field.append(loader, loadingLabel); field.classList.add("wish-import__url-field");
   const status = node("p", ""); status.setAttribute("role", "status"); status.tabIndex = -1;
   const feedback = node("div", ""); const suggestions = node("div", ""); suggestions.className = "flow";
+  const messages = node("div", ""); messages.className = "wish-import__messages flow";
   const appliedImage = node("div", ""); appliedImage.className = "wish-image-section__preview flow";
   const imagePanel = node("aside", ""); imagePanel.className = "wish-import__image-panel";
   imagePanel.setAttribute("aria-label", "Image du souhait");
@@ -51,7 +52,7 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   applyActionIcon(removeImage, "delete", "Retirer la sélection");
   removeImage.classList.add("wish-image-section__remove", "icon-action--danger");
   const imageHost = node("div", ""); appliedImage.append(imageHost);
-  analysis.append(field, status, feedback, suggestions);
+  messages.append(status, feedback, suggestions); analysis.append(field, messages);
   imageFrame.append(imageEmpty, appliedImage, chooseImage, removeImage); imagePanel.append(imageFrame, fileInput);
   element.append(analysis, imagePanel);
   let disposed = false, disabled = true, analyzing = false, revision = 0, checked = false, dirty = false;
@@ -60,6 +61,9 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   /** @type {string | null} */ let pendingUrl = null;
   /** @type {string | null} */ let appliedUrl = null;
   /** @type {Blob | null} */ let appliedBlob = null;
+  let importedImage = false;
+  /** @type {Partial<Record<"name" | "price", {before: string, applied: string}>>} */
+  let importedFields = {};
   /** @type {ReturnType<typeof setTimeout> | null} */ let analysisTimer = null;
   addComponentEventListener(element, analysis, "submit", event => { event.preventDefault(); void run(); });
   addComponentEventListener(element, fileInput, "change", () => { void selectLocalImage(); });
@@ -73,7 +77,23 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   addComponentEventListener(element, input, "blur", () => { if (dirty) validate(); });
   registerComponentCleanup(element, () => { disposed = true; clear(); element.replaceChildren(); });
   sync();
-  return { element, imagePanel, isBusy, isUrlMode: () => true, getImage: () => appliedBlob, clear,
+  return { element, imagePanel, messages, isBusy, isUrlMode: () => true, getImage: () => appliedBlob, clear,
+    hasUrl: () => input.value.trim() !== "", validateUrl: validate, focusUrl: () => input.focus(),
+    skipUrl: () => {
+      if (disposed || disabled || isBusy()) return;
+      abort(); discardPending(); input.value = ""; checked = false; dirty = false;
+      setFormFieldValidation(field, null); suggestions.replaceChildren();
+      disposeComponent(feedback); feedback.replaceChildren();
+      const values = { ...getValues(), url: "" };
+      // Restore only imported values that have not since been edited manually.
+      for (const key of /** @type {const} */ (["name", "price"])) {
+        const imported = importedFields[key];
+        if (imported && values[key] === imported.applied) values[key] = imported.before;
+      }
+      importedFields = {};
+      if (importedImage) discardApplied();
+      apply(values); sync(); onBusy();
+    },
     update: (/** @type {boolean} */ value) => { disabled = value; if (value) abort(); element.hidden = value; sync(); } };
 
   function isBusy() { return analyzing || analysisTimer !== null; }
@@ -110,8 +130,8 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   function validate() { checked = true; const error = input.value.trim() ? validateImportUrl(input.value) : null; setFormFieldValidation(field, error); return error; }
   function abort() { cancelTimer(); revision++; controller?.abort(); controller = null; analyzing = false; status.textContent = ""; }
   function discardPending() { if (pendingUrl) URL.revokeObjectURL(pendingUrl); pendingUrl = null; pending = null; }
-  function discardApplied() { if (appliedUrl) URL.revokeObjectURL(appliedUrl); appliedUrl = null; appliedBlob = null; imageHost.replaceChildren(); }
-  function clear() { abort(); discardPending(); discardApplied(); input.value = ""; suggestions.replaceChildren(); disposeComponent(feedback); feedback.replaceChildren(); sync(); }
+  function discardApplied() { if (appliedUrl) URL.revokeObjectURL(appliedUrl); appliedUrl = null; appliedBlob = null; importedImage = false; imageHost.replaceChildren(); }
+  function clear() { abort(); discardPending(); discardApplied(); importedFields = {}; input.value = ""; suggestions.replaceChildren(); disposeComponent(feedback); feedback.replaceChildren(); sync(); }
   function sync() {
     const busy = isBusy();
     loader.hidden = !busy;
@@ -127,9 +147,18 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   }
   function applyPending() {
     if (!pending || analyzing || disabled || disposed) return;
-    const old = getValues(); apply({ ...old, name: pending.name || old.name, price: pending.price || old.price, url: pending.url });
+    const old = getValues();
+    const values = { ...old, url: pending.url };
+    for (const key of /** @type {const} */ (["name", "price"])) {
+      const value = pending[key];
+      if (!value) continue;
+      const previous = importedFields[key];
+      importedFields[key] = { before: previous && old[key] === previous.applied ? previous.before : old[key], applied: value };
+      values[key] = value;
+    }
+    apply(values);
     if (pending.image && pendingUrl) {
-      discardApplied(); appliedBlob = pending.image; appliedUrl = pendingUrl; pendingUrl = null;
+      discardApplied(); appliedBlob = pending.image; appliedUrl = pendingUrl; pendingUrl = null; importedImage = true;
       const image = document.createElement("img"); image.alt = "Image proposée pour le souhait"; image.src = appliedUrl; imageHost.append(image);
     }
     pending = null; suggestions.replaceChildren(); sync();

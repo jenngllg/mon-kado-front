@@ -1,0 +1,153 @@
+/* Selected inline colour/size design; keep the existing field and action components. */
+:is(.wish-create-view, .wish-edit-view) {
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: var(--form-width-wish);
+  margin-inline: auto;
+}
+:is(.wish-create-view, .wish-edit-view) > .wish-form {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0;
+  border: 0;
+  background: none;
+}
+:is(.wish-create-view, .wish-edit-view) .wish-form > * {
+  grid-column: 1 / -1 !important;
+  grid-row: auto !important;
+}
+.wish-form__variants, .wish-form__amounts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+:is(.wish-form__variants, .wish-form__amounts) > .form-field {
+  min-width: 0;
+  margin: 0;
+}
+:is(.wish-create-view, .wish-edit-view) .wish-form textarea.form-field__control {
+  height: auto;
+  min-height: 6rem;
+}
+:is(.wish-create-view, .wish-edit-view) > :is(.wish-import__image-panel, .wish-image-section--editor) {
+  grid-column: 1;
+  grid-row: auto;
+  align-self: start;
+}
+.wish-create-view .wish-image-section__media {
+  min-height: 12rem;
+  height: auto;
+  aspect-ratio: auto;
+}
+:is(.wish-create-view, .wish-edit-view) .wish-form > button[type="submit"] {
+  justify-self: start;
+  width: auto;
+  min-height: 2.75rem;
+}
+@media (max-width: 48rem) {
+  .wish-form__variants, .wish-form__amounts { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Three local creation steps, with one progress label and no duplicate counter. */
+.wish-create-view.wish-create-view--steps {
+  max-width: var(--form-width-wish);
+  gap: clamp(var(--space-5), 4vw, var(--space-6));
+}
+.wish-create-view.wish-create-view--steps > * { margin: 0; min-width: 0; }
+.wish-create-view.wish-create-view--steps > :is(h1, .wish-steps) {
+  margin-block-start: var(--space-2);
+}
+.wish-create-view.wish-create-view--steps > .wish-import,
+.wish-create-view.wish-create-view--steps:not(:has(> .wish-import)) > .wish-form {
+  margin-block-start: var(--space-4);
+}
+.wish-create-view.wish-create-view--steps:has(> .wish-import) > :is(.wish-import, .wish-form) { grid-row: auto; }
+.wish-create-view--steps .wish-steps {
+  --wish-step-gap: clamp(var(--space-4), 4vw, var(--space-6));
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--wish-step-gap);
+  align-items: center;
+  padding: 0;
+  list-style: none;
+}
+.wish-steps > li {
+  position: relative;
+  min-width: 0;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+.wish-steps__label {
+  display: block;
+  padding: var(--space-3) var(--space-2);
+  border-radius: var(--radius-lg);
+}
+.wish-steps__separator {
+  position: absolute;
+  inset-inline-start: calc(100% + (var(--wish-step-gap) - 1rem) / 2);
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.wish-steps__current > .wish-steps__label {
+  background: var(--color-surface-sage);
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+}
+.wish-create-view--steps > .wish-import { border: 0; padding: 0; }
+.wish-create-view--steps .wish-import__messages:not(:has(.ui-alert, [role="status"]:not(:empty))) { display: none; }
+.wish-create-view--steps .wish-step-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  min-width: 0;
+}
+.wish-create-view--steps .wish-step-panel > * { margin: 0; min-width: 0; }
+.wish-create-view--steps .wish-step-panel .form-field { gap: var(--space-3); }
+.wish-create-view--steps .wish-step-panel .wish-quantity-stepper {
+  width: 10rem;
+  max-width: 100%;
+  justify-self: start;
+}
+.wish-create-view--steps .wish-step-choices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-5) var(--space-6);
+}
+.wish-create-view--steps .wish-step-choices > .wish-form__quantity {
+  flex: 0 1 11rem;
+  min-width: 0;
+  margin: 0;
+}
+.wish-create-view--steps .wish-step-choices > .wish-favorite-choice {
+  flex: 0 0 auto;
+  max-width: 100%;
+  margin: 0;
+}
+.wish-create-view--steps .wish-step-panel .form-field__control { min-height: 2.75rem; }
+.wish-create-view--steps .wish-step-image-label { font-weight: var(--font-weight-semibold); }
+.wish-create-view--steps .wish-step-panel > .wish-import__image-panel { margin: var(--space-3) 0 0; }
+.wish-create-view--steps .wish-step-panel .wish-image-section__media {
+  width: 12rem;
+  max-width: 100%;
+  height: 12rem;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+.wish-create-view--steps .wish-step-panel .wish-image-section__preview { position: absolute; inset: 0; margin: 0; height: 100%; }
+.wish-create-view--steps .wish-step-panel .wish-image-section__preview > div { height: 100%; }
+.wish-create-view--steps .wish-step-panel .wish-image-section__preview img { width: 100%; height: 100%; object-fit: contain; }
+.wish-create-view--steps .wish-step-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding-block-start: var(--space-2); }
+.wish-create-view--steps .wish-step-actions > .ui-button { width: auto; min-width: 0; min-height: 2.75rem; }
+.wish-step-actions > .ui-button--primary { margin-inline-start: auto; }
+@media (max-width: 40rem) {
+  .wish-create-view--steps .wish-steps__label { padding-inline: var(--space-1); font-size: var(--font-size-sm); }
+  .wish-create-view--steps .wish-step-actions { gap: var(--space-2); }
+}

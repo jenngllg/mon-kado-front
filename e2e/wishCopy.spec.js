@@ -4,7 +4,7 @@ import { controlledApi, listId, wishId, shareId, frontendOrigin, sharedPath, sec
 test.describe("touch copy action", () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
   test("stays visible without hover and opens without writing", async ({ page, context }) => {
-    const api = await controlledApi(context); api.state.authenticated = true;
+    const api = await controlledApi(context, { sharedWishlistId: "019c52dd-56c1-7cc6-8a95-243f3a032e08" }); api.state.authenticated = true;
     await page.goto(`${sharedPath}#${secret}`);
     const trigger = page.getByRole("button", { name: "Ajouter à mes listes", exact: true });
     await expect(trigger).toBeVisible(); await expect(trigger).toHaveCSS("opacity", "1");
@@ -22,7 +22,7 @@ for (const width of [390, 1440]) {
     test(`copy ${failure} is safe at ${width}px`, async ({ page, context }) => {
       await page.setViewportSize({ width, height: 1000 });
       await page.emulateMedia({ reducedMotion: "reduce" });
-      const api = await controlledApi(context); api.state.authenticated = true;
+      const api = await controlledApi(context, { sharedWishlistId: "019c52dd-56c1-7cc6-8a95-243f3a032e08" }); api.state.authenticated = true;
       let writes = 0;
       await context.route(`http://localhost:7000/api/v1/wishlists/${listId}/wishes/copies`, async route => {
         if (route.request().method() === "OPTIONS") return route.fallback();
@@ -57,7 +57,7 @@ for (const width of [390, 1440]) {
   for (const entry of ["card", "detail"]) {
     test(`shared wish copy from ${entry} at ${width}px`, async ({ page, context }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
-      const api = await controlledApi(context); api.state.authenticated = true;
+      const api = await controlledApi(context, { sharedWishlistId: "019c52dd-56c1-7cc6-8a95-243f3a032e08" }); api.state.authenticated = true;
       const copiedId = "019c52dd-56c1-7cc6-8a95-243f3a032e90";
       let writes = 0;
       await context.route(`http://localhost:7000/api/v1/wishlists/${listId}/wishes/copies`, async route => {
@@ -95,10 +95,10 @@ for (const width of [390, 1440]) {
       expect(api.state.reservations).toBe(0); expect(api.unexpected).toEqual([]);
     });
   }
-  for (const condition of ["anonymous", "no-lists", "archived", "suspended"]) {
+  for (const condition of ["anonymous", "no-lists", "archived", "suspended", "same-list"]) {
     test(`no copy action for ${condition} at ${width}px`, async ({ page, context }) => {
       await page.setViewportSize({ width, height: 1000 });
-      const api = await controlledApi(context); api.state.authenticated = condition !== "anonymous";
+      const api = await controlledApi(context, { sharedWishlistId: condition === "same-list" ? listId : "019c52dd-56c1-7cc6-8a95-243f3a032e08" }); api.state.authenticated = condition !== "anonymous";
       api.state.listExists = condition !== "no-lists";
       api.wishlist.isArchived = condition === "archived";
       api.wishlist.isSuspended = condition === "suspended";

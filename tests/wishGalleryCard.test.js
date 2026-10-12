@@ -17,6 +17,103 @@ function setup(values = {}, readOnly = false, options = {}) {
 }
 
 describe("owner wish gallery tile", () => {
+  it("reserves independently of detail navigation and displays supplied public information", () => {
+    // Arrange
+    const reserve = vi.fn();
+    const card = setup({ color: "Noir", size: "S", note: "À porter en bandoulière." }, true, {
+      row: true, detailHref: "/shared-wishlists/share/wishes/wish", onReserve: reserve,
+      reservationQuantities: { reservedQuantity: 0, availableQuantity: 2 },
+    });
+    const button = /** @type {HTMLButtonElement} */ (card.querySelector(".wish-reading__reserve"));
+    // Act
+    button.click();
+    // Assert
+    expect(reserve).toHaveBeenCalledExactlyOnceWith(button);
+    expect(button.closest("a")).toBeNull();
+    expect(card.querySelector(".wish-row__open")).toBeNull();
+    expect([...card.querySelectorAll(".wish-reading__variant-value")].map(value => value.textContent)).toEqual(["Noir", "S"]);
+    expect(card.querySelector(".wish-reading__note, .wish-reading__quantity")).toBeNull();
+    expect(card.querySelector(".wish-reading__merchant")).toBeNull();
+  });
+  it.each([0, null])("never offers reservation for unavailable or hidden availability: %s", availableQuantity => {
+    const reserve = vi.fn();
+    const card = setup({}, true, { row: true, detailHref: "/shared-wishlists/share/wishes/wish", onReserve: reserve,
+      reservationQuantities: { reservedQuantity: availableQuantity === null ? null : 2, availableQuantity } });
+    expect(card.querySelector(".wish-reading__reserve")).toBeNull();
+    expect(reserve).not.toHaveBeenCalled();
+  });
+
+  it("groups editable management commands with an icon-only edit link and the heart last", () => {
+    // Arrange / Act
+    const favoriteButton = document.createElement("button"), copyButton = document.createElement("button"), onDelete = vi.fn();
+    const card = setup({}, false, { management: true, favoriteButton, copyButton, onDelete, returnSort: "priceAsc" });
+    // Assert
+    const actions = card.querySelector('.wish-management__actions[role="group"]');
+    expect(actions?.getAttribute("aria-label")).toBe(`Actions du souhait « ${item.name} »`);
+    expect(actions?.children).toHaveLength(4);
+    const edit = actions?.firstElementChild;
+    expect(edit?.getAttribute("aria-label")).toBe(`Modifier le souhait « ${item.name} »`);
+    expect(edit?.getAttribute("href")).toBe("/lists/list/wishes/wish/edit?sort=priceAsc");
+    expect(edit?.querySelector("svg")).not.toBeNull();
+    expect(edit?.textContent).not.toContain("Modifier");
+    expect(actions?.children[1]).toBe(copyButton);
+    expect(actions?.children[2].classList.contains("wish-gallery__delete")).toBe(true);
+    expect(actions?.lastElementChild).toBe(favoriteButton);
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+  it.each([{ readOnly: true, reordering: false }, { readOnly: false, reordering: true }])("omits management mutation commands for %o", ({ readOnly, reordering }) => {
+    const card = setup({}, readOnly, { management: true, reordering, favoriteButton: document.createElement("button"), onDelete: vi.fn() });
+    expect(card.querySelector(".wish-management__actions, .wish-management__edit, .wish-gallery__delete, .wish-gallery__favorite")).toBeNull();
+  });
+  it.each([true, false])("shows a noninteractive owner favorite beside the reading row title, with copy=%s", withCopy => {
+    // Arrange / Act
+    const copyButton = withCopy ? document.createElement("button") : undefined;
+    const card = setup({ isFavorite: true }, true, { row: true, detailHref: "/shared-wishlists/share/wishes/wish", copyButton });
+    // Assert
+    const indicator = card.querySelector('h3 [role="img"][aria-label="Coup de cœur"]');
+    expect(indicator).not.toBeNull();
+    expect(indicator?.nextElementSibling?.textContent).toBe(item.name);
+    expect(indicator?.closest("button, a")).toBeNull();
+    expect(card.querySelector(".wish-row__favorite, .wish-gallery__favorite")).toBeNull();
+    if (copyButton) expect(card.contains(copyButton)).toBe(true);
+  });
+  it("omits the reading row heart when the owner did not mark the wish as favorite", () => {
+    const card = setup({ isFavorite: false }, true, { row: true, detailHref: "/shared-wishlists/share/wishes/wish" });
+    expect(card.querySelector(".wish-favorite-indicator")).toBeNull();
+  });
+  it.each([
+    [2, 0, "Réservé"], [1, 1, "1 sur 2 réservé 1 disponible"],
+    [0, 2, "Disponible"], [null, null, null], [0, null, null],
+  ])("places exposed row status in the information column for %s/%s", (reservedQuantity, availableQuantity, label) => {
+    // Arrange / Act
+    const href = "/shared-wishlists/share/wishes/wish?fromMember=member&sort=priceAsc";
+    const card = setup({}, true, { row: true, detailHref: href, reservationQuantities: { reservedQuantity, availableQuantity } });
+    // Assert
+    expect(card.classList.contains("wish-card--row")).toBe(true);
+    expect(card.querySelector(".wish-gallery__content .wish-gallery__reservation")?.textContent.trim() ?? null).toBe(label);
+    expect(card.querySelector(".wish-gallery__photo .wish-gallery__reservation")).toBeNull();
+    expect([...card.querySelectorAll("a")].map(link => link.getAttribute("href"))).toEqual([href, href]);
+    expect(card.querySelector(".wish-row__open")).toBeNull();
+    expect(card.querySelector(".wish-row__reserved-message")).toBeNull();
+    expect(card.textContent).not.toContain("Déjà réservé");
+  });
+  it("keeps owner row commands without inventing availability", () => {
+    // Arrange / Act
+    const favoriteButton = document.createElement("button"), onDelete = vi.fn();
+    const card = setup({}, false, { row: true, favoriteButton, onDelete, reservationQuantities: { reservedQuantity: 0, availableQuantity: 2 } });
+    // Assert
+    expect(card.querySelector(".wish-gallery__favorite")).toBe(favoriteButton);
+    expect(card.querySelector(".wish-gallery__delete")).not.toBeNull();
+    expect(card.querySelector(".wish-gallery__reservation")).toBeNull();
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+  it("does not apply row navigation or status to reordering", () => {
+    // Arrange / Act
+    const card = setup({}, false, { row: true, reordering: true });
+    // Assert
+    expect(card.classList.contains("wish-card--row")).toBe(false);
+    expect(card.querySelector("a, .wish-row__open, .wish-gallery__reservation")).toBeNull();
+  });
   it.each([
     [2, 0, "Réservé"],
     [1, 1, "1 sur 2 réservé 1 disponible"],

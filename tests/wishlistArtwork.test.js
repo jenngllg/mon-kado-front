@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import birthIcon from "../src/assets/design/birth-icon.svg";
 import { readFileSync } from "node:fs";
 import { wishlistArtwork, wishlistOccasionIcon } from "../src/features/wishlists/wishlistArtwork.js";
 
@@ -24,6 +25,6 @@ describe("wishlist artwork", () => {
     const icon = wishlistOccasionIcon(occasion);
     // Assert
     expect(cover).toBe(`/src/assets/design/${artwork}.webp`);
-    expect(icon).toBe(`/src/assets/design/${occasion === "birth" ? "other" : artwork}-icon.webp`);
+    expect(icon).toBe(occasion === "birth" ? birthIcon : `/src/assets/design/${artwork}-icon.webp`);
   });
 });

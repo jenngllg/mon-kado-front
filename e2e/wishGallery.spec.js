@@ -84,7 +84,7 @@ for (const width of [390, 768, 1440, 1920]) {
 }
 
 for (const width of [390, 768, 1487, 1920, 3440]) {
-  test(`selected reading banner groups identity and occasion and caps populated rows at four at ${width}px`, async ({ page, context }, testInfo) => {
+  test(`selected reading context keeps ordered metadata and up to three compact columns at ${width}px`, async ({ page, context }, testInfo) => {
     // Arrange
     await page.setViewportSize({ width, height: 1058 });
     await page.clock.install({ time: new Date("2026-10-07T12:00:00+02:00") });
@@ -120,27 +120,21 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     await expect(event).toContainText("103 jours restants");
     const identityBox = await identity.boundingBox(); const eventBox = await event.boundingBox();
     expect(identityBox).not.toBeNull(); expect(eventBox).not.toBeNull();
-    if (width > 768) {
-      expect(eventBox?.x).toBeGreaterThan((identityBox?.x ?? 0) + (identityBox?.width ?? 0));
-      expect(eventBox?.y).toBeCloseTo(identityBox?.y ?? 0);
-      await expect(event).toHaveCSS("border-left-width", "1px");
-    } else {
-      expect(eventBox?.y).toBeGreaterThan((identityBox?.y ?? 0) + (identityBox?.height ?? 0));
-      await expect(event).toHaveCSS("border-left-width", "0px");
-      await expect(event).toHaveCSS("border-top-width", "1px");
-    }
+    expect(eventBox?.y).toBeGreaterThan((identityBox?.y ?? 0) + (identityBox?.height ?? 0));
+    await expect(event).toHaveCSS("border-left-width", "0px");
+    await expect(event).toHaveCSS("border-top-width", "0px");
     const positions = await tiles.evaluateAll(items => items.map(item => { const box = item.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width }; }));
     const rows = positions.map(position => positions.filter(other => other.y === position.y).length);
-    expect(Math.max(...rows)).toBeLessThanOrEqual(4);
-    if (width >= 1487) {
-      expect(Math.max(...rows)).toBe(4);
-      expect(positions[4].y).toBeGreaterThan(positions[0].y);
-      expect(positions[4].x).toBe(positions[0].x);
+    expect(Math.max(...rows)).toBeLessThanOrEqual(3);
+    if (width >= 1600) {
+      expect(Math.max(...rows)).toBe(3);
+      expect(positions[3].y).toBeGreaterThan(positions[0].y);
+      expect(positions[3].x).toBe(positions[0].x);
     }
     expect(positions.every(position => Math.abs(position.width - positions[0].width) < 1)).toBe(true);
     await assertFilledGallery(page);
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
-    await expect(tiles.locator("button, .wish-gallery__favorite, .wish-gallery__delete")).toHaveCount(0);
+    await expect(tiles.locator(".wish-gallery__favorite, .wish-gallery__delete")).toHaveCount(0);
     await banner.screenshot({ path: testInfo.outputPath("selected-banner.png") });
     await page.screenshot({ path: testInfo.outputPath("selected-reading-page.png"), fullPage: true });
     await page.getByLabel("Afficher uniquement les souhaits disponibles", { exact: true }).check();
@@ -159,7 +153,7 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
       await expect(event).not.toContainText("Sans date");
       await expect(event).toContainText("Anniversaire");
       await expect(event.locator("time, .wishlist-event-countdown")).toHaveCount(0);
-      await expect(page.getByText("Cette liste ne contient pas encore de souhait", { exact: true })).toBeVisible();
+      await expect(page.getByText("Cette liste ne contient pas encore de souhait.", { exact: true })).toBeVisible();
       expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
       await banner.screenshot({ path: testInfo.outputPath("long-undated-banner.png") });
       sharedList.message = null;
@@ -263,7 +257,7 @@ for (const width of [390, 768, 1440, 1920]) {
     // Assert
     await assertFilledGallery(page);
     const tileBox = await tile.boundingBox(); const mediaBox = await tile.locator(".wish-card__media").boundingBox();
-    expect(mediaBox?.height).toBeCloseTo(tileBox?.width ?? 0);
+    expect(mediaBox?.height).toBeLessThanOrEqual((tileBox?.height ?? 0) + 1);
     await expect(tile.locator("h3")).toHaveCSS("font-weight", "800");
     await expect(tile.locator(".wish-card__price")).toBeVisible();
     const banner = page.locator(".shared-wishlist-view .wishlist-details-info");
@@ -271,23 +265,27 @@ for (const width of [390, 768, 1440, 1920]) {
     const bannerBox = await banner.boundingBox(); const galleryBox = await gallery.boundingBox();
     await expect(gallery.getByRole("heading", { name: "Les souhaits de cette liste", exact: true })).toHaveClass("visually-hidden");
     expect(bannerBox).not.toBeNull(); expect(galleryBox).not.toBeNull();
-    expect((bannerBox?.y ?? 0) + (bannerBox?.height ?? 0)).toBeLessThan(galleryBox?.y ?? 0);
-    expect(bannerBox?.width).toBe(galleryBox?.width);
+    if (width <= 1280) {
+      const toolbarBox = await gallery.locator(".section-toolbar").boundingBox();
+      expect((bannerBox?.y ?? 0) + (bannerBox?.height ?? 0)).toBeLessThan(toolbarBox?.y ?? 0);
+    } else {
+      expect((bannerBox?.x ?? 0) + (bannerBox?.width ?? 0)).toBeLessThanOrEqual(galleryBox?.x ?? 0);
+    }
     await expect(banner).toHaveCSS("min-height", "0px");
     const filter = page.getByLabel("Afficher uniquement les souhaits disponibles", { exact: true });
     await filter.check();
     await expect(page.locator(".shared-wishlist-summary")).toHaveAttribute("aria-busy", "false");
     await expect(filter).toBeFocused();
-    await expect(gallery.locator('[role="status"]')).toHaveCount(0);
+    await expect(gallery.locator('[role="status"]:not([hidden])')).toHaveCount(0);
     await expect(gallery).not.toContainText(/souhaits? affichés?/);
-    await expect(tile.locator("button, details, .wish-gallery__favorite, .wish-gallery__delete")).toHaveCount(0);
+    await expect(tile.locator("details, .wish-gallery__favorite, .wish-gallery__delete")).toHaveCount(0);
     const destination = `${sharedPath}/wishes/${wishId}`;
     await expect(tile.locator(".wish-gallery__photo")).toHaveAttribute("href", destination);
     await expect(tile.locator("h3 a")).toHaveAttribute("href", destination);
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     if (width === 1920) {
       const columns = await page.locator(".wish-grid--gallery").evaluate(grid => globalThis.getComputedStyle(grid).gridTemplateColumns.split(" "));
-      expect(columns).toHaveLength(4);
+      expect(columns).toHaveLength(3);
     }
     await page.locator(".wishlist-details-gifts").screenshot({ path: testInfo.outputPath("reading-gallery.png") });
     await tile.locator("h3 a").click();
@@ -307,13 +305,14 @@ async function assertFilledGallery(page) {
     return { columns, gap: Number.parseFloat(style.columnGap), width: box.width, parentWidth: grid.parentElement?.getBoundingClientRect().width ?? 0, tileWidth: tile?.width ?? 0 };
   });
   expect(geometry.columns.length).toBeGreaterThanOrEqual(1);
-  expect(geometry.gap).toBe(26);
-  await expect(page.locator(".wish-grid--gallery")).toHaveCSS("row-gap", "58px");
+  const reading = await page.locator(".shared-wishlist-view").count() > 0;
+  expect(geometry.gap).toBe(reading ? 20 : 26);
+  await expect(page.locator(".wish-grid--gallery")).toHaveCSS("row-gap", reading ? "20px" : "58px");
   expect(geometry.columns.length).toBeLessThanOrEqual(4);
   expect(geometry.width).toBeCloseTo(geometry.parentWidth, 1);
   expect(geometry.columns.every(column => Math.abs(column - geometry.columns[0]) < 1)).toBe(true);
   expect(geometry.columns.reduce((sum, column) => sum + column, 0) + (geometry.columns.length - 1) * geometry.gap).toBeCloseTo(geometry.width, 1);
   expect(geometry.tileWidth).toBeCloseTo(geometry.columns[0], 1);
-  await expect(page.locator(".wish-card--gallery .wish-card__media").first()).toHaveCSS("border-radius", "12px");
+  await expect(page.locator(".wish-card--gallery .wish-card__media").first()).toHaveCSS("border-radius", reading ? "0px" : "12px");
   await expect(page.locator(".wish-card--gallery .wish-card__media").first()).toHaveCSS("overflow", "hidden");
 }

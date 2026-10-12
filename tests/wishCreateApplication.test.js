@@ -4,6 +4,7 @@ import { createSessionApplication } from "../src/app/sessionApplication.js";
 import { createSessionManager } from "../src/auth/sessionManager.js";
 import { getSafeReturnTo } from "../src/auth/sessionGuards.js";
 import { barrier, createCoordinatorHub, createSessionTransport } from "./sessionTestHelpers.js";
+import { submitWishCreation } from "./wishCreationTestHelpers.js";
 
 const item = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Liste privée", occasion: "birthday", eventDate: null, message: null, isSuspended: false };
 const wish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: item.id, name: "Souhait privé", note: null, url: null, price: 0.29, quantity: 2, imageUrl: null, position: "9223372036854775807", createdAt: "2026-09-08T00:00:00Z", updatedAt: null };
@@ -24,7 +25,7 @@ function setup() {
       }
       state.writes++; expect(init?.method).toBe("POST"); const headers = new Headers(init?.headers);
       expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("Content-Type")).toBe("application/json"); expect(headers.has("If-Match")).toBe(false); expect(headers.has("X-CSRF-TOKEN")).toBe(false); expect(init?.credentials).toBe("include");
-      expect(JSON.parse(String(init?.body))).toEqual({ name: wish.name, note: null, url: null, price: 0.29, quantity: 2, isFavorite: false });
+      expect(JSON.parse(String(init?.body))).toEqual({ name: wish.name, note: null, url: null, price: 0.29, quantity: 2, color: null, size: null, isFavorite: false });
       await state.beforeWrite(); state.saved = state.status === 201;
       return Response.json(state.saved ? wish : { statusCode: state.status, title: "PRIVATE_ENGLISH", message: "PRIVATE_MESSAGE", errorCode: state.suspended ? "WISHLIST_SUSPENDED" : null }, { status: state.status, headers: { ETag: '"gift"' } });
     }
@@ -38,7 +39,7 @@ function setup() {
     /** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value = ` ${wish.name} `;
     /** @type {HTMLInputElement} */ (form.elements.namedItem("price")).value = "0,29";
     /** @type {HTMLInputElement} */ (form.elements.namedItem("quantity")).value = "2";
-    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); return form;
+    submitWishCreation(form); return form;
   }
   return { ...app, transport, state, hub, fillAndSend };
 }

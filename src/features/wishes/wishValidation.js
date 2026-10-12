@@ -1,15 +1,17 @@
 import { ApiError } from "../../api/apiError.js";
 import { trimWishlistText } from "../wishlists/wishlistValidation.js";
 
-/** @typedef {"name" | "note" | "url" | "price" | "quantity"} WishField */
-/** @typedef {Record<WishField, string> & {isFavorite?: boolean}} WishValues */
+/** @typedef {"name" | "note" | "url" | "price" | "quantity" | "color" | "size"} WishField */
+/** @typedef {Record<Exclude<WishField, "color" | "size">, string> & {color?: string, size?: string, isFavorite?: boolean}} WishValues */
 /** @type {Readonly<Record<WishField, string>>} */
 export const WishServerMessages = Object.freeze({
   name: "Nom du souhait invalide.",
-  note: "Note invalide.",
+  note: "Description invalide.",
   url: "Lien invalide",
   price: "Prix invalide : entre 0,01 et 99 999 999,99 euros, avec deux décimales maximum.",
   quantity: "Quantité invalide : nombre entier entre 1 et 100.",
+  color: "Couleur invalide.",
+  size: "Taille ou dimensions invalides.",
 });
 export const WishPayloadTooLarge = "Informations trop volumineuses pour l’envoi.";
 
@@ -26,7 +28,10 @@ export function validateWishField(field, value) {
   }
   if (field === "note") {
     if (/\p{Cs}/u.test(value) || [...value].some(char => /\p{Cc}/u.test(char) && !["\r", "\n", "\t"].includes(char))) return WishServerMessages.note;
-    return [...clean].length > 500 ? "Note trop longue : 500 caractères maximum." : null;
+    return [...clean].length > 500 ? "Description trop longue : 500 caractères maximum." : null;
+  }
+  if (field === "color" || field === "size") {
+    return /\p{Cs}/u.test(value) || /[\p{Cc}\p{Zl}\p{Zp}]/u.test(clean) || [...clean].length > 100 ? WishServerMessages[field] : null;
   }
   if (field === "url") return clean === "" || ([...clean].length <= 2048 && safeHttpUrl(clean) !== null) ? null : WishServerMessages.url;
   if (field === "price") return parseWishPrice(value) === undefined ? WishServerMessages.price : null;
@@ -47,15 +52,16 @@ export function parseWishPrice(value) {
   return cents >= 1 && cents <= 9999999999 ? cents / 100 : undefined;
 }
 
-/** Builds only the five API fields and enforces its serialized UTF-8 body limit.
+/** Builds editable API fields and enforces the serialized UTF-8 body limit.
  * @param {WishValues} values Raw form values.
  * @returns {import("../../api/generated/openapi.js").components["schemas"]["CreateWishRequest"]} Validated request.
  */
 export function createWishPayload(values) {
-  const errors = /** @type {WishField[]} */ (Object.keys(WishServerMessages)).filter(field => validateWishField(field, values[field]) !== null);
+  const errors = /** @type {WishField[]} */ (Object.keys(WishServerMessages)).filter(field => validateWishField(field, values[field] ?? "") !== null);
   if (errors.length) throw new ApiError({ kind: "http", statusCode: 400, validationErrors: errors.map(propertyName => ({ propertyName, errorMessage: null })) });
   const body = { name: trimWishlistText(values.name), note: trimWishlistText(values.note) || null,
-    url: trimWishlistText(values.url) || null, price: parseWishPrice(values.price) ?? null, quantity: Number(trimWishlistText(values.quantity)) };
+    url: trimWishlistText(values.url) || null, price: parseWishPrice(values.price) ?? null, quantity: Number(trimWishlistText(values.quantity)),
+    color: trimWishlistText(values.color ?? "") || null, size: trimWishlistText(values.size ?? "") || null };
   if (values.isFavorite !== undefined) Object.assign(body, { isFavorite: values.isFavorite });
   if (new TextEncoder().encode(JSON.stringify(body)).byteLength > 4096) throw new ApiError({ kind: "http", statusCode: 413 });
   return body;

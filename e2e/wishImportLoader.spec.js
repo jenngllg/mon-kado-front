@@ -29,7 +29,7 @@ for (const width of [390, 1440]) {
           await expect(loader).toBeHidden();
           await link.fill("https://example.test/product");
           await expect(loader).toBeVisible();
-          await expect(page.getByRole("textbox", { name: /Nom du produit/ })).toBeDisabled();
+          await expect(page.locator('input[name="name"]')).toBeDisabled();
           const inputBox = await link.boundingBox();
           const loaderBox = await loader.boundingBox();
           if (!inputBox || !loaderBox) throw new Error("Missing import control");
@@ -67,7 +67,7 @@ for (const width of [390, 1440]) {
           release();
           await expect(loader).toBeHidden();
           await expect(label).toBeHidden();
-          await expect(page.getByRole("textbox", { name: /Nom du produit/ })).toBeEnabled();
+          await expect(page.locator('input[name="name"]')).toBeEnabled();
           expect(api.state.wishWrites).toBe(0);
           expect(api.unexpected).toEqual([]);
         } finally { release(); }

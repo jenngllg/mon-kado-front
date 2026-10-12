@@ -58,7 +58,8 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   actions.append(submit, useVersion); form.append(actions);
   const destination = isWishlistId(wishlistId) ? withWishSort(RoutePaths.ListDetails.replace(":listId", wishlistId), returnSort) : RoutePaths.Lists;
   const imageSection = createWishImageSection({ onUpload: () => { sync(); }, onRemove: () => { void deleteImage(); } });
-  view.append(createBackLink({ label: "Retour à la liste", href: destination }), title, feedback, reread, retry, status, comparison, form);
+  const back = createBackLink({ label: "Retour à la liste", href: destination }); back.classList.add("page-back-link");
+  view.append(back, title, feedback, reread, retry, status, comparison, form);
   if (uploadImage && removeImage) form.append(imageNotice, imageSection.element, actions);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
   registerComponentCleanup(view, () => {
@@ -116,9 +117,9 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   function changed() {
     if (!base) return false;
     const values = editor.getValues(); const stored = base.values;
-    return ["name", "note", "url"].some(key => {
-      const field = /** @type {"name" | "note" | "url"} */ (key);
-      return trimWishlistText(values[field]) !== trimWishlistText(stored[field]);
+    return ["name", "note", "url", "color", "size"].some(key => {
+      const field = /** @type {"name" | "note" | "url" | "color" | "size"} */ (key);
+      return trimWishlistText(values[field] ?? "") !== trimWishlistText(stored[field] ?? "");
     }) || parseWishPrice(values.price) !== parseWishPrice(stored.price) ||
       Number(values.quantity) !== Number(stored.quantity) || values.quantity.trim() === "" || fields[4].control.validity.badInput || !!values.isFavorite !== !!stored.isFavorite;
   }
@@ -133,6 +134,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       field.control.readOnly = suspended;
       field.control.disabled = disposed || terminal || busy || (importing && field.name !== "url");
     }
+    editor.syncQuantityControls();
     submit.disabled = disposed || terminal || busy || importing || blocked || suspended || (!changed() && !imageSection.getSelected());
     if (!busy) submit.textContent = "Enregistrer";
     useVersion.hidden = !decision; useVersion.disabled = disposed || terminal || busy || suspended;
@@ -140,6 +142,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     retry.hidden = disposed || terminal || base !== null || busy; retry.disabled = busy;
     form.setAttribute("aria-busy", String(busy || importing));
     imageSection.update(base?.wish ?? null, disposed || busy || importing || blocked || terminal, suspended);
+    imageSection.element.hidden = form.hidden;
   }
   /** An image success never replays a mutation if its subsequent read fails.
    * @param {string} label Confirmed result. */
@@ -268,12 +271,11 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       if (!isStrongEntityTag(saved.etag)) throw new ApiError({ kind: "invalidResponse" });
       base = saved; editor.reset(saved.values); decision = false; clearComparison();
       textSaved = true;
-      show({ title: "Modifications enregistrées", message: "Les informations de ton souhait sont à jour.", variant: "success" });
     } catch (error) {
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) failure(error);
     } finally {
       if (!disposed) {
-        busy = false; setButtonLoading(submit, false); status.textContent = ""; sync();
+        busy = false; setButtonLoading(submit, false); status.textContent = textSaved ? "Souhait enregistré." : ""; sync();
         const invalid = fields.find(field => field.error !== null);
         if (invalid && !invalid.control.disabled && !form.hidden) invalid.control.focus(); else focusFeedback();
       }

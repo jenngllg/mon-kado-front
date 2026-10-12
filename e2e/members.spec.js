@@ -85,9 +85,9 @@ test("profile rereads active lists and deep links never bypass the share token",
   api.memberState.shared = false;
   await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
   await expect(page.getByText("Aucune liste partagée")).toBeVisible();
-  expect(api.memberState.profiles).toBe(2);
+  expect(api.memberState.profiles).toBe(3);
   await page.goto(`${sharedPath}?fromMember=${memberId}`);
-  await expect(page.getByRole("heading", { name: "Rouvre le lien reçu" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cette liste n’est plus partagée." })).toBeVisible();
   await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
   await expect(page.getByText("Aucune liste partagée")).toBeVisible();
   expect(api.unexpected).toEqual([]);

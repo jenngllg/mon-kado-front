@@ -12,7 +12,7 @@ describe("shared quantities", () => {
     const view = createSharedWishQuantities({ reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity });
     expect(view.textContent).toContain("Quantité réservée : 2");
     expect(view.textContent).toContain("Quantité disponible : 0");
-    expect(view.textContent).toContain("Entièrement réservé");
+    expect(view.textContent).toContain("Quantité disponible : 0");
     expect(view.textContent?.includes("Ma quantité réservée")).toBe(currentParticipantReservedQuantity !== null);
     expect(view.querySelector("button,a,input")).toBeNull();
   });

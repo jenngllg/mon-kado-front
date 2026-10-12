@@ -4,6 +4,12 @@ import { describe, expect, it } from "vitest";
 import { createWishDetailInformation, createWishDetailProductLink, createWishDetailReservationStatus } from "../src/features/wishes/wishDetailPresentation.js";
 
 describe("wish detail presentation", () => {
+  it("shows supplied colour and size as separate text rows without invented values", () => {
+    const info = createWishDetailInformation({ url: null, note: null, price: null, color: "Vert sauge", size: "<M>" }, document.createElement("h1"));
+    expect([...info.querySelectorAll("dt")].map(term => term.textContent)).toEqual(["Couleur", "Taille / dimensions"]);
+    expect([...info.querySelectorAll("dd")].map(term => term.textContent)).toEqual(["Vert sauge", "<M>"]);
+    expect(info.querySelector("m")).toBeNull();
+  });
   it("preserves the title and full note as text and derives only a merchant hostname", () => {
     const title = document.createElement("h1"); title.textContent = "Produit";
     const note = "  Ligne 1\n<script>texte</script>  ";

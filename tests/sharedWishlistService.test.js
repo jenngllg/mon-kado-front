@@ -16,6 +16,16 @@ function setup(body = data, status = 200) {
   const controller = new AbortController(); return { ...service, request, context, controller, options: { signal: controller.signal } };
 }
 describe("public share context", () => {
+  it("preserves the verified author ID from the shared response", async () => {
+    const ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e07";
+    const service = setup({ ...data, ownerId });
+    expect((await service.load(id, service.options)).ownerId).toBe(ownerId);
+    expect(service.request).toHaveBeenCalledOnce();
+  });
+  it.each([null, "invalid", "javascript:alert(1)", 42])("rejects invalid author IDs: %s", async ownerId => {
+    const service = setup({ ...data, ownerId });
+    await expect(service.load(id, service.options)).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("retains only one context, not data, and permits internal return", async () => {
     const context = createSharedWishlistContext(); expect(context.enter(id, "")).toBe("missing"); expect(context.enter(id, "#" + secret)).toBe("ready");
     expect(context.enter(id.toUpperCase(), "")).toBe("ready"); expect(await context.run(id, async value => value === secret)).toBe(true);
@@ -143,7 +153,7 @@ describe("shared gift detail service", () => {
   it("reads only the public detail with a combined signal, no ETag and an immutable safe projection", async () => {
     const service = setup(detail); const result = await service.loadOne(id, wishId, service.options);
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/wishes/${wishId}`, { method: "GET", authentication: "none", shareToken: secret, signal: expect.any(AbortSignal) });
-    expect(result).toEqual({ id: wishId, name: wish.name, note: detail.note, price: 12.34, quantity: 2, isFavorite: false, url: wish.url, imageUrl: image, imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 });
+    expect(result).toEqual({ id: wishId, name: wish.name, note: detail.note, color: null, size: null, price: 12.34, quantity: 2, isFavorite: false, url: wish.url, imageUrl: image, imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 });
     expect(Object.isFrozen(result)).toBe(true); expect(JSON.stringify(result)).not.toMatch(/"currentParticipant"|position|etag|PRIVATE|AAAA/i);
   });
   it.each([null, ""])("preserves absent or empty note %s", async note => {

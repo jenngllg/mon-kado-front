@@ -5,6 +5,7 @@ import { decodeWishImage } from "../src/features/wishes/wishImageValidation.js";
 import { disposeComponent } from "../src/components/index.js";
 import { ApiError } from "../src/api/apiError.js";
 import { barrier } from "./sessionTestHelpers.js";
+import { submitWishCreation } from "./wishCreationTestHelpers.js";
 vi.mock("../src/features/wishes/wishImageValidation.js", async original => ({ ...await original(), decodeWishImage: vi.fn(async () => {}) }));
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05", url = "https://shop.example/product";
 /** @returns {import("../src/features/wishes/wishesService.js").EditableWish} */
@@ -14,8 +15,6 @@ const revoke = vi.fn();
 beforeEach(() => { let n = 0; revoke.mockClear(); vi.stubGlobal("URL", class extends URL { static createObjectURL() { return `blob:preview-${++n}`; } static revokeObjectURL = revoke; }); vi.mocked(decodeWishImage).mockImplementation(async () => {}); });
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 async function settle() { for (let i = 0; i < 75; i++) await Promise.resolve(); }
-/** @param {HTMLElement} view Root. @param {string} text Copy. */
-function button(view, text) { const target = [...view.querySelectorAll("button")].find(item => item.textContent === text); if (!target) throw new Error("Missing button " + text); return target; }
 /** @param {Partial<Parameters<typeof createWishCreateView>[0]>} [options] Test overrides. */
 function setup(options = {}) {
   const loadOne = vi.fn(async () => ({ wishlist: { id, name: "Liste", occasion: /** @type {"birthday"} */ ("birthday"), eventDate: null, message: null, isSuspended: false }, etag: '"list"' }));
@@ -30,10 +29,22 @@ function setup(options = {}) {
   const input = /** @type {HTMLInputElement} */ (analysis.querySelector("input"));
   const values = Object.fromEntries([...form.querySelectorAll("input,textarea")].map(item => [/** @type {HTMLInputElement} */ (item).name, /** @type {HTMLInputElement} */ (item)]));
   const analyze = async () => { input.value = url; input.dispatchEvent(new Event("input")); analysis.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await settle(); };
-  const submit = async () => { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await settle(); };
+  const submit = async () => { submitWishCreation(form); await settle(); };
   return { view, form, analysis, input, values, analyze, submit, create, loadOne, loadWish, uploadImage, preview, onCreated };
 }
 describe("unified creation and suggestions", () => {
+  it("discards unchanged imported metadata when continuing without a link but keeps manual edits", async () => {
+    const ui = setup(); await settle(); ui.values.name.value = "Mon nom"; ui.values.price.value = "8";
+    ui.values.note.value = "Ma description"; ui.values.color.value = "Vert"; ui.values.size.value = "M";
+    await ui.analyze(); expect(ui.values.name.value).toBe("Théière");
+    ui.values.name.value = "Nom corrigé";
+    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer sans lien" && !button.hidden)?.click();
+    expect(ui.form.dataset.creationStep).toBe("product"); expect(ui.values.url.value).toBe("");
+    expect(ui.values.name.value).toBe("Nom corrigé"); expect(ui.values.price.value).toBe("8");
+    expect(ui.values.note.value).toBe("Ma description"); expect(ui.values.color.value).toBe("Vert"); expect(ui.values.size.value).toBe("M");
+    expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull(); expect(revoke).toHaveBeenCalledOnce();
+    await ui.submit(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).not.toHaveBeenCalled();
+  });
   it.each(["success", "failure"])("locks creation immediately through debounce and retrieval, then unlocks after %s", async outcome => {
     // Arrange
     vi.useFakeTimers(); const gate = barrier(); const ui = setup(); await settle();
@@ -43,7 +54,7 @@ describe("unified creation and suggestions", () => {
       if (outcome === "failure") throw new ApiError({ kind: "network" });
       return { name: "Produit", url, price: "12", image: null, warnings: [] };
     });
-    const controls = [...ui.form.querySelectorAll("input,textarea,button")];
+    const controls = [...ui.form.querySelectorAll('input,textarea,button:not([aria-label="Diminuer la quantité souhaitée"])' )];
     const locked = () => controls.every(control => /** @type {HTMLInputElement} */ (control).disabled);
     // Act
     ui.input.focus(); ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
@@ -120,7 +131,7 @@ describe("unified creation and suggestions", () => {
     input.files = transfer.files; input.dispatchEvent(new Event("change")); await settle();
     // Assert
     const panel = ui.form.querySelector(".wish-import__image-panel");
-    expect(panel?.nextElementSibling?.textContent).toBe("Ajouter");
+    expect(panel?.closest('[aria-label="Produit"]')).not.toBeNull();
     expect(panel?.querySelector('img[src^="blob:"]')).not.toBeNull();
     expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
     await ui.submit();
@@ -215,7 +226,8 @@ describe("unified creation and suggestions", () => {
   });
   it("prefills a virgin form and waits for explicit creation before uploading with its individual tag", async () => {
     const ui = setup(); await settle(); await ui.analyze(); expect(ui.values.name.value).toBe("Théière"); expect(ui.values.price.value).toBe("19,99"); expect(ui.values.quantity.value).toBe("1"); expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
-    await ui.submit(); expect(ui.create.mock.calls[0][1]).toEqual({ name: "Théière", note: "", price: "19,99", url, quantity: "1", isFavorite: false }); expect(ui.uploadImage.mock.calls[0][3].etag).toBe('"created"'); expect(ui.onCreated).toHaveBeenCalledTimes(1); expect(revoke).toHaveBeenCalledTimes(1);
+    await ui.submit(); expect(ui.create.mock.calls[0][1]).toEqual({ name: "Théière", note: "", price: "19,99", url, quantity: "1", color: "", size: "", isFavorite: false }); expect(ui.uploadImage.mock.calls[0][3].etag).toBe('"created"'); expect(ui.onCreated).toHaveBeenCalledTimes(1); expect(revoke).not.toHaveBeenCalled();
+    disposeComponent(ui.view); expect(revoke).toHaveBeenCalledOnce();
     await ui.submit(); expect(ui.create).toHaveBeenCalledTimes(1);
   });
   it("automatically replaces draft metadata while retaining note and quantity without saving", async () => {
@@ -276,71 +288,50 @@ describe("unified creation and suggestions", () => {
     expect(ui.values.name.value).toContain("<img"); expect(ui.view.querySelector("img")).toBeNull(); ui.values.quantity.value = "0"; await ui.submit(); expect(ui.create).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.values.quantity);
   });
 });
-describe("confirmed gift and recoverable image", () => {
-  it.each(["abort", "departed-error"])("does not replay a confirmed creation after image upload cancellation: %s", async outcome => {
+describe("inline creation and image saving", () => {
+  it("keeps the last step visible and locked until the image succeeds", async () => {
     const gate = barrier(); const ui = setup(); await settle(); await ui.analyze();
-    ui.uploadImage.mockImplementation(async () => { await gate.promise; throw outcome === "abort" ? new DOMException("Aborted", "AbortError") : new Error("late private failure"); });
+    ui.uploadImage.mockImplementation(async () => { await gate.promise; return created(); });
     await ui.submit();
-    if (outcome === "departed-error") disposeComponent(ui.view);
+    expect(ui.form.hidden).toBe(false); expect(ui.form.dataset.creationStep).toBe("details");
+    expect(ui.form.getAttribute("aria-busy")).toBe("true");
+    expect([...ui.form.querySelectorAll("input,textarea,button")].every(control => /** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
+    expect(ui.view.querySelector("h1")?.textContent).toBe("Ajouter un souhait");
+    expect(ui.onCreated).not.toHaveBeenCalled(); expect(ui.loadWish).not.toHaveBeenCalled();
     gate.resolve(); await settle();
-    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce(); expect(ui.onCreated).not.toHaveBeenCalled();
-    expect(ui.view.textContent).not.toContain("late private failure");
+    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
+    expect(ui.onCreated).toHaveBeenCalledOnce(); await ui.submit(); expect(ui.create).toHaveBeenCalledOnce();
   });
   it.each([
-    [new ApiError({ kind: "http", statusCode: 429, retryAfterSeconds: 7, correlationId: "reference" }), "Réessaie dans 7"],
-    [new ApiError({ kind: "http", statusCode: 413 }), "10 Mio"],
-    [new ApiError({ kind: "http", statusCode: 415 }), "ne peut pas être utilisée"],
-    [new ApiError({ kind: "http", statusCode: 400, errorCode: "WISH_IMAGE_UNSUPPORTED_FORMAT" }), "ne peut pas être utilisée"],
-    [new ApiError({ kind: "http", statusCode: 400, errorCode: "WISH_IMAGE_INVALID" }), "est invalide"],
-    [new Error("private failure"), "n’a pas pu être confirmé"],
-  ])("keeps the created wish after an image rejection %#", async (error, message) => {
+    new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }),
+    ...[400, 401, 403, 404, 409, 412, 413, 415, 429, 503].map(statusCode => new ApiError({ kind: "http", statusCode, correlationId: "support", retryAfterSeconds: 7 })),
+    new ApiError({ kind: "http", statusCode: 404, errorCode: "WISH_IMAGE_NOT_FOUND" }),
+    new ApiError({ kind: "http", statusCode: 400, errorCode: "WISH_IMAGE_INVALID" }),
+    new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" }),
+  ])("retains the confirmed wish and inline warning after image rejection %#", async error => {
     const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(error); await ui.submit();
-    expect(ui.view.textContent).toContain(message); expect(ui.view.textContent).not.toContain("private failure");
-    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce(); expect(ui.onCreated).not.toHaveBeenCalled();
+    expect(ui.form.hidden).toBe(false); expect(ui.form.dataset.creationStep).toBe("details");
+    expect(ui.form.getAttribute("aria-busy")).toBe("false");
+    expect(ui.form.querySelector('[type="submit"]')?.hasAttribute("disabled")).toBe(true);
+    expect(ui.view.textContent).toContain("Image à vérifier");
+    expect(ui.view.querySelector("h1")?.textContent).toBe("Ajouter un souhait");
+    expect(ui.view.querySelector(".wish-import-completion")).toBeNull();
+    expect(ui.onCreated).not.toHaveBeenCalled(); expect(ui.loadWish).not.toHaveBeenCalled();
+    await ui.submit(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
+    expect(ui.view.querySelector('a[aria-disabled="true"]')).toBeNull();
   });
-  it.each(["suspended", "invalid-tag"])("does not replace an image after a failed reference read: %s", async failure => {
-    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(new ApiError({ kind: "network" })); await ui.submit();
-    if (failure === "suspended") ui.loadOne.mockResolvedValue({ wishlist: { id, name: "Liste", occasion: "birthday", eventDate: null, message: null, isSuspended: true }, etag: '"l"' });
-    else ui.loadWish.mockResolvedValue({ ...created(), etag: "invalid" });
-    button(ui.view, "Relire le souhait").click(); await settle();
-    expect(button(ui.view, "Enregistrer l’image proposée").hidden).toBe(true); expect(ui.uploadImage).toHaveBeenCalledOnce();
-    expect(ui.view.textContent).toContain(failure === "suspended" ? "Liste suspendue" : "relecture doit réussir");
+  it.each(["success", "failure", "abort"])("ignores an image %s after departure", async outcome => {
+    const gate = barrier(); const ui = setup(); await settle(); await ui.analyze();
+    ui.uploadImage.mockImplementation(async () => { await gate.promise; if (outcome !== "success") throw outcome === "abort" ? new DOMException("Cancelled", "AbortError") : new Error("private"); return created(); });
+    await ui.submit(); disposeComponent(ui.view); gate.resolve(); await settle();
+    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
+    expect(ui.uploadImage.mock.calls[0][3].signal.aborted).toBe(true); expect(ui.onCreated).not.toHaveBeenCalled();
+    expect(ui.view.textContent).not.toContain("private"); expect(revoke).toHaveBeenCalledOnce();
   });
-  it.each(["list-success", "list-failure", "wish-success", "wish-failure"])("ignores a completion read after departure: %s", async stage => {
-    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(new ApiError({ kind: "network" })); await ui.submit();
-    const gate = barrier();
-    if (stage.startsWith("list")) ui.loadOne.mockImplementation(async () => { await gate.promise; if (stage.endsWith("failure")) throw new Error("late private error"); return { wishlist: { id, name: "Liste", occasion: "birthday", eventDate: null, message: null, isSuspended: false }, etag: '"l"' }; });
-    else ui.loadWish.mockImplementation(async () => { await gate.promise; if (stage.endsWith("failure")) throw new Error("late private error"); return created(); });
-    button(ui.view, "Relire le souhait").click(); await settle(); disposeComponent(ui.view); gate.resolve(); await settle();
-    expect(ui.uploadImage).toHaveBeenCalledOnce(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.onCreated).not.toHaveBeenCalled();
-    expect(ui.view.textContent).not.toContain("late private error"); expect(ui.view.querySelector(".wish-image-section__media")?.childElementCount).toBe(0);
-  });
-  it("requires rechecking and a second explicit image decision without a second creation", async () => {
-    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 412 })); await ui.submit();
-    expect(ui.view.textContent).toContain("Souhait ajouté. L’enregistrement de son image n’a pas pu être confirmé."); expect(ui.form.hidden).toBe(true); expect(ui.onCreated).not.toHaveBeenCalled(); await ui.submit();
-    const heading = ui.view.querySelector("h1");
-    expect(heading?.textContent).toBe("Souhait ajouté");
-    expect([...ui.view.querySelectorAll("h2")].some(item => item.textContent === "Image du souhait")).toBe(true);
-    expect((heading?.compareDocumentPosition(button(ui.view, "Relire le souhait")) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    button(ui.view, "Relire le souhait").click(); await settle(); expect(ui.uploadImage).toHaveBeenCalledTimes(1); button(ui.view, "Enregistrer l’image proposée").click(); await settle();
-    expect(ui.create).toHaveBeenCalledTimes(1); expect(ui.uploadImage).toHaveBeenCalledTimes(2); expect(ui.uploadImage.mock.calls[1][3].etag).toBe('"fresh"'); expect(ui.onCreated).toHaveBeenCalledTimes(1);
-    expect(ui.view.querySelector(".wish-image-section__media")?.childElementCount).toBe(0);
-  });
-  it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("retains confirmed creation after uncertain image failure %#", async error => {
-    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(error); await ui.submit(); ui.loadWish.mockRejectedValue(new ApiError({ kind: "network" })); button(ui.view, "Relire le souhait").click(); await settle(); expect(button(ui.view, "Enregistrer l’image proposée").hidden).toBe(true); expect(ui.uploadImage).toHaveBeenCalledTimes(1); expect(ui.create).toHaveBeenCalledTimes(1);
-  });
-  it("never retries the uploaded image after a navigation failure", async () => {
-    const ui = setup(); await settle(); await ui.analyze(); ui.onCreated.mockRejectedValue(new Error("navigation")); await ui.submit(); expect(ui.view.textContent).toContain("sont enregistrés"); expect(button(ui.view, "Enregistrer l’image proposée").hidden).toBe(true); expect(ui.uploadImage).toHaveBeenCalledTimes(1);
-  });
-  it("ignores upload success after the view leaves, with no late navigation", async () => {
-    const gate = barrier(); const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockImplementation(async () => { await gate.promise; return created(); }); await ui.submit(); disposeComponent(ui.view); gate.resolve(); await settle(); expect(ui.onCreated).not.toHaveBeenCalled(); expect(ui.uploadImage.mock.calls[0][3].signal.aborted).toBe(true);
-  });
-  it("blocks another image attempt while the gift has disappeared", async () => {
-    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(new ApiError({ kind: "network" })); await ui.submit(); ui.loadWish.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
-    button(ui.view, "Relire le souhait").click(); await settle(); expect(ui.view.textContent).toContain("n’est plus disponible"); expect(button(ui.view, "Enregistrer l’image proposée").hidden).toBe(true); expect(button(ui.view, "Relire le souhait").hidden).toBe(true); expect(ui.create).toHaveBeenCalledTimes(1);
-  });
-  it("does not conflate image absence with gift disappearance", async () => {
-    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404, errorCode: "WISH_IMAGE_NOT_FOUND" })); await ui.submit();
-    expect(ui.view.textContent).toContain("Image indisponible"); expect(button(ui.view, "Relire le souhait").hidden).toBe(false); expect(ui.create).toHaveBeenCalledTimes(1);
+  it("never replays either confirmed write after navigation failure", async () => {
+    const ui = setup(); await settle(); await ui.analyze(); ui.onCreated.mockRejectedValue(new Error("private")); await ui.submit();
+    expect(ui.view.textContent).toContain("l’ouverture de la liste a échoué"); expect(ui.view.textContent).not.toContain("private");
+    await ui.submit(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
+    expect(ui.form.hidden).toBe(false);
   });
 });

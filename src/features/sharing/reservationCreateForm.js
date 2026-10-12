@@ -7,11 +7,12 @@ import { ReservationQuantityMessage, validateReservationQuantity } from "./reser
 /** Explicit creation after an absent-reservation lookup; never overwrites an existing reservation.
  * @param {{available: number, create: (quantity: string, signal: AbortSignal) => Promise<unknown>,
  * verify: (signal: AbortSignal) => Promise<{available: number, lookup: import("./giftReservationService.js").ReservationLookup}>,
- * onSaved: () => void, onUnavailable: () => void, onBusy?: (busy: boolean) => void, signal?: AbortSignal, singleItem?: boolean, submitOnReady?: boolean,
+ * onSaved: () => void, onUnavailable: () => void, onBusy?: (busy: boolean) => void, signal?: AbortSignal, singleItem?: boolean, submitOnReady?: boolean, hideAvailability?: boolean,
+ * confirmation?: boolean, onCancel?: () => void,
  * editing?: {reservation: import("./giftReservationService.js").CurrentReservation, update: (quantity: string, etag: string, signal: AbortSignal) => Promise<unknown>}}} options Bound operations.
  * @returns {HTMLElement} Disposable creation form.
  */
-export function createReservationCreateForm({ available, create, verify, onSaved, onUnavailable, onBusy, signal, editing, singleItem = false, submitOnReady = false }) {
+export function createReservationCreateForm({ available, create, verify, onSaved, onUnavailable, onBusy, signal, editing, singleItem = false, submitOnReady = false, hideAvailability = false, confirmation = false, onCancel }) {
   let reference = editing?.reservation ?? null;
   if (reference) available += reference.quantity;
   const root = document.createElement("section"); root.className = "flow";
@@ -20,13 +21,26 @@ export function createReservationCreateForm({ available, create, verify, onSaved
   const form = document.createElement("form"); form.noValidate = true; form.className = "flow"; form.setAttribute("aria-label", editing ? "Modifier ma réservation" : "Réserver ce souhait");
   const input = document.createElement("input"); input.type = "number"; input.name = "quantity"; input.min = "1"; input.max = String(Math.min(100, available)); input.step = "1"; input.value = String(reference?.quantity ?? 1);
   const field = createFormField({ label: "Quantité à réserver", control: input, required: true });
-  const submit = createButton({ label: editing ? "Enregistrer la quantité" : singleItem ? "Je réserve ce cadeau" : "Réserver ce souhait", type: "submit" });
+  const stepper = document.createElement("div"); stepper.className = "reservation-quantity-stepper";
+  const decrease = createButton({ label: "−", variant: "secondary", onClick: () => adjust(-1) }); decrease.setAttribute("aria-label", "Diminuer la quantité");
+  const increase = createButton({ label: "+", variant: "secondary", onClick: () => adjust(1) }); increase.setAttribute("aria-label", "Augmenter la quantité");
+  input.before(stepper); stepper.append(decrease, input, increase);
+  const availability = document.createElement("p"); availability.className = "reservation-quantity-limit";
+  availability.hidden = hideAvailability;
+  field.append(availability);
+  const submit = createButton({ label: editing ? "Enregistrer la quantité" : confirmation ? "Confirmer la réservation" : singleItem ? "Je réserve ce cadeau" : "Réserver ce souhait", type: "submit" });
   const comparison = document.createElement("p"); comparison.hidden = true;
   const reread = createButton({ label: "Vérifier ma réservation", variant: "secondary", onClick: () => { void check(); } }); reread.hidden = true;
   const actions = document.createElement("div"); actions.className = "cluster wishlist-form__actions";
+  const cancel = onCancel ? createButton({ label: "Annuler", variant: "secondary", onClick: onCancel }) : null;
+  if (cancel) actions.append(cancel);
   actions.append(submit);
   form.append(comparison);
   if (!singleItem || editing) form.append(field);
+  else if (confirmation) {
+    const quantity = document.createElement("p"); quantity.className = "reservation-confirmation-quantity";
+    quantity.textContent = "Quantité : 1"; form.append(quantity);
+  }
   form.append(actions); root.append(status, feedback, form, reread);
   const lifetime = new AbortController();
   let disposed = false, busy = false, blocked = available === 0, done = false, touched = false, dirty = false;
@@ -35,12 +49,23 @@ export function createReservationCreateForm({ available, create, verify, onSaved
   function validate() { touched = true; const error = validateReservationQuantity(input.value, available); setFormFieldValidation(field, error); return error; }
   function controls() {
     input.disabled = busy || blocked || done; submit.disabled = busy || blocked || done || (!!reference && Number(input.value) === reference.quantity); reread.disabled = busy;
+    if (cancel) cancel.disabled = busy;
+    decrease.disabled = input.disabled || !Number.isInteger(Number(input.value)) || Number(input.value) <= 1;
+    increase.disabled = input.disabled || !Number.isInteger(Number(input.value)) || Number(input.value) >= Number(input.max);
+    availability.textContent = `${Math.min(100, available)} maximum disponible${available > 1 ? "s" : ""}`;
     root.setAttribute("aria-busy", String(busy));
     // A partial refresh must not bypass the mandatory gift-and-reservation verification.
     onBusy?.(!disposed && (busy || (blocked && !form.hidden)));
   }
+  /** @param {number} delta Explicit local quantity adjustment, never a reservation write. */
+  function adjust(delta) {
+    if (disposed || input.disabled) return;
+    const next = Number(input.value) + delta;
+    if (!Number.isInteger(next) || next < 1 || next > Number(input.max)) return;
+    input.value = String(next); input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); }
-  if (blocked) { status.textContent = "Ce souhait est entièrement réservé."; reread.hidden = false; }
+  if (blocked && !singleItem) status.textContent = "Ce souhait est entièrement réservé.";
   controls();
   addComponentEventListener(root, input, "input", () => { dirty = true; if (touched) validate(); controls(); });
   addComponentEventListener(root, input, "blur", event => {
@@ -55,7 +80,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
   registerComponentCleanup(root, () => { disposed = true; lifetime.abort(); input.value = ""; reference = null; editing = undefined; comparison.textContent = ""; done = true; controls(); clearFeedback(); status.textContent = ""; pressed = null; });
   if (signal) { addComponentEventListener(root, signal, "abort", () => disposeComponent(root), { once: true }); if (signal.aborted) disposeComponent(root); }
   // Only an explicit identification action may carry a single-item reservation intent.
-  if (singleItem && submitOnReady && !editing) queueMicrotask(() => { void save(); });
+  if (singleItem && submitOnReady && !editing && !confirmation) queueMicrotask(() => { void save(); });
   return root;
 
   /** @param {unknown} error Safe error. @param {string | null} [message] Local override. */
