@@ -48,6 +48,7 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Modifications enregistrées", exact: true })).toBeVisible();
   expect(api.state.wishWrites).toBe(2);
+  await page.getByRole("link", { name: "Retour au souhait", exact: true }).click();
   await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
   const remove = page.getByRole("button", { name: "Supprimer le souhait « Carnet corrigé »", exact: true });
   await page.locator(".wish-card--gallery").filter({ has: remove }).hover();
