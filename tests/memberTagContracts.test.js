@@ -21,9 +21,9 @@ describe("server-assigned member tag contracts", () => {
     const result = await createProfileImageService(session).uploadImage(file, { etag: '"previous"', signal });
     expect(result.displayNameTag).toBe("0042");
     const options = vi.mocked(session.request).mock.calls[0]?.[1];
-    expect(options?.body).toBeInstanceOf(FormData);
-    if (!(options?.body instanceof FormData)) throw new Error("Missing multipart body");
-    expect([...options.body.keys()]).toEqual(["file"]);
+    expect(options?.formData).toBeInstanceOf(FormData);
+    if (!(options?.formData instanceof FormData)) throw new Error("Missing multipart body");
+    expect([...options.formData.keys()]).toEqual(["image"]);
   });
   it.each(["0000", "42", null])("rejects an invalid public profile tag: %s", async displayNameTag => {
     const session = transport({ ...member, displayNameTag, wishlists: [] });
