@@ -32,6 +32,8 @@ export default [
       "tests/notification.test.js",
       "tests/refreshOnReturn.test.js",
       "tests/router.test.js",
+      "tests/returnNavigation.test.js",
+      "tests/legalReturnNavigation.test.js",
       "tests/applicationRoutes.test.js",
       "tests/applicationShell.test.js",
       "tests/uiFoundationRegression.test.js",

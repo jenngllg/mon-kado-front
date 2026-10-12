@@ -107,6 +107,8 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   function focusFeedback() { /** @type {HTMLElement | null} */ (feedback.firstElementChild)?.focus(); }
   function notFound() {
     terminal = true; blocked = true; clear(); importer?.clear(); disposeComponent(form); form.remove();
+    cancel.dataset.fixedReturn = "true";
+    cancel.removeAttribute("aria-label");
     show({ title: "Liste introuvable", message: "Cette liste n’est pas disponible. Tu peux revenir à Mes listes." });
     cancel.href = RoutePaths.Lists; cancel.querySelector("span")?.replaceChildren("Retour à Mes listes"); cancel.title = "Retour à Mes listes"; syncControls();
   }
