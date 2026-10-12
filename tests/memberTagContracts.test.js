@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createMemberSearchService } from "../src/features/members/memberSearchService.js";
 import { createMemberProfileService } from "../src/features/members/memberProfileService.js";
 import { createProfileService } from "../src/features/profile/profileService.js";
+import { createProfileImageService } from "../src/features/profile/profileImageService.js";
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const signal = new AbortController().signal;
@@ -14,6 +15,20 @@ function transport(data) {
 }
 
 describe("server-assigned member tag contracts", () => {
+  it("preserves the tag when replacing a photo without submitting any tag field", async () => {
+    const session = transport({ ...member, profileImageUrl: `/api/v1/members/${id}/profile/image?imageId=${id}` });
+    const file = new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], "profile.png", { type: "image/png" });
+    const result = await createProfileImageService(session).uploadImage(file, { etag: '"previous"', signal });
+    expect(result.displayNameTag).toBe("0042");
+    const options = vi.mocked(session.request).mock.calls[0]?.[1];
+    expect(options?.body).toBeInstanceOf(FormData);
+    if (!(options?.body instanceof FormData)) throw new Error("Missing multipart body");
+    expect([...options.body.keys()]).toEqual(["file"]);
+  });
+  it.each(["0000", "42", null])("rejects an invalid public profile tag: %s", async displayNameTag => {
+    const session = transport({ ...member, displayNameTag, wishlists: [] });
+    await expect(createMemberProfileService(session, { apiBaseUrl: "https://api.example.test", frontendOrigin: "https://front.example.test" }).load(id, { signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("encodes a full handle as a query value and preserves its server-assigned tag", async () => {
     const session = transport({ items: [member], currentPage: 1, pageSize: 20, totalCount: 1 });
     const result = await createMemberSearchService(session, { apiBaseUrl: "https://api.example.test" }).search("Jenn#0042", { signal });
