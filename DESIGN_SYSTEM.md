@@ -33,6 +33,7 @@ Priority: explicit user decisions, original mockups, then this charter and share
 - Never underline buttons, navigation, tabs, category labels or action links, including hover, focus and selected states. Use a surface, border and visible focus outline. Prose hyperlinks may remain underlined.
 - Use native links for navigation and buttons for commands. Visual treatment must not change semantics. Keep accessible labels for icon-only controls, keyboard activation and Escape dismissal for disclosures.
 - Return arrows belong to actual navigation, not switching account categories. Account navigation remains on the left across categories.
+- Return arrows resolve the originating recognized local page, preserving validated display preferences such as sorting and archived categories. Track bounded non-secret context and consume ancestors on return to avoid child/parent loops. Never retain share fragments, authentication continuations or arbitrary query values. Direct entries retain the explicit fallback; authentication success and confirmed-save destinations stay unchanged. Legal documents progressively enhance their native fallback without requiring JavaScript.
 - Public legal documents share the application tokens, typography, return-arrow styling and footer. Keep them readable and navigable without JavaScript or authentication; never remove publication-review warnings as part of a visual cleanup.
 
 ## Lists and wishes

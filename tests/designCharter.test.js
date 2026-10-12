@@ -29,7 +29,8 @@ describe("interface charter", () => {
     expect(html).toContain('back-link" href="/" title="Retour à l’accueil"');
     expect(html).toContain('aria-current="page"');
     expect(html).toContain("data-publication-draft");
-    expect(html).not.toContain("<script");
+    expect(html.match(/<script\b/g)).toHaveLength(1);
+    expect(html).toContain('<script type="module" src="/src/router/legalReturnNavigation.js"></script>');
     expect(html).not.toContain("MonKado — accueil");
   });
   it("keeps navigation and command styling free of underlines", () => {
