@@ -76,7 +76,7 @@ describe("fragment consumption", () => {
     expect(window.location.hash).toBe("#anchor");
     expect(active.searchParams.get("sort")).toBe("nameAsc");
     expect(router.getCurrentRoute()?.url.searchParams.get("sort")).toBe("nameAsc");
-    expect(window.history.state).toEqual({ marker: "keep" });
+    expect(window.history.state).toMatchObject({ marker: "keep" });
     expect(window.history.length).toBe(historyLength); expect(document.activeElement).toBe(button);
     expect(render).toHaveBeenCalledOnce();
     active.replaceSearchParameter("sort", null);
@@ -274,7 +274,7 @@ describe("history navigation", () => {
 
     // Assert
     expect(pushState).toHaveBeenCalledOnce();
-    expect(replaceState).toHaveBeenCalledOnce();
+    expect(replaceState).toHaveBeenCalledTimes(2); // Initial non-secret context, then explicit replacement.
     expect(renderList).toHaveBeenCalledOnce();
     expect(window.location.pathname).toBe("/");
     expect(window.location.search).toBe("?source=menu");
@@ -413,7 +413,7 @@ describe("guards and asynchronous views", () => {
     expect(route?.name).toBe("login");
     expect(outlet.textContent).toBe("login");
     expect(window.location.pathname).toBe("/login");
-    expect(replaceState).toHaveBeenCalledOnce();
+    expect(replaceState).toHaveBeenCalledTimes(2); // Initial context, then the authentication redirect.
   });
 
   it("presents a safe error when guards create a redirect loop", async () => {

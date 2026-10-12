@@ -31,7 +31,7 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
   const confirm = createButton({ label: imageOnly ? "Supprimer l’image" : "Supprimer", variant: "danger", onClick: () => { void deleteWish(); } });
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } });
   const reread = createButton({ label: "Relire le souhait", variant: "secondary", onClick: () => { void read(true); } });
-  const back = createBackLink({ label: "Retour à la liste", href: isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists }); back.hidden = true;
+  const back = createBackLink({ label: "Retour à la liste", href: isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists, contextual: false }); back.hidden = true;
   const actions = element("div", ""); actions.className = "cluster wishlist-form__actions"; actions.append(cancel, confirm);
   content.append(back, title, warning, feedback, status, retry, reread, actions); dialog.append(content);
   addComponentEventListener(dialog, dialog, "cancel", event => { if (deleting) event.preventDefault(); });

@@ -1,4 +1,5 @@
 import { isAbortError } from "../api/apiError.js";
+import { contextualReturn, initializeReturnNavigation, isLegalDocument, returnNavigationState, synchronizeReturnLink, watchReturnNavigation } from "./returnNavigation.js";
 import { disposeComponent } from "../components/index.js";
 import { isUserFacingError, toUserFacingError } from "../errors/errorMessages.js";
 import {
@@ -111,6 +112,7 @@ export function createRouter({
   let currentView = /** @type {HTMLElement | null} */ (null);
   let currentRoute = /** @type {RouteSnapshot | null} */ (null);
   let startPromise = /** @type {Promise<RouteSnapshot | null> | null} */ (null);
+  let stopReturnNavigation = () => {};
 
   outlet.tabIndex = -1;
 
@@ -140,6 +142,8 @@ export function createRouter({
     }
 
     started = true;
+    initializeReturnNavigation(browserWindow);
+    stopReturnNavigation = watchReturnNavigation(browserWindow, outlet);
     browserWindow.addEventListener("popstate", handlePopState);
     browserWindow.document.addEventListener("click", handleDocumentClick);
     const url = resolveInternalUrl(browserWindow.location.href);
@@ -232,7 +236,7 @@ export function createRouter({
         context.url.search = url.search;
         context.searchParams.delete(name);
         if (value !== null) context.searchParams.set(name, value);
-        browserWindow.history.replaceState(browserWindow.history.state, "", url.href);
+        browserWindow.history.replaceState({ ...browserWindow.history.state, ...returnNavigationState(browserWindow, url, "replace") }, "", url.href);
         if (publishedSnapshot !== null) {
           publishedSnapshot = createRouteSnapshot(match?.route.definition ?? null, url, params);
           currentRoute = publishedSnapshot;
@@ -408,6 +412,7 @@ export function createRouter({
     activeController = null;
     browserWindow.removeEventListener("popstate", handlePopState);
     browserWindow.document.removeEventListener("click", handleDocumentClick);
+    stopReturnNavigation();
     disposeCurrentView();
     subscribers.clear();
     currentRoute = null;
@@ -435,14 +440,18 @@ export function createRouter({
       return;
     }
 
+    if (anchor.classList.contains("back-link") && !anchor.closest("dialog")) synchronizeReturnLink(anchor, browserWindow);
     const url = resolveInternalUrl(anchor.href);
+
+    if (isLegalDocument(url, browserWindow)) return;
 
     if (isSameDocumentFragment(url, browserWindow.location)) {
       return;
     }
 
     event.preventDefault();
-    void navigateWithHistory(url, "push");
+    const returning = anchor.classList.contains("back-link") && anchor.dataset.fixedReturn !== "true" && !anchor.closest("dialog") && contextualReturn(browserWindow) !== null;
+    void navigateWithHistory(url, returning ? "replace" : "push");
   }
 
   /**
@@ -515,12 +524,12 @@ export function createRouter({
    */
   function updateHistory(url, mode) {
     if (mode === "push") {
-      browserWindow.history.pushState({}, "", url.href);
+      browserWindow.history.pushState(returnNavigationState(browserWindow, url, mode), "", url.href);
 
       return;
     }
 
-    browserWindow.history.replaceState({}, "", url.href);
+    browserWindow.history.replaceState(returnNavigationState(browserWindow, url, mode), "", url.href);
   }
 
   /** Throws after the router is disposed. */
