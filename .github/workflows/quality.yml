@@ -77,18 +77,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      COMPOSE_PROJECT_NAME: monkado-front-contract
-      API_HOST: http://localhost
-      HTTP_PORT: '7000'
-      HTTPS_PORT: '7443'
+      HTTP_ADDRESS: '127.0.0.1:7000'
       FRONTEND_ORIGIN: http://localhost:5173
-      API_ALLOWED_HOST: localhost
-      POSTGRES_DB: contract_test
-      POSTGRES_USER: contract_test
-      POSTGRES_PASSWORD: disposable-ci-only
-      POSTGRES_PORT: '5432'
-      GOOGLE_AUTHENTICATION_ENABLED: 'false'
-      IMAGE_TAG: frontend-contract
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      GOOGLE_ENABLED: 'false'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -103,43 +95,54 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: jenngllg/mon-kado
-          # Social preview types depend on mon-kado#117; sorting depends on #116.
-          # Other PRs and develop/main
-          # continue checking backend develop; production checks the deployed API.
-          ref: ${{ github.head_ref == 'codex/MK-983-share-channels' && '171c4c79f372a3451f11632708d7d151703e201d' || github.head_ref == 'codex/MK-981-wish-sorting' && '00cc1c61190e11e26360b7bb9af0f83f8dc3a0d1' || 'develop' }}
+          # This migration follow-up validates its companion reviewed schema before the backend merge.
+          ref: ${{ github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || 'develop' }}
           path: .backend
           persist-credentials: false
-      - name: Record backend revision and generate disposable key
+      - name: Set up native Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .backend/go.mod
+          cache-dependency-path: .backend/go.sum
+      - name: Initialize isolated native PostgreSQL
+        run: bash .backend/scripts/Initialize-CIPostgres.sh
+      - name: Record backend revision and generate disposable keys
         shell: bash
         run: |
+          set -euo pipefail
           git -C .backend rev-parse HEAD
-          key=$(openssl rand -base64 32)
-          echo "::add-mask::$key"
-          echo "JWT_SIGNING_KEY=$key" >> "$GITHUB_ENV"
-      - name: Build isolated API
-        working-directory: .backend
-        run: docker compose -f compose.yaml -f compose.local.yaml build api
-      - name: Start API, migrations and database without Worker
-        working-directory: .backend
-        run: docker compose -f compose.yaml -f compose.local.yaml up --detach caddy
-      - name: Wait for the contract endpoint
-        shell: bash
-        run: |
-          for attempt in {1..30}; do
-            if curl --fail --silent http://localhost:7000/openapi/v1.json --output "$RUNNER_TEMP/contract.json"; then
-              exit 0
-            fi
-            sleep 2
+          for name in JWT_SIGNING_KEY DATA_ENCRYPTION_KEY; do
+            key=$(openssl rand -base64 32)
+            echo "::add-mask::$key"
+            echo "$name=$key" >> "$GITHUB_ENV"
           done
-          echo 'The isolated contract endpoint did not start.' >&2
-          exit 1
-      - run: pnpm api:types:check
-        env:
-          MONKADO_OPENAPI_URL: http://localhost:7000/openapi/v1.json
-      - name: Remove disposable backend resources
-        if: always()
+      - name: Build native API and migration tool without Worker
         working-directory: .backend
-        run: docker compose -f compose.yaml -f compose.local.yaml down --volumes --remove-orphans
+        run: |
+          go build -o "$RUNNER_TEMP/monkado-contract-api" ./cmd/api
+          go build -o "$RUNNER_TEMP/monkado-contract-migrate" ./cmd/migrate
+      - name: Check the served native OpenAPI contract
+        shell: bash
+        env:
+          DATABASE_URL: ${{ env.MONKADO_TEST_DATABASE_URL }}
+          MONKADO_OPENAPI_URL: http://localhost:7000/openapi/v1.json
+          IMAGE_PATH: ${{ runner.temp }}/monkado-contract-images
+          EXPORT_PATH: ${{ runner.temp }}/monkado-contract-exports
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/monkado-contract-migrate"
+          "$RUNNER_TEMP/monkado-contract-api" > "$RUNNER_TEMP/monkado-contract-api.log" 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true; wait "$api_pid" 2>/dev/null || true' EXIT
+          curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 --max-time 5 \
+            "$MONKADO_OPENAPI_URL" --output "$RUNNER_TEMP/contract.json"
+          pnpm api:types:check
+      - name: Remove disposable native PostgreSQL cluster
+        if: always()
+        run: |
+          if pg_lsclusters --no-header | grep -q '^18[[:space:]]\+monkado[[:space:]]'; then
+            sudo pg_dropcluster --stop 18 monkado
+          fi
 
   gate:
     name: Frontend quality gate

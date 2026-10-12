@@ -25,7 +25,7 @@ describe("generated OpenAPI contracts", () => {
     /** @type {UpdateProfileOperation["requestBody"]["content"]["application/json"]} */
     const request = { displayName: "Jenn" };
     /** @type {UpdateProfileOperation["responses"][200]["content"]["application/json"]} */
-    const response = { displayName: "Jenn" };
+    const response = { displayName: "Jenn", displayNameTag: "0042", isVisibleInMemberSearch: false, profileImageUrl: null };
     // Act / Assert
     expect(headers["If-Match"]).toBe('"0000002a"');
     expect(response.displayName).toBe(request.displayName);

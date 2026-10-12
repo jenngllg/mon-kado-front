@@ -33,10 +33,15 @@ describe("frontend CI contract", () => {
 
   it("checks a clean backend revision with disposable resources and no worker", () => {
     expect(workflow).toContain("repository: jenngllg/mon-kado");
-    expect(workflow).toContain("ref: ${{ github.head_ref == 'codex/MK-983-share-channels' && '171c4c79f372a3451f11632708d7d151703e201d' || github.head_ref == 'codex/MK-981-wish-sorting' && '00cc1c61190e11e26360b7bb9af0f83f8dc3a0d1' || 'develop' }}");
+    expect(workflow).toContain("ref: ${{ github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || 'develop' }}");
     expect(workflow).toContain("git -C .backend rev-parse HEAD");
-    expect(workflow).toContain("up --detach caddy");
-    expect(workflow).toContain("down --volumes --remove-orphans");
-    expect(workflow).toContain("GOOGLE_AUTHENTICATION_ENABLED: 'false'");
+    expect(workflow).toContain(".backend/scripts/Initialize-CIPostgres.sh");
+    expect(workflow).toContain("./cmd/api");
+    expect(workflow).toContain("./cmd/migrate");
+    expect(workflow).toContain("pg_dropcluster --stop 18 monkado");
+    expect(workflow).toContain("GOOGLE_ENABLED: 'false'");
+    expect(workflow).not.toContain("docker compose");
+    expect(workflow).not.toContain("./cmd/worker");
+    expect(workflow).toContain("pnpm api:types:check");
   });
 });

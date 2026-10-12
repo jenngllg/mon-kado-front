@@ -1110,6 +1110,8 @@ alternatif ; aucun indicateur absent du contrat n’est inventé.
 
 ## Types du contrat OpenAPI
 
+The frontend compatibility gate builds the matching native Go API and migration tool, applies migrations to an isolated PostgreSQL 18 cluster and compares generated types against the served OpenAPI endpoint. It does not start Docker Compose, the worker or external providers. Disposable keys are masked; the API process and named test cluster are removed after validation. Generated server types remain exact, while the browser identity projection supports older servers during a rolling release.
+
 Le backend doit exposer son contrat OpenAPI v1. L’URL utilisée par défaut est
 `http://localhost:7000/openapi/v1.json`. Pour utiliser un autre environnement,
 définir `MONKADO_OPENAPI_URL` avant la commande :
