@@ -33,7 +33,7 @@ describe("frontend CI contract", () => {
 
   it("checks a clean backend revision with disposable resources and no worker", () => {
     expect(workflow).toContain("repository: jenngllg/mon-kado");
-    expect(workflow).toContain("ref: ${{ github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b' || 'develop' }}");
+    expect(workflow).toContain("ref: ${{ github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || 'develop' }}");
     expect(workflow).toContain("git -C .backend rev-parse HEAD");
     expect(workflow).toContain(".backend/scripts/Initialize-CIPostgres.sh");
     expect(workflow).toContain("./cmd/api");
