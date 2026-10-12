@@ -1,4 +1,5 @@
 import { withResourcePageTitle } from "./resourcePageTitle.js";
+import { ApiError, createAbortError } from "../api/apiError.js";
 import {
   createHomeView,
   createPlaceholderView,
@@ -68,16 +69,12 @@ import { createSharedWishlistContext } from "../features/sharing/sharedWishlistC
 import { createSharedWishlistService } from "../features/sharing/sharedWishlistService.js";
 import { createWishlistReportService } from "../features/sharing/wishlistReportService.js";
 import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
+import { createSharedWishReservation } from "../features/sharing/sharedWishReservation.js";
 import { createSharedWishView } from "../features/sharing/sharedWishView.js";
 import { createSharedSessionView } from "../features/sharing/sharedSessionView.js";
 import { createGiftReservationService } from "../features/sharing/giftReservationService.js";
 import { createOwnedGiftReservationService } from "../features/sharing/ownedGiftReservationService.js";
-import { createGiftReservationSection } from "../features/sharing/giftReservationSection.js";
-import { createReservationCreateForm } from "../features/sharing/reservationCreateForm.js";
-import { createReservationEditForm } from "../features/sharing/reservationEditForm.js";
 import { createReservationCancelDialog } from "../features/sharing/reservationCancelDialog.js";
-import { createWishlistParticipationService } from "../features/sharing/wishlistParticipationService.js";
-import { createGuestParticipationHost } from "../features/sharing/guestParticipationHost.js";
 
 /** @typedef {(created: import("../features/wishlists/wishlistsService.js").CreatedWishlist, context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistCreatedHandler */
 /** @typedef {(context: import("../router/router.js").RouteContext) => void | Promise<void>} WishlistDeletedHandler */
@@ -107,10 +104,43 @@ export {
  * @param {WishlistDeletedHandler} onWishlistShareRevoked Confirmed share revocation notice.
  */
 function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked) {
+  /** Recover only a currently published link from its public member profile, never from browser storage.
+   * @param {import("../router/router.js").RouteContext} context Current navigation.
+   * @param {string} memberId Public origin.
+   * @param {(photoUrl: string | null) => void} [onOwnerPhoto] Validated public owner photo, without retaining bearer links.
+   * @returns {Promise<"ready" | "unavailable">} Fresh public access state. */
+  async function recoverMemberAccess(context, memberId, onOwnerPhoto = () => {}) {
+    try {
+      const profile = await createMemberProfileService(session, { apiBaseUrl, frontendOrigin: window.location.origin }).load(memberId, { signal: context.signal });
+      if (context.signal.aborted) throw createAbortError();
+      const link = profile.wishlists.find(list => new URL(list.shareHref, window.location.origin).pathname === `/shared-wishlists/${context.params.shareLinkId.toLowerCase()}`);
+      if (!link) return "unavailable";
+      onOwnerPhoto(profile.photo.imageUrl);
+      return sharing.enter(context.params.shareLinkId, new URL(link.shareHref, window.location.origin).hash) === "ready" ? "ready" : "unavailable";
+    } catch (error) {
+      if (context.signal.aborted) throw createAbortError();
+      if (error instanceof ApiError && error.statusCode === 404) return "unavailable";
+      throw error;
+    }
+  }
   /** @param {string} shareLinkId Current private context. @returns {import("../features/sharing/wishCopyActions.js").WishCopyOperations} Explicit authenticated operations. */
   function copyOperations(shareLinkId) {
+    const lists = createWishlistsService(session);
+    const source = createSharedWishlistService(session, { apiBaseUrl, context: sharing, authentication: "required", includeCurrent: false });
+    /** @type {string | null} */ let sourceWishlistId = null;
     return {
-      loadLists: createWishlistsService(session).load,
+      loadLists: async options => {
+        const destinations = await lists.load(options);
+        if (options.signal.aborted) throw createAbortError();
+        if (!destinations.some(item => !item.isArchived && !item.isSuspended)) return destinations;
+        // A share-link ID is not the list ID. Resolve it once per screen, without comparing names or inspecting each owned list.
+        if (sourceWishlistId === null) {
+          const wishlist = await source.load(shareLinkId, { signal: options.signal });
+          if (options.signal.aborted) throw createAbortError();
+          sourceWishlistId = wishlist.id.toLowerCase();
+        }
+        return Object.freeze(destinations.filter(item => item.id.toLowerCase() !== sourceWishlistId));
+      },
       copy: (wishlistId, wishId, { signal }) => sharing.run(shareLinkId, (shareToken, contextSignal) =>
         createWishesService(session, { apiBaseUrl }).copy(wishlistId, shareLinkId, wishId, { shareToken, signal: AbortSignal.any([signal, contextSignal]) })),
     };
@@ -369,13 +399,14 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     },
     {
       name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de souhaits partagée · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
         const fragment = context.consumeFragment();
         const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams, !!fragment);
-        const state = sharing.enter(context.params.shareLinkId, fragment);
+        const entry = sharing.enter(context.params.shareLinkId, fragment);
+        /** @type {string | null | undefined} */ let recoveredOwnerPhoto;
+        const state = entry === "missing" && fromMemberId ? await recoverMemberAccess(context, fromMemberId, photo => { recoveredOwnerPhoto = photo; }) : entry;
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
         return createSharedSessionView(session, identity => createSharedWishlistView({ shareLinkId: context.params.shareLinkId, signal: context.signal, fromMemberId,
-          ...(identity.authentication === "required" ? { copy: copyOperations(context.params.shareLinkId) } : {}),
           createSubscription: ({ signal, onUnavailable }) => {
             if (identity.authentication === "required") return createWishlistSubscriptionControl({
               shareLinkId: context.params.shareLinkId, ...createWishlistSubscriptionsService(session, { context: sharing }), signal, onUnavailable,
@@ -386,6 +417,25 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
             button.classList.add("wishlist-subscription-action");
             return button;
           },
+          loadOwnerPhoto: async ({ signal, ownerId }) => {
+            // Prefer the verified author returned by the shared-list API, including direct links.
+            if (ownerId) {
+              const profile = await createMemberProfileService(session, { apiBaseUrl, frontendOrigin: window.location.origin }).load(ownerId, { signal });
+              return profile.id.toLowerCase() === ownerId.toLowerCase() ? profile.photo.imageUrl : null;
+            }
+            if (!fromMemberId) return null;
+            if (recoveredOwnerPhoto !== undefined) return recoveredOwnerPhoto;
+            const profile = await createMemberProfileService(session, { apiBaseUrl, frontendOrigin: window.location.origin }).load(fromMemberId, { signal });
+            // The navigation origin alone is not proof of list ownership.
+            return profile.wishlists.some(list => new URL(list.shareHref, window.location.origin).pathname === `/shared-wishlists/${context.params.shareLinkId}`) ? profile.photo.imageUrl : null;
+          },
+          ...(identity.authentication === "required" ? { copy: copyOperations(context.params.shareLinkId) } : {}),
+          ...(identity.includeCurrent ? {
+            loadOne: createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne,
+            createReservation: (signal, onCancel) => createSharedWishReservation({ session, apiBaseUrl, sharing,
+              shareLinkId: context.params.shareLinkId, identity, signal, fromMemberId, confirmation: true, onCancel,
+              onSignIn: wishId => sharingSignIn.onSignIn?.(context.params.shareLinkId, wishId) }),
+          } : {}),
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           report: createWishlistReportService(session, { context: sharing }).report,
@@ -394,58 +444,20 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     },
     {
       name: RouteNames.SharedWish, path: RoutePaths.SharedWish, title: "Souhait partagé · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
         // Only an original list link can establish access; a detail fragment is discarded.
         context.consumeFragment();
         const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams);
-        const state = sharing.enter(context.params.shareLinkId, "");
+        const entry = sharing.enter(context.params.shareLinkId, "");
+        const state = entry === "missing" && fromMemberId ? await recoverMemberAccess(context, fromMemberId) : entry;
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
         const resumeAccount = sharingSignIn.continuation?.takeResume(context.params.shareLinkId);
         return createSharedSessionView(session, identity => createSharedWishView({ shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, fromMemberId,
           ...(identity.authentication === "required" ? { copy: copyOperations(context.params.shareLinkId) } : {}),
           returnSort: context.searchParams.get("sort"),
-          ...(identity.includeCurrent ? { createReservation: (onUnavailable, wish, onSaved, onBusy, onUnrecognized, onVerified) => createGiftReservationSection({
-            shareLinkId: context.params.shareLinkId, wishId: context.params.wishId, signal: context.signal, onUnavailable, onBusy, onUnrecognized, fromMemberId,
-            loadCurrent: createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent,
-            createIdentification: onRecognized => createGuestParticipationHost(session, {
-              shareLinkId: context.params.shareLinkId, signal: context.signal, onUnavailable, onRecognized,
-              resumeAccount,
-              onSignIn: () => sharingSignIn.onSignIn?.(context.params.shareLinkId, context.params.wishId),
-              ...createWishlistParticipationService(session, { context: sharing }),
-            }),
-            onCancelled: () => onSaved("Réservation annulée"),
-            createCancel: (onInvalidate, onClose) => createReservationCancelDialog({ signal: context.signal, onInvalidate, onClose, onUnavailable,
-              cancel: (etag, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).cancel(context.params.shareLinkId, wish.id, { etag, signal }),
-              load: async signal => {
-                const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
-                const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
-                if (lookup.state === "unrecognized") onUnrecognized();
-                return { name: fresh.name, lookup };
-              },
-            }),
-            editForm: wish.quantity === 1 ? undefined : (reservation, onBusy, showLookup) => createReservationEditForm({ reservation, available: wish.availableQuantity ?? 0, signal: context.signal, onSaved: () => onSaved("Réservation modifiée"), onUnavailable, onBusy,
-              update: (quantity, etag, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).update(context.params.shareLinkId, wish.id, quantity, { etag, signal }),
-              verify: async signal => {
-                const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
-                const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
-                onVerified(fresh); showLookup(lookup);
-                if (lookup.state === "unrecognized") onUnrecognized();
-                if (fresh.availableQuantity === null) throw new Error("Reservation quantities unavailable");
-                return { available: fresh.availableQuantity, lookup };
-              },
-            }),
-            createForm: (onBusy, showLookup, reserveImmediately) => createReservationCreateForm({ available: wish.availableQuantity ?? 0, singleItem: wish.quantity === 1, submitOnReady: reserveImmediately, signal: context.signal, onSaved, onUnavailable, onBusy,
-              create: (quantity, signal) => createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).create(context.params.shareLinkId, wish.id, quantity, { signal }),
-              verify: async signal => {
-                const fresh = await createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne(context.params.shareLinkId, wish.id, { signal });
-                const lookup = await createGiftReservationService(session, { context: sharing, authentication: identity.authentication }).loadCurrent(context.params.shareLinkId, wish.id, { signal });
-                onVerified(fresh); showLookup(lookup);
-                if (lookup.state === "unrecognized") onUnrecognized();
-                if (fresh.availableQuantity === null) throw new Error("Reservation quantities unavailable");
-                return { available: fresh.availableQuantity, lookup };
-              },
-            }),
-          }) } : {}),
+          ...(identity.includeCurrent ? { createReservation: createSharedWishReservation({ session, apiBaseUrl, sharing,
+            shareLinkId: context.params.shareLinkId, identity, signal: context.signal, fromMemberId, resumeAccount,
+            onSignIn: wishId => sharingSignIn.onSignIn?.(context.params.shareLinkId, wishId) }) } : {}),
           accessSignal: sharing.observe(context.params.shareLinkId) ?? undefined,
           loadOne: withResourcePageTitle(createSharedWishlistService(session, { apiBaseUrl, context: sharing, ...identity }).loadOne, context, result => result.name) }), context.signal);
       },

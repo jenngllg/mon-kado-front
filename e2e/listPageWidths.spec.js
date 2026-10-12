@@ -24,6 +24,15 @@ for (const width of [390, 768, 1440, 1920]) {
       if (!main || !box || !content) throw new Error("Missing list layout");
       expect(box.x).toBeCloseTo(main.x, 1);
       expect(box.width).toBeCloseTo(main.width, 1);
+      if (route.name === "shared") {
+        // The approved reading rail deliberately uses the whole screen with its own inset.
+        expect(content.x).toBeGreaterThan(main.x);
+        expect(content.width).toBeLessThan(main.width);
+        expect(main.width).toBeCloseTo(await page.evaluate(() => globalThis.document.body.getBoundingClientRect().width), 1);
+        expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath(`${route.name}.png`) });
+        continue;
+      }
       expect(content.x).toBeCloseTo(main.x, 1);
       expect(content.width).toBeCloseTo(main.width, 1);
       expect(main.width).toBeLessThanOrEqual(1376);

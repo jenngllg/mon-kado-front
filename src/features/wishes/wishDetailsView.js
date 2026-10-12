@@ -70,11 +70,16 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
       const information = createWishDetailInformation(wish, title);
       const actions = document.createElement("div"); actions.className = "cluster wish-owner-detail__actions";
       actions.setAttribute("role", "group"); actions.setAttribute("aria-label", "Actions du souhait");
-      const desired = document.createElement("p"); desired.textContent = `Quantité souhaitée : ${wish.quantity}`; information.append(desired);
+      const reservation = document.createElement("aside"); reservation.className = "shared-wish-reservation flow";
+      reservation.setAttribute("aria-label", "Réservation de ce souhait");
+      const summary = document.createElement("div"); summary.className = "wish-detail__reservation-summary flow";
+      const desired = document.createElement("p"); desired.className = "wish-detail__desired";
+      desired.textContent = `Quantité souhaitée : ${wish.quantity}`; summary.append(desired);
       if (parent?.wishlist.surpriseMode === false) {
-        const status = createWishDetailReservationStatus(wish); if (status) information.append(status);
-        information.append(createSharedWishQuantities({ reservedQuantity: wish.reservedQuantity ?? null, availableQuantity: wish.availableQuantity ?? null, currentParticipantReservedQuantity: null }));
+        const status = createWishDetailReservationStatus(wish); if (status) summary.append(status);
+        summary.append(createSharedWishQuantities({ quantity: wish.quantity, reservedQuantity: wish.reservedQuantity ?? null, availableQuantity: wish.availableQuantity ?? null, currentParticipantReservedQuantity: null }));
       }
+      reservation.append(summary);
       if (wish.url) {
         information.append(createWishDetailProductLink(wish.url, wish.name));
       }
@@ -114,7 +119,9 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
       }
       commandHost.append(actions);
       const layout = document.createElement("div"); layout.className = "shared-wish-layout";
-      layout.append(createWishImage(wish), information);
+      const product = document.createElement("div"); product.className = "shared-wish-product flow";
+      product.append(createWishImage(wish), information);
+      layout.append(product, reservation);
       content.append(layout);
       if (editable && reservations) {
         reservationPanel = createOwnedGiftReservationSection({ wishlistId, wishId, wish, loadOne, reservations,
@@ -128,7 +135,7 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
             commandHost.querySelectorAll("a").forEach(link => { link.setAttribute("aria-disabled", String(value)); });
           },
         });
-        information.append(reservationPanel);
+        reservation.append(reservationPanel);
       }
     } catch (error) {
       if (disposed || active.signal.aborted || isAbortError(error)) return;

@@ -14,10 +14,20 @@ function setup(target = path + "#" + secret) {
   window.history.replaceState({}, "", target); const transport = createSessionTransport(), hub = createCoordinatorHub(), fallback = transport.fetch.getMockImplementation();
   const state = { status: 200, reads: 0, filters: /** @type {(string | null)[]} */ ([]), detailReads: 0, errorCode: "SHARED_WISHLIST_NOT_FOUND", beforeRead: async () => {},
     reservationReads: 0, reservationWrites: 0, reservationDeletes: 0, reserved: true, memberRecognized: true, quantity: 1, reservationQuantity: 1, reservationStatus: 201, beforeReservation: async () => {}, beforeReserve: async () => {}, beforeCancel: async () => {},
-    participantReads: 0, joins: 0, participantStatus: 401, participantCode: "GUEST_SESSION_INVALID", joined: false, beforeJoin: async () => {} };
+    participantReads: 0, joins: 0, participantStatus: 401, participantCode: "GUEST_SESSION_INVALID", joined: false, beforeJoin: async () => {},
+    profileReads: 0, profileStatus: 200, published: true, beforeProfile: async () => {},
+    ownerId: /** @type {string | undefined} */ (undefined), profileImageUrl: /** @type {string | null} */ (null) };
   transport.fetch.mockImplementation(async (input, init) => {
     expect(window.location.hash).toBe("");
     const pathname = new URL(String(input)).pathname;
+    if (pathname === `/api/v1/members/${wish.id}/profile`) {
+      state.profileReads++; await state.beforeProfile();
+      expect(new Headers(init?.headers).has("X-MonKado-Share-Token")).toBe(false);
+      expect(new Headers(init?.headers).has("Authorization")).toBe(false);
+      return state.profileStatus === 200 ? Response.json({ id: wish.id, displayName: "Camille", profileImageUrl: state.profileImageUrl,
+        wishlists: state.published ? [{ id: data.id, name: data.name, occasion: "other", eventDate: null, shareUrl: `${window.location.origin}${path}#${secret}` }] : [] })
+        : Response.json({ statusCode: state.profileStatus, errorCode: "ACCOUNT_PUBLIC_PROFILE_NOT_FOUND" }, { status: state.profileStatus });
+    }
     if (pathname === "/api/v1/members/current/reservations") {
       expect(new Headers(init?.headers).has("Authorization")).toBe(true);
       return Response.json({ currentPage: 1, pageSize: 20, totalCount: 1, items: [{
@@ -62,7 +72,7 @@ function setup(target = path + "#" + secret) {
       expect(headers.get("X-MonKado-Share-Token")).toBe(secret); expect(headers.get("Authorization")).toBe(app.session.getSnapshot().status === "authenticated" ? `Bearer ${transport.state.token.accessToken}` : null); expect(headers.get("X-CSRF-TOKEN")).toBeNull(); expect(headers.get("If-Match")).toBeNull(); expect(init?.method).toBe("GET"); expect(init?.body).toBeUndefined(); expect(init?.credentials).toBe("include"); expect(String(input)).not.toContain(secret);
       const isDetail = new URL(String(input)).pathname.endsWith(`/wishes/${wish.id}`); if (isDetail) state.detailReads++;
       const presentedWish = { ...wish, quantity: state.quantity, reservedQuantity: state.reserved ? state.reservationQuantity : 0, availableQuantity: state.quantity - (state.reserved ? state.reservationQuantity : 0), currentParticipantReservedQuantity: state.reserved ? state.reservationQuantity : 0 };
-      return state.status === 200 ? Response.json(isDetail ? presentedWish : { ...data, wishes: [presentedWish] }) : Response.json({ statusCode: state.status, title: "PRIVATE", message: "PRIVATE", errorCode: state.errorCode, validationErrors: null }, { status: state.status });
+      return state.status === 200 ? Response.json(isDetail ? presentedWish : { ...data, ...(state.ownerId === undefined ? {} : { ownerId: state.ownerId }), wishes: [presentedWish] }) : Response.json({ statusCode: state.status, title: "PRIVATE", message: "PRIVATE", errorCode: state.errorCode, validationErrors: null }, { status: state.status });
     }
     return fallback?.(input, init) ?? new Response(null, { status: 500 });
   });
@@ -73,6 +83,71 @@ function setup(target = path + "#" + secret) {
 /** @param {() => boolean} predicate DOM milestone. */
 function observe(predicate) { if (predicate()) return Promise.resolve(); return new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(document.body, { childList: true, subtree: true, characterData: true }); }); }
 describe("public shared wishlist integration", () => {
+  it("reserves from a card only after fresh modal data and explicit confirmation", async () => {
+    const { app, state } = setup(); state.reserved = false;
+    await app.start(); await untilSession(app.session, value => value.status === "authenticated");
+    await observe(() => app.shell.outlet.querySelector(".wish-reading__reserve") !== null);
+    app.shell.outlet.querySelector(".wish-reading__reserve")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await observe(() => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Confirmer la réservation"));
+    expect(state.reservationWrites).toBe(0); expect(state.detailReads).toBe(1);
+    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Annuler")?.click();
+    expect(app.shell.outlet.querySelector("dialog")).toBeNull(); expect(state.reservationWrites).toBe(0);
+    app.shell.outlet.querySelector(".wish-reading__reserve")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await observe(() => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Confirmer la réservation"));
+    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Confirmer la réservation")?.click();
+    await observe(() => app.shell.outlet.textContent.includes("Réservation enregistrée"));
+    expect(state.reservationWrites).toBe(1); expect(state.detailReads).toBe(2);
+    expect(app.shell.outlet.querySelector("dialog")).toBeNull(); expect(window.location.pathname).toBe(path);
+  });
+  it("loads the verified author's photo from a direct link without sending the share secret to the profile", async () => {
+    const { app, state } = setup();
+    state.ownerId = wish.id;
+    state.profileImageUrl = `http://localhost:7000/api/v1/members/${wish.id}/profile/image?imageId=${id}`;
+    await app.start();
+    await observe(() => app.shell.outlet.querySelector(".wishlist-context-portrait") !== null);
+    expect(state.profileReads).toBe(1);
+    expect(app.shell.outlet.querySelector(".wishlist-context-portrait img")?.getAttribute("src")).toBe(state.profileImageUrl);
+    expect(app.shell.outlet.querySelector(".shared-wishlist-owner a")?.getAttribute("href")).toBe(`/members/${wish.id}`);
+    expect(window.location.search).toBe("");
+  });
+  it.each([path, detailPath])("recovers a fresh published link on reload of %s from a member", async target => {
+    const { app, state, hub } = setup(`${target}?fromMember=${wish.id}`);
+    await app.start();
+    await observe(() => app.shell.outlet.textContent.includes(target === path ? data.name : wish.name));
+    expect(state.profileReads).toBe(1); expect(state.reads).toBe(1);
+    expect(state.joins).toBe(0); expect(state.reservationWrites).toBe(0);
+    expect(window.location.hash).toBe("");
+    expect(app.shell.outlet.innerHTML).not.toContain(secret);
+    expect(JSON.stringify(hub.messages)).not.toContain(secret);
+    expect(app.shell.outlet.querySelector('a[href^="/members/"]') ?? app.shell.outlet.querySelector(`a[href="${path}?fromMember=${wish.id}"]`)).not.toBeNull();
+  });
+  it.each([200, 404])("does not recover an unpublished list or missing profile (%s)", async profileStatus => {
+    const { app, state } = setup(`${path}?fromMember=${wish.id}`);
+    state.published = false; state.profileStatus = profileStatus;
+    await app.start();
+    expect(app.shell.outlet.textContent).toContain("Cette liste n’est plus partagée.");
+    expect(state.reads).toBe(0); expect(state.profileReads).toBe(1);
+    expect(app.shell.outlet.querySelector(`a[href="/members/${wish.id}"]`)).not.toBeNull();
+  });
+  it("does not label a failed profile read as an unpublished list", async () => {
+    const { app, state } = setup(`${path}?fromMember=${wish.id}`); state.profileStatus = 503;
+    await app.start();
+    expect(state.reads).toBe(0); expect(state.profileReads).toBe(1);
+    expect(app.shell.outlet.textContent).not.toContain("Cette liste n’est plus partagée.");
+    expect(app.shell.outlet.querySelector(".error-view")).not.toBeNull();
+  });
+  it("ignores a late profile read after navigation and does not establish sharing access", async () => {
+    const { app, state } = setup(`${path}?fromMember=${wish.id}`); const gate = barrier();
+    state.beforeProfile = () => gate.promise;
+    const pending = app.start();
+    await observe(() => state.profileReads === 1);
+    await app.router.navigate("/"); gate.resolve(); await pending;
+    state.published = false;
+    await app.router.navigate(path);
+    await observe(() => app.shell.outlet.textContent.includes("Cette liste n’est plus partagée."));
+    expect(state.reads).toBe(0);
+    expect(state.profileReads).toBe(2);
+  });
   it("cancels from history with a fresh version, refreshes the card and opens its wish", async () => {
     // Arrange
     const { app, state } = setup("/reservations");
@@ -202,7 +277,7 @@ describe("public shared wishlist integration", () => {
     const { app, state } = setup(); await app.start(); await untilSession(app.session, value => value.status === "authenticated"); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true);
     state.status = status; /** @type {HTMLInputElement | null} */ (app.shell.outlet.querySelector('input[type="checkbox"]'))?.click(); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null);
     expect(app.session.getSnapshot().status).toBe("authenticated"); expect(app.shell.element.querySelectorAll('[role="alert"]')).toHaveLength(1); expect(state.reads).toBe(2);
-    state.status = 200; app.shell.outlet.querySelector("button")?.click(); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true); expect(state.reads).toBe(3);
+    state.status = 200; [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Réessayer")?.click(); await observe(() => app.shell.outlet.textContent?.includes(data.name) === true); expect(state.reads).toBe(3);
   });
   it("consumes the fragment before all HTTP and never publishes it", async () => {
     const { app, state, hub } = setup();

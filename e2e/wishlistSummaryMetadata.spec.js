@@ -27,7 +27,7 @@ for (const width of [390, 1440]) {
         const metadata = banner.locator(".shared-wishlist-metadata");
         if (scenario.label || scenario.eventDate) {
           await expect(metadata).toHaveCount(1);
-          await expect(metadata).toHaveCSS(width > 768 ? "border-left-width" : "border-top-width", "1px");
+          await expect(metadata).toHaveCSS(width > 768 ? "border-left-width" : "border-top-width", mode === "owner" ? "1px" : "0px");
           if (scenario.label) await expect(metadata.locator(".shared-wishlist-occasion")).toHaveText(scenario.label);
           else await expect(metadata.locator(".shared-wishlist-occasion")).toHaveCount(0);
           if (scenario.eventDate) {
@@ -38,7 +38,8 @@ for (const width of [390, 1440]) {
           await expect(metadata).toHaveCount(0);
           const identity = await banner.locator(".shared-wishlist-identity").boundingBox();
           const box = await banner.boundingBox();
-          expect(identity?.width).toBeCloseTo(box?.width ?? 0, 0);
+          if (mode === "owner") expect(identity?.width).toBeCloseTo(box?.width ?? 0, 0);
+          else expect((identity?.x ?? 0) + (identity?.width ?? 0) / 2).toBeCloseTo((box?.x ?? 0) + (box?.width ?? 0) / 2, 0);
         }
         expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
         await page.locator(".wishlist-details-info").screenshot({ path: testInfo.outputPath(`${scenario.name}.png`) });

@@ -12,10 +12,10 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
  * createCancel?: (onInvalidate: () => void, onClose: (confirmed: boolean) => void) => HTMLDialogElement,
  * createIdentification?: (onRecognized: (userInitiated?: boolean) => void) => HTMLElement,
  * onCancelled?: () => void, onUnrecognized?: () => void, fromMemberId?: string | null,
- * onBusy?: (busy: boolean) => void, canRefresh?: () => boolean, signal?: AbortSignal}} options Dependencies.
+ * onBusy?: (busy: boolean) => void, canRefresh?: () => boolean, signal?: AbortSignal, hideAbsentMessage?: boolean, reserveImmediately?: boolean}} options Dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, createCancel, createIdentification, onCancelled, onBusy, onUnrecognized, canRefresh, signal, fromMemberId }) {
+export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent, onUnavailable, createForm, editForm, createCancel, createIdentification, onCancelled, onBusy, onUnrecognized, canRefresh, signal, fromMemberId, hideAbsentMessage = false, reserveImmediately = false }) {
   const section = document.createElement("section"); section.className = "reservation-panel flow";
   section.tabIndex = -1; section.setAttribute("aria-label", "Réservation");
   const content = document.createElement("div"); content.className = "flow";
@@ -27,7 +27,7 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
     addComponentEventListener(section, signal, "abort", () => disposeComponent(section), { once: true });
     if (signal.aborted) disposeComponent(section);
   }
-  if (!disposed) void read(false);
+  if (!disposed) void read(false, reserveImmediately);
   if (!disposed) refreshOnReturn(section, () => { if (canRefresh?.() !== false) void read(false); });
   return section;
 
@@ -47,7 +47,8 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
       function showLookup(lookup) {
         if (disposed || !content.contains(message)) return;
         returnToList.hidden = !!createIdentification || lookup.state !== "unrecognized";
-        message.textContent = lookup.state === "reserved" ? `Tu as réservé ${lookup.reservation.quantity} exemplaire(s) de ce souhait.` :
+        message.hidden = hideAbsentMessage && lookup.state === "absent";
+        message.textContent = lookup.state === "reserved" ? `Tu as réservé ${lookup.reservation.quantity} exemplaire${lookup.reservation.quantity > 1 ? "s" : ""} de ce souhait.` :
           lookup.state === "absent" ? "Tu n’as pas de réservation sur ce souhait." : createIdentification ? "" : "Aucune participation n’est reconnue pour toi sur cette liste. Retourne à la liste pour participer.";
       }
       content.append(message, returnToList);
@@ -58,7 +59,7 @@ export function createGiftReservationSection({ shareLinkId, wishId, loadCurrent,
         const group = document.createElement("fieldset"); group.className = "reservation-edit-group";
         /** @type {HTMLButtonElement | null} */ let cancelButton = null;
         if (editForm) group.append(editForm(result.reservation, value => { mutationBusy = value; if (cancelButton) cancelButton.disabled = value; onBusy?.(value); }, showLookup));
-        content.append(group);
+        if (editForm) content.append(group);
         if (createCancel) {
           let open = false;
           const warning = document.createElement("p"); warning.hidden = true; content.append(warning);

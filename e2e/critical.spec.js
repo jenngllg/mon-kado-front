@@ -16,7 +16,7 @@ test("protected lists require login and logout removes private data", async ({ p
   expect(api.unexpected).toEqual([]);
 });
 
-test("shared navigation consumes the fragment and reload cannot recover it", async ({ page, context }) => {
+test("shared navigation consumes the fragment and reload retains bounded tab access", async ({ page, context }) => {
   const api = await controlledApi(context);
   await page.goto(`${sharedPath}#${secret}`);
   await expect(page.getByRole("heading", { name: "Anniversaire — test navigateur" })).toBeVisible();
@@ -25,7 +25,9 @@ test("shared navigation consumes the fragment and reload cannot recover it", asy
   await expect(page).toHaveURL(`${sharedPath}/wishes/${wishId}`);
   await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Rouvre le lien reçu" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => globalThis.localStorage.length)).toBe(0);
+  expect(await page.evaluate(() => globalThis.location.hash)).toBe("");
   expect(api.state.joins).toBe(0);
   expect(api.state.reservations).toBe(0);
   expect(api.unexpected).toEqual([]);
@@ -37,7 +39,7 @@ test("a known revoked link removes public content on refresh", async ({ page, co
   await expect(page.getByRole("heading", { name: "Anniversaire — test navigateur" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true })).toBeVisible();
   api.state.revoked = true;
-  await page.getByRole("checkbox", { name: "Afficher uniquement les souhaits disponibles" }).check();
+  await page.getByRole("switch", { name: "Afficher uniquement les souhaits disponibles" }).check();
   await expect(page.getByRole("heading", { name: "Lien de partage indisponible" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toHaveCount(0);
   await expect(page.getByRole("textbox", { name: "Nom d’affichage" })).toHaveCount(0);

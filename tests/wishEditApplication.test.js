@@ -22,7 +22,7 @@ function setup() {
       else {
         state.writes++; expect(init?.method).toBe("PUT"); const headers = new Headers(init?.headers);
         expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("If-Match")).toBe(`"gift-${state.version}"`); expect(headers.has("X-CSRF-TOKEN")).toBe(false); expect(init?.credentials).toBe("include");
-        const payload = JSON.parse(String(init?.body)); expect(Object.keys(payload).sort()).toEqual(["isFavorite", "name", "note", "price", "quantity", "url"]);
+        const payload = JSON.parse(String(init?.body)); expect(Object.keys(payload).sort()).toEqual(["color", "isFavorite", "name", "note", "price", "quantity", "size", "url"]);
         await state.beforeWrite();
         if (state.status !== 200) return Response.json({ statusCode: state.status, errorCode: state.errorCode, title: "ENGLISH_PRIVATE", message: "BACKEND_PRIVATE" }, { status: state.status, headers: { "Retry-After": "13" } });
         state.wish = { ...state.wish, ...payload }; state.version++;
@@ -54,7 +54,7 @@ describe("gift editing integration", () => {
   });
   it("stays on the editor after success and rereads the full collection on return", async () => {
     const app = setup(); await app.start(); await ready(app); expect(document.activeElement).toBe(app.shell.outlet); expect(app.shell.element.querySelector('nav [aria-current="page"]')?.textContent).toBe("Mes listes");
-    app.send(); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Modifications enregistrées"));
+    app.send(); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Souhait enregistré."));
     expect(window.location.pathname).toBe(path); expect(app.state.writes).toBe(1); expect(app.state.reads).toBe(1); expect(app.state.collectionReads).toBe(0);
     await app.router.navigate(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null);
     expect(app.state.parentReads).toBe(2); expect(app.state.collectionReads).toBe(1); expect(app.shell.outlet.textContent).toContain("Corrigé");
@@ -82,6 +82,6 @@ describe("gift editing integration", () => {
       else { app.transport.state.user.id = "different-member"; await other.establishSession(async () => ({ data: app.transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); }
     }
     gate.resolve(); await gate.promise;
-    expect(/** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value).toBe(""); expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toContain("Modifications enregistrées"); expect(JSON.stringify(app.hub.messages)).not.toContain("Corrigé");
+    expect(/** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value).toBe(""); expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toContain("Souhait enregistré."); expect(JSON.stringify(app.hub.messages)).not.toContain("Corrigé");
   });
 });

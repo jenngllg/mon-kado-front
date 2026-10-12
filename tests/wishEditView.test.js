@@ -4,6 +4,7 @@ import { createWishEditView } from "../src/features/wishes/wishEditView.js";
 import { disposeComponent } from "../src/components/index.js";
 import { ApiError, createAbortError } from "../src/api/apiError.js";
 import { barrier } from "./sessionTestHelpers.js";
+import { wishControls } from "./wishCreationTestHelpers.js";
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
 /** @type {import("../src/features/wishlists/wishlistsService.js").CreatedWishlist} */
@@ -22,7 +23,7 @@ function setup(options = {}) {
   const update = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").UpdateWish} */ (async () => stored("Mis à jour", '"next"')));
   const view = createWishEditView({ wishlistId: id, wishId, loadWishlist, loadOne, update, ...options }); views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const fields = /** @type {Array<HTMLInputElement | HTMLTextAreaElement>} */ ([...form.querySelectorAll('input:not([type="checkbox"]),textarea')]);
+  const fields = wishControls(form);
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   /** @param {number} index Field. @param {string} value Raw value. */
   function input(index, value) { fields[index].value = value; fields[index].dispatchEvent(new Event("input", { bubbles: true })); }
@@ -144,16 +145,16 @@ describe("gift editor", () => {
   it("reads parent then gift with one lifetime, renders five labelled fields and starts unchanged", async () => {
     const gate = barrier(); const parent = vi.fn(/** @type {import("../src/features/wishlists/wishlistsService.js").LoadWishlist} */ (async () => { await gate.promise; return list; })); const ui = setup({ loadWishlist: parent });
     expect(ui.form.hidden).toBe(true); ui.send(); expect(ui.loadOne).not.toHaveBeenCalled(); expect(ui.update).not.toHaveBeenCalled();
-    gate.resolve(); await settle(); expect(ui.form.hidden).toBe(false); expect(ui.fields).toHaveLength(5); expect(ui.form.noValidate).toBe(true);
+    gate.resolve(); await settle(); expect(ui.form.hidden).toBe(false); expect(ui.fields).toHaveLength(7); expect(ui.form.noValidate).toBe(true);
     expect(ui.loadOne).toHaveBeenCalledExactlyOnceWith(id, wishId, { signal: parent.mock.calls[0][1].signal });
-    expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(Object.values(stored().values));
+    expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual([...Object.values(stored().values), "", ""]);
     for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.hasAttribute("aria-describedby")).toBe(false); expect(field.hasAttribute("maxlength")).toBe(false); }
   });
   it("compares serialized meanings and offers only Enregistrer for an edited draft", async () => {
     const ui = setup(); await settle(); ui.input(0, " Souhait "); ui.input(3, "0.29"); ui.input(4, "02"); expect(ui.submit.disabled).toBe(true);
     ui.input(1, "Brouillon"); expect(ui.submit.disabled).toBe(false);
     expect(ui.submit.textContent).toBe("Enregistrer"); expect(ui.view.textContent).not.toContain("Annuler les modifications");
-    expect([...ui.form.querySelectorAll("button")].filter(button => !button.hidden)).toEqual([ui.submit]);
+    expect([...ui.form.querySelectorAll("button")].filter(button => !button.hidden && !button.closest(".wish-quantity-stepper"))).toEqual([ui.submit]);
     expect(ui.fields[1].value).toBe("Brouillon"); expect(ui.loadOne).toHaveBeenCalledTimes(1); expect(ui.update).not.toHaveBeenCalled();
   });
   it("validates dirty fields, corrections, submit focus and pointer blur without moving an activation", async () => {
@@ -170,14 +171,14 @@ describe("gift editor", () => {
   it("sends once, disables controls, adopts the response and uses its ETag for the next edit", async () => {
     const gate = barrier(); const operation = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").UpdateWish} */ (async () => { await gate.promise; return stored("Normalisé", '"new"'); }));
     const ui = setup({ update: operation }); await settle(); ui.input(0, " nouveau "); ui.send(); ui.send();
-    expect(operation).toHaveBeenCalledExactlyOnceWith(id, wishId, { ...stored().values, name: " nouveau ", isFavorite: false }, { etag: '"gift"', signal: expect.any(AbortSignal) });
+    expect(operation).toHaveBeenCalledExactlyOnceWith(id, wishId, { ...stored().values, name: " nouveau ", color: "", size: "", isFavorite: false }, { etag: '"gift"', signal: expect.any(AbortSignal) });
     expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.view.textContent).toContain("Enregistrement de ton souhait…");
-    gate.resolve(); await settle(); expect(ui.fields[0].value).toBe("Normalisé"); expect(ui.submit.disabled).toBe(true); expect(ui.view.textContent).toContain("Modifications enregistrées"); expect(ui.loadOne).toHaveBeenCalledTimes(1);
+    gate.resolve(); await settle(); expect(ui.fields[0].value).toBe("Normalisé"); expect(ui.submit.disabled).toBe(true); expect(ui.view.textContent).toContain("Souhait enregistré."); expect(ui.loadOne).toHaveBeenCalledTimes(1);
     ui.input(0, "Encore"); ui.send(); await settle(); expect(operation.mock.calls[1][3].etag).toBe('"new"');
   });
   it("preserves all draft fields across repeated conflicts, failed reads and explicit decisions", async () => {
     const ui = setup(); await settle(); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISH_VERSION_CONFLICT" }));
-    const draft = ["Mon nom", "Note\nprivée", "https://example.test/original", "14,20", "3"]; draft.forEach((value, index) => ui.input(index, value)); ui.send(); await settle();
+    const draft = ["Mon nom", "Note\nprivée", "https://example.test/original", "14,20", "3", "Vert", "M"]; draft.forEach((value, index) => ui.input(index, value)); ui.send(); await settle();
     expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(draft); ui.send(); expect(ui.update).toHaveBeenCalledTimes(1);
     const reread = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Relire le souhait");
     expect((reread?.compareDocumentPosition(ui.fields[0]) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -186,12 +187,12 @@ describe("gift editor", () => {
     expect(ui.view.textContent).toContain("Version enregistrée"); expect(ui.view.textContent).toContain("Autre onglet"); expect(ui.fields.map(field => field.value)).toEqual(draft); expect(ui.update).toHaveBeenCalledTimes(1);
     const comparison = ui.view.querySelector(".wish-edit-view__comparison");
     expect(comparison?.querySelector("h2")?.textContent).toBe("Version enregistrée");
-    expect(comparison?.querySelectorAll("dt")).toHaveLength(5);
-    expect(comparison?.querySelectorAll("dd")).toHaveLength(5);
+    expect(comparison?.querySelectorAll("dt")).toHaveLength(7);
+    expect(comparison?.querySelectorAll("dd")).toHaveLength(7);
     expect(comparison?.contains(ui.form)).toBe(false);
     ui.click("Enregistrer"); await settle(); expect(ui.update.mock.calls[1][3].etag).toBe('"conflict-2"'); expect(ui.submit.disabled).toBe(true);
     ui.loadOne.mockResolvedValue(stored("Version finale", '"conflict-3"')); ui.click("Relire le souhait"); await settle(); ui.click("Utiliser la version enregistrée");
-    expect(ui.fields.map(field => field.value)).toEqual(Object.values(stored("Version finale").values)); expect(ui.submit.disabled).toBe(true); expect(ui.update).toHaveBeenCalledTimes(2); expect(ui.loadWishlist).toHaveBeenCalledTimes(4);
+    expect(ui.fields.map(field => field.value)).toEqual([...Object.values(stored("Version finale").values), "", ""]); expect(ui.submit.disabled).toBe(true); expect(ui.update).toHaveBeenCalledTimes(2); expect(ui.loadWishlist).toHaveBeenCalledTimes(4);
   });
   it.each([new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "ENGLISH" }] }), new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("blocks after uncertain or precondition failure %#", async error => {
     const ui = setup(); await settle(); ui.update.mockRejectedValue(error); ui.input(0, "Conserver"); ui.send(); await settle(); ui.send();

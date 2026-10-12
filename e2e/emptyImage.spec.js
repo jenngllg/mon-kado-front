@@ -7,6 +7,7 @@ for (const width of [390, 1440]) {
     const api = await controlledApi(context);
     api.state.authenticated = true;
     await page.goto(`/lists/${listId}/wishes/new`);
+    await page.getByRole("button", { name: "Continuer sans lien", exact: true }).click();
     const frame = page.locator(".wish-image-section__media--empty");
     await expect(frame).toBeVisible();
     await expect(frame).toHaveCSS("border-top-width", "1px");

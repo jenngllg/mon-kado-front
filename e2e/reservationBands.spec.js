@@ -28,7 +28,7 @@ for (const [width, height, enlarged] of [[320, 800, false], [360, 800, false], [
     api.state.reservedQuantity = 0;
     await page.locator(".wish-gallery__photo").click();
     await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
-    await expect(badge).toHaveCount(0);
+    await expect(badge).toHaveText("Disponible");
     api.state.authenticated = true;
     await page.goto(`/lists/${listId}`);
     await expect(page.locator("main h1")).toBeVisible();

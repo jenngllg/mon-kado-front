@@ -16,7 +16,7 @@ describe("gift editing service", () => {
   it("reads a fresh immutable gift and preserves raw editable text independently of safe presentation", async () => {
     const s = setup(); const result = await s.loadOne(id, wishId, { signal });
     expect(s.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes/${wishId}`, { method: "GET", authentication: "required", signal });
-    expect(result.values).toEqual({ name: item.name, note: item.note, url: item.url, price: "0,29", quantity: "2", isFavorite: false });
+    expect(result.values).toEqual({ name: item.name, note: item.note, url: item.url, price: "0,29", quantity: "2", color: "", size: "", isFavorite: false });
     expect(result.wish.url).toBe("https://example.test/product"); expect(result.wish.position).toBe(item.position); expect(result.etag).toBe('"gift-2"');
     for (const value of [result, result.wish, result.values]) expect(Object.isFrozen(value)).toBe(true);
     expect(result.values).not.toHaveProperty("imageUrl"); expect(result.wish.reservedQuantity).toBeNull();
@@ -28,7 +28,7 @@ describe("gift editing service", () => {
   it("sends only five fields and the exact gift precondition", async () => {
     const s = setup(); await s.update(id, wishId, values, { etag: '"gift-1"', signal });
     expect(s.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes/${wishId}`, { method: "PUT", authentication: "required", ifMatch: '"gift-1"', signal,
-      body: { name: item.name, note: item.note, url: item.url, price: 0.29, quantity: 2 } });
+      body: { name: item.name, note: item.note, url: item.url, price: 0.29, quantity: 2, color: null, size: null } });
   });
   it.each(["bad", "00000000-0000-0000-0000-000000000000", "../private"])("rejects invalid ids %s before either operation", async value => {
     const s = setup();

@@ -17,6 +17,23 @@ function setup(options = {}) {
   return { view, loadCurrent, onUnavailable };
 }
 describe("current reservation section", () => {
+  it.each([true, false])("carries a card action intent once and never replays it on page return: %s", async reserveImmediately => {
+    // Arrange
+    const createForm = vi.fn(() => document.createElement("form"));
+    const loadCurrent = vi.fn().mockResolvedValue({ state: "absent" });
+    setup({ reserveImmediately, loadCurrent, createForm });
+    await settle();
+    expect(createForm).toHaveBeenCalledExactlyOnceWith(expect.any(Function), expect.any(Function), reserveImmediately);
+    // Act
+    window.dispatchEvent(new Event("focus")); await settle();
+    // Assert
+    expect(createForm).toHaveBeenLastCalledWith(expect.any(Function), expect.any(Function), false);
+  });
+  it("hides the absent reservation message when the single-item badge already describes availability", async () => {
+    const ui = setup({ hideAbsentMessage: true, loadCurrent: async () => ({ state: "absent" }) });
+    await settle();
+    expect(/** @type {HTMLParagraphElement | null} */ (ui.view.querySelector('p[role="status"]'))?.hidden).toBe(true);
+  });
   it.each([true, false])("carries only an explicit identification action into reservation creation: %s", async explicit => {
     /** @type {(userInitiated?: boolean) => void} */ let recognized = () => {};
     const loadCurrent = vi.fn().mockResolvedValueOnce({ state: "unrecognized" }).mockResolvedValue({ state: "absent" });

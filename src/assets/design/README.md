@@ -7,6 +7,12 @@ existing user-approved mockup artwork.
 
 ## User-selected photographs
 
+The birth occasion icon is Tabler Icons' existing `baby-carriage` outline, with
+its original paths and MIT notice retained in `birth-icon.svg`. The site's
+thin stroke and sage circular surface are presentation only; no custom face is drawn.
+`botanical-complete.webp` is the optimized complete version of the existing
+approved botanical decoration, used to avoid cropped leaf tips in the overview.
+
 The birthday, Christmas, wedding, birth and eucalyptus (Other) photos are used under the
 [Pexels license](https://www.pexels.com/license/),
 checked on 2026-10-08. It permits free website use and modification; these images

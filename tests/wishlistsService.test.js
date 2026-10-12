@@ -12,6 +12,39 @@ function setup(data = [item], status = 200) {
 }
 
 describe("owned wishlists service", () => {
+  it.each([false, true])("separates categories when the backend ignores the archive filter: %s", async isArchived => {
+    // Arrange
+    const active = { ...item, name: "New active list" };
+    const archived = { ...item, id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", name: "Archived list", isArchived: true };
+    const otherActive = { ...active, id: "019c52dd-56c1-7cc6-8a95-243f3a032e06", name: "Other active list", isSuspended: true };
+    const ui = setup([active, archived, otherActive]);
+    // Act
+    const result = await ui.load({ signal, isArchived });
+    // Assert
+    expect(result.map(row => row.id)).toEqual(isArchived ? [archived.id] : [active.id, otherActive.id]);
+    expect(result.every(row => row.isArchived === isArchived)).toBe(true);
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(ui.request).toHaveBeenCalledOnce();
+  });
+  it("does not show a newly created unarchived list in both categories", async () => {
+    // Arrange
+    const legacyActive = { ...item, isArchived: undefined };
+    const ui = setup([legacyActive]);
+    // Act
+    const active = await ui.load({ signal });
+    const archived = await ui.load({ signal, isArchived: true });
+    // Assert
+    expect(active).toEqual([item]);
+    expect(archived).toEqual([]);
+    expect(ui.request).toHaveBeenCalledTimes(2);
+  });
+  it("validates excluded rows before applying the category filter", async () => {
+    // Arrange
+    const ui = setup([{ ...item, id: "invalid", isArchived: true }]);
+    // Act / Assert
+    await expect(ui.load({ signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+    expect(ui.request).toHaveBeenCalledOnce();
+  });
   it("requests archived lists with an explicit filter", async () => {
     const ui = setup([{ ...item, isArchived: true }]);
     const result = await ui.load({ signal, isArchived: true });

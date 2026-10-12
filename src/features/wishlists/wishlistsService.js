@@ -35,7 +35,8 @@ export function createWishlistsService(session) {
         throw new ApiError({ kind: "invalidResponse", statusCode: response.status,
           correlationId: response.metadata.correlationId });
       }
-      return Object.freeze(response.data.map(projectWishlist));
+      // Keep categories disjoint even when a backend returns an unfiltered collection.
+      return Object.freeze(response.data.map(projectWishlist).filter(item => item.isArchived === isArchived));
     },
     create: async (values, { signal }) => {
       /** @type {CreateWishlistRequest} */

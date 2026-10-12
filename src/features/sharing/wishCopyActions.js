@@ -135,5 +135,5 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
     }
   }
   /** @param {import("../wishlists/wishlistsService.js").Wishlist} item Current destination. */
-  function isEligible(item) { return item.id !== excludeWishlistId && !item.isArchived && !item.isSuspended; }
+  function isEligible(item) { return item.id.toLowerCase() !== excludeWishlistId?.toLowerCase() && !item.isArchived && !item.isSuspended; }
 }

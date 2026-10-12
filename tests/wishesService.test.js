@@ -83,7 +83,7 @@ describe("owned gift collection service", () => {
     const service = setup({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, participants: ["private"], createdAt: "unused" }] });
     const result = await service.load(id, { signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes`, { method: "GET", authentication: "required", signal });
-    expect(result).toEqual({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, isFavorite: false, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
+    expect(result).toEqual({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, color: null, size: null, isFavorite: false, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wishes)).toBe(true); expect(Object.isFrozen(result.wishes[0])).toBe(true);
     expect(JSON.stringify(result)).not.toMatch(/participants|createdAt|private/);
   });

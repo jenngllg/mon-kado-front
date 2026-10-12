@@ -31,7 +31,7 @@ for (const [width, height, enlarged] of [[320, 800, false], [360, 800, false], [
         expect(title?.x).toBeCloseTo(box?.x ?? 0, 0);
       }
       expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
-      if (route.path.includes("/wishes/")) {
+      if (route.path.includes("/wishes/") && route.path.endsWith("/edit")) {
         const price = await form.locator(".wish-form__price").boundingBox();
         const quantity = await form.locator(".wish-form__quantity").boundingBox();
         if (Number(width) > 768) expect(price?.y).toBeCloseTo(quantity?.y ?? 0, 0);
