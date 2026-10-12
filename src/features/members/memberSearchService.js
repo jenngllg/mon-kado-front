@@ -1,12 +1,13 @@
 import { ApiError, createAbortError } from "../../api/apiError.js";
 import { validateDisplayName } from "../../auth/displayNameValidation.js";
+import { isDisplayNameTag } from "../../auth/memberHandle.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { validateMemberSearch } from "./memberSearchValidation.js";
 import { readProfilePhoto } from "../profile/profileImageService.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["UserSearchResponse"]} MemberResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["PaginatedResponseOfUserSearchResponse"]} PageResponse */
-/** @typedef {Readonly<{id: string, displayName: string, photo?: import("../profile/profileImageService.js").ProfilePhoto}>} Member */
+/** @typedef {Readonly<{id: string, displayName: string, displayNameTag?: string, photo?: import("../profile/profileImageService.js").ProfilePhoto}>} Member */
 /** @typedef {Readonly<{items: ReadonlyArray<Member>, currentPage: number, pageSize: number, totalCount: number}>} MemberPage */
 /** @typedef {(displayName: string, options: {page?: number, signal: AbortSignal}) => Promise<MemberPage>} SearchMembers */
 
@@ -35,9 +36,10 @@ export function createMemberSearchService(session, { apiBaseUrl = "" } = {}) {
       (page.hasPreviousPage !== undefined && page.hasPreviousPage !== (totalPages > 0 && requestedPage > 1))) throw invalid();
     const seen = new Set();
     const items = page.items.map((/** @type {Partial<MemberResponse> | null} */ item) => {
-      if (!item || !isWishlistId(item.id) || typeof item.displayName !== "string" || validateDisplayName(item.displayName) || seen.has(item.id.toLowerCase())) throw invalid();
+      if (!item || !isWishlistId(item.id) || typeof item.displayName !== "string" || validateDisplayName(item.displayName) || (item.displayNameTag !== undefined && !isDisplayNameTag(item.displayNameTag)) || seen.has(item.id.toLowerCase())) throw invalid();
       seen.add(item.id.toLowerCase());
       return Object.freeze({ id: item.id, displayName: item.displayName,
+        ...(item.displayNameTag === undefined ? {} : { displayNameTag: item.displayNameTag }),
         ...(apiBaseUrl ? { photo: readProfilePhoto(item.profileImageUrl, item.id, apiBaseUrl) } : {}) });
     });
     return Object.freeze({ items: Object.freeze(items), currentPage: requestedPage, pageSize: 20, totalCount: page.totalCount });

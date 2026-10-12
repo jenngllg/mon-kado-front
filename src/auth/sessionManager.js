@@ -5,6 +5,7 @@ import { createSessionCoordinator } from "./sessionCoordinator.js";
 import { waitForSession } from "./sessionAsync.js";
 import { isStrongEntityTag } from "../api/entityTag.js";
 import { validateDisplayName } from "./displayNameValidation.js";
+import { isDisplayNameTag } from "./memberHandle.js";
 import { readTwoFactorProof, readTwoFactorSetup, readRecoveryCodes } from "./twoFactorContract.js";
 
 const SessionPath = "/api/v1/auth/sessions";
@@ -913,7 +914,9 @@ function readUser(response) {
     !Array.isArray(value.roles) || !value.roles.every(role => typeof role === "string" && role.trim().length > 0)) throw invalidResponse(response);
   if (value.isGoogleLinked !== undefined && typeof value.isGoogleLinked !== "boolean") throw invalidResponse(response);
   if (value.isVisibleInMemberSearch !== undefined && typeof value.isVisibleInMemberSearch !== "boolean") throw invalidResponse(response);
+  if (value.displayNameTag !== undefined && !isDisplayNameTag(value.displayNameTag)) throw invalidResponse(response);
   return Object.freeze({ id: String(value.id), email: String(value.email), displayName: String(value.displayName), roles: Object.freeze([...value.roles]),
+    ...(typeof value.displayNameTag === "string" ? { displayNameTag: value.displayNameTag } : {}),
     ...(typeof value.isGoogleLinked === "boolean" ? { isGoogleLinked: value.isGoogleLinked } : {}),
     ...(typeof value.isVisibleInMemberSearch === "boolean" ? { isVisibleInMemberSearch: value.isVisibleInMemberSearch } : {}),
     ...(typeof value.profileImageUrl === "string" || value.profileImageUrl === null ? { profileImageUrl: value.profileImageUrl } : {}) });

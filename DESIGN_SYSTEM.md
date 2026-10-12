@@ -69,6 +69,8 @@ Priority: explicit user decisions, original mockups, then this charter and share
 
 ## Forms and copy
 
+- Member identities use the immutable four-digit tag assigned by the server, formatted as `displayName#1234`. Show the saved identity beneath the editable profile name and in member search and public profiles. Never generate, edit or submit a tag from the browser; a local unsaved name does not change the saved identity. Search accepts a full handle or a plain name. A conflicting rename keeps the existing tag and shows the translated error. UUID authorization and guest pseudonyms stay unchanged.
+
 - Profile search visibility uses a labelled native checkbox beneath the display name, with a 44px label target and concise direct-link explanation. Its true/false value stays local until the existing Save action, and is included in profile conflict comparisons. Hiding from search does not make the member profile or public lists private; member pages are not intended for search-engine indexing.
 
 - Selected account design: a centered 56rem frame, one category title spanning both columns, and an open 12rem left navigation rail separated from content by a thin rule. Omit the visible “Mon compte” heading. Use decorative local Heroicons and a coral active marker, with unchanged category visibility/rights. Keep account fields at 35rem maximum; on mobile move navigation above content. Personal data groups export under “Exporter mes données”, uses a sage status strip and a divider before account deletion. This supersedes the earlier sage boxed navigation and independently centered account-content column.

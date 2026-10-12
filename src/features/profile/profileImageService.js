@@ -1,11 +1,12 @@
 import { ApiError, createAbortError } from "../../api/apiError.js";
 import { isStrongEntityTag } from "../../api/entityTag.js";
 import { validateDisplayName } from "../../auth/displayNameValidation.js";
+import { isDisplayNameTag } from "../../auth/memberHandle.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { validateWishImageFile } from "../wishes/wishImageValidation.js";
 
 /** @typedef {Readonly<{imageUrl: string | null, imageUnavailable: boolean}>} ProfilePhoto */
-/** @typedef {(file: Blob, options: {etag: string, signal: AbortSignal}) => Promise<Readonly<{displayName: string, etag: string}>>} UploadProfileImage */
+/** @typedef {(file: Blob, options: {etag: string, signal: AbortSignal}) => Promise<Readonly<{displayName: string, displayNameTag?: string, etag: string}>>} UploadProfileImage */
 /** @typedef {(options: {etag: string, signal: AbortSignal}) => Promise<string>} RemoveProfileImage */
 
 /** Validates a public versioned photo without treating a malformed source as an absent photo.
@@ -41,8 +42,10 @@ export function createProfileImageService(session) {
       if (signal.aborted) throw createAbortError();
       const data = /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["MemberProfileResponse"]> | null} */ (response.data);
       if (response.status !== 200 || !data || typeof data.displayName !== "string" || validateDisplayName(data.displayName) ||
+        (data.displayNameTag !== undefined && !isDisplayNameTag(data.displayNameTag)) ||
         typeof data.profileImageUrl !== "string" || !data.profileImageUrl.trim() || !isStrongEntityTag(response.metadata.etag)) throw invalid(response);
-      return Object.freeze({ displayName: data.displayName, etag: response.metadata.etag });
+      return Object.freeze({ displayName: data.displayName, etag: response.metadata.etag,
+        ...(data.displayNameTag === undefined ? {} : { displayNameTag: data.displayNameTag }) });
     },
     async removeImage({ etag, signal }) {
       precondition(etag); if (signal.aborted) throw createAbortError();

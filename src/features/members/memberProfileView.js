@@ -3,6 +3,7 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { createAlert, createLoadingState, disposeComponent } from "../../components/index.js";
 import { createBackLink } from "../../components/backLink.js";
 import { createMemberAvatar } from "../../components/memberAvatar.js";
+import { formatMemberHandle } from "../../auth/memberHandle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { WishlistOccasions } from "../wishlists/wishlistValidation.js";
 import { wishlistArtwork } from "../wishlists/wishlistArtwork.js";
@@ -37,7 +38,7 @@ export function createMemberProfileView({ memberId, load, signal }) {
     try {
       const profile = await load(memberId, { signal: lifetime.signal });
       if (disposed) return;
-      disposeComponent(results); results.replaceChildren(); title.textContent = profile.displayName;
+      disposeComponent(results); results.replaceChildren(); title.textContent = formatMemberHandle(profile.displayName, profile.displayNameTag);
       header.prepend(createMemberAvatar({ memberId: profile.id, imageUrl: profile.photo.imageUrl, size: 56 }));
       results.append(node("h2", "Listes partagées"));
       if (!profile.wishlists.length) results.append(node("p", "Aucune liste partagée"));

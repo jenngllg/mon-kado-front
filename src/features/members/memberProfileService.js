@@ -1,10 +1,11 @@
 import { ApiError, createAbortError } from "../../api/apiError.js";
 import { validateDisplayName } from "../../auth/displayNameValidation.js";
+import { isDisplayNameTag } from "../../auth/memberHandle.js";
 import { isCalendarDate, isWishlistId, isWishlistOccasion } from "../wishlists/wishlistValidation.js";
 import { readProfilePhoto } from "../profile/profileImageService.js";
 
 /** @typedef {Readonly<{id: string, name: string, occasion: import("../wishlists/wishlistValidation.js").WishlistOccasion, eventDate: string | null, shareHref: string}>} MemberWishlist */
-/** @typedef {Readonly<{id: string, displayName: string, photo: import("../profile/profileImageService.js").ProfilePhoto, wishlists: ReadonlyArray<MemberWishlist>}>} MemberProfile */
+/** @typedef {Readonly<{id: string, displayName: string, displayNameTag?: string, photo: import("../profile/profileImageService.js").ProfilePhoto, wishlists: ReadonlyArray<MemberWishlist>}>} MemberProfile */
 /** @typedef {(memberId: string, options: {signal: AbortSignal}) => Promise<MemberProfile>} LoadMemberProfile */
 
 /** Reads only the anonymous public contract; bearer URLs stay in the disposable view.
@@ -23,7 +24,7 @@ export function createMemberProfileService(session, { apiBaseUrl, frontendOrigin
     const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
     const profile = /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["PublicMemberProfileResponse"]> | null} */ (response.data);
     if (response.status !== 200 || !profile || !isWishlistId(profile.id) || profile.id.toLowerCase() !== memberId.toLowerCase() ||
-      typeof profile.displayName !== "string" || validateDisplayName(profile.displayName) || !Array.isArray(profile.wishlists)) throw invalid();
+      typeof profile.displayName !== "string" || validateDisplayName(profile.displayName) || (profile.displayNameTag !== undefined && !isDisplayNameTag(profile.displayNameTag)) || !Array.isArray(profile.wishlists)) throw invalid();
     const canonicalMemberId = profile.id.toLowerCase();
     const ids = new Set();
     const links = new Set();
@@ -40,6 +41,7 @@ export function createMemberProfileService(session, { apiBaseUrl, frontendOrigin
         shareHref: `/shared-wishlists/${parts[0].toLowerCase()}?fromMember=${canonicalMemberId}#${parts[1]}` });
     });
     return Object.freeze({ id: canonicalMemberId, displayName: profile.displayName,
+      ...(profile.displayNameTag === undefined ? {} : { displayNameTag: profile.displayNameTag }),
       photo: readProfilePhoto(profile.profileImageUrl, canonicalMemberId, apiBaseUrl), wishlists: Object.freeze(wishlists) });
   } };
 }
