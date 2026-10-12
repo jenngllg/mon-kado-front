@@ -4,6 +4,7 @@ import { createAlert, createButton, createEmptyState, createFormField, createLoa
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { validateMemberSearch } from "./memberSearchValidation.js";
 import { createMemberAvatar } from "../../components/memberAvatar.js";
+import { formatMemberHandle } from "../../auth/memberHandle.js";
 
 /** A public, explicitly submitted search with view-local query state.
  * @param {{search: import("./memberSearchService.js").SearchMembers, signal?: AbortSignal, state?: {query: string, page: number}}} options Operations and tab-local navigation state.
@@ -14,7 +15,7 @@ export function createMemberSearchView({ search, signal, state = { query: "", pa
   const title = node("h1", "Rechercher un membre");
   const form = node("form", ""); form.noValidate = true; form.className = "flow"; form.setAttribute("aria-label", "Rechercher un membre");
   const input = node("input", ""); input.type = "search"; input.name = "displayName"; input.autocomplete = "off";
-  const field = createFormField({ label: "Nom d’affichage", control: input, required: true });
+  const field = createFormField({ label: "Pseudo ou identifiant", control: input, required: true });
   const summary = node("div", ""); summary.hidden = true;
   const submit = createButton({ label: "Rechercher", type: "submit" });
   const status = node("p", ""); status.setAttribute("role", "status"); status.className = "visually-hidden";
@@ -97,7 +98,7 @@ export function createMemberSearchView({ search, signal, state = { query: "", pa
         for (const member of page.items) {
           const item = node("li", ""); item.className = "member-search-result";
           const link = node("a", ""); link.href = `/members/${member.id}`;
-          const name = node("span", member.displayName); name.className = "member-search-result__name";
+          const name = node("span", formatMemberHandle(member.displayName, member.displayNameTag)); name.className = "member-search-result__name";
           link.append(createMemberAvatar({ memberId: member.id, imageUrl: member.photo?.imageUrl, size: 56 }), name);
           item.append(link); collection.append(item);
         }

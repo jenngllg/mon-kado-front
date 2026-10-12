@@ -36,6 +36,20 @@ function edit(input, value) { input.value = value; input.dispatchEvent(new Event
 async function submit(form) { form.dispatchEvent(new Event("submit", { cancelable: true })); await settle(); }
 
 describe("profile editor", () => {
+  it("shows the assigned tag outside editable fields and preserves it after renaming", async () => {
+    // Arrange
+    let name = "Jenn";
+    const load = vi.fn(async () => ({ displayName: name, displayNameTag: "0042", email: "jenn@example.test", etag: '"a"', isVisibleInMemberSearch: false }));
+    const save = vi.fn(async (value, options) => { expect(options).not.toHaveProperty("displayNameTag"); name = value.trim(); return { displayName: name, displayNameTag: "0042", etag: '"b"' }; });
+    const { view, input, form } = mount({ load, save }); await settle();
+    const identifier = view.querySelector(".profile-identifier");
+    expect(identifier?.textContent).toBe("Jenn#0042"); expect(input.value).toBe("Jenn");
+    // Act
+    edit(input, "Jenn renamed"); expect(identifier?.textContent).toBe("Jenn#0042"); await submit(form);
+    // Assert
+    expect(identifier?.textContent).toBe("Jenn renamed#0042"); expect(save).toHaveBeenCalledOnce();
+    expect(view.querySelector('[name="displayNameTag"]')).toBeNull();
+  });
   it.each([false, true])("edits visibility alone from %s with an accessible checkbox", async initial => {
     // Arrange
     let visible = initial;

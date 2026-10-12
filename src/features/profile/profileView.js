@@ -1,5 +1,6 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { DisplayNameServerMessage, validateDisplayName } from "../../auth/displayNameValidation.js";
+import { formatMemberHandle, isDisplayNameTag } from "../../auth/memberHandle.js";
 import { createAlert, createButton, createFormField, createLoadingState, disposeComponent,
   setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
@@ -30,6 +31,8 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   input.type = "text";
   input.setAttribute("autocomplete", "nickname");
   const field = createFormField({ control: input, label: "Nom d’affichage", required: true });
+  const identifier = textElement("p", ""); identifier.className = "profile-identifier"; identifier.hidden = true;
+  identifier.setAttribute("aria-label", "Identifiant MonKado");
   const visibility = document.createElement("input");
   visibility.type = "checkbox";
   visibility.name = "isVisibleInMemberSearch";
@@ -55,7 +58,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   const actions = textElement("div", "");
   actions.className = "cluster";
   actions.append(submit);
-  form.append(field, visibilityGroup, comparison, actions);
+  form.append(field, identifier, visibilityGroup, comparison, actions);
   view.append(title, feedback, loading, form);
 
   const lifetime = new AbortController();
@@ -142,6 +145,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     base = null;
     photoBase = null; photoNotice = ""; photoSuccess.textContent = ""; photoFeedback.replaceChildren(); photoConfirmation.hidden = true;
     input.value = "";
+    identifier.textContent = ""; identifier.hidden = true;
     visibility.checked = false;
     currentValue.textContent = "";
     feedback.replaceChildren();
@@ -184,6 +188,8 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   }
 
   function updateControls() {
+    identifier.hidden = !base || !isDisplayNameTag(base.displayNameTag);
+    identifier.textContent = identifier.hidden || !base ? "" : formatMemberHandle(base.displayName, base.displayNameTag);
     setButtonLoading(submit, saving);
     input.disabled = busy || confirmingPhoto;
     visibility.disabled = busy || confirmingPhoto;

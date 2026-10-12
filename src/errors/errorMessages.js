@@ -12,6 +12,14 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  MEMBER_HANDLE_ALREADY_USED: {
+    title: "Pseudo indisponible",
+    message: "Ce pseudo est déjà utilisé avec ton tag. Choisis un autre pseudo.",
+  },
+  MEMBER_DISPLAY_NAME_TAG_UNAVAILABLE: {
+    title: "Pseudo indisponible",
+    message: "Choisis un autre pseudo : tous les tags de ce nom sont utilisés.",
+  },
   WISHLIST_ARCHIVED: {
     title: "Liste archivée",
     message: "Désarchive la liste pour la modifier.",
