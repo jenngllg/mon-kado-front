@@ -29,13 +29,17 @@ function confirm(view) {
 }
 
 describe("Google to MFA handoff", () => {
-  it.each(["enroll", "verify"])("opens Google MFA %s with the browser clock 54 ms behind", async requiredAction => {
+  it.each([
+    ["enroll", "2026-10-06T20:35:15.9489681Z"],
+    ["verify", "2026-10-06T20:35:15.9489681Z"],
+    ["enroll", "2026-10-06T20:35:15.948968123Z"],
+    ["verify", "2026-10-06T20:35:15.948968123Z"],
+  ])("opens Google MFA %s at %s with the browser clock 54 ms behind", async (requiredAction, expiresAt) => {
     // Arrange
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-06T20:30:15.894Z"));
     const f = setup(); await f.google.start(StartOptions);
     f.completion.status = 202;
-    const expiresAt = "2026-10-06T20:35:15.9489681Z";
     f.completion.body = { flow: TwoFactorFlow, requiredAction, expiresAt };
     const onAuthenticated = vi.fn();
     // Act
