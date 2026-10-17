@@ -37,7 +37,7 @@ describe("application shell", () => {
     // Act
     shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
     // Assert
-    const links = [...shell.element.querySelectorAll("nav a")];
+    const links = [...shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')];
     expect(links.map(link => link.getAttribute("href"))).toEqual([
       "/", "/members", "/lists", "/followed-lists", "/reservations", "/profile",
     ]);
