@@ -31,6 +31,17 @@ afterEach(() => {
 });
 
 describe("application shell", () => {
+  it("places followed lists between owned lists and reservations in member navigation", () => {
+    // Arrange
+    const shell = createTestShell();
+    // Act
+    shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
+    // Assert
+    const links = [...shell.element.querySelectorAll("nav a")];
+    expect(links.map(link => link.getAttribute("href"))).toEqual([
+      "/", "/members", "/lists", "/followed-lists", "/reservations", "/profile",
+    ]);
+  });
   it.each(["anonymous", "initializing", "authenticated", "signingOut", "unavailable"])("keeps member search available in session state %s", status => {
     const shell = createTestShell();
     shell.setSession({ status: /** @type {import("../src/auth/sessionManager.js").SessionSnapshot["status"]} */ (status), user: null, etag: null, logoutPending: false, issue: null });
