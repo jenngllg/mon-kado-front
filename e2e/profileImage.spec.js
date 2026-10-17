@@ -64,7 +64,7 @@ for (const width of [390, 1440]) {
 }
 
 for (const width of [390, 768, 1440]) {
-  test(`profile crop uses one save above the name at ${width}px`, async ({ page, context }, testInfo) => {
+  test(`profile crop uses one page save below the fields at ${width}px`, async ({ page, context }, testInfo) => {
     const api = await controlledApi(context); api.state.authenticated = true;
     /** @type {string[]} */ const errors = [];
     page.on("pageerror", error => errors.push(error.message));
@@ -115,6 +115,7 @@ for (const width of [390, 768, 1440]) {
     await expect(save).toBeEnabled();
     await expect(section.locator('input[type="range"]')).toHaveCount(1);
     await expect(form.getByRole("button", { name: "Enregistrer", exact: true })).toHaveCount(1);
+    await expect(section.getByRole("button", { name: "Enregistrer", exact: true })).toHaveCount(0);
     await expect(section.locator(".profile-image-section__body")).toBeHidden();
     await expect(section.getByRole("button", { name: "Valider le recadrage" })).toHaveCount(0);
     await expect(section.getByText("Photo enregistrée", { exact: true })).toBeHidden();

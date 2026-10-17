@@ -13,6 +13,14 @@ function setup(data = page, status = 200) {
   return { ...service, request, signal: new AbortController().signal };
 }
 describe("member reservation history contract", () => {
+  it.each([null, "wishDeleted", "wishlistDeleted", "notShared", "suspended", "archived"])("retains the server's known source restriction %s", async inaccessibilityReason => {
+    const service = setup({ ...page, items: [{ ...item, inaccessibilityReason }] });
+    expect((await service.load({ signal: service.signal })).items[0]).toMatchObject({ status: "active", inaccessibilityReason });
+  });
+  it.each(["outOfStock", 1, {}, ""])("rejects unknown source restrictions %#", async inaccessibilityReason => {
+    const service = setup({ ...page, items: [{ ...item, inaccessibilityReason }] });
+    await expect(service.load({ signal: service.signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("uses private owner navigation and image grants without a bearer link", async () => {
     const ownedWishPath = `/lists/${id}/wishes/${id}`;
     const imageUrl = `http://localhost/api/v1/wishlists/${id}/wishes/${id}/image?token=private-test`;

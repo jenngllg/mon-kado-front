@@ -314,7 +314,7 @@
 .profile-image-section > :empty { display: none; }
 .profile-image-section > .profile-image-section__body,
 .profile-image-section > .wish-image-section__preview { margin-block-start: 0; }
-.profile-image-section__body { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: var(--space-6); align-items: center; }
+.profile-image-section__body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
 .profile-image-section__actions { flex-wrap: wrap; gap: var(--space-3); }
 .profile-photo-crop__controls .profile-image-section__actions { margin-block-start: var(--space-4); }
 .profile-image-section__frame { width: min(10rem, 100%); }

@@ -28,6 +28,8 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
     const request = route.request();
     const url = new URL(request.url());
     if (url.origin === frontendOrigin) {
+      // CSP belongs to documents; forwarding every font/image through fetch can race navigation aborts.
+      if (request.resourceType() !== "document") return route.continue();
       const response = await route.fetch();
       return route.fulfill({ response, headers: { ...response.headers(), "Content-Security-Policy": deployedPolicy } });
     }
