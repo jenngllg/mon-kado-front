@@ -82,12 +82,12 @@ export const NavigationItems = Object.freeze([
     href: RoutePaths.Lists,
     routeName: RouteNames.Lists,
   }),
+  Object.freeze({ label: "Listes suivies", href: RoutePaths.FollowedLists, routeName: RouteNames.FollowedLists }),
   Object.freeze({
     label: "Mes réservations",
     href: RoutePaths.Reservations,
     routeName: RouteNames.Reservations,
   }),
-  Object.freeze({ label: "Listes suivies", href: RoutePaths.FollowedLists, routeName: RouteNames.FollowedLists }),
   Object.freeze({ label: "Modération", href: RoutePaths.ReportedWishlists, routeName: RouteNames.ReportedWishlists }),
   Object.freeze({
     label: "Mon compte",
