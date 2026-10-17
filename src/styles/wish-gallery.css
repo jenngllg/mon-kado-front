@@ -50,6 +50,7 @@
   overflow-wrap: anywhere;
 }
 .shared-wishlist-occasion { font-weight: var(--font-weight-bold); }
+.shared-wishlist-metadata > .wishlist-event-separator { display: none; }
 .shared-wishlist-metadata time { font-size: 1.75rem; font-weight: var(--font-weight-bold); line-height: 1.35; }
 .shared-wishlist-metadata .wishlist-event-countdown { margin-block-start: var(--space-2); font-weight: var(--font-weight-regular); }
 .wishlist-details-view:is(.shared-wishlist-view, .wishlist-details-view--banner) .wishlist-details-note { margin-block-start: var(--space-2); max-width: 65ch; padding: 0; border: 0; }

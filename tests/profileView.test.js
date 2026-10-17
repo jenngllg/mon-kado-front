@@ -50,7 +50,7 @@ describe("profile editor", () => {
     expect(identifier?.textContent).toBe("Jenn renamed#0042"); expect(save).toHaveBeenCalledOnce();
     expect(view.querySelector('[name="displayNameTag"]')).toBeNull();
   });
-  it.each([false, true])("edits visibility alone from %s with an accessible checkbox", async initial => {
+  it.each([false, true])("edits visibility alone from %s with an accessible switch", async initial => {
     // Arrange
     let visible = initial;
     const load = vi.fn(async () => ({ displayName: "Jenn", email: "jenn@example.test", etag: '"a"', isVisibleInMemberSearch: visible }));
@@ -59,6 +59,7 @@ describe("profile editor", () => {
     const checkbox = /** @type {HTMLInputElement} */ (view.querySelector('input[type="checkbox"]'));
     // Act
     expect(checkbox.checked).toBe(initial);
+    expect(checkbox.getAttribute("role")).toBe("switch");
     expect(view.querySelector('label[for="' + checkbox.id + '"]')?.textContent).toContain("Apparaître dans la recherche de membres");
     expect(document.getElementById(checkbox.getAttribute("aria-describedby") ?? "")?.textContent).toContain("lien direct");
     checkbox.click();

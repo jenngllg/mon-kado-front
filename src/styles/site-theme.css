@@ -66,7 +66,10 @@
 
 .profile-visibility__label { min-height: 44px; gap: var(--space-2); flex-wrap: nowrap; cursor: pointer; }
 .profile-visibility__label span { min-width: 0; }
-.profile-visibility__label input { flex-shrink: 0; accent-color: var(--color-text); }
+.profile-visibility__label input { flex-shrink: 0; accent-color: var(--color-accent); }
+:is(.profile-visibility__label, .shared-wishlist-filter) input:checked { background: var(--color-accent); border-color: var(--color-accent); }
+:is(.profile-visibility__label, .shared-wishlist-filter) input:checked::before { background: var(--color-text-on-accent); }
+:is(.profile-visibility__label, .shared-wishlist-filter) input:checked:not(:disabled):hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
 .personal-data-view, .personal-data-view__deletion { --flow-space: var(--space-4); }
 .personal-data-view__status { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-md); background: var(--color-surface-sage); }
 .personal-data-view__status p { margin: 0; }

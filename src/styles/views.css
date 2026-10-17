@@ -567,12 +567,12 @@
   background: var(--color-surface-sage);
 }
 .wishlist-surprise-control {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: var(--space-1);
   position: relative;
   width: fit-content;
 }
+.wishlist-surprise-hint { margin: 0; color: var(--color-text-muted); font-size: var(--font-size-sm); }
 .wishlist-archive-tabs .action-link {
   padding: var(--space-2) var(--space-4);
   min-height: var(--control-min-size);
@@ -632,7 +632,7 @@
   cursor: pointer;
 }
 
-.wishlist-surprise-switch input {
+:is(.wishlist-surprise-switch, .profile-visibility__label) input {
   appearance: none;
   width: 44px;
   height: 26px;
@@ -645,7 +645,7 @@
   cursor: inherit;
 }
 
-.wishlist-surprise-switch input::before {
+:is(.wishlist-surprise-switch, .profile-visibility__label) input::before {
   content: "";
   position: absolute;
   width: 18px;
@@ -656,10 +656,11 @@
   background: var(--color-text);
 }
 
-.wishlist-surprise-switch input:checked { background: var(--color-surface-sage); }
-.wishlist-surprise-switch input:checked::before { left: 21px; }
-.wishlist-surprise-switch input:disabled { opacity: 0.5; cursor: not-allowed; }
-.wishlist-surprise-switch input:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 4px; }
+:is(.wishlist-surprise-switch, .profile-visibility__label) input:checked { background: var(--color-accent); border-color: var(--color-accent); }
+:is(.wishlist-surprise-switch, .profile-visibility__label) input:checked::before { left: 21px; background: var(--color-text-on-accent); }
+:is(.wishlist-surprise-switch, .profile-visibility__label) input:checked:not(:disabled):hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
+:is(.wishlist-surprise-switch, .profile-visibility__label) input:disabled { opacity: 0.5; cursor: not-allowed; }
+:is(.wishlist-surprise-switch, .profile-visibility__label) input:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 4px; }
 .wish-owner-detail .action-link,
 .wish-owner-detail .action-link:is(:hover, :focus-visible) { text-decoration: none; }
 

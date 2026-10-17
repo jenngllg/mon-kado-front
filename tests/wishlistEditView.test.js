@@ -84,7 +84,9 @@ describe("wishlist editor", () => {
     const ui = setup({}, initial); await settle();
     const mode = /** @type {HTMLInputElement} */ (ui.view.querySelector('[role="switch"]'));
     expect(mode.checked).toBe(false); expect(ui.submit.disabled).toBe(true);
+    expect(ui.view.querySelector(".wishlist-surprise-hint")?.textContent).toContain("Mode surprise désactivé");
     mode.click(); expect(ui.submit.disabled).toBe(false);
+    expect(ui.view.querySelector(".wishlist-surprise-hint")?.textContent).toContain("Mode surprise activé");
     expect(ui.submit.textContent).toBe("Enregistrer"); ui.send(); await settle();
     expect(ui.update.mock.calls[0][1].surpriseMode).toBe(true);
   });

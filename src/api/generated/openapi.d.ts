@@ -1912,6 +1912,8 @@ export interface components {
             readonly name: string;
             readonly occasion: components["schemas"]["WishlistOccasion"];
             readonly ownerDisplayName: string;
+            /** Format: uuid */
+            readonly ownerId: string;
             readonly wishes: readonly components["schemas"]["SharedWishResponse"][];
         };
         readonly SharedWishResponse: {
