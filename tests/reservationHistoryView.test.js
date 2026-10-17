@@ -15,6 +15,59 @@ async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); 
 /** @param {HTMLElement} view Current history view. */
 function changeFilter(view) { view.querySelector("select")?.dispatchEvent(new Event("change")); }
 describe("reservation history presentation", () => {
+  it("groups only the returned page without mutating its server order", async () => {
+    // Arrange
+    const items = Object.freeze([
+      { ...item, id: "cancelled", wishName: "Cancelled first", status: /** @type {const} */ ("cancelled"), endedAt: item.lastActivityAt },
+      { ...item, id: "active-1", wishName: "Active first" },
+      { ...item, id: "unavailable", wishName: "Unavailable last", status: /** @type {const} */ ("unavailable"), endedAt: item.lastActivityAt },
+      { ...item, id: "active-2", wishName: "Active second" },
+    ]);
+    const { view } = setup({ load: async () => ({ ...page, items, totalCount: 40 }) });
+    // Act
+    await settle();
+    // Assert
+    expect([...view.querySelectorAll(".reservation-history-group")].map(group => group.textContent)).toEqual(["En cours", "Historique"]);
+    expect([...view.querySelectorAll(".reservation-history-card__description h2")].map(heading => heading.textContent)).toEqual(["Active first", "Active second", "Cancelled first", "Unavailable last"]);
+    expect(items.map(entry => entry.id)).toEqual(["cancelled", "active-1", "unavailable", "active-2"]);
+    expect(view.querySelectorAll("nav")).toHaveLength(2);
+  });
+  it.each([["active", "En cours"], ["cancelled", "Annulée"], ["unavailable", "Inaccessible"]])("labels lifecycle %s as %s", async (status, label) => {
+    const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, status: /** @type {typeof item.status} */ (status), endedAt: status === "active" ? null : item.lastActivityAt }] }) });
+    await settle();
+    expect(view.querySelector(".reservation-history-card__status")?.textContent).toBe(`Statut : ${label}`);
+  });
+  it.each([
+    ["wishDeleted", "Souhait supprimé"], ["wishlistDeleted", "Liste supprimée"],
+    ["notShared", "Liste non partagée"], ["suspended", "Liste suspendue"], ["archived", "Liste archivée"],
+  ])("shows only the supplied cause %s without changing an earlier cancellation", async (reason, label) => {
+    const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, status: "cancelled", endedAt: item.lastActivityAt, inaccessibilityReason: /** @type {import("../src/features/reservations/reservationHistoryService.js").InaccessibilityReason} */ (reason) }] }) });
+    await settle();
+    expect(view.querySelector(".reservation-history-card__status")?.textContent).toBe("Statut : Annulée");
+    expect(view.querySelector(".reservation-history-card__reason")?.textContent).toBe(label);
+    expect(view.querySelector(".reservation-history-card__media")?.textContent).toBe(reason === "wishDeleted" || reason === "wishlistDeleted" ? label : "Sans image");
+  });
+  it("does not invent a deletion when the reason is unknown", async () => {
+    const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, status: "unavailable", endedAt: item.lastActivityAt, inaccessibilityReason: null }] }) });
+    await settle();
+    expect(view.querySelector(".reservation-history-card__reason")).toBeNull();
+    expect(view.querySelector(".reservation-history-card__media")?.textContent).toBe("Sans image");
+    expect(view.querySelector('[role="tooltip"]')?.textContent).not.toContain("supprimé");
+  });
+  it("uses visible pressed-state filter buttons and never focuses the hidden select", async () => {
+    // Arrange
+    const { view, load } = setup(); await settle();
+    const active = /** @type {HTMLButtonElement} */ (view.querySelector('[data-status="active"]'));
+    // Act
+    active.click(); await settle();
+    // Assert
+    expect(load.mock.calls.at(-1)?.[0]).toMatchObject({ status: "active", page: 1 });
+    expect(active.getAttribute("aria-pressed")).toBe("true");
+    expect(view.querySelector('[data-status=""]')?.getAttribute("aria-pressed")).toBe("false");
+    expect(document.activeElement).toBe(active);
+    expect(view.querySelector("select")?.tabIndex).toBe(-1);
+    disposeComponent(view); expect(active.disabled).toBe(true);
+  });
   it("explains unavailable access beside the status with a dismissible disposable tooltip", async () => {
     const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, status: "unavailable", endedAt: item.lastActivityAt }] }) });
     await settle();
@@ -54,9 +107,39 @@ describe("reservation history presentation", () => {
     const createCancel = vi.fn();
     const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, isArchived: true, wishHref: "/shared-wishlists/test/wishes/product#access" }] }), createCancel });
     await settle();
-    expect(view.textContent).toContain("Liste archivée"); expect(view.textContent).toContain("Statut : Active");
+    expect(view.textContent).toContain("Liste archivée"); expect(view.textContent).toContain("Statut : En cours");
     expect(view.querySelector('a[href*="/shared-wishlists/"]')).toBeNull();
     expect(view.querySelector(".reservation-history-card__cancel")).toBeNull(); expect(createCancel).not.toHaveBeenCalled();
+  });
+  it("shows the API archived reason once without offering edit or cancellation", async () => {
+    // Arrange
+    const createCancel = vi.fn();
+    const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, isArchived: true, inaccessibilityReason: "archived", wishHref: "/shared-wishlists/test/wishes/product#access" }] }), createCancel });
+    // Act
+    await settle();
+    // Assert
+    expect(view.querySelector(".reservation-history-card__reason")?.textContent).toBe("Liste archivée");
+    expect(view.textContent?.match(/Liste archivée/g)).toHaveLength(1);
+    expect(view.querySelector(".reservation-history-card__actions")).toBeNull();
+    expect(view.querySelector('a[href*="/shared-wishlists/"]')).toBeNull();
+    expect(createCancel).not.toHaveBeenCalled();
+  });
+  it("names owner navigation without promising an unavailable surprise-mode editor", async () => {
+    // Arrange
+    const href = "/lists/list-id/wishes/wish-id";
+    const onOpenWish = vi.fn();
+    const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, wishHref: href }] }), createCancel: () => document.createElement("dialog"), onOpenWish });
+    await settle();
+    const open = /** @type {HTMLAnchorElement} */ (view.querySelector(".reservation-history-card__actions a"));
+    // Act
+    open.click();
+    // Assert
+    expect(open.textContent).toBe("Voir le souhait");
+    expect(open.getAttribute("href")).toBe(href);
+    expect(onOpenWish).toHaveBeenCalledExactlyOnceWith(href);
+    expect(view.textContent).not.toContain("Modifier ma réservation");
+    disposeComponent(view);
+    expect(open.hasAttribute("href")).toBe(false);
   });
   it.each([true, false])("keeps history stable through cancellation and refreshes only after confirmation=%s", async confirmed => {
     /** @type {Parameters<NonNullable<Parameters<typeof createReservationHistoryView>[0]["createCancel"]>>[1]} */ let callbacks = { onClose: () => {}, onInvalidate: () => {}, onUnavailable: () => {} };
@@ -69,6 +152,7 @@ describe("reservation history presentation", () => {
     expect(cancel.textContent).toBe("Annuler");
     expect(cancel.classList.contains("ui-button--primary")).toBe(true);
     expect(cancel.closest(".reservation-history-card__review")?.querySelector("time")).not.toBeNull();
+    expect(view.querySelector(".reservation-history-card__review .reservation-history-card__actions")).not.toBeNull();
     cancel.click(); cancel.click();
     expect(createCancel).toHaveBeenCalledOnce();
     const before = load.mock.calls.length;
@@ -128,7 +212,7 @@ describe("reservation history presentation", () => {
     click("Page précédente"); await settle(); expect(load.mock.calls.at(-1)?.[0].page).toBe(1); click("Page suivante"); await settle();
     const filter = /** @type {HTMLSelectElement} */ (view.querySelector("select")); const before = load.mock.calls.length; filter.value = "cancelled"; filter.dispatchEvent(new Event("change")); expect(load).toHaveBeenCalledTimes(before + 1);
     await settle();
-    expect(load.mock.calls.at(-1)?.[0]).toMatchObject({ page: 1, status: "cancelled" }); expect(document.activeElement).toBe(filter);
+    expect(load.mock.calls.at(-1)?.[0]).toMatchObject({ page: 1, status: "cancelled" }); expect(document.activeElement).toBe(view.querySelector('[data-status="cancelled"]'));
     expect(view.textContent).not.toContain("Appliquer le filtre");
     filter.value = ""; changeFilter(view); await settle();
     expect(load.mock.calls.at(-1)?.[0]).toMatchObject({ page: 1, status: undefined });
@@ -150,8 +234,9 @@ describe("reservation history presentation", () => {
   });
   it("shows loading then safe content and calendar dates without guessing missing shared links", async () => {
     const { view } = setup(); expect(view.textContent).toContain("Chargement de tes réservations…"); await settle();
-    expect(view.querySelector("h1")?.textContent).toBe("Mes réservations"); expect(view.querySelector("h2")?.textContent).toBe("Théière");
-    expect(view.textContent).toContain("Quantité réservée : 2"); expect(view.textContent).toContain("Statut : Active");
+    expect(view.querySelector("h1")?.textContent).toBe("Mes réservations"); expect(view.querySelector(".reservation-history-card h2")?.textContent).toBe("Théière");
+    expect(view.querySelector(".reservation-history-group h2")?.textContent).toBe("En cours");
+    expect(view.textContent).toContain("Quantité réservée : 2"); expect(view.textContent).toContain("Statut : En cours");
     expect(view.querySelector("time")?.dateTime).toBe(item.createdAt); expect(view.querySelector("time")?.textContent).toBe("1 sept. 2026");
     expect(view.textContent).not.toMatch(/UTC|23:59|Dernière quantité|rouvre le lien de partage reçu/);
     expect(view.querySelector("a, input")).toBeNull();
@@ -184,10 +269,11 @@ describe("reservation history presentation", () => {
   });
   it.each(["cancelled", "unavailable"])("renders terminal status %s and treats names as text", async status => {
     const { view, load } = setup(); await settle(); load.mockResolvedValue({ ...page, items: [{ ...item, wishName: "<img src=x>", status: /** @type {typeof item.status} */ (status), endedAt: item.lastActivityAt }] });
-    changeFilter(view); await settle(); expect(view.querySelector("h2")?.textContent).toBe("<img src=x>"); expect(view.querySelector('img[src="x"]')).toBeNull();
-    expect(view.textContent).toContain(status === "cancelled" ? "Annulée le : 2 sept. 2026" : "Indisponible depuis : 2 sept. 2026");
+    changeFilter(view); await settle(); expect(view.querySelector(".reservation-history-card h2")?.textContent).toBe("<img src=x>"); expect(view.querySelector('img[src="x"]')).toBeNull();
+    expect(view.querySelector(".reservation-history-group h2")?.textContent).toBe("Historique");
+    expect(view.textContent).toContain(status === "cancelled" ? "Annulée le : 2 sept. 2026" : "Inaccessible depuis : 2 sept. 2026");
     expect(view.textContent).not.toMatch(/Dernière activité|Terminée le/);
-    expect(view.querySelectorAll("time")).toHaveLength(2); expect(document.activeElement).toBe(view.querySelector("select"));
+    expect(view.querySelectorAll("time")).toHaveLength(2); expect(document.activeElement).toBe(view.querySelector('[data-status=""]'));
   });
   it("distinguishes empty history and an explicitly partial first page", async () => {
     const { view, load } = setup(); await settle(); load.mockResolvedValue({ ...page, items: [], totalCount: 0 }); changeFilter(view); await settle(); expect(view.textContent).toContain("Tu n’as pas encore de réservation");
@@ -199,8 +285,8 @@ describe("reservation history presentation", () => {
   it("clears stale cards, blocks double reads, then focuses a safe error and permits explicit retry", async () => {
     const { view, load } = setup(); await settle(); const gate = barrier(); load.mockImplementation(async () => { await gate.promise; throw new ApiError({ kind: "http", statusCode: 429, correlationId: "support", retryAfterSeconds: 7 }); });
     changeFilter(view); changeFilter(view); expect(view.querySelector("li")).toBeNull(); expect(load).toHaveBeenCalledTimes(2);
-    gate.resolve(); await settle(); expect(view.textContent).toContain("7 seconde(s)"); expect(view.textContent).toContain("support"); expect(document.activeElement).toBe(view.querySelector("select"));
-    load.mockResolvedValue(page); [...view.querySelectorAll("button")].find(button => button.textContent === "Réessayer")?.click(); await settle(); expect(view.querySelectorAll("li")).toHaveLength(1);
+    gate.resolve(); await settle(); expect(view.textContent).toContain("7 seconde(s)"); expect(view.textContent).toContain("support"); expect(document.activeElement).toBe(view.querySelector('[data-status=""]'));
+    load.mockResolvedValue(page); [...view.querySelectorAll("button")].find(button => button.textContent === "Réessayer")?.click(); await settle(); expect(view.querySelectorAll(".reservation-history-card")).toHaveLength(1);
   });
   it("cleans and ignores late data after idempotent destruction", async () => {
     const { view, load } = setup(); await settle(); const gate = barrier(); load.mockImplementation(async () => { await gate.promise; return page; });

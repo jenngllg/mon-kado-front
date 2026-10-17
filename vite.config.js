@@ -11,10 +11,13 @@ export default defineConfig(({ command, mode }) => ({
       input: ["index.html", "legal-notice.html", "privacy-policy.html", "terms-of-use.html"],
     },
   },
+  // Scan application dependencies, not saved browser reports or historical prototypes.
+  optimizeDeps: { entries: ["index.html"] },
   server: {
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
+    watch: { ignored: ["**/.e2e-dist/**", "**/.e2e-results/**", "**/playwright-report/**", "**/coverage/**", "**/test-results/**"] },
   },
   preview: {
     host: "127.0.0.1",

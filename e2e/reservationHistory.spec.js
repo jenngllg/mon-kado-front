@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { controlledApi, frontendOrigin, listId, shareId, sharedPath, secret, wishId } from "./controlledApi.js";
 
-for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+for (const viewport of [{ width: 1440, height: 1000 }, { width: 768, height: 1024 }, { width: 390, height: 844 }, { width: 320, height: 844 }]) {
   test(`reservation history opens the illustrated wish at ${viewport.width}px`, async ({ page, context }, testInfo) => {
     const api = await controlledApi(context);
     const ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
@@ -35,15 +35,15 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await page.setViewportSize(viewport);
     await page.goto("/reservations");
     const card = page.locator(".reservation-history-card");
-    const filter = page.getByLabel("Statut", { exact: true });
+    const filters = page.getByRole("group", { name: "Filtrer les réservations" });
     await expect(page.getByRole("button", { name: "Appliquer le filtre" })).toHaveCount(0);
     await expect(card).toBeVisible();
-    await filter.selectOption("cancelled");
+    await filters.getByRole("button", { name: "Annulées", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Aucune réservation ne correspond à ce statut" })).toBeVisible();
-    await expect(filter).toBeFocused();
-    await filter.selectOption("active"); await expect(card).toBeVisible();
-    await expect(filter).toBeFocused();
-    await filter.selectOption(""); await expect(card).toBeVisible();
+    await expect(filters.getByRole("button", { name: "Annulées", exact: true })).toBeFocused();
+    await filters.getByRole("button", { name: "En cours", exact: true }).click(); await expect(card).toBeVisible();
+    await expect(filters.getByRole("button", { name: "En cours", exact: true })).toBeFocused();
+    await filters.getByRole("button", { name: "Toutes", exact: true }).click(); await expect(card).toBeVisible();
     await expect(page.locator('.reservation-history-view p:not(.visually-hidden)').filter({ hasText: "1 réservation affichée sur 1. Page 1 sur 1." })).toHaveCount(0);
     await expect(card).toContainText("Par Camille");
     await expect(card).toContainText("Quantité réservée : 1");
@@ -68,6 +68,11 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await owner.click();
     await expect(page).toHaveURL(`/members/${ownerId}`);
     await expect(page.getByRole("heading", { name: "Camille", exact: true })).toBeVisible();
+    await page.goBack(); await expect(card).toBeVisible();
+    await card.getByRole("link", { name: "Voir le souhait", exact: true }).click();
+    await expect(page).toHaveURL(`${sharedPath}/wishes/${wishId}`);
+    await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
+    expect(api.state.reservations).toBe(0);
     await page.goBack(); await expect(card).toBeVisible();
     await title.click();
     await expect(page).toHaveURL(`${sharedPath}/wishes/${wishId}`);
