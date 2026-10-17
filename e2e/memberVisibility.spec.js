@@ -21,12 +21,14 @@ for (const width of [320, 360, 768, 1440]) {
     });
     await page.setViewportSize({ width, height: 800 });
     await page.goto("/profile");
-    const choice = page.getByRole("checkbox", { name: "Apparaître dans la recherche de membres" });
+    const choice = page.getByRole("switch", { name: "Apparaître dans la recherche de membres" });
     const save = page.getByRole("button", { name: "Enregistrer", exact: true });
     await expect(choice).not.toBeChecked();
+    await expect(choice).toHaveCSS("background-color", "rgb(243, 244, 236)");
     await expect(save).toBeDisabled();
     await choice.focus(); await page.keyboard.press("Space");
     await expect(choice).toBeChecked(); await expect(save).toBeEnabled();
+    await expect(choice).toHaveCSS("background-color", "rgb(185, 62, 50)");
     await save.click(); await expect(save).toBeDisabled();
     await expect(page.getByText("Ton profil est à jour.", { exact: true })).toBeVisible();
     expect(writes).toBe(1);

@@ -28,24 +28,19 @@ function setup(options = {}) {
 async function settle() { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); }
 
 describe("create wishlist form", () => {
-  it("shows the surprise explanation on information hover, focus or click without changing the switch", () => {
+  it("keeps the current surprise state visible and associated with the switch", () => {
     const ui = setup();
-    const button = /** @type {HTMLButtonElement} */ (ui.form.querySelector('[aria-label="À propos du mode surprise"]'));
-    const hint = /** @type {HTMLElement} */ (ui.form.querySelector('[role="tooltip"]'));
-    const information = /** @type {HTMLElement} */ (button.parentElement);
+    const hint = /** @type {HTMLElement} */ (ui.form.querySelector(".wishlist-surprise-hint"));
     const mode = /** @type {HTMLInputElement} */ (ui.form.querySelector('[role="switch"]'));
-    expect(hint.hidden).toBe(true);
-    expect(button.getAttribute("aria-describedby")).toBe(hint.id);
-    expect(hint.textContent).toBe("Masquer les réservations sur mes souhaits.");
-    information.dispatchEvent(new Event("pointerenter")); expect(hint.hidden).toBe(false);
-    information.dispatchEvent(new Event("pointerleave")); expect(hint.hidden).toBe(true);
-    button.focus(); expect(hint.hidden).toBe(false);
-    information.dispatchEvent(new Event("pointerleave")); expect(hint.hidden).toBe(false);
-    button.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab" })); expect(hint.hidden).toBe(false);
-    button.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); expect(hint.hidden).toBe(true);
-    button.click(); expect(hint.hidden).toBe(false);
-    button.blur(); expect(hint.hidden).toBe(true);
+    expect(hint.hidden).toBe(false);
+    expect(mode.getAttribute("aria-describedby")).toBe(hint.id);
+    expect(hint.textContent).toBe("Mode surprise activé : les réservations des autres resteront masquées pour vous.");
+    mode.click();
+    expect(hint.textContent).toBe("Mode surprise désactivé : les réservations seront visibles pour vous.");
+    mode.click();
     expect(mode.checked).toBe(true);
+    expect(hint.textContent).toContain("Mode surprise activé");
+    expect(ui.form.querySelector('[role="tooltip"]')).toBeNull();
     expect(ui.create).not.toHaveBeenCalled();
   });
   it("keeps creation focused on the form without preview or decorative image requests", () => {
@@ -68,6 +63,9 @@ describe("create wishlist form", () => {
     expect(mode.checked).toBe(true);
     mode.click(); ui.send();
     expect(mode.disabled).toBe(true);
+    const hint = ui.view.querySelector(".wishlist-surprise-hint");
+    mode.dispatchEvent(new Event("change"));
+    expect(hint?.textContent).toContain("Mode surprise désactivé");
     await settle();
     expect(ui.create.mock.calls[0][0].surpriseMode).toBe(false);
   });

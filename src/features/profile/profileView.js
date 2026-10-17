@@ -35,6 +35,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   identifier.setAttribute("aria-label", "Identifiant MonKado");
   const visibility = document.createElement("input");
   visibility.type = "checkbox";
+  visibility.setAttribute("role", "switch");
   visibility.name = "isVisibleInMemberSearch";
   visibility.id = `profile-visibility-${crypto.randomUUID()}`;
   const visibilityLabel = textElement("label", "");
