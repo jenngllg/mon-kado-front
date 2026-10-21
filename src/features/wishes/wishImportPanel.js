@@ -5,6 +5,7 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 import { decodeWishImage, validateWishImageFile, WishImageValidationError } from "./wishImageValidation.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { ImportImageUnavailable, ImportUrlMessage, validateImportUrl } from "./wishImportService.js";
+import { createWishImportFeedback } from "./wishImportFeedback.js";
 
 const AnalysisDelayMs = 2000;
 
@@ -163,8 +164,6 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
     }
     pending = null; suggestions.replaceChildren(); sync();
   }
-  /** @param {readonly string[]} warnings Safe translated copy. */
-  function showWarnings(warnings) { if (warnings.length) feedback.append(createAlert({ variant: "warning", title: "Suggestions à vérifier", message: [...new Set(warnings)].join(" ") })); }
   /** @param {boolean} explicit Whether a form submission requested focus feedback. */
   async function run(explicit = true) {
     if (disposed || disabled || analyzing || !input.value.trim()) return;
@@ -183,7 +182,9 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
         catch (error) { if (signal.aborted || isAbortError(error)) return; URL.revokeObjectURL(pendingUrl); pendingUrl = null; image = null; warnings.push(ImportImageUnavailable); }
       }
       if (disposed || signal.aborted || expected !== revision) return;
-      pending = { ...result, image }; showWarnings(warnings);
+      pending = { ...result, image };
+      const notice = createWishImportFeedback({ ...pending, warnings });
+      if (notice) feedback.append(notice);
       focusTarget = status;
       analyzing = false;
       applyPending(); status.textContent = "";
