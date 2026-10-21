@@ -116,7 +116,7 @@ describe("unified creation and suggestions", () => {
     ui.preview.mockResolvedValue({ name: "", price: "", url, image: new Blob(["fixture"]), warnings: [] });
     await ui.analyze();
     expect(ui.values.name.value).toBe("Mon produit");
-    expect(ui.view.textContent).toContain("Suggestions à vérifier");
+    expect(ui.view.textContent).toContain("Informations indisponibles");
     expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull();
     expect(ui.view.textContent).not.toContain("Garder ma saisie");
     await ui.submit(); expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).toHaveBeenCalledOnce();
