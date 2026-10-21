@@ -31,7 +31,7 @@ for (const width of [390, 1440]) {
       await expect(recovery).toHaveAttribute("target", "_blank");
       await recovery.focus(); await expect(recovery).toBeFocused();
       await expect(recovery).not.toHaveCSS("text-decoration-line", "underline");
-      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await expect(page.getByText("Le nom du souhait n’a pas pu être récupéré.", { exact: false })).toHaveCount(0);
       if (mode === "create") await page.getByRole("button", { name: "Continuer", exact: true }).click();
       await expect(name).toBeEnabled(); await expect(name).toHaveValue("Mon brouillon conservé");
