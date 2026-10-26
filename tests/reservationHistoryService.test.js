@@ -13,6 +13,24 @@ function setup(data = page, status = 200) {
   return { ...service, request, signal: new AbortController().signal };
 }
 describe("member reservation history contract", () => {
+  it("uses current private group navigation and image grants without sharing secrets", async () => {
+    const groupWishPath = `/groups/${id}/wishlists/${id}/wishes/${id}`;
+    const imageUrl = `http://localhost/api/v1/groups/${id}/wishlists/${id}/wishes/${id}/image?token=group-test`;
+    const service = setup({ ...page, items: [{ ...item, groupId: id, groupWishPath, shareLinkId: null, shareUrl: null, ownedWishPath: null, imageUrl }] });
+    expect((await service.load({ signal: service.signal })).items[0]).toMatchObject({ wishHref: groupWishPath, imageUrl, imageUnavailable: false });
+  });
+  it.each(["https://other.test/groups", `/groups/${id}/wishlists/${id}/wishes/${id}#secret`, "/groups/bad"])("rejects invalid group destinations %s", async groupWishPath => {
+    const service = setup({ ...page, items: [{ ...item, groupId: id, groupWishPath, shareLinkId: null }] });
+    await expect(service.load({ signal: service.signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
+  it.each([null, "wishDeleted", "wishlistDeleted", "notShared", "suspended", "archived"])("retains the server's known source restriction %s", async inaccessibilityReason => {
+    const service = setup({ ...page, items: [{ ...item, inaccessibilityReason }] });
+    expect((await service.load({ signal: service.signal })).items[0]).toMatchObject({ status: "active", inaccessibilityReason });
+  });
+  it.each(["outOfStock", 1, {}, ""])("rejects unknown source restrictions %#", async inaccessibilityReason => {
+    const service = setup({ ...page, items: [{ ...item, inaccessibilityReason }] });
+    await expect(service.load({ signal: service.signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("uses private owner navigation and image grants without a bearer link", async () => {
     const ownedWishPath = `/lists/${id}/wishes/${id}`;
     const imageUrl = `http://localhost/api/v1/wishlists/${id}/wishes/${id}/image?token=private-test`;

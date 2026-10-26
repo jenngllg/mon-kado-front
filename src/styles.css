@@ -17,3 +17,6 @@
 @import "./styles/wish-variants.css" layer(components);
 @import "./styles/google.css" layer(components);
 @import "./styles/utilities.css" layer(utilities);
+
+@import "./styles/groups.css" layer(components);
+@import "./styles/wish-preferences.css" layer(components);

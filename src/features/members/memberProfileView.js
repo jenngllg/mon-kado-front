@@ -11,14 +11,14 @@ import { wishlistArtwork } from "../wishlists/wishlistArtwork.js";
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** Displays the public profile without account-management capabilities.
- * @param {{memberId: string, load: import("./memberProfileService.js").LoadMemberProfile, signal?: AbortSignal}} options Read dependencies.
+ * @param {{memberId: string, load: import("./memberProfileService.js").LoadMemberProfile, signal?: AbortSignal, backHref?:string, backLabel?:string}} options Read dependencies.
  */
-export function createMemberProfileView({ memberId, load, signal }) {
+export function createMemberProfileView({ memberId, load, signal, backHref = "/members", backLabel = "Retour à la recherche" }) {
   const view = node("section", ""); view.className = "member-profile-view flow";
   const title = node("h1", "Profil du membre"); title.tabIndex = -1;
   const header = node("header", ""); header.className = "member-profile-header"; header.append(title);
   const results = node("div", ""); results.className = "flow";
-  view.append(createBackLink({ label: "Retour à la recherche", href: "/members" }), header, results);
+  view.append(createBackLink({ label: backLabel, href: backHref }), header, results);
   const lifetime = new AbortController();
   let disposed = false;
   registerComponentCleanup(view, () => {
@@ -46,7 +46,7 @@ export function createMemberProfileView({ memberId, load, signal }) {
         const cards = node("ul", ""); cards.className = "member-profile-lists"; cards.setAttribute("role", "list");
         for (const list of profile.wishlists) {
           const item = node("li", ""); item.className = "member-profile-list";
-          const link = node("a", ""); link.href = list.shareHref;
+          const link = node("a", ""); link.href = list.shareHref; link.setAttribute("aria-label", list.name);
           const art = node("img", ""); art.src = wishlistArtwork(list.occasion); art.alt = ""; art.width = 180; art.height = 180; art.loading = "lazy";
           const content = node("div", ""); content.className = "member-profile-list__content flow";
           const occasion = node("span", WishlistOccasions[list.occasion]); occasion.className = "member-profile-list__occasion";

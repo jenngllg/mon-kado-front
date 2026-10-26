@@ -1,11 +1,10 @@
 import { createActionLink } from "../../components/index.js";
 import { wishMerchant } from "./wishSorting.js";
 import checkCircle from "../../assets/icons/check-circle.svg?raw";
-
-const Prices = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+import { createWishPreferences, wishPriceLabel } from "./wishPreferences.js";
 
 /** Creates text-only product information from a validated projection.
- * @param {{url: string | null, note: string | null, price: number | null, color?: string | null, size?: string | null}} wish Safe product data.
+ * @param {{url: string | null, note: string | null, price: number | null, color?: string | null, size?: string | null, isSurprise?: boolean, acceptsSecondHand?: boolean}} wish Safe product data.
  * @param {HTMLHeadingElement} title Existing routed heading.
  * @returns {HTMLElement} Readable information column.
  */
@@ -20,11 +19,12 @@ export function createWishDetailInformation(wish, title) {
     title.replaceChildren(favorite, name);
   }
   information.append(title);
+  const preferences = createWishPreferences(wish); if (preferences) information.append(preferences);
   const metadata = document.createElement("div");
   metadata.className = "wish-detail__metadata";
   const merchant = wishMerchant(wish.url);
   if (merchant) metadata.append(line(merchant, "wish-detail__merchant"));
-  if (wish.price !== null) metadata.append(line(Prices.format(wish.price), "wish-detail__price wish-card__price"));
+  if (wish.price !== null) metadata.append(line(wishPriceLabel({ ...wish, price: wish.price }), "wish-detail__price wish-card__price"));
   if (metadata.childElementCount) information.append(metadata);
   if (wish.color || wish.size) {
     const variants = document.createElement("dl");
@@ -43,6 +43,7 @@ export function createWishDetailInformation(wish, title) {
     }
     information.append(variants);
   }
+  if (wish.isSurprise) information.append(line("Je donne des pistes, mes proches choisissent.", "wish-detail__idea-hint"));
   if (wish.note) information.append(line(wish.note, "wish-detail__note wishlist-details-note"));
   return information;
 }

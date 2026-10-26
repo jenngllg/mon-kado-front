@@ -4,8 +4,8 @@ import { createWishImage } from "./wishImage.js";
 import { createActionLink, createButton } from "../../components/index.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { createWishFavoriteIndicator } from "./wishFavoriteIndicator.js";
-const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
-/** @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable" | "isFavorite"> & {note?: string | null, wishlistId?: string}} item Safe minimal model. @param {boolean} suspended Read-only parent. @param {{editable?: boolean, detailHref?: string, onDelete?: (trigger: HTMLButtonElement) => void, favoriteButton?: HTMLButtonElement, returnSort?: string}} [options] Card actions. @returns {HTMLLIElement} Gift card without reservation information. */
+import { createWishPreferences, wishPriceLabel } from "./wishPreferences.js";
+/** @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable" | "isFavorite" | "isSurprise" | "acceptsSecondHand"> & {note?: string | null, wishlistId?: string}} item Safe minimal model. @param {boolean} suspended Read-only parent. @param {{editable?: boolean, detailHref?: string, onDelete?: (trigger: HTMLButtonElement) => void, favoriteButton?: HTMLButtonElement, returnSort?: string}} [options] Card actions. @returns {HTMLLIElement} Gift card without reservation information. */
 export function createWishCard(item, suspended, { editable = true, detailHref, onDelete, favoriteButton, returnSort } = {}) {
   const card = element("li", ""); card.className = "wish-card";
   const media = createWishImage(item);
@@ -21,6 +21,7 @@ export function createWishCard(item, suspended, { editable = true, detailHref, o
   const content = element("div", ""); content.className = "wish-card__content flow";
   const actions = element("div", ""); actions.className = "wish-card__actions";
   content.append(element("h3", item.name));
+  const preferences = createWishPreferences(item); if (preferences) content.append(preferences);
   if (editable && item.wishlistId) {
     const title = content.querySelector("h3");
     title?.replaceChildren(createActionLink({ label: item.name, href: withWishSort(RoutePaths.WishDetails.replace(":listId", item.wishlistId).replace(":wishId", item.id), returnSort) }));
@@ -29,7 +30,7 @@ export function createWishCard(item, suspended, { editable = true, detailHref, o
   if (!suspended && favoriteButton) actions.append(favoriteButton);
   if (item.note) { const note = element("p", item.note); note.className = "wishlist-details-note"; content.append(note); }
   if (item.price !== null) {
-    const price = element("p", PriceFormat.format(item.price)); price.className = "wish-card__price"; content.append(price);
+    const price = element("p", wishPriceLabel({ ...item, price: item.price })); price.className = "wish-card__price"; content.append(price);
   }
   const quantity = element("p", "Quantité souhaitée : "); quantity.className = "wish-card__quantity";
   quantity.append(element("span", String(item.quantity)));

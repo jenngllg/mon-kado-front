@@ -4,6 +4,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import {
   createApplicationRoutes,
@@ -11,6 +12,7 @@ import {
   RoutePaths,
 } from "../src/app/index.js";
 import { createPlaceholderView } from "../src/views/index.js";
+import { ApiError } from "../src/api/apiError.js";
 import { disposeComponent } from "../src/components/index.js";
 const unusedSession = {
   prepareExternalAuthentication: async () => { throw new Error("Unexpected Google preparation."); },
@@ -35,6 +37,13 @@ const unusedSession = {
 /** @type {Array<[string, string]>} */
 const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
+  [RouteNames.GroupJoin, RoutePaths.GroupJoin],
+  [RouteNames.Groups, RoutePaths.Groups],
+  [RouteNames.GroupEdit, RoutePaths.GroupEdit],
+  [RouteNames.Group, RoutePaths.Group],
+  [RouteNames.GroupMember, RoutePaths.GroupMember],
+  [RouteNames.GroupWishlist, RoutePaths.GroupWishlist],
+  [RouteNames.GroupWish, RoutePaths.GroupWish],
   [RouteNames.FollowedLists, RoutePaths.FollowedLists],
   [RouteNames.WishlistReportHistory, RoutePaths.WishlistReportHistory],
   [RouteNames.WishlistModerationHistory, RoutePaths.WishlistModerationHistory],
@@ -70,6 +79,61 @@ const ExpectedRoutes = [
 ];
 
 describe("application routes", () => {
+  it("opens a group member without reading their public profile", async () => {
+    const f = groupRoutesFixture(); const view = await f.render(RouteNames.GroupMember); await f.settle();
+    expect(view.querySelector("h1")?.textContent).toBe("Camille#0001");
+    expect(view.querySelector(".back-link")?.getAttribute("href")).toBe(`/groups/${f.id}`);
+    expect(f.request.mock.calls.every(([path]) => path.startsWith(`/api/v1/groups/${f.id}/`))).toBe(true); disposeComponent(view);
+  });
+  it("wires the combined owner group editor without writing on page entry", async () => {
+    const f = groupRoutesFixture();
+    const view = await f.render(RouteNames.GroupEdit); await f.settle();
+    expect(view.querySelector("h1")?.textContent).toBe("Modifier le groupe");
+    expect(/** @type {HTMLInputElement|null} */ (view.querySelector('input[name="name"]'))?.value).toBe("Famille");
+    expect(view.querySelector(".profile-image-section")).not.toBeNull();
+    expect(f.request.mock.calls.every(([, options]) => options.method === "GET")).toBe(true);
+    const input = /** @type {HTMLInputElement} */ (view.querySelector('input[name="name"]'));
+    input.value = "Nouveau nom"; input.dispatchEvent(new Event("input"));
+    f.request.mockResolvedValueOnce({ status: 200, data: { ...f.group, name: "Nouveau nom" }, metadata: { etag: '"00000002"', location: null, correlationId: "group-edit-route", retryAfterSeconds: null } });
+    view.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true })); await f.settle();
+    expect(f.navigate).toHaveBeenCalledWith(`/groups/${f.id}`);
+    disposeComponent(view);
+  });
+  it("wires private group creation, details and navigation to authenticated endpoints", async () => {
+    const f = groupRoutesFixture();
+    const overview = await f.render(RouteNames.Groups); await f.settle();
+    f.button(overview, "Créer un groupe").click();
+    const input = /** @type {HTMLInputElement} */ (overview.querySelector("dialog input")); input.value = "Famille";
+    overview.querySelector("dialog form")?.dispatchEvent(new Event("submit", { cancelable: true })); await f.settle();
+    expect(f.navigate).toHaveBeenCalledWith(`/groups/${f.id}`); disposeComponent(overview);
+    const detail = await f.render(RouteNames.Group); await f.settle();
+    f.button(detail, "Supprimer le groupe").click(); f.button(detail, "Supprimer").click(); await f.settle();
+    expect(f.navigate).toHaveBeenCalledWith("/groups"); disposeComponent(detail);
+  });
+  it("reuses reading cards, owner avatars, sorting and reservation confirmation for a group", async () => {
+    const f = groupRoutesFixture(); const view = await f.render(RouteNames.GroupWishlist); await f.settle();
+    expect(view.querySelector(`a[href^="/groups/${f.id}/wishlists/${f.id}/wishes/${f.wishId}"]`)).not.toBeNull();
+    expect(view.querySelector('.shared-wishlist-navigation a')?.getAttribute("href")).toBe(`/groups/${f.id}`);
+    const sorting = /** @type {HTMLSelectElement} */ (view.querySelector(".wish-sort-control select")); sorting.value = "priceAsc"; sorting.dispatchEvent(new Event("change"));
+    expect(f.replaceSearchParameter).toHaveBeenCalledWith("sort", "priceAsc");
+    f.button(view, "Réserver").click(); await f.settle();
+    expect(view.querySelector("dialog")?.textContent).toContain("Confirmer la réservation");
+    view.querySelector("dialog form")?.dispatchEvent(new Event("submit", { cancelable: true })); await f.settle();
+    expect(f.request).toHaveBeenCalledWith(expect.stringContaining(`/groups/${f.id}/wishlists/${f.id}/wishes/${f.wishId}/reservations/current`), expect.objectContaining({ method: "PUT", authentication: "required" }));
+    disposeComponent(view);
+  });
+  it("opens group wish details and cancels through group routes from reservation history", async () => {
+    const f = groupRoutesFixture(); const detail = await f.render(RouteNames.GroupWish); await f.settle();
+    expect(detail.querySelector(".back-link")?.getAttribute("href")).toBe(`/groups/${f.id}/wishlists/${f.id}`); disposeComponent(detail);
+    const history = await f.render(RouteNames.Reservations); await f.settle();
+    const link = history.querySelector(".reservation-history-card__wish-link");
+    if (!(link instanceof HTMLAnchorElement)) throw new Error("Missing group history link");
+    link.click(); expect(f.navigate).toHaveBeenCalledWith(`/groups/${f.id}/wishlists/${f.id}/wishes/${f.wishId}`);
+    f.button(history, "Annuler").click(); await f.settle();
+    f.button(history, "Confirmer l’annulation").click(); await f.settle();
+    expect(f.request).toHaveBeenCalledWith(expect.stringContaining(`/groups/${f.id}/wishlists/${f.id}/wishes/${f.wishId}/reservations/current`), expect.objectContaining({ method: "DELETE", authentication: "required" }));
+    disposeComponent(history);
+  });
   it("opens and cancels an owned history item through private routes without shared access", async () => {
     const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
     const ownedWishPath = `/lists/${id}/wishes/${wishId}`;
@@ -284,6 +348,55 @@ describe("application routes", () => {
     expect(view.querySelector("strong")).toBeNull();
   });
 });
+
+function groupRoutesFixture() {
+  const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05", ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e06";
+  const at = "2026-10-24T12:00:00Z";
+  const group = { id, name: "Famille", ownerId, profileImageUrl: null, memberCount: 1, createdAt: at, updatedAt: null };
+  const member = { id: ownerId, displayName: "Camille", displayNameTag: "0001", profileImageUrl: null, joinedAt: at };
+  const wish = { id: wishId, name: "Théière", note: null, quantity: 1, price: 25, imageUrl: null, url: null, reservedQuantity: 0, availableQuantity: 1, currentParticipantReservedQuantity: null };
+  const list = { id, ownerId, name: "Noël", ownerDisplayName: "Camille", occasion: "christmas", eventDate: null, message: null, canSubscribe: false, wishes: [wish] };
+  /** @param {unknown[]} items @param {number} [size] */
+  const page = (items, size = 20) => ({ items, currentPage: 1, pageSize: size, totalCount: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false });
+  let historyMode = false;
+  const request = vi.fn(async (/** @type {string} */ path, /** @type {import("../src/api/apiClient.js").ApiRequestOptions} */ options) => {
+    /** @type {unknown} */ let data;
+    let status = 200;
+    if (path.endsWith("/reservations/current")) {
+      if (options.method === "GET" && !historyMode) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "GIFT_RESERVATION_NOT_FOUND" });
+      data = { id, wishId, quantity: 1, createdAt: at, updatedAt: null }; status = options.method === "PUT" ? 201 : 200;
+    } else if (path === "/api/v1/groups" && options.method === "POST") { data = group; status = 201; }
+    else if (path === `/api/v1/groups/${id}`) data = group;
+    else if (path.includes("/members?")) data = page([member], 100);
+    else if (path.includes("/invitations?")) data = page([], 100);
+    else if (path.includes("/wishlists?")) data = page([]);
+    else if (path.startsWith("/api/v1/groups?")) data = page([group], 100);
+    else if (path.startsWith("/api/v1/group-invitations?")) data = page([]);
+    else if (path === `/api/v1/groups/${id}/wishlists/${id}`) data = list;
+    else if (path === `/api/v1/groups/${id}/wishlists/${id}/wishes/${wishId}`) data = wish;
+    else if (path === "/api/v1/wishlists") data = [];
+    else if (path.startsWith("/api/v1/members/current/reservations")) {
+      historyMode = true;
+      data = page([{ id, wishlistId: id, wishId, wishlistName: "Noël", wishName: "Théière", quantity: 1, status: "active", createdAt: at, lastActivityAt: at, endedAt: null,
+        shareLinkId: null, shareUrl: null, ownedWishPath: null, groupId: id, groupWishPath: `/groups/${id}/wishlists/${id}/wishes/${wishId}` }]);
+    } else throw new Error(`Unexpected test endpoint: ${path}`);
+    if (options.method === "DELETE") { status = 204; data = null; }
+    return { status, data, metadata: { etag: '"00000001"', location: null, correlationId: "group-test", retryAfterSeconds: null } };
+  });
+  const session = { ...unusedSession, request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request),
+    getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "authenticated", user: { id: ownerId }, etag: null, logoutPending: false, authenticationPending: false, issue: null }) };
+  const routes = createApplicationRoutes({ session, apiBaseUrl: "https://api.example" });
+  const navigate = vi.fn(async () => null), replaceSearchParameter = vi.fn();
+  return { id, wishId, group, request, navigate, replaceSearchParameter,
+    settle: async () => { for (let i = 0; i < 50; i++) await Promise.resolve(); },
+    /** @param {string} name */ render: async name => {
+      const route = routes.find(route => route.name === name); if (!route) throw new Error(name);
+      const context = { ...createRouteContext(`/groups/${id}`), params: { groupId: id, wishlistId: id, wishId, memberId: ownerId }, navigate, replaceSearchParameter };
+      const view = await route.render(context); document.body.append(view); return view;
+    },
+    /** @param {HTMLElement} view @param {string} label */ button: (view, label) => { const found = [...view.querySelectorAll("button")].find(button => button.textContent === label); if (!found) throw new Error(`Missing ${label}: ${view.textContent}`); return found; },
+  };
+}
 
 /**
  * @param {string} name Route name.

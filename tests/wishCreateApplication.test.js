@@ -25,7 +25,7 @@ function setup() {
       }
       state.writes++; expect(init?.method).toBe("POST"); const headers = new Headers(init?.headers);
       expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("Content-Type")).toBe("application/json"); expect(headers.has("If-Match")).toBe(false); expect(headers.has("X-CSRF-TOKEN")).toBe(false); expect(init?.credentials).toBe("include");
-      expect(JSON.parse(String(init?.body))).toEqual({ name: wish.name, note: null, url: null, price: 0.29, quantity: 2, color: null, size: null, isFavorite: false });
+      expect(JSON.parse(String(init?.body))).toEqual({ name: wish.name, note: null, url: null, price: 0.29, quantity: 2, color: null, size: null, isFavorite: false, isSurprise: false, acceptsSecondHand: false });
       await state.beforeWrite(); state.saved = state.status === 201;
       return Response.json(state.saved ? wish : { statusCode: state.status, title: "PRIVATE_ENGLISH", message: "PRIVATE_MESSAGE", errorCode: state.suspended ? "WISHLIST_SUSPENDED" : null }, { status: state.status, headers: { ETag: '"gift"' } });
     }

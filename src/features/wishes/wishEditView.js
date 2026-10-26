@@ -121,14 +121,15 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       const field = /** @type {"name" | "note" | "url" | "color" | "size"} */ (key);
       return trimWishlistText(values[field] ?? "") !== trimWishlistText(stored[field] ?? "");
     }) || parseWishPrice(values.price) !== parseWishPrice(stored.price) ||
-      Number(values.quantity) !== Number(stored.quantity) || values.quantity.trim() === "" || fields[4].control.validity.badInput || !!values.isFavorite !== !!stored.isFavorite;
+      Number(values.quantity) !== Number(stored.quantity) || values.quantity.trim() === "" || fields[4].control.validity.badInput || !!values.isFavorite !== !!stored.isFavorite ||
+      !!values.isSurprise !== !!stored.isSurprise || !!values.acceptsSecondHand !== !!stored.acceptsSecondHand;
   }
-  function hasTextDraft() { const values = editor.getValues(); return !!base && (fields.some(field => values[field.name] !== base?.values[field.name]) || !!values.isFavorite !== !!base.values.isFavorite); }
+  function hasTextDraft() { const values = editor.getValues(); return !!base && (fields.some(field => values[field.name] !== base?.values[field.name]) || ["isFavorite", "isSurprise", "acceptsSecondHand"].some(key => !!values[/** @type {"isFavorite" | "isSurprise" | "acceptsSecondHand"} */ (key)] !== !!base?.values[/** @type {"isFavorite" | "isSurprise" | "acceptsSecondHand"} */ (key)])); }
   function clearImageNotice() { disposeComponent(imageNotice); imageNotice.replaceChildren(); imageNotice.hidden = true; }
   function sync() {
     const importing = analyzing || analysisTimer !== null;
     loader.hidden = !importing;
-    editor.favorite.disabled = disposed || terminal || busy || importing || suspended || blocked;
+    editor.favorite.disabled = editor.surprise.disabled = editor.secondHand.disabled = disposed || terminal || busy || importing || suspended || blocked;
     form.hidden = disposed || terminal || base === null;
     for (const field of fields) {
       field.control.readOnly = suspended;
@@ -220,6 +221,8 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     comparison.append(element("h2", "Version enregistrée"), element("p", "Ta saisie est conservée. L’enregistrer remplacera les informations ci-dessous."));
     const entries = document.createElement("dl");
     for (const field of fields) entries.append(element("dt", field.label), element("dd", base.values[field.name] || "Non renseigné"));
+    entries.append(element("dt", "Surprends-moi"), element("dd", base.values.isSurprise ? "Activé" : "Désactivé"),
+      element("dt", "Seconde main bienvenue"), element("dd", base.values.acceptsSecondHand ? "Oui" : "Non précisé"));
     comparison.append(entries);
   }
   /** @param {boolean} explicit User retry. */

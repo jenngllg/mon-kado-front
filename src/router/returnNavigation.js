@@ -5,7 +5,7 @@ const MaximumPathLength = 384;
 const MaximumPendingBytes = 12000;
 const PendingLifetime = 5 * 60 * 1000;
 const Identifier = "[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}";
-const PagePattern = new RegExp(`^(?:/|/lists(?:/new|/${Identifier}(?:/edit|/wishes/(?:new|${Identifier}(?:/edit)?))?)?|/shared-wishlists/${Identifier}(?:/wishes/${Identifier})?|/members(?:/${Identifier})?|/reservations|/followed-lists|/profile(?:/(?:data|authenticator|password|email))?|/admin/reported-wishlists(?:/${Identifier}(?:/moderation(?:/history)?|/reports/${Identifier}(?:/history)?))?|/(?:legal-notice|privacy-policy|terms-of-use)(?:\\.html)?)$`, "i");
+const PagePattern = new RegExp(`^(?:/|/groups(?:/${Identifier}(?:/edit|/members/${Identifier}|/wishlists/${Identifier}(?:/wishes/${Identifier})?)?)?|/lists(?:/new|/${Identifier}(?:/edit|/wishes/(?:new|${Identifier}(?:/edit)?))?)?|/shared-wishlists/${Identifier}(?:/wishes/${Identifier})?|/members(?:/${Identifier})?|/reservations|/followed-lists|/profile(?:/(?:data|authenticator|password|email))?|/admin/reported-wishlists(?:/${Identifier}(?:/moderation(?:/history)?|/reports/${Identifier}(?:/history)?))?|/(?:legal-notice|privacy-policy|terms-of-use)(?:\\.html)?)$`, "i");
 const Sorts = new Set(["listOrder", "nameAsc", "nameDesc", "priceAsc", "priceDesc", "favoriteFirst", "availableFirst", "merchantAsc", "merchantDesc"]);
 
 /** @typedef {{page: string, trail: string[]}} ReturnState */
@@ -110,6 +110,7 @@ export function contextualReturn(browserWindow = window) {
   if (!href || href === state.page) return null;
   const path = href.split("?")[0];
   const label = path === "/" ? "Retour à l’accueil" : path === "/lists" ? (href.includes("isArchived=true") ? "Retour aux listes archivées" : "Retour à Mes listes") :
+    path === "/groups" ? "Retour à Mes groupes" : /^\/groups\/[^/]+\/members\/[^/]+$/.test(path) ? "Retour aux listes du membre" : /^\/groups\/[^/]+$/.test(path) ? "Retour au groupe" : /^\/groups\/[^/]+\/wishlists\/[^/]+$/.test(path) ? "Retour à la liste" :
     path === "/reservations" ? "Retour à Mes réservations" : path === "/followed-lists" ? "Retour aux listes suivies" : path === "/members" ? "Retour à la recherche" : path.startsWith("/members/") ? "Retour au profil" :
       /\/wishes\/[^/]+$/.test(path) ? "Retour au souhait" : path.startsWith("/lists/") || path.startsWith("/shared-wishlists/") ? "Retour à la liste" :
         /legal-notice/.test(path) ? "Retour aux mentions légales" : /privacy-policy/.test(path) ? "Retour à la confidentialité" : /terms-of-use/.test(path) ? "Retour aux conditions d’utilisation" :

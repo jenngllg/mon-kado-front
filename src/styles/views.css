@@ -978,11 +978,18 @@
 }
 
 .wish-favorite-choice {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: 44px;
+  cursor: pointer;
 }
+.wish-favorite-choice__icon { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; border-radius: var(--radius-sm); }
+.wish-favorite-choice > input:checked + .wish-favorite-choice__icon { color: var(--color-accent); }
+.wish-favorite-choice > input:checked + .wish-favorite-choice__icon svg { fill: currentColor; }
+.wish-favorite-choice > input:focus-visible + .wish-favorite-choice__icon { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.wish-favorite-choice:has(> input:disabled) { cursor: default; opacity: .6; }
 .reported-wishlist,
 .reported-wishlist-report {
   border: 1px solid var(--color-border);

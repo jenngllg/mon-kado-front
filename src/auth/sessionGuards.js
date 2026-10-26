@@ -9,6 +9,7 @@ const AnonymousRoutes = new Set([RouteNames.Login, RouteNames.Register]);
 ProtectedRoutes.add(RouteNames.WishlistReportHistory);
 ProtectedRoutes.add(RouteNames.WishlistModerationHistory);
 ProtectedRoutes.add(RouteNames.FollowedLists);
+for (const name of [RouteNames.Groups, RouteNames.Group, RouteNames.GroupEdit, RouteNames.GroupMember, RouteNames.GroupWishlist, RouteNames.GroupWish]) ProtectedRoutes.add(name);
 
 /** @param {string} name Route name.
  * @param {Pick<import("./sessionManager.js").SessionManager, "ensureSession">} session Session boundary.
@@ -46,6 +47,11 @@ export function getSafeReturnTo(target) {
     const path = url.pathname.replace(/\/+$/, "") || "/";
     const decoded = decodeURIComponent(path);
     if (url.origin !== "https://monkado.invalid" || hasUnsafeCharacters(decoded) || /[?#]/.test(decoded)) return RoutePaths.Lists;
+    if (path === RoutePaths.Groups || /^\/groups\/[0-9a-f-]+(?:\/wishlists\/[0-9a-f-]+(?:\/wishes\/[0-9a-f-]+)?)?$/i.test(path) && path.split("/").filter((_, index) => [2, 4, 6].includes(index)).every(isWishlistId)) return path;
+    const groupEdit = /^\/groups\/([^/]+)\/edit$/.exec(path);
+    if (groupEdit && isWishlistId(groupEdit[1])) return path;
+    const groupMember = /^\/groups\/([^/]+)\/members\/([^/]+)$/.exec(path);
+    if (groupMember && isWishlistId(groupMember[1]) && isWishlistId(groupMember[2])) return path;
     const edit = /^\/lists\/([^/]+)\/edit$/.exec(path);
     if (edit && isWishlistId(edit[1])) return path;
     const newWish = /^\/lists\/([^/]+)\/wishes\/new$/.exec(path);

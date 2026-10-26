@@ -6,10 +6,10 @@ import { createWishFavoriteIndicator } from "./wishFavoriteIndicator.js";
 import { wishMerchant, withWishSort } from "./wishSorting.js";
 import checkCircleSource from "../../assets/icons/check-circle.svg?raw";
 
-const PriceFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" });
+import { createWishPreferences, wishPriceLabel } from "./wishPreferences.js";
 
 /** Creates a gallery tile with optional public reservation status and no implicit write access.
- * @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable" | "isFavorite"> & {wishlistId?: string, note?: string | null, color?: string | null, size?: string | null}} item Safe wish projection.
+ * @param {Pick<import("./wishesService.js").Wish, "id" | "name" | "price" | "quantity" | "url" | "imageUrl" | "productUnavailable" | "imageUnavailable" | "isFavorite" | "isSurprise" | "acceptsSecondHand"> & {wishlistId?: string, note?: string | null, color?: string | null, size?: string | null}} item Safe wish projection.
  * @param {boolean} readOnly Archived or suspended list.
  * @param {{detailHref?: string, returnSort?: string, favoriteButton?: HTMLButtonElement, copyButton?: HTMLButtonElement, onReserve?: (trigger: HTMLButtonElement) => void, onDelete?: (trigger: HTMLButtonElement) => void, onImageError?: () => void, reordering?: boolean, row?: boolean, management?: boolean, reservationQuantities?: {reservedQuantity: number | null, availableQuantity: number | null}}} options Trusted detail destination, public quantities and optional owner commands.
  * @returns {HTMLLIElement} Disposable gallery tile.
@@ -73,6 +73,7 @@ export function createWishGalleryCard(item, readOnly, { detailHref, returnSort, 
     else heading.append(indicator);
   }
   content.append(heading);
+  const preferences = createWishPreferences(item); if (preferences) content.append(preferences);
   if (reading) {
     if (item.color || item.size) {
       const variants = document.createElement("p"); variants.className = "wish-reading__variants";
@@ -109,7 +110,7 @@ export function createWishGalleryCard(item, readOnly, { detailHref, returnSort, 
   if (item.price !== null) {
     const price = document.createElement("p");
     price.className = "wish-card__price";
-    price.textContent = PriceFormat.format(item.price);
+    price.textContent = wishPriceLabel({ ...item, price: item.price });
     if (readingFooter) readingFooter.prepend(price); else content.append(price);
   }
   if (readingFooter?.childElementCount) content.append(readingFooter);
