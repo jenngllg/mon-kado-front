@@ -9,10 +9,10 @@ for (const width of [390, 1440]) {
     await page.goto(`/lists/${listId}`);
     const toolbar = page.getByRole("group", { name: "Actions de la liste", exact: true });
     await expect(toolbar).toBeVisible();
-    await expect(toolbar.locator("a:visible,button:visible")).toHaveCount(5);
+    await expect(toolbar.locator("a:visible,button:visible")).toHaveCount(6);
     await expect(toolbar.locator(".icon-action:visible svg")).toHaveCount(4);
     expect(await toolbar.locator("a:visible,button:visible").evaluateAll(nodes => nodes.map(node => node.getAttribute("aria-label") || node.textContent)))
-      .toEqual(["Ajouter un souhait", "Modifier les informations", "Supprimer cette liste", "Archiver", "Partager"]);
+      .toEqual(["Ajouter un souhait", "Modifier les informations", "Supprimer cette liste", "Archiver", "Partager", "Partager dans un groupe"]);
     await expect(page.locator(".wishlist-details-info details")).toHaveCount(0);
     const title = await page.getByRole("heading", { name: api.wishlist.name, exact: true }).boundingBox();
     const box = await toolbar.boundingBox();

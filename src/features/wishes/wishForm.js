@@ -75,7 +75,7 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un souhait
   const increase = createButton({ label: "+", variant: "secondary", onClick: () => adjustQuantity(1) });
   increase.setAttribute("aria-label", "Augmenter la quantité souhaitée");
   quantity.before(stepper); stepper.append(decrease, quantity, increase); syncQuantityControls();
-  const favorite = document.createElement("input"); favorite.type = "checkbox"; favorite.name = "isFavorite"; favorite.className = "visually-hidden";
+  const favorite = document.createElement("input"); favorite.type = "checkbox"; favorite.name = "isFavorite"; favorite.className = "wish-favorite-choice__input";
   const favoriteLabel = document.createElement("label"); favoriteLabel.className = "wish-favorite-choice";
   const favoriteIcon = document.createElement("span"); favoriteIcon.className = "wish-favorite-choice__icon";
   applyActionIcon(favoriteIcon, "heart", "Coup de cœur"); favoriteIcon.setAttribute("aria-hidden", "true"); favoriteIcon.removeAttribute("title");
