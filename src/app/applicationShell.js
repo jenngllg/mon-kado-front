@@ -87,10 +87,22 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } 
   footerContent.append(createLegalLinks());
   footer.append(footerContent);
   element.append(skipLink, header, sessionFeedback, outlet, footer, notificationRegion);
+  /** @type {Element | null} */
+  let pointerTarget = null;
+  const clearPointerTarget = () => { pointerTarget = null; };
+  addComponentEventListener(element, document, "pointerdown", event => {
+    pointerTarget = event.target instanceof Element ? event.target : null;
+  }, true);
+  for (const type of ["pointerup", "pointercancel", "keydown"]) {
+    addComponentEventListener(element, document, type, clearPointerTarget, true);
+  }
+  addComponentEventListener(element, window, "blur", clearPointerTarget);
   // Native focus scrolling can leave a field behind the sticky header.
   addComponentEventListener(element, outlet, "focusin", event => {
     const target = event.target;
     if (!(target instanceof HTMLElement) || target === outlet) return;
+    // Moving a pointer's focus target before release can swallow its click.
+    if (pointerTarget && target.contains(pointerTarget)) return;
     const coveredByHeader = target.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
     if (coveredByHeader < 0) {
       // Centering a tall alert can still leave its beginning behind the header.

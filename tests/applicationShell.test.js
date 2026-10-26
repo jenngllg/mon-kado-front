@@ -6,6 +6,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import {
   createApplicationShell,
@@ -28,9 +29,32 @@ afterEach(() => {
   }
 
   document.body.replaceChildren();
+  vi.restoreAllMocks();
 });
 
 describe("application shell", () => {
+  it.each(["pointerup", "pointercancel", "keydown", "blur"])("keeps pointer activation stable and restores focus scrolling after %s", release => {
+    const shell = createTestShell(); document.body.append(shell.element);
+    const button = document.createElement("button");
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    button.append(icon); shell.outlet.append(button);
+    const header = shell.element.querySelector("header");
+    if (!header) throw new Error("Missing header");
+    vi.spyOn(header, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 300, 80));
+    vi.spyOn(button, "getBoundingClientRect").mockReturnValue(new DOMRect(100, 46, 44, 44));
+    const scroll = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+
+    icon.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    button.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(scroll).not.toHaveBeenCalled();
+    (release === "blur" ? window : document).dispatchEvent(new Event(release, { bubbles: true }));
+    button.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({ top: -42, behavior: "instant" });
+    disposeComponent(shell.element);
+    button.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(scroll).toHaveBeenCalledOnce();
+  });
   it.each(["anonymous", "initializing", "authenticated", "signingOut", "unavailable"])("keeps member search available in session state %s", status => {
     const shell = createTestShell();
     shell.setSession({ status: /** @type {import("../src/auth/sessionManager.js").SessionSnapshot["status"]} */ (status), user: null, etag: null, logoutPending: false, issue: null });
