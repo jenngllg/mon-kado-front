@@ -7,9 +7,9 @@ import { createProfilePhotoCrop } from "./profilePhotoCrop.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 
 /** Owns only the local file and rendered sources; the profile owns versions and mutations.
- * @param {{onChange: () => void, onRemove: () => void, decode?: typeof decodeWishImage}} options Actions.
+ * @param {{onChange: () => void, onRemove: () => void, saveAction: HTMLButtonElement, decode?: typeof decodeWishImage}} options Actions.
  */
-export function createProfileImageSection({ onChange, onRemove, decode = decodeWishImage }) {
+export function createProfileImageSection({ onChange, onRemove, saveAction, decode = decodeWishImage }) {
   const element = node("section", ""); element.className = "wish-image-section profile-image-section flow";
   const title = node("h2", "Photo de profil"); title.tabIndex = -1;
   title.className = "visually-hidden";
@@ -34,7 +34,7 @@ export function createProfileImageSection({ onChange, onRemove, decode = decodeW
   const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: () => { if (!cancel.disabled) { clearSelection(); edit.focus(); } } });
   const remove = createButton({ label: "Supprimer la photo", variant: "secondary", onClick: () => { if (!remove.disabled) onRemove(); } });
   applyActionIcon(remove, "delete", "Supprimer la photo"); remove.classList.add("wish-image-section__remove", "icon-action--danger");
-  const actions = node("div", ""); actions.className = "profile-image-section__actions cluster"; actions.append(cancel);
+  const actions = node("div", ""); actions.className = "profile-image-section__actions cluster"; actions.append(cancel, saveAction);
   media.append(current, edit, remove);
   body.append(media, actions);
   element.append(title, body, field, status, preview);
@@ -59,10 +59,10 @@ export function createProfileImageSection({ onChange, onRemove, decode = decodeW
     if (value !== photo || memberId !== identity) {
       photo = value; identity = memberId; disposeComponent(current); current.replaceChildren();
       if (value && !disposed) {
-        const fallback = node("p", "Photo indisponible"); current.append(fallback);
-        fallback.hidden = !value.imageUnavailable || !!value.imageUrl;
+        const fallback = node("p", value.imageUnavailable ? "Photo indisponible" : "Sans photo"); current.append(fallback);
+        fallback.hidden = !!value.imageUrl;
         current.prepend(createMemberAvatar({ memberId, imageUrl: value.imageUrl, size: 256,
-          onError: () => { fallback.hidden = false; } }));
+          onError: () => { fallback.textContent = "Photo indisponible"; fallback.hidden = false; } }));
       }
     }
     element.hidden = !photo || disposed; sync();
@@ -75,7 +75,6 @@ export function createProfileImageSection({ onChange, onRemove, decode = decodeW
     edit.setAttribute("aria-label", editLabel); applyActionIcon(edit, hasPhoto ? "edit" : "add", editLabel);
     media.classList.toggle("wish-image-section__media--empty", !hasPhoto);
     cancel.hidden = !selected && !decoding && !objectUrl; cancel.disabled = inactive || disposed;
-    actions.hidden = cancel.hidden;
     remove.hidden = !hasPhoto; remove.disabled = inactive || decoding || encoding || disposed;
     body.hidden = !!cropper;
     cropper?.setDisabled(inactive || encoding || disposed);

@@ -551,6 +551,422 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/group-invitations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List invitations addressed to me
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_13"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/group-invitations/{invitationId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read an invitation addressed to me
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_14"];
+        readonly put?: never;
+        readonly post?: never;
+        /**
+         * Decline an invitation
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly delete: operations["Groups_15"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/group-invitations/{invitationId}/accept": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Accept an invitation
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly post: operations["Groups_16"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List my groups
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_1"];
+        readonly put?: never;
+        /**
+         * Create a private group
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly post: operations["Groups_2"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read a group
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_3"];
+        /**
+         * Rename an owned group
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly put: operations["Groups_4"];
+        readonly post?: never;
+        /**
+         * Delete an owned group without deleting lists
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly delete: operations["Groups_5"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/image": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read a private group photo
+         * @description A short-lived signed image grant is required. Live accepted membership and the current photo are rechecked; UUID knowledge and pending invitations grant no access.
+         */
+        readonly get: operations["Groups_26"];
+        /**
+         * Replace the group photo
+         * @description Only the organizer can change the group photo. Accepted non-owners receive 403; outsiders receive 404. Requires the current strong group ETag and CSRF protection. Photos are normalized to a metadata-free WebP at most 512 pixels per edge; replacements and file deletion outbox entries are atomic.
+         */
+        readonly put: operations["Groups_27"];
+        readonly post?: never;
+        /**
+         * Remove the group photo
+         * @description Only the organizer can change the group photo. Accepted non-owners receive 403; outsiders receive 404. Requires the current strong group ETag and CSRF protection. Photos are normalized to a metadata-free WebP at most 512 pixels per edge; replacements and file deletion outbox entries are atomic.
+         */
+        readonly delete: operations["Groups_28"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/invitations": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List pending invitations as an accepted group member
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_9"];
+        readonly put?: never;
+        /**
+         * Invite a searchable registered member
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly post: operations["Groups_10"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/invitations/{invitationId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read a pending invitation as an accepted group member
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_11"];
+        readonly put?: never;
+        readonly post?: never;
+        /**
+         * Revoke a pending invitation
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly delete: operations["Groups_12"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/join-link": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read the active group join link as an accepted member
+         * @description Any accepted member may read or explicitly create the shared join link. Only the owner may revoke it with its current ETag. Reading never creates a link or membership. Codes are random, hashed for lookup and purpose-bound encrypted at rest. An authenticated holder explicitly joins via POST without organizer approval. Joining locks membership/capacity atomically, consumes any pending named invitation, and preserves independent sharing. Revocation invalidates the link, code and QR immediately for new joins; existing memberships remain. No join code is returned by public reads. Named invitations still require recipient acceptance.
+         */
+        readonly get: operations["Groups_ReadJoinLink"];
+        readonly put?: never;
+        /**
+         * Create a shared group join link as an accepted member
+         * @description Any accepted member may read or explicitly create the shared join link. Only the owner may revoke it with its current ETag. Reading never creates a link or membership. Codes are random, hashed for lookup and purpose-bound encrypted at rest. An authenticated holder explicitly joins via POST without organizer approval. Joining locks membership/capacity atomically, consumes any pending named invitation, and preserves independent sharing. Revocation invalidates the link, code and QR immediately for new joins; existing memberships remain. No join code is returned by public reads. Named invitations still require recipient acceptance.
+         */
+        readonly post: operations["Groups_CreateJoinLink"];
+        /**
+         * Revoke the shared group join link as owner
+         * @description Any accepted member may read or explicitly create the shared join link. Only the owner may revoke it with its current ETag. Reading never creates a link or membership. Codes are random, hashed for lookup and purpose-bound encrypted at rest. An authenticated holder explicitly joins via POST without organizer approval. Joining locks membership/capacity atomically, consumes any pending named invitation, and preserves independent sharing. Revocation invalidates the link, code and QR immediately for new joins; existing memberships remain. No join code is returned by public reads. Named invitations still require recipient acceptance.
+         */
+        readonly delete: operations["Groups_RevokeJoinLink"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/members": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List accepted group members
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_6"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/members/{memberId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        /**
+         * Remove a non-owner member
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly delete: operations["Groups_8"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/members/current": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        readonly post?: never;
+        /**
+         * Leave a group and withdraw own group sharing
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly delete: operations["Groups_7"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/wishlists": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * List explicitly shared active wishlists
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_17"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read a group wishlist
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_18"];
+        /**
+         * Share an owned active wishlist
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly put: operations["Groups_19"];
+        readonly post?: never;
+        /**
+         * Withdraw sharing of an owned wishlist
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly delete: operations["Groups_20"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/wishes/{wishId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read a group wishlist wish
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_21"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/wishes/{wishId}/image": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read a member-bound short-lived group image grant
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_25"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/wishes/{wishId}/reservations/current": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read my reservation
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly get: operations["Groups_22"];
+        /**
+         * Create or update my reservation
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly put: operations["Groups_23"];
+        readonly post?: never;
+        /**
+         * Cancel my reservation
+         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         */
+        readonly delete: operations["Groups_24"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/join": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Join a group using its bearer code without approval
+         * @description Any accepted member may read or explicitly create the shared join link. Only the owner may revoke it with its current ETag. Reading never creates a link or membership. Codes are random, hashed for lookup and purpose-bound encrypted at rest. An authenticated holder explicitly joins via POST without organizer approval. Joining locks membership/capacity atomically, consumes any pending named invitation, and preserves independent sharing. Revocation invalidates the link, code and QR immediately for new joins; existing memberships remain. No join code is returned by public reads. Named invitations still require recipient acceptance.
+         */
+        readonly post: operations["Groups_JoinByCode"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/members": {
         readonly parameters: {
             readonly query?: never;
@@ -1592,9 +2008,13 @@ export interface components {
             readonly surpriseMode?: boolean | null;
         };
         readonly CreateWishRequest: {
+            /** @description Second-hand gifts are welcome; false does not require new. Omitted/null preserves the value on update, defaults to false on creation. */
+            readonly acceptsSecondHand?: boolean | null;
             /** @description Optional single-line variant; blank values are normalized to null. */
             readonly color?: string | null;
             readonly isFavorite?: boolean | null;
+            /** @description Open-ended wish: name is its universe, note its preferences and price the optional maximum EUR budget per item. Omitted/null defaults to false on creation and preserves the saved value on update. */
+            readonly isSurprise?: boolean | null;
             readonly name?: string | null;
             readonly note?: string | null;
             readonly price?: number | null;
@@ -1638,6 +2058,10 @@ export interface components {
             readonly createdAt: string;
             readonly endedAt: string | null;
             /** Format: uuid */
+            readonly groupId?: string | null;
+            /** @description Current group-authorized frontend wish path, without any public sharing capability. */
+            readonly groupWishPath?: string | null;
+            /** Format: uuid */
             readonly id: string;
             readonly imageUrl: string | null;
             /**
@@ -1676,6 +2100,80 @@ export interface components {
             /** Format: uuid */
             readonly wishId: string;
         };
+        readonly GroupInvitationResponse: {
+            /** Format: date-time */
+            readonly createdAt: string;
+            readonly displayName: string;
+            readonly displayNameTag: string;
+            /** Format: date-time */
+            readonly expiresAt: string;
+            /** Format: uuid */
+            readonly groupId: string;
+            readonly groupName: string;
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: uuid */
+            readonly memberId: string;
+            readonly ownerDisplayName: string;
+        };
+        readonly GroupJoinLinkResponse: {
+            /** @description 80-bit bearer credential. Never log or store in browser persistence. */
+            readonly code: string;
+            /** Format: date-time */
+            readonly createdAt: string;
+            /** Format: uuid */
+            readonly groupId: string;
+            /**
+             * Format: uri
+             * @description Frontend /groups/join URL containing the code only in its fragment.
+             */
+            readonly joinUrl: string;
+        };
+        readonly GroupMemberResponse: {
+            readonly displayName: string;
+            readonly displayNameTag: string;
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: date-time */
+            readonly joinedAt: string;
+            /** Format: uri */
+            readonly profileImageUrl: string | null;
+        };
+        readonly GroupResponse: {
+            /** Format: date-time */
+            readonly createdAt: string;
+            /** Format: uuid */
+            readonly id: string;
+            readonly memberCount: number;
+            readonly name: string;
+            /** Format: uuid */
+            readonly ownerId: string;
+            /**
+             * Format: uri
+             * @description Short-lived image grant restricted to a current accepted member; null when no photo is set.
+             */
+            readonly profileImageUrl: string | null;
+            /** Format: date-time */
+            readonly updatedAt: string | null;
+        };
+        readonly GroupWishlistResponse: {
+            /** Format: date-time */
+            readonly createdAt: string;
+            /** Format: date */
+            readonly eventDate: string | null;
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            /** @enum {string} */
+            readonly occasion: "birthday" | "christmas" | "wedding" | "birth" | "other";
+            readonly ownerDisplayName: string;
+            /** Format: uuid */
+            readonly ownerId: string;
+        };
+        readonly InviteGroupMemberRequest: {
+            /** Format: uuid */
+            readonly memberId: string;
+        };
         /** @description Guest details are required only for anonymous enrollment; authenticated members ignore these details. */
         readonly JoinSharedWishlistRequest: {
             /** @description Guest display name: nonblank, no control characters, at most 80 Unicode scalar values after trimming. */
@@ -1711,6 +2209,42 @@ export interface components {
             readonly hasNextPage: boolean;
             readonly hasPreviousPage: boolean;
             readonly items: readonly components["schemas"]["GiftReservationHistoryResponse"][];
+            readonly pageSize: number;
+            readonly totalCount: number;
+            readonly totalPages: number;
+        };
+        readonly PaginatedResponseOfGroupInvitationResponse: {
+            readonly currentPage: number;
+            readonly hasNextPage: boolean;
+            readonly hasPreviousPage: boolean;
+            readonly items: readonly components["schemas"]["GroupInvitationResponse"][];
+            readonly pageSize: number;
+            readonly totalCount: number;
+            readonly totalPages: number;
+        };
+        readonly PaginatedResponseOfGroupMemberResponse: {
+            readonly currentPage: number;
+            readonly hasNextPage: boolean;
+            readonly hasPreviousPage: boolean;
+            readonly items: readonly components["schemas"]["GroupMemberResponse"][];
+            readonly pageSize: number;
+            readonly totalCount: number;
+            readonly totalPages: number;
+        };
+        readonly PaginatedResponseOfGroupResponse: {
+            readonly currentPage: number;
+            readonly hasNextPage: boolean;
+            readonly hasPreviousPage: boolean;
+            readonly items: readonly components["schemas"]["GroupResponse"][];
+            readonly pageSize: number;
+            readonly totalCount: number;
+            readonly totalPages: number;
+        };
+        readonly PaginatedResponseOfGroupWishlistResponse: {
+            readonly currentPage: number;
+            readonly hasNextPage: boolean;
+            readonly hasPreviousPage: boolean;
+            readonly items: readonly components["schemas"]["GroupWishlistResponse"][];
             readonly pageSize: number;
             readonly totalCount: number;
             readonly totalPages: number;
@@ -1875,6 +2409,9 @@ export interface components {
             readonly confirmedMemberId?: string | null;
             readonly requestReference?: string | null;
         };
+        readonly SaveGroupRequest: {
+            readonly name: string;
+        };
         readonly SetWishFavoriteRequest: {
             readonly isFavorite: boolean;
         };
@@ -1882,6 +2419,8 @@ export interface components {
             readonly isArchived: boolean;
         };
         readonly SharedWishDetailResponse: {
+            /** @description Second-hand gifts are welcome; false does not require new. Omitted/null preserves the value on update, defaults to false on creation. */
+            readonly acceptsSecondHand?: boolean;
             /** Format: int32 */
             readonly availableQuantity: number | null;
             /** @description Optional single-line variant; blank values are normalized to null. */
@@ -1891,6 +2430,8 @@ export interface components {
             readonly id: string;
             readonly imageUrl: string | null;
             readonly isFavorite?: boolean;
+            /** @description Open-ended wish: price is an optional maximum EUR budget per item, not an exact product price. */
+            readonly isSurprise?: boolean;
             readonly name: string;
             readonly note: string | null;
             readonly price: number | null;
@@ -1917,6 +2458,8 @@ export interface components {
             readonly wishes: readonly components["schemas"]["SharedWishResponse"][];
         };
         readonly SharedWishResponse: {
+            /** @description Second-hand gifts are welcome; false does not require new. Omitted/null preserves the value on update, defaults to false on creation. */
+            readonly acceptsSecondHand?: boolean;
             /** Format: int32 */
             readonly availableQuantity: number | null;
             /** @description Optional single-line variant; blank values are normalized to null. */
@@ -1926,7 +2469,11 @@ export interface components {
             readonly id: string;
             readonly imageUrl: string | null;
             readonly isFavorite?: boolean;
+            /** @description Open-ended wish: price is an optional maximum EUR budget per item, not an exact product price. */
+            readonly isSurprise?: boolean;
             readonly name: string;
+            /** @description Optional public wish description. */
+            readonly note?: string | null;
             readonly price: number | null;
             /** Format: int32 */
             readonly quantity: number;
@@ -2003,9 +2550,13 @@ export interface components {
             readonly surpriseMode?: boolean | null;
         };
         readonly UpdateWishRequest: {
+            /** @description Second-hand gifts are welcome; false does not require new. Omitted/null preserves the value on update, defaults to false on creation. */
+            readonly acceptsSecondHand?: boolean | null;
             /** @description Optional single-line variant; blank values are normalized to null. */
             readonly color?: string | null;
             readonly isFavorite?: boolean | null;
+            /** @description Open-ended wish: name is its universe, note its preferences and price the optional maximum EUR budget per item. Omitted/null defaults to false on creation and preserves the saved value on update. */
+            readonly isSurprise?: boolean | null;
             readonly name?: string | null;
             readonly note?: string | null;
             readonly price?: number | null;
@@ -2030,6 +2581,8 @@ export interface components {
             readonly propertyName: string | null;
         };
         readonly WishCollectionItemResponse: {
+            /** @description Second-hand gifts are welcome; false does not require new. Omitted/null preserves the value on update, defaults to false on creation. */
+            readonly acceptsSecondHand?: boolean;
             /** Format: int32 */
             readonly availableQuantity?: number | null;
             /** @description Optional single-line variant; blank values are normalized to null. */
@@ -2041,6 +2594,8 @@ export interface components {
             readonly id: string;
             readonly imageUrl: string | null;
             readonly isFavorite?: boolean;
+            /** @description Open-ended wish: price is an optional maximum EUR budget per item, not an exact product price. */
+            readonly isSurprise?: boolean;
             readonly name: string;
             readonly note: string | null;
             /** Format: int64 */
@@ -2176,6 +2731,8 @@ export interface components {
             readonly wishes: readonly components["schemas"]["WishOrderItemResponse"][];
         };
         readonly WishResponse: {
+            /** @description Second-hand gifts are welcome; false does not require new. Omitted/null preserves the value on update, defaults to false on creation. */
+            readonly acceptsSecondHand?: boolean;
             /** Format: int32 */
             readonly availableQuantity?: number | null;
             /** @description Optional single-line variant; blank values are normalized to null. */
@@ -2186,6 +2743,8 @@ export interface components {
             readonly id: string;
             readonly imageUrl: string | null;
             readonly isFavorite?: boolean;
+            /** @description Open-ended wish: price is an optional maximum EUR budget per item, not an exact product price. */
+            readonly isSurprise?: boolean;
             readonly name: string;
             readonly note: string | null;
             /** Format: int64 */
@@ -5434,6 +5993,3237 @@ export interface operations {
                 };
             };
             /** @description 503ServiceUnavailable */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_13: {
+        readonly parameters: {
+            readonly query?: {
+                readonly page?: number;
+                readonly pageSize?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PaginatedResponseOfGroupInvitationResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_14: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly invitationId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupInvitationResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_15: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly invitationId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_16: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly invitationId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_1: {
+        readonly parameters: {
+            readonly query?: {
+                readonly page?: number;
+                readonly pageSize?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PaginatedResponseOfGroupResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_2: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SaveGroupRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Success */
+            readonly 201: {
+                headers: {
+                    /** @description Strong PostgreSQL xmin version */
+                    readonly ETag?: string;
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_3: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    /** @description Strong PostgreSQL xmin version */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_4: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "If-Match": string;
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SaveGroupRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    /** @description Strong PostgreSQL xmin version */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_5: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "If-Match": string;
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 204: {
+                headers: {
+                    /** @description Strong PostgreSQL xmin version */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_26: {
+        readonly parameters: {
+            readonly query: {
+                readonly token: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "image/webp": string;
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_27: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "If-Match": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "multipart/form-data": {
+                    /** Format: binary */
+                    readonly image: string;
+                };
+            };
+        };
+        readonly responses: {
+            /** @description 200OK */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupResponse"];
+                };
+            };
+            /** @description 400BadRequest */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request failed */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request failed */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 412PreconditionFailed */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 413PayloadTooLarge */
+            readonly 413: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 415UnsupportedMediaType */
+            readonly 415: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 428PreconditionRequired */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 429TooManyRequests */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request failed */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 503ServiceUnavailable */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_28: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "If-Match": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description 204NoContent */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 400BadRequest */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request failed */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request failed */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 404NotFound */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 412PreconditionFailed */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 428PreconditionRequired */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 429TooManyRequests */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request failed */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 503ServiceUnavailable */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_9: {
+        readonly parameters: {
+            readonly query?: {
+                readonly page?: number;
+                readonly pageSize?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PaginatedResponseOfGroupInvitationResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_10: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["InviteGroupMemberRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Success */
+            readonly 201: {
+                headers: {
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupInvitationResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_11: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+                readonly invitationId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupInvitationResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_12: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+                readonly invitationId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_ReadJoinLink: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK; an existing membership is returned idempotently. */
+            readonly 200: {
+                headers: {
+                    /** @description Strong join-link version. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupJoinLinkResponse"];
+                };
+            };
+            /** @description Invalid input or CSRF */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member without owner permission for revocation */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Group or active join code unavailable */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Existing join link or group/member capacity reached */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Join link version changed */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required for revocation */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected failure */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_CreateJoinLink: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Created */
+            readonly 201: {
+                headers: {
+                    /** @description Strong join-link version. */
+                    readonly ETag?: string;
+                    /** @description Canonical resource path without credentials. */
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupJoinLinkResponse"];
+                };
+            };
+            /** @description Invalid input or CSRF */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member without owner permission for revocation */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Group or active join code unavailable */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Existing join link or group/member capacity reached */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Join link version changed */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required for revocation */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected failure */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_RevokeJoinLink: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Strong ETag of the current join link. */
+                readonly "If-Match": string;
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Join link and code revoked; existing memberships preserved. */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input or CSRF */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member without owner permission for revocation */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Group or active join code unavailable */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Existing join link or group/member capacity reached */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Join link version changed */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required for revocation */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected failure */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_6: {
+        readonly parameters: {
+            readonly query?: {
+                readonly page?: number;
+                readonly pageSize?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PaginatedResponseOfGroupMemberResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_8: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+                readonly memberId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_7: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_17: {
+        readonly parameters: {
+            readonly query?: {
+                readonly page?: number;
+                readonly pageSize?: number;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PaginatedResponseOfGroupWishlistResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_18: {
+        readonly parameters: {
+            readonly query?: {
+                readonly availableOnly?: boolean;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SharedWishlistResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_19: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 201: {
+                headers: {
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupWishlistResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_20: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_21: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+                readonly wishId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SharedWishDetailResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_25: {
+        readonly parameters: {
+            readonly query: {
+                readonly token: string;
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+                readonly wishId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "image/webp": string;
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_22: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+                readonly wishId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    /** @description Strong PostgreSQL xmin version */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GiftReservationResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_23: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Required when updating an existing reservation; omitted for creation. */
+                readonly "If-Match"?: string;
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+                readonly wishId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UpsertGiftReservationRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    /** @description Strong PostgreSQL xmin version */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GiftReservationResponse"];
+                };
+            };
+            /** @description Reservation created */
+            readonly 201: {
+                headers: {
+                    readonly ETag?: string;
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GiftReservationResponse"];
+                };
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_24: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "If-Match": string;
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+                readonly wishId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 204: {
+                headers: {
+                    /** @description Strong PostgreSQL xmin version */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid request or CSRF token */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member is not the owner */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Absent, expired or private foreign resource */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Membership, capacity or sharing conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_JoinByCode: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+                /** @description Group code, case insensitive; optional hyphens accepted. Never place it in a server URL. */
+                readonly "X-MonKado-Share-Token": string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description OK; an existing membership is returned idempotently. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupResponse"];
+                };
+            };
+            /** @description Created */
+            readonly 201: {
+                headers: {
+                    /** @description Canonical resource path without credentials. */
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupResponse"];
+                };
+            };
+            /** @description Invalid input or CSRF */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Accepted member without owner permission for revocation */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Group or active join code unavailable */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Existing join link or group/member capacity reached */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Join link version changed */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required for revocation */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit exceeded */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected failure */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

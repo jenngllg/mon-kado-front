@@ -11,13 +11,13 @@ import { createWishDetailInformation, createWishDetailProductLink, createWishDet
 import { createWishCopyActions } from "./wishCopyActions.js";
 
 /** A fresh public detail, without participant information or owner actions.
- * @param {{shareLinkId: string, wishId: string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, copy?: import("./wishCopyActions.js").WishCopyOperations, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null, returnSort?: string | null,
+ * @param {{shareLinkId: string, wishId: string, groupId?:string, loadOne: import("./sharedWishlistService.js").LoadSharedWish, copy?: import("./wishCopyActions.js").WishCopyOperations, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null, returnSort?: string | null,
  * createReservation?: (onUnavailable: () => void, wish: import("./sharedWishlistService.js").SharedWishDetail, onSaved: (message?: string) => void, onBusy: (busy: boolean) => void, onUnrecognized: () => void, onVerified: (wish: import("./sharedWishlistService.js").SharedWishDetail) => void) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signal, accessSignal, createReservation, fromMemberId, returnSort }) {
+export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signal, accessSignal, createReservation, fromMemberId, returnSort, groupId }) {
   const view = element("section", ""); view.className = "shared-wish-view flow";
-  const back = createBackLink({ label: "Retour à la liste", href: withWishSort(`/shared-wishlists/${shareLinkId}${memberOriginQuery(fromMemberId)}`, returnSort) });
+  const back = createBackLink({ label: "Retour à la liste", href: withWishSort(`${groupId ? `/groups/${groupId}/wishlists/${shareLinkId}` : `/shared-wishlists/${shareLinkId}`}${memberOriginQuery(fromMemberId)}`, returnSort) });
   const title = element("h1", "Souhait partagé"); title.tabIndex = -1;
   const results = element("div", ""); results.className = "shared-wish-results flow";
   const notice = element("p", ""); notice.setAttribute("role", "status"); notice.hidden = true;
@@ -110,10 +110,10 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
       if (error instanceof ApiError && error.statusCode === 404) {
         terminal = true; lifetime.abort(); clearNotice();
         const missingWish = error.errorCode === "SHARED_WISH_NOT_FOUND";
-        title.textContent = missingWish ? "Souhait introuvable" : "Lien de partage indisponible";
+        title.textContent = missingWish ? "Souhait introuvable" : groupId ? "Liste indisponible" : "Lien de partage indisponible";
         back.hidden = !missingWish;
         const alert = element("p", missingWish ? "Ce souhait ne peut pas être consulté. Retourne à la liste pour retrouver les autres souhaits." :
-          "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé.");
+          groupId ? "Cette liste n’est plus accessible dans ce groupe." : "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé.");
         alert.setAttribute("role", "alert"); alert.tabIndex = -1; results.append(alert); if (explicit) alert.focus();
       } else {
         const translated = toUserFacingError(error), extra = [];

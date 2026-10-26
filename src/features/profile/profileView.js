@@ -93,7 +93,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   const confirmationActions = textElement("div", ""); confirmationActions.className = "cluster"; confirmationActions.append(cancelPhoto, confirmPhoto);
   photoConfirmation.append(photoConfirmationTitle, textElement("p", "Seule ta photo sera supprimée. Ton compte et tes informations seront conservés."), confirmationActions);
   const photoSection = uploadImage && removeImage ? createProfileImageSection({ decode: decodeImage,
-    onChange: () => {
+    saveAction: submit, onChange: () => {
       if (!active()) return;
       if (!busy && (photoSection?.getSelected() || photoSection?.isPending())) {
         photoNotice = ""; photoSuccess.textContent = ""; photoSuccess.hidden = true;
@@ -105,6 +105,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
   if (photoSection) {
     photoSection.element.append(photoSuccess, photoFeedback, photoConfirmation);
     form.prepend(photoSection.element);
+    actions.remove();
   }
 
   addComponentEventListener(view, input, "input", () => {

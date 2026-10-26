@@ -1,0 +1,9 @@
+/* Native switches reuse the site's coral switch rules, without a boxed banner. */
+:is(.wish-form, .wish-create-view) .wish-preference { width: 100%; gap: 1rem; margin: 0; }
+.wish-preference__text { display: grid; gap: .375rem; min-width: 0; }
+.wish-preference__hint { color: var(--color-text-muted); font-size: var(--font-size-sm); font-weight: 400; }
+:is(.wish-form, .wish-create-view) .wish-preference--surprise { flex-direction: row-reverse; justify-content: space-between; padding-block: .5rem; }
+.wish-preference--surprise .wish-preference__text > :first-child { font-weight: var(--font-weight-bold); }
+.wish-preferences { display: flex; flex-wrap: wrap; gap: .375rem .5rem; margin-block: .5rem; }
+.wish-preferences__label { padding: .25rem .625rem; border-radius: var(--radius-md); background: var(--color-surface-sage); color: var(--color-text); font-size: var(--font-size-sm); line-height: 1.4; }
+.wish-detail__idea-hint { color: var(--color-text-muted); }

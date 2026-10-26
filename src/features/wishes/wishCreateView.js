@@ -22,7 +22,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   const status = element("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   let disposed = false; let busy = false; let blocked = true; let terminal = false; let completed = false; let validationSummary = false;
-  const { form, fields, favorite, validate, getValues, clear, reset, syncQuantityControls, discardDeferredBlur } = createWishForm({ inactive: () => disposed || busy || blocked || terminal || completed,
+  const { form, fields, favorite, surprise, secondHand, surpriseLabel, secondHandLabel, validate, getValues, clear, reset, syncQuantityControls, discardDeferredBlur } = createWishForm({ inactive: () => disposed || busy || blocked || terminal || completed,
     onChange: () => { if (validationSummary && fields.every(field => field.error === null)) clearFeedback(); syncSteps(); } });
   const submit = createButton({ label: "Ajouter", type: "submit" }); form.append(submit);
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
@@ -34,7 +34,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
     apply: values => { discardDeferredBlur(); reset(values); clearFeedback(); }, onBusy: syncControls,
     onUnavailable: error => { presentFailure(error, false); syncControls(); } }) : null;
   let step = 0;
-  const stepNames = ["Lien", "Produit", "Précisions"];
+  const stepNames = ["Type de souhait", "Souhait", "Précisions"];
   const stepKeys = ["link", "product", "details"];
   const progress = element("ol", ""); progress.className = "wish-steps"; progress.setAttribute("aria-label", "Étapes de création du souhait");
   const stepLabels = stepNames.map((name, index) => {
@@ -67,8 +67,11 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
     choices.append(quantityField.element, favoriteLabel); panels[2].append(choices);
   } else if (favoriteLabel) panels[2].append(favoriteLabel);
   if (importer) panels[1].append(importer.imagePanel);
-  const imageHeading = element("p", "Image du produit"); imageHeading.className = "wish-step-image-label";
+  const imageHeading = element("p", "Image du souhait"); imageHeading.className = "wish-step-image-label";
   if (importer) importer.imagePanel.before(imageHeading);
+  panels[0].prepend(surpriseLabel);
+  panels[2].append(secondHandLabel);
+  let presentedSurprise = false;
   const back = createButton({ label: "Retour", variant: "secondary", onClick: () => { if (canNavigate() && step > 0) changeStep(step - 1); } });
   const skip = createButton({ label: "Continuer sans lien", variant: "secondary", onClick: () => {
     if (!canNavigate()) return;
@@ -79,7 +82,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   const next = createButton({ label: "Continuer", onClick: advance });
   const actions = element("div", ""); actions.className = "wish-step-actions"; actions.append(back, skip, next, submit);
   form.prepend(...panels); form.append(actions);
-  view.append(cancel, title, progress, feedback, status, stepStatus);
+  view.append(cancel, title, progress, feedback, status, stepStatus, surpriseLabel);
   if (importer) view.append(importer.element, importer.messages);
   view.append(form, retry);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); if (step < 2) advance(); else void addWish(); });
@@ -95,12 +98,12 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   /** @param {Parameters<typeof createAlert>[0]} options Safe local copy. */
   function show(options) { clearFeedback(); feedback.hidden = false; const alert = createAlert({ variant: "error", ...options }); alert.tabIndex = -1; feedback.append(alert); return alert; }
   function syncControls() {
-    favorite.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
+    favorite.disabled = surprise.disabled = secondHand.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
     form.hidden = disposed || blocked || terminal;
     if (importer) importer.imagePanel.hidden = form.hidden;
     for (const field of fields) {
       field.control.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
-      field.element.hidden = field.name === "url" && !!importer?.isUrlMode() && field.error === null;
+      field.element.hidden = field.name === "url" && (surprise.checked || !!importer?.isUrlMode() && field.error === null);
     }
     syncQuantityControls();
     submit.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
@@ -116,6 +119,17 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   }
   function canNavigate() { return !disposed && !busy && !blocked && !terminal && !completed && !importer?.isBusy(); }
   function syncSteps() {
+    surpriseLabel.hidden = form.hidden || step !== 0;
+    const url = fields.find(field => field.name === "url");
+    if (url) url.element.hidden = surprise.checked || !!importer?.isUrlMode() && url.error === null;
+    // Both modes share one draft; changing the presentation never discards input.
+    const note = fields.find(field => field.name === "note"), price = fields.find(field => field.name === "price");
+    if (surprise.checked !== presentedSurprise && surprise.checked && note && price) {
+      panels[1].insertBefore(note.element, price.element);
+    } else if (surprise.checked !== presentedSurprise) {
+      if (note) { if (variants) variants.after(note.element); else panels[2].prepend(note.element); }
+    }
+    presentedSurprise = surprise.checked;
     form.dataset.creationStep = stepKeys[step];
     progress.hidden = disposed || blocked || terminal;
     panels.forEach((panel, index) => { panel.hidden = index !== step; });
@@ -123,24 +137,24 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
       item.classList.toggle("wish-steps__current", index === step);
       if (index === step) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current");
     });
-    if (importer) importer.element.hidden = form.hidden || step !== 0;
+    if (importer) importer.element.hidden = form.hidden || step !== 0 || surprise.checked;
     const hasUrl = importer ? importer.hasUrl() : getValues().url.trim() !== "";
-    back.hidden = step === 0; skip.hidden = step !== 0 || !hasUrl; next.hidden = step === 2; submit.hidden = step !== 2;
-    const label = step === 0 && !hasUrl ? "Continuer sans lien" : "Continuer";
+    back.hidden = step === 0; skip.hidden = step !== 0 || !hasUrl || surprise.checked; next.hidden = step === 2; submit.hidden = step !== 2;
+    const label = step === 0 && !surprise.checked && !hasUrl ? "Continuer sans lien" : "Continuer";
     const nextLabel = next.querySelector(".ui-button__label"); if (nextLabel) nextLabel.textContent = label;
     back.disabled = skip.disabled = next.disabled = !canNavigate();
   }
   /** @param {number} index Local step; never resets inputs or performs a write. */
   function changeStep(index) {
     step = index; syncSteps(); stepStatus.textContent = `${stepNames[index]}, étape ${index + 1} sur 3`;
-    if (index === 0 && importer) importer.focusUrl(); else panels[index].focus();
+    if (index === 0 && importer && !surprise.checked) importer.focusUrl(); else panels[index].focus();
   }
   function advance() {
     if (!canNavigate()) return;
     discardDeferredBlur();
-    if (step === 0 && importer && importer.validateUrl()) { importer.focusUrl(); return; }
-    if (step === 0 && importer && !importer.hasUrl()) importer.skipUrl();
-    const relevant = fields.filter(field => step === 0 ? field.name === "url" && !importer : ["name", "price"].includes(field.name));
+    if (step === 0 && !surprise.checked && importer && importer.validateUrl()) { importer.focusUrl(); return; }
+    if (step === 0 && !surprise.checked && importer && !importer.hasUrl()) importer.skipUrl();
+    const relevant = fields.filter(field => step === 0 ? field.name === "url" && !importer && !surprise.checked : ["name", "price", ...(surprise.checked ? ["note"] : [])].includes(field.name));
     for (const field of relevant) validate(field);
     const invalid = relevant.find(field => field.error !== null);
     if (invalid) { invalid.control.focus(); return; }
@@ -148,7 +162,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   }
   /** @param {typeof fields[number]} field Reveal the failing field before focus. */
   function focusField(field) {
-    changeStep(field.name === "url" ? 0 : ["name", "price"].includes(field.name) ? 1 : 2);
+    changeStep(field.name === "url" ? 0 : ["name", "price", ...(surprise.checked ? ["note"] : [])].includes(field.name) ? 1 : 2);
     if (field.name === "url" && importer) importer.focusUrl(); else field.control.focus();
   }
   /** @param {boolean} explicit User retry. */
@@ -170,16 +184,20 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   }
   async function addWish() {
     if (disposed || busy || blocked || terminal || completed || importer?.isBusy()) return;
-    discardDeferredBlur(); clearFeedback(); for (const field of fields) validate(field);
+    discardDeferredBlur(); clearFeedback(); for (const field of fields) {
+      if (surprise.checked && field.name === "url") { field.error = null; setFormFieldValidation(field.element, null); }
+      else validate(field);
+    }
     syncControls();
     const invalid = fields.find(field => field.error !== null);
     if (invalid) { show({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." }); validationSummary = true; focusField(invalid); return; }
     // Validate the aggregate byte limit even when the operation is injected.
-    try { createWishPayload(getValues()); } catch (error) { presentFailure(error, false); focusFeedback(); return; }
+    const values = { ...getValues(), ...(surprise.checked ? { url: "" } : {}) };
+    try { createWishPayload(values); } catch (error) { presentFailure(error, false); focusFeedback(); return; }
     const selectedImage = importer?.getImage();
     busy = true; syncControls(); setButtonLoading(submit, true); status.textContent = "Enregistrement de ton souhait…";
     try {
-      let created = await create(wishlistId, getValues(), { signal: lifetime.signal });
+      let created = await create(wishlistId, values, { signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
       // Lock further creation once confirmed, keeping this same form visible during the image write.
       completed = true;

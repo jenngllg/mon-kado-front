@@ -48,6 +48,17 @@ it("keeps wish deletion out of the edit page", async () => {
 });
 
 describe("gift editor", () => {
+  it("saves preference-only edits with the current version and retains their draft after a conflict", async () => {
+    const ui = setup(); await settle();
+    const surprise = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("isSurprise"));
+    const secondHand = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("acceptsSecondHand"));
+    surprise.click(); secondHand.click(); expect(ui.submit.disabled).toBe(false);
+    ui.update.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 412 })); ui.send(); await settle();
+    expect(ui.update).toHaveBeenCalledExactlyOnceWith(id, wishId, expect.objectContaining({ isSurprise: true, acceptsSecondHand: true }), { etag: '"gift"', signal: expect.any(AbortSignal) });
+    expect(surprise.checked).toBe(true); expect(secondHand.checked).toBe(true); expect(surprise.disabled).toBe(true);
+    ui.click("Relire le souhait"); await settle(); expect(surprise.checked).toBe(true); expect(secondHand.checked).toBe(true);
+    ui.click("Utiliser la version enregistrée"); expect(surprise.checked).toBe(false); expect(secondHand.checked).toBe(false);
+  });
   it.each([404, 409])("honors loss of parent access discovered during product analysis (%s)", async statusCode => {
     vi.useFakeTimers();
     try {
@@ -171,7 +182,7 @@ describe("gift editor", () => {
   it("sends once, disables controls, adopts the response and uses its ETag for the next edit", async () => {
     const gate = barrier(); const operation = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").UpdateWish} */ (async () => { await gate.promise; return stored("Normalisé", '"new"'); }));
     const ui = setup({ update: operation }); await settle(); ui.input(0, " nouveau "); ui.send(); ui.send();
-    expect(operation).toHaveBeenCalledExactlyOnceWith(id, wishId, { ...stored().values, name: " nouveau ", color: "", size: "", isFavorite: false }, { etag: '"gift"', signal: expect.any(AbortSignal) });
+    expect(operation).toHaveBeenCalledExactlyOnceWith(id, wishId, { ...stored().values, name: " nouveau ", color: "", size: "", isFavorite: false, isSurprise: false, acceptsSecondHand: false }, { etag: '"gift"', signal: expect.any(AbortSignal) });
     expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.view.textContent).toContain("Enregistrement de ton souhait…");
     gate.resolve(); await settle(); expect(ui.fields[0].value).toBe("Normalisé"); expect(ui.submit.disabled).toBe(true); expect(ui.view.textContent).toContain("Souhait enregistré."); expect(ui.loadOne).toHaveBeenCalledTimes(1);
     ui.input(0, "Encore"); ui.send(); await settle(); expect(operation.mock.calls[1][3].etag).toBe('"new"');
@@ -187,8 +198,8 @@ describe("gift editor", () => {
     expect(ui.view.textContent).toContain("Version enregistrée"); expect(ui.view.textContent).toContain("Autre onglet"); expect(ui.fields.map(field => field.value)).toEqual(draft); expect(ui.update).toHaveBeenCalledTimes(1);
     const comparison = ui.view.querySelector(".wish-edit-view__comparison");
     expect(comparison?.querySelector("h2")?.textContent).toBe("Version enregistrée");
-    expect(comparison?.querySelectorAll("dt")).toHaveLength(7);
-    expect(comparison?.querySelectorAll("dd")).toHaveLength(7);
+    expect(comparison?.querySelectorAll("dt")).toHaveLength(9);
+    expect(comparison?.querySelectorAll("dd")).toHaveLength(9);
     expect(comparison?.contains(ui.form)).toBe(false);
     ui.click("Enregistrer"); await settle(); expect(ui.update.mock.calls[1][3].etag).toBe('"conflict-2"'); expect(ui.submit.disabled).toBe(true);
     ui.loadOne.mockResolvedValue(stored("Version finale", '"conflict-3"')); ui.click("Relire le souhait"); await settle(); ui.click("Utiliser la version enregistrée");

@@ -2,6 +2,23 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+## Private groups and wish preferences
+
+The group overview, membership, invitations, owner name/photo editing and revocable
+join code are available under `/groups`. Admission URLs keep their code in the
+fragment; redemption sends it through `X-MonKado-Share-Token`. QR codes are generated
+locally, without an external QR service.
+
+Group details contain members only. `/groups/:groupId/members/:memberId` reads the
+selected member's lists within that group; reading wishes and reserving them keep
+the same authenticated group scope. Owners manage private sharing from
+“Partager dans un groupe” on their list. These commands never create a public link.
+
+Wish creation exposes “Surprends-moi” on the link step, then open-ended ideas and a
+optional maximum budget. Creation, editing, owner collections and shared/group reading
+preserve `isSurprise` and `acceptsSecondHand`. The existing reservation quantities,
+ETags, conflict recovery and request lifetimes remain in use.
+
 ## Profil public et listes du membre — #970
 
 Un résultat de `/members` ouvre `/members/:memberId`, accessible sans connexion.

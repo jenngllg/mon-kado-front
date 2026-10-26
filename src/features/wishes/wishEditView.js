@@ -10,7 +10,6 @@ import { createWishForm } from "./wishForm.js";
 import { createWishImageSection } from "./wishImageSection.js";
 import { WishImageValidationError, decodeWishImage } from "./wishImageValidation.js";
 import { validateImportUrl } from "./wishImportService.js";
-import { createWishImportFeedback } from "./wishImportFeedback.js";
 import { createWishPayload, parseWishPrice, WishPayloadTooLarge, WishServerMessages } from "./wishValidation.js";
 
 /** Edits an independently versioned gift without replacing a local draft on reread.
@@ -31,7 +30,6 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   /** @type {import("./wishesService.js").EditableWish | null} */ let base = null;
   let imageReadPending = false, imagePreserveDraft = false;
   const imageNotice = element("div", ""); imageNotice.hidden = true;
-  const importFeedback = element("div", "");
   let disposed = false; let busy = false; let blocked = true; let suspended = false; let terminal = false; let decision = false; let validationSummary = false;
   const editor = createWishForm({ label: "Modifier un souhait", inactive: () => disposed || busy || suspended || terminal,
     onChange: () => { if (validationSummary && editor.fields.every(field => field.error === null)) clearFeedback(); sync(); } });
@@ -44,7 +42,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   loader.setAttribute("role", "status"); loader.setAttribute("aria-label", "Récupération des informations en cours");
   if (preview && urlField) {
     const loadingLabel = element("span", "Récupération en cours…"); loadingLabel.className = "wish-import__loading-label"; loadingLabel.setAttribute("aria-hidden", "true");
-    form.prepend(urlField.element, importFeedback); urlField.element.classList.add("wish-import__url-field"); urlField.element.append(loader, loadingLabel);
+    form.prepend(urlField.element); urlField.element.classList.add("wish-import__url-field"); urlField.element.append(loader, loadingLabel);
     addComponentEventListener(view, urlField.control, "input", () => {
       cancelAnalysis();
       if (!disposed && !busy && !blocked && !suspended && !terminal && validateImportUrl(urlField.control.value) === null)
@@ -81,7 +79,6 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   function cancelAnalysis() {
     if (analysisTimer !== null) clearTimeout(analysisTimer);
     analysisTimer = null; analysisController?.abort(); analysisController = null; analyzing = false; loader.hidden = true;
-    disposeComponent(importFeedback); importFeedback.replaceChildren();
     sync();
   }
   async function analyzeLink() {
@@ -101,8 +98,6 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
         name: result.name || current.name,
         price: result.price || current.price });
       if (result.image && imageSection.getSelected() === selected) imageSection.setSelected(result.image);
-      const notice = createWishImportFeedback(result);
-      if (notice) importFeedback.append(notice);
       status.textContent = "";
     } catch (error) {
       if (!disposed && !controller.signal.aborted && !isAbortError(error)) {
@@ -126,14 +121,15 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       const field = /** @type {"name" | "note" | "url" | "color" | "size"} */ (key);
       return trimWishlistText(values[field] ?? "") !== trimWishlistText(stored[field] ?? "");
     }) || parseWishPrice(values.price) !== parseWishPrice(stored.price) ||
-      Number(values.quantity) !== Number(stored.quantity) || values.quantity.trim() === "" || fields[4].control.validity.badInput || !!values.isFavorite !== !!stored.isFavorite;
+      Number(values.quantity) !== Number(stored.quantity) || values.quantity.trim() === "" || fields[4].control.validity.badInput || !!values.isFavorite !== !!stored.isFavorite ||
+      !!values.isSurprise !== !!stored.isSurprise || !!values.acceptsSecondHand !== !!stored.acceptsSecondHand;
   }
-  function hasTextDraft() { const values = editor.getValues(); return !!base && (fields.some(field => values[field.name] !== base?.values[field.name]) || !!values.isFavorite !== !!base.values.isFavorite); }
+  function hasTextDraft() { const values = editor.getValues(); return !!base && (fields.some(field => values[field.name] !== base?.values[field.name]) || ["isFavorite", "isSurprise", "acceptsSecondHand"].some(key => !!values[/** @type {"isFavorite" | "isSurprise" | "acceptsSecondHand"} */ (key)] !== !!base?.values[/** @type {"isFavorite" | "isSurprise" | "acceptsSecondHand"} */ (key)])); }
   function clearImageNotice() { disposeComponent(imageNotice); imageNotice.replaceChildren(); imageNotice.hidden = true; }
   function sync() {
     const importing = analyzing || analysisTimer !== null;
     loader.hidden = !importing;
-    editor.favorite.disabled = disposed || terminal || busy || importing || suspended || blocked;
+    editor.favorite.disabled = editor.surprise.disabled = editor.secondHand.disabled = disposed || terminal || busy || importing || suspended || blocked;
     form.hidden = disposed || terminal || base === null;
     for (const field of fields) {
       field.control.readOnly = suspended;
@@ -225,6 +221,8 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     comparison.append(element("h2", "Version enregistrée"), element("p", "Ta saisie est conservée. L’enregistrer remplacera les informations ci-dessous."));
     const entries = document.createElement("dl");
     for (const field of fields) entries.append(element("dt", field.label), element("dd", base.values[field.name] || "Non renseigné"));
+    entries.append(element("dt", "Surprends-moi"), element("dd", base.values.isSurprise ? "Activé" : "Désactivé"),
+      element("dt", "Seconde main bienvenue"), element("dd", base.values.acceptsSecondHand ? "Oui" : "Non précisé"));
     comparison.append(entries);
   }
   /** @param {boolean} explicit User retry. */

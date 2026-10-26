@@ -21,6 +21,18 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); document.body.replaceChildren(); window.sessionStorage.clear(); });
 
 describe("contextual return navigation", () => {
+  it("keeps a group member between the group and their private list", () => {
+    const group = `/groups/${id}`, member = `${group}/members/${id}`, groupList = `${group}/wishlists/${id}`;
+    navigate(group); navigate(member); navigate(`${groupList}?fromMember=${id}`);
+    expect(contextualReturn()).toEqual({ href: member, label: "Retour aux listes du membre" });
+  });
+  it("retains private group ancestors and safe sort preferences without secrets", () => {
+    const group = `/groups/${id}`, groupList = `${group}/wishlists/${id}`;
+    navigate("/groups"); navigate(group); navigate(`${groupList}?sort=priceAsc#never-store`);
+    navigate(`${groupList}/wishes/${id}`);
+    expect(contextualReturn()).toEqual({ href: `${groupList}?sort=priceAsc`, label: "Retour à la liste" });
+    expect(JSON.stringify(window.history.state)).not.toContain("never-store");
+  });
   it("returns from list editing to the overview or detail that opened it", () => {
     navigate(`${list}/edit`);
     expect(contextualReturn()).toEqual({ href: "/lists", label: "Retour à Mes listes" });

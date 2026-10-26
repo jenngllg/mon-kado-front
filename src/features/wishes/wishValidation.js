@@ -2,7 +2,7 @@ import { ApiError } from "../../api/apiError.js";
 import { trimWishlistText } from "../wishlists/wishlistValidation.js";
 
 /** @typedef {"name" | "note" | "url" | "price" | "quantity" | "color" | "size"} WishField */
-/** @typedef {Record<Exclude<WishField, "color" | "size">, string> & {color?: string, size?: string, isFavorite?: boolean}} WishValues */
+/** @typedef {Record<Exclude<WishField, "color" | "size">, string> & {color?: string, size?: string, isFavorite?: boolean, isSurprise?: boolean, acceptsSecondHand?: boolean}} WishValues */
 /** @type {Readonly<Record<WishField, string>>} */
 export const WishServerMessages = Object.freeze({
   name: "Nom du souhait invalide.",
@@ -63,6 +63,8 @@ export function createWishPayload(values) {
     url: trimWishlistText(values.url) || null, price: parseWishPrice(values.price) ?? null, quantity: Number(trimWishlistText(values.quantity)),
     color: trimWishlistText(values.color ?? "") || null, size: trimWishlistText(values.size ?? "") || null };
   if (values.isFavorite !== undefined) Object.assign(body, { isFavorite: values.isFavorite });
+  if (values.isSurprise !== undefined) Object.assign(body, { isSurprise: values.isSurprise });
+  if (values.acceptsSecondHand !== undefined) Object.assign(body, { acceptsSecondHand: values.acceptsSecondHand });
   if (new TextEncoder().encode(JSON.stringify(body)).byteLength > 4096) throw new ApiError({ kind: "http", statusCode: 413 });
   return body;
 }

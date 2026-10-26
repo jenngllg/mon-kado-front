@@ -59,10 +59,9 @@ describe("profile image saved with the page", () => {
     const heading = ui.photo.querySelector("h2");
     expect(heading?.textContent).toBe("Photo de profil");
     expect(heading?.classList.contains("visually-hidden")).toBe(true);
-    expect(ui.photo.querySelector('[type="submit"]')).toBeNull();
-    expect(ui.view.querySelectorAll('[type="submit"]')).toHaveLength(1);
+    expect(ui.photo.querySelector('[type="submit"]')).not.toBeNull();
   });
-  it("keeps the crop local until the unique page save action below the fields", async () => {
+  it("keeps the crop local until the unique save action above the display name", async () => {
     // Arrange
     const ui = setup(); await settle(); await select(ui.view);
     // Act
@@ -73,8 +72,7 @@ describe("profile image saved with the page", () => {
     expect(ui.photo.querySelectorAll('input[type="range"]')).toHaveLength(1);
     expect(ui.view.querySelectorAll('[type="submit"]')).toHaveLength(1);
     expect(ui.view.querySelector("form")?.firstElementChild).toBe(ui.photo);
-    expect(ui.photo.querySelector('[type="submit"]')).toBeNull();
-    expect(ui.view.querySelector("form")?.lastElementChild?.querySelector('[type="submit"]')).not.toBeNull();
+    expect(ui.photo.querySelector('[type="submit"]')).not.toBeNull();
     expect(ui.photo.querySelector(".profile-image-section__body")?.hasAttribute("hidden")).toBe(true);
     expect(ui.view.textContent).not.toContain("Valider le recadrage");
     ui.submit(); await settle();

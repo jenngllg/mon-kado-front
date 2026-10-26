@@ -18,6 +18,12 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it("keeps the author and return navigation inside the original private group", async () => {
+    const ui = setup({ groupId: id, fromMemberId: id, load: async () => ({ ...list, ownerId: id }) }); await settle();
+    expect(ui.view.querySelector(".shared-wishlist-owner a")?.getAttribute("href")).toBe(`/groups/${id}/members/${id}`);
+    expect(ui.view.querySelector(".shared-wishlist-navigation a")?.getAttribute("href")).toBe(`/groups/${id}/members/${id}`);
+    expect(ui.view.querySelector(".shared-wishlist-owner a")?.getAttribute("aria-label")).toBe("Voir les listes de Camille");
+  });
   it("loads the response author's photo for direct shared links", async () => {
     const ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e07";
     const loadOwnerPhoto = vi.fn(async () => "https://api.test/member.jpg");

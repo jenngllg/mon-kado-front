@@ -42,7 +42,7 @@ for (const width of [390, 1440]) {
     expect(api.wish.isFavorite).toBe(false);
     await page.goto(`/lists/${listId}/wishes/new`);
     await page.getByRole("button", { name: "Continuer sans lien", exact: true }).click();
-    await page.getByLabel("Nom du produit", { exact: false }).fill("Coup de cœur créé");
+    await page.getByLabel("Nom du souhait", { exact: false }).fill("Coup de cœur créé");
     await page.getByRole("button", { name: "Continuer", exact: true }).click();
     await expect(choice).not.toBeChecked(); await choice.check();
     await page.screenshot({ path: testInfo.outputPath("favorite-create.png"), fullPage: true });

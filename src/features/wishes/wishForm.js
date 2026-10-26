@@ -6,7 +6,7 @@ import { validateWishField, WishServerMessages } from "./wishValidation.js";
 /** @typedef {import("./wishValidation.js").WishField} WishField */
 /** @type {ReadonlyArray<{name: WishField, label: string, required: boolean}>} */
 const Fields = Object.freeze([
-  { name: "name", label: "Nom du produit", required: true },
+  { name: "name", label: "Nom du souhait", required: true },
   { name: "note", label: "Description", required: false },
   { name: "url", label: "Lien produit", required: false },
   { name: "price", label: "Prix en euros", required: false },
@@ -56,6 +56,18 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un souhait
   }
   form.insertBefore(variants, fields.find(field => field.name === "note")?.element ?? null);
   form.append(amounts);
+  form.id = `wish-form-${crypto.randomUUID()}`;
+  const surprise = preference("isSurprise", "Surprends-moi");
+  surprise.input.setAttribute("form", form.id);
+  surprise.label.classList.add("wish-preference--surprise");
+  const hint = document.createElement("span"); hint.className = "wish-preference__hint";
+  hint.id = `${fields[0].control.id}-surprise-hint`;
+  hint.textContent = "Je donne des pistes, mes proches choisissent.";
+  surprise.input.setAttribute("aria-describedby", hint.id);
+  surprise.text.append(hint);
+  fields[0].element.after(surprise.label);
+  const secondHand = preference("acceptsSecondHand", "Seconde main bienvenue");
+  form.append(secondHand.label);
   const quantity = /** @type {HTMLInputElement} */ (fields.find(field => field.name === "quantity")?.control);
   const stepper = document.createElement("div"); stepper.className = "wish-quantity-stepper";
   const decrease = createButton({ label: "−", variant: "secondary", onClick: () => adjustQuantity(-1) });
@@ -63,7 +75,7 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un souhait
   const increase = createButton({ label: "+", variant: "secondary", onClick: () => adjustQuantity(1) });
   increase.setAttribute("aria-label", "Augmenter la quantité souhaitée");
   quantity.before(stepper); stepper.append(decrease, quantity, increase); syncQuantityControls();
-  const favorite = document.createElement("input"); favorite.type = "checkbox"; favorite.name = "isFavorite";
+  const favorite = document.createElement("input"); favorite.type = "checkbox"; favorite.name = "isFavorite"; favorite.className = "wish-favorite-choice__input";
   const favoriteLabel = document.createElement("label"); favoriteLabel.className = "wish-favorite-choice";
   const favoriteIcon = document.createElement("span"); favoriteIcon.className = "wish-favorite-choice__icon";
   applyActionIcon(favoriteIcon, "heart", "Coup de cœur"); favoriteIcon.setAttribute("aria-hidden", "true"); favoriteIcon.removeAttribute("title");
@@ -79,8 +91,28 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un souhait
   });
   addComponentEventListener(form, document, "pointercancel", () => { pressedAction = null; flushBlur(); });
   registerComponentCleanup(form, () => { disposed = true; deferredBlur = null; pressedAction = null; clear(); });
-  return { form, fields, favorite, validate, clear, reset, syncQuantityControls, discardDeferredBlur: () => { deferredBlur = null; },
-    getValues: () => /** @type {import("./wishValidation.js").WishValues} */ ({ ...Object.fromEntries(fields.map(field => [field.name, field.control.value])), isFavorite: favorite.checked }) };
+  return { form, fields, favorite, surprise: surprise.input, secondHand: secondHand.input, surpriseLabel: surprise.label, secondHandLabel: secondHand.label,
+    validate, clear, reset, syncQuantityControls, discardDeferredBlur: () => { deferredBlur = null; },
+    getValues: () => /** @type {import("./wishValidation.js").WishValues} */ ({ ...Object.fromEntries(fields.map(field => [field.name, field.control.value])), isFavorite: favorite.checked, isSurprise: surprise.input.checked, acceptsSecondHand: secondHand.input.checked }) };
+
+  /** @param {string} name Saved flag. @param {string} label Associated visible label. */
+  function preference(name, label) {
+    const input = document.createElement("input"); input.type = "checkbox"; input.name = name; input.setAttribute("role", "switch"); input.setAttribute("aria-label", label);
+    const element = document.createElement("label"); element.className = "wishlist-surprise-switch wish-preference";
+    const text = document.createElement("span"); text.className = "wish-preference__text";
+    const caption = document.createElement("span"); caption.textContent = label; text.append(caption);
+    element.append(input, text);
+    addComponentEventListener(form, input, "change", () => { if (disposed || inactive()) return; syncPreferences(); onChange(); });
+    return { input, label: element, text };
+  }
+  function syncPreferences() {
+    form.dataset.surpriseWish = String(surprise.input.checked);
+    for (const [name, label] of [["note", surprise.input.checked ? "Mes envies" : "Description"], ["price", surprise.input.checked ? "Budget maximum (€)" : "Prix en euros"]]) {
+      const field = fields.find(field => field.name === name);
+      const caption = field?.element.querySelector(".form-field__label");
+      if (caption) caption.textContent = label;
+    }
+  }
 
   function flushBlur() { const check = deferredBlur; deferredBlur = null; check?.(); }
   function syncQuantityControls() {
@@ -104,7 +136,7 @@ export function createWishForm({ inactive, onChange, label = "Ajouter un souhait
     field.error = field.control.validity.badInput ? WishServerMessages[field.name] : validateWishField(field.name, field.control.value);
     setFormFieldValidation(field.element, field.error);
   }
-  function clear() { favorite.checked = false; for (const field of fields) { field.control.value = ""; field.dirty = false; field.checked = false; field.error = null; setFormFieldValidation(field.element, null); } syncQuantityControls(); }
+  function clear() { favorite.checked = false; surprise.input.checked = false; secondHand.input.checked = false; syncPreferences(); for (const field of fields) { field.control.value = ""; field.dirty = false; field.checked = false; field.error = null; setFormFieldValidation(field.element, null); } syncQuantityControls(); }
   /** @param {Readonly<import("./wishValidation.js").WishValues>} values Latest server values. */
-  function reset(values) { clear(); favorite.checked = values.isFavorite === true; for (const field of fields) field.control.value = values[field.name] ?? ""; syncQuantityControls(); }
+  function reset(values) { clear(); favorite.checked = values.isFavorite === true; surprise.input.checked = values.isSurprise === true; secondHand.input.checked = values.acceptsSecondHand === true; syncPreferences(); for (const field of fields) field.control.value = values[field.name] ?? ""; syncQuantityControls(); }
 }

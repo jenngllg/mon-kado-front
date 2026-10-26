@@ -110,10 +110,15 @@
 .wish-create-view--steps .wish-step-panel > * { margin: 0; min-width: 0; }
 .wish-create-view--steps .wish-step-panel .form-field { gap: var(--space-3); }
 .wish-create-view--steps .wish-step-panel .wish-quantity-stepper {
-  width: 10rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: max-content;
   max-width: 100%;
   justify-self: start;
 }
+.wish-create-view--steps .wish-quantity-stepper input { min-width: 0; width: 4rem; text-align: center; }
+.wish-create-view--steps .wish-quantity-stepper button { flex: none; min-width: 2.75rem; padding-inline: var(--space-3); }
 .wish-create-view--steps .wish-step-choices {
   display: flex;
   flex-wrap: wrap;

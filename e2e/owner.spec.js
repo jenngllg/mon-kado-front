@@ -36,7 +36,7 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-width", "1px");
   await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-style", "solid");
   await page.getByRole("button", { name: "Continuer sans lien", exact: true }).click();
-  await page.getByRole("textbox", { name: /Nom du produit/ }).fill("Carnet test");
+  await page.getByRole("textbox", { name: /Nom du souhait/ }).fill("Carnet test");
   await page.getByRole("textbox", { name: /Prix en euros/ }).fill("19,90");
   await page.getByRole("button", { name: "Continuer", exact: true }).click();
   await page.getByRole("button", { name: "Ajouter", exact: true }).click();
@@ -44,8 +44,8 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   expect(api.state.wishWrites).toBe(1);
   await page.getByRole("link", { name: "Carnet test", exact: true }).click();
   await page.getByRole("link", { name: "Modifier", exact: true }).click();
-  await expect(page.getByRole("textbox", { name: /Nom du produit/ })).toHaveValue("Carnet test");
-  await page.getByRole("textbox", { name: /Nom du produit/ }).fill("Carnet corrigé");
+  await expect(page.getByRole("textbox", { name: /Nom du souhait/ })).toHaveValue("Carnet test");
+  await page.getByRole("textbox", { name: /Nom du souhait/ }).fill("Carnet corrigé");
   await expect(page.getByRole("button", { name: "Annuler les modifications", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Souhait enregistré." })).toHaveText("Souhait enregistré.");

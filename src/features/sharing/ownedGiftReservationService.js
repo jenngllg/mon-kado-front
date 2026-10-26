@@ -6,14 +6,16 @@ import { validateReservationQuantity } from "./reservationValidation.js";
 
 /** Private-owner reservation transport, without a sharing token or automatic write replay.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Current member.
+ * @param {{groupId?: string}} [scope] Optional private group scope; never a public share capability.
  * @returns {{loadCurrent: import("./giftReservationService.js").LoadReservation, create: import("./giftReservationService.js").CreateReservation,
  * update: import("./giftReservationService.js").UpdateReservation, cancel: import("./giftReservationService.js").CancelReservation}} Operations.
  */
-export function createOwnedGiftReservationService(session) {
+export function createOwnedGiftReservationService(session, { groupId } = {}) {
+  if (groupId !== undefined && !isWishlistId(groupId)) throw new TypeError("Invalid group identifier.");
   /** @param {string} wishlistId Parent. @param {string} wishId Wish. @returns {string} Private endpoint. */
   function path(wishlistId, wishId) {
     if (!isWishlistId(wishlistId) || !isWishlistId(wishId)) throw new ApiError({ kind: "http", statusCode: 404 });
-    return `/api/v1/wishlists/${wishlistId}/wishes/${wishId}/reservations/current`;
+    return `/api/v1/${groupId ? `groups/${groupId}/` : ""}wishlists/${wishlistId}/wishes/${wishId}/reservations/current`;
   }
   /** @param {string} wishlistId Parent. @param {string} wishId Wish. @param {string} quantity Absolute quantity.
    * @param {AbortSignal} signal Lifetime. @param {string | null} etag Current version or creation.

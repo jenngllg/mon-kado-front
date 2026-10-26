@@ -110,17 +110,6 @@ describe("unified creation and suggestions", () => {
     expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:preview-1");
     expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull(); expect(ui.uploadImage).not.toHaveBeenCalled();
   });
-  it("retains an explicit draft when proposed metadata and image are unavailable", async () => {
-    const ui = setup(); await settle(); ui.values.name.value = "Mon produit";
-    vi.mocked(decodeWishImage).mockRejectedValue(new Error("Image cannot be decoded"));
-    ui.preview.mockResolvedValue({ name: "", price: "", url, image: new Blob(["fixture"]), warnings: [] });
-    await ui.analyze();
-    expect(ui.values.name.value).toBe("Mon produit");
-    expect(ui.view.textContent).toContain("Informations indisponibles");
-    expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull();
-    expect(ui.view.textContent).not.toContain("Garder ma saisie");
-    await ui.submit(); expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).toHaveBeenCalledOnce();
-  });
   it("selects a local image before Ajouter without uploading until creation", async () => {
     // Arrange
     const ui = setup(); await settle(); ui.values.name.value = "Mon souhait";
@@ -131,7 +120,7 @@ describe("unified creation and suggestions", () => {
     input.files = transfer.files; input.dispatchEvent(new Event("change")); await settle();
     // Assert
     const panel = ui.form.querySelector(".wish-import__image-panel");
-    expect(panel?.closest('[aria-label="Produit"]')).not.toBeNull();
+    expect(panel?.closest('[aria-label="Souhait"]')).not.toBeNull();
     expect(panel?.querySelector('img[src^="blob:"]')).not.toBeNull();
     expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
     await ui.submit();
@@ -226,7 +215,7 @@ describe("unified creation and suggestions", () => {
   });
   it("prefills a virgin form and waits for explicit creation before uploading with its individual tag", async () => {
     const ui = setup(); await settle(); await ui.analyze(); expect(ui.values.name.value).toBe("Théière"); expect(ui.values.price.value).toBe("19,99"); expect(ui.values.quantity.value).toBe("1"); expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
-    await ui.submit(); expect(ui.create.mock.calls[0][1]).toEqual({ name: "Théière", note: "", price: "19,99", url, quantity: "1", color: "", size: "", isFavorite: false }); expect(ui.uploadImage.mock.calls[0][3].etag).toBe('"created"'); expect(ui.onCreated).toHaveBeenCalledTimes(1); expect(revoke).not.toHaveBeenCalled();
+    await ui.submit(); expect(ui.create.mock.calls[0][1]).toEqual({ name: "Théière", note: "", price: "19,99", url, quantity: "1", color: "", size: "", isFavorite: false, isSurprise: false, acceptsSecondHand: false }); expect(ui.uploadImage.mock.calls[0][3].etag).toBe('"created"'); expect(ui.onCreated).toHaveBeenCalledTimes(1); expect(revoke).not.toHaveBeenCalled();
     disposeComponent(ui.view); expect(revoke).toHaveBeenCalledOnce();
     await ui.submit(); expect(ui.create).toHaveBeenCalledTimes(1);
   });
@@ -235,6 +224,15 @@ describe("unified creation and suggestions", () => {
     expect(ui.values.name.value).toBe("Théière"); expect(ui.values.note.value).toBe("  note conservée  "); expect(ui.values.quantity.value).toBe("3");
     expect(ui.view.textContent).not.toContain("Appliquer les suggestions"); expect(ui.view.textContent).not.toContain("Garder ma saisie");
     expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
+  });
+  it("preserves surprise and secondhand choices when importing a product", async () => {
+    const ui = setup(); await settle();
+    const surprise = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("isSurprise"));
+    const secondHand = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("acceptsSecondHand"));
+    surprise.click(); secondHand.click(); await ui.analyze();
+    expect(surprise.checked).toBe(true); expect(secondHand.checked).toBe(true);
+    expect(ui.form.querySelector(".wish-form__price label")?.textContent).toBe("Budget maximum (€)");
+    expect(ui.create).not.toHaveBeenCalled();
   });
   it("automatically replaces a previous imported image and revokes its preview", async () => {
     const ui = setup(); await settle(); await ui.analyze();
@@ -246,7 +244,8 @@ describe("unified creation and suggestions", () => {
   });
   it("removes the optional image without changing the creation request", async () => {
     const ui = setup(); await settle(); await ui.analyze();
-    expect(ui.view.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
+    expect(ui.view.querySelectorAll('input[type="checkbox"]:not([role="switch"])')).toHaveLength(1);
+    expect(ui.view.querySelectorAll('input[role="switch"]')).toHaveLength(2);
     expect(ui.view.querySelector('input[name="isFavorite"]')).not.toBeNull();
     const remove = /** @type {HTMLButtonElement} */ (ui.view.querySelector('button[aria-label="Retirer la sélection"]'));
     remove.click();

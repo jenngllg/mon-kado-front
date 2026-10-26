@@ -19,6 +19,7 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId } from "./wishlistValidation.js";
 import { createWishlistArchiveButton } from "./wishlistArchiveButton.js";
 import { createWishCopyActions } from "../sharing/wishCopyActions.js";
+import { createWishlistGroupShareDialog } from "../groups/wishlistGroupShareDialog.js";
 
 /** Mounts owner-only list details and independently refreshable gifts.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
@@ -29,10 +30,11 @@ import { createWishCopyActions } from "../sharing/wishCopyActions.js";
  * copy?: import("../sharing/wishCopyActions.js").WishCopyOperations,
  * loadWishes: import("../wishes/wishesService.js").LoadWishes, reorder?: import("../wishes/wishesService.js").ReorderWishes,
  * deletion?: {loadOne: import("../wishes/wishesService.js").LoadWish, remove: import("../wishes/wishesService.js").RemoveWish}, onDeleted?: () => void | Promise<void>,
+ * groups?:ReturnType<typeof import("../groups/groupsService.js").createGroupsService>,
  * share?: {load: import("./wishlistShareService.js").LoadWishlistShare, create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, copyText: (text: string) => Promise<void>, onRevoked?: () => void}, signal?: AbortSignal}} options View dependencies.
  * @returns {HTMLElement} Routed component, with explicit disposal.
  */
-export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, removeWishlist, onWishlistDeleted = () => {}, favorite, copy, loadWishes, reorder, share, deletion, signal, initialSort, onSortChange = () => {}, onDeleted = () => {} }) {
+export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArchived, removeWishlist, onWishlistDeleted = () => {}, favorite, copy, loadWishes, reorder, share, deletion, signal, initialSort, onSortChange = () => {}, onDeleted = () => {} }) {
   const view = element("section", ""); view.className = "wishlist-details-view wishlist-details-view--owner wishlist-details-view--gallery wishlist-details-view--banner flow";
   const back = createBackLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
@@ -199,6 +201,14 @@ export function createWishlistDetailsView({ wishlistId, loadOne, setArchived, re
       if (share && !item.isArchived) {
         const trigger = createButton({ label: "Partager", onClick: () => openShare(trigger) });
         trigger.classList.add("wishlist-details-share", "page-primary-action"); prependShareDialogIcon(trigger, "share"); actions.append(trigger);
+      }
+      if (groups && !item.isArchived) {
+        const trigger = createButton({ label: "Partager dans un groupe", variant: "secondary", onClick: () => {
+          if (shareDialog || deletionDialog || copying || reordering || busy || favoritePending) return;
+          shareDialog = createWishlistGroupShareDialog({ service: groups, wishlistId, signal: lifetime.signal,
+            onClose: () => { shareDialog = null; if (trigger.isConnected) trigger.focus(); } });
+          view.append(shareDialog); shareDialog.showModal();
+        } }); actions.append(trigger);
       }
     }
   }

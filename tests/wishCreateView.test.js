@@ -33,6 +33,29 @@ async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); 
 function retry(view) { [...view.querySelectorAll("button")].find(button => button.textContent === "Réessayer")?.click(); }
 
 describe("manual gift creation view", () => {
+  it.each(["", "40"])("keeps shared preferences on step three and accepts an open-ended wish with budget '%s'", async budget => {
+    const ui = setup(); await settle();
+    const surprise = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("isSurprise"));
+    const secondHand = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("acceptsSecondHand"));
+    expect(surprise.closest("label")?.hidden).toBe(false); expect(ui.form.dataset.creationStep).toBe("link");
+    ui.input(2, "unfinished product URL"); surprise.click();
+    expect(ui.fields[2].closest(".form-field")?.hasAttribute("hidden")).toBe(true);
+    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer" && !button.hidden)?.click();
+    expect(ui.fields[4].closest('[role="group"]')?.getAttribute("aria-label")).toBe("Précisions");
+    expect(secondHand.closest('[role="group"]')?.getAttribute("aria-label")).toBe("Précisions");
+    expect(ui.form.querySelector('[name="isFavorite"]')?.closest('[role="group"]')?.getAttribute("aria-label")).toBe("Précisions");
+    expect(ui.fields[3].required).toBe(false);
+    secondHand.click(); ui.input(0, "Un moment de détente"); ui.input(1, "Massage ou atelier"); ui.input(3, budget); ui.input(4, "2");
+    const observer = new MutationObserver(() => {}); observer.observe(ui.form, { subtree: true, childList: true });
+    ui.fields[1].focus(); ui.input(1, "Massage ou atelier créatif");
+    expect(observer.takeRecords().some(record => record.target instanceof Element && record.target.matches(".wish-step-panel"))).toBe(false);
+    observer.disconnect(); expect(document.activeElement).toBe(ui.fields[1]);
+    expect(ui.fields[1].closest('[role="group"]')?.getAttribute("aria-label")).toBe("Souhait");
+    expect(ui.view.querySelector('[aria-current="step"]')?.textContent).toBe("Souhait");
+    expect(ui.create).not.toHaveBeenCalled(); ui.send(); await settle();
+    expect(ui.create).toHaveBeenCalledExactlyOnceWith(id, expect.objectContaining({ isSurprise: true, acceptsSecondHand: true, name: "Un moment de détente", note: "Massage ou atelier créatif", price: budget, quantity: "2", url: "" }), { signal: expect.any(AbortSignal) });
+    expect(surprise.disabled).toBe(true); expect(secondHand.disabled).toBe(true);
+  });
   it("changes only local panels on Continue and Back and clears a discarded link", async () => {
     const ui = setup(); await settle(); ui.input(2, "https://example.test/product");
     const skip = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer sans lien" && !button.hidden);

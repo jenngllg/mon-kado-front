@@ -15,6 +15,8 @@
 @import "./styles/wish-detail.css" layer(components);
 @import "./styles/wishlist-layouts.css" layer(components);
 @import "./styles/wish-variants.css" layer(components);
-@import "./styles/reservation-history.css" layer(components);
 @import "./styles/google.css" layer(components);
 @import "./styles/utilities.css" layer(utilities);
+
+@import "./styles/groups.css" layer(components);
+@import "./styles/wish-preferences.css" layer(components);

@@ -17,6 +17,16 @@ function setup(data = { wishes: [wish] }, status = 200, etag = /** @type {string
 }
 
 describe("owned gift collection service", () => {
+  it.each([[false, true], [true, false], [true, true]])("round-trips independent surprise/secondhand flags %s/%s", async (isSurprise, acceptsSecondHand) => {
+    const service = setup({ ...wish, isSurprise, acceptsSecondHand }, 200, '"saved"');
+    const saved = await service.loadOne(id, wishId, { signal });
+    expect(saved.wish).toMatchObject({ isSurprise, acceptsSecondHand }); expect(saved.values).toMatchObject({ isSurprise, acceptsSecondHand });
+    await service.update(id, wishId, saved.values, { etag: saved.etag, signal });
+    expect(service.request).toHaveBeenNthCalledWith(2, `/api/v1/wishlists/${id}/wishes/${wishId}`, expect.objectContaining({ body: expect.objectContaining({ isSurprise, acceptsSecondHand }) }));
+  });
+  it.each([{ isSurprise: "true" }, { acceptsSecondHand: 1 }, { isSurprise: null }])("rejects malformed gift preferences without accepting a lossy projection", async change => {
+    await expect(setup({ wishes: [{ ...wish, ...change }] }).load(id, { signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("copies an owned wish with CSRF and no share secret", async () => {
     const service = setup({ ...wish, isFavorite: false }, 201, '"copied"');
     const result = await service.copyOwned(wishId, id, id, { signal });
@@ -83,7 +93,7 @@ describe("owned gift collection service", () => {
     const service = setup({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, participants: ["private"], createdAt: "unused" }] });
     const result = await service.load(id, { signal });
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wishes`, { method: "GET", authentication: "required", signal });
-    expect(result).toEqual({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, color: null, size: null, isFavorite: false, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
+    expect(result).toEqual({ wishes: [{ ...wish, reservedQuantity: 2, availableQuantity: 0, color: null, size: null, isFavorite: false, isSurprise: false, acceptsSecondHand: false, productUnavailable: false, imageUnavailable: false }], etag: '"collection-version"' });
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.wishes)).toBe(true); expect(Object.isFrozen(result.wishes[0])).toBe(true);
     expect(JSON.stringify(result)).not.toMatch(/participants|createdAt|private/);
   });

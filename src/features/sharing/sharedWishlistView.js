@@ -13,20 +13,22 @@ import { memberOriginQuery, memberProfileHref } from "../members/memberNavigatio
 import { createWishlistReportDialog } from "./wishlistReportDialog.js";
 import { createWishCopyActions } from "./wishCopyActions.js";
 import { createWishReservationDialog } from "./wishReservationDialog.js";
+import { isWishlistId } from "../wishlists/wishlistValidation.js";
 
 /** Public collection; only its transport retains access to a bearer context.
  * @param {{shareLinkId: string, load: import("./sharedWishlistService.js").LoadSharedWishlist, signal?: AbortSignal, accessSignal?: AbortSignal, fromMemberId?: string | null,
- * copy?: import("./wishCopyActions.js").WishCopyOperations, report?: import("./wishlistReportService.js").ReportWishlist, initialSort?: string | null, loadOwnerPhoto?: (options: {signal: AbortSignal, ownerId?: string}) => Promise<string | null>, onSortChange?: (sort: import("../wishes/wishSorting.js").WishSort) => void,
+ * groupId?: string, copy?: import("./wishCopyActions.js").WishCopyOperations, report?: import("./wishlistReportService.js").ReportWishlist, initialSort?: string | null, loadOwnerPhoto?: (options: {signal: AbortSignal, ownerId?: string}) => Promise<string | null>, onSortChange?: (sort: import("../wishes/wishSorting.js").WishSort) => void,
  * loadOne?: import("./sharedWishlistService.js").LoadSharedWish, createReservation?: Parameters<typeof createWishReservationDialog>[0]["createReservation"],
  * createParticipation?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement,
  * createSubscription?: (options: {onUnavailable: () => void, signal: AbortSignal}) => HTMLElement}} options Dependencies.
  * @returns {HTMLElement} Disposable routed view.
  */
-export function createSharedWishlistView({ shareLinkId, load, loadOne, createReservation, loadOwnerPhoto, report, copy, signal, accessSignal, createParticipation, createSubscription, fromMemberId, initialSort, onSortChange = () => {} }) {
+export function createSharedWishlistView({ shareLinkId, load, loadOne, createReservation, loadOwnerPhoto, report, copy, signal, accessSignal, createParticipation, createSubscription, fromMemberId, initialSort, onSortChange = () => {}, groupId }) {
+  const listPath = groupId ? `/groups/${groupId}/wishlists/${shareLinkId}` : `/shared-wishlists/${shareLinkId}`;
   // Navigation stays outside list context; the modal host must not add a bottom gap.
   const view = element("section", ""); view.className = "wishlist-details-view shared-wishlist-view wishlist-details-view--gallery wishlist-details-view--split";
   const navigation = element("div", ""); navigation.className = "shared-wishlist-navigation";
-  navigation.append(fromMemberId ? createBackLink({ label: "Retour au profil", href: memberProfileHref(fromMemberId) }) : createBackLink({ label: "Retour à l’accueil", href: "/" }));
+  navigation.append(groupId ? createBackLink({ label: isWishlistId(fromMemberId) ? "Retour aux listes du membre" : "Retour au groupe", href: isWishlistId(fromMemberId) ? `/groups/${groupId}/members/${fromMemberId}` : `/groups/${groupId}` }) : fromMemberId ? createBackLink({ label: "Retour au profil", href: memberProfileHref(fromMemberId) }) : createBackLink({ label: "Retour à l’accueil", href: "/" }));
   const subscriptionActions = element("div", "");
   const topActions = element("div", ""); topActions.className = "cluster";
   topActions.append(subscriptionActions); navigation.append(topActions);
@@ -107,6 +109,11 @@ export function createSharedWishlistView({ shareLinkId, load, loadOne, createRes
       const list = await load(shareLinkId, { signal: lifetime.signal, availableOnly });
       if (disposed || terminal || lifetime.signal.aborted) return;
       clear(details); populateWishlistSummary(details, title, list, list.ownerDisplayName, list.ownerId);
+      const author = details.querySelector(".shared-wishlist-owner__profile");
+      if (groupId && isWishlistId(list.ownerId) && author instanceof HTMLAnchorElement) {
+        author.href = `/groups/${groupId}/members/${list.ownerId}`;
+        author.setAttribute("aria-label", `Voir les listes de ${list.ownerDisplayName}`); author.title = `Voir les listes de ${list.ownerDisplayName}`;
+      }
       populateWishlistContext(counts, list.wishes, { filtered: availableOnly });
       // Keep the personal message with identity, before event and aggregate information.
       const message = counts.querySelector(".wishlist-details-note");
@@ -129,8 +136,8 @@ export function createSharedWishlistView({ shareLinkId, load, loadOne, createRes
       if (disposed || terminal || isAbortError(error)) return;
       clear(details); details.append(title);
       if (error instanceof ApiError && error.statusCode === 404) {
-        terminal = true; lifetime.abort(); clearPortrait(); gifts.hidden = true; title.textContent = "Lien de partage indisponible";
-        details.append(element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
+        terminal = true; lifetime.abort(); clearPortrait(); gifts.hidden = true; title.textContent = groupId ? "Liste indisponible" : "Lien de partage indisponible";
+        details.append(element("p", groupId ? "Cette liste n’est plus accessible dans ce groupe." : "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
         if (explicit) title.focus();
       } else {
         const translated = toUserFacingError(error), extra = [];
@@ -160,7 +167,7 @@ export function createSharedWishlistView({ shareLinkId, load, loadOne, createRes
         reservationQuantities: { reservedQuantity: wish.reservedQuantity, availableQuantity: wish.availableQuantity },
         copyButton: copyActions?.button(wish.id, true),
         ...(loadOne && createReservation ? { onReserve: trigger => openReservation(wish, trigger) } : {}),
-        detailHref: withWishSort(`/shared-wishlists/${shareLinkId}/wishes/${wish.id}${memberOriginQuery(fromMemberId)}`, sorting.value()),
+        detailHref: withWishSort(`${listPath}/wishes/${wish.id}${memberOriginQuery(fromMemberId)}`, sorting.value()),
         onImageError: () => { if (!disposed && !terminal) retryImages.hidden = false; } }));
       results.append(cards);
     }
@@ -172,8 +179,8 @@ export function createSharedWishlistView({ shareLinkId, load, loadOne, createRes
   function unavailable() {
     if (disposed || terminal) return;
     terminal = true; lifetime.abort(); closeReservation(); closeReport(); clearPortrait(); clear(subscriptionActions); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; reservationStatus.textContent = ""; clear(details); clear(counts); details.append(title); clear(results); gifts.hidden = true; retryImages.hidden = true;
-    title.textContent = "Lien de partage indisponible";
-    details.append(element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
+    title.textContent = groupId ? "Liste indisponible" : "Lien de partage indisponible";
+    details.append(element("p", groupId ? "Cette liste n’est plus accessible dans ce groupe." : "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
     title.focus();
   }
   function closeReport() { if (reportDialog) disposeComponent(reportDialog); reportDialog = null; }

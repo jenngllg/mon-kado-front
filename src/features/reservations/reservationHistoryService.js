@@ -3,7 +3,7 @@ import { isCalendarDate, isWishlistId } from "../wishlists/wishlistValidation.js
 import { safeHttpUrl } from "../wishes/wishValidation.js";
 
 /** @typedef {"wishDeleted" | "wishlistDeleted" | "notShared" | "suspended" | "archived"} InaccessibilityReason */
-/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GiftReservationHistoryResponse"] & {inaccessibilityReason?: InaccessibilityReason | null}} HistoryResponse */
+/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GiftReservationHistoryResponse"] & {inaccessibilityReason?: InaccessibilityReason | null,groupId?:string|null,groupWishPath?:string|null}} HistoryResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["PaginatedResponseOfGiftReservationHistoryResponse"]} PageResponse */
 /** @typedef {Readonly<{id: string, wishlistName: string, wishName: string, quantity: number,
  * status: "active" | "cancelled" | "unavailable", createdAt: string, lastActivityAt: string, endedAt: string | null,
@@ -54,6 +54,11 @@ export function createReservationHistoryService(session, { apiBaseUrl = "http://
       if (item.inaccessibilityReason != null && !["wishDeleted", "wishlistDeleted", "notShared", "suspended", "archived"].includes(item.inaccessibilityReason)) throw invalid();
       let wishHref = null;
       const ownedPath = item.ownedWishPath;
+      const groupPath = item.groupWishPath;
+      if (groupPath != null) {
+        if (!isWishlistId(item.groupId) || groupPath !== `/groups/${item.groupId}/wishlists/${item.wishlistId}/wishes/${item.wishId}` || ownedPath != null || item.shareUrl != null || item.shareLinkId != null || item.isArchived) throw invalid();
+        wishHref = groupPath;
+      }
       if (ownedPath != null) {
         if (ownedPath !== `/lists/${item.wishlistId}/wishes/${item.wishId}` || item.isArchived || item.shareUrl != null) throw invalid();
         wishHref = ownedPath;
@@ -65,7 +70,7 @@ export function createReservationHistoryService(session, { apiBaseUrl = "http://
         wishHref = `/shared-wishlists/${item.shareLinkId}/wishes/${item.wishId}#${item.shareUrl.slice(prefix.length)}`;
       }
       const candidate = item.imageUrl == null ? null : safeHttpUrl(item.imageUrl);
-      const resource = ownedPath ? `wishlists/${item.wishlistId}` : `shared-wishlists/${item.shareLinkId}`;
+      const resource = groupPath ? `groups/${item.groupId}/wishlists/${item.wishlistId}` : ownedPath ? `wishlists/${item.wishlistId}` : `shared-wishlists/${item.shareLinkId}`;
       const path = `${base.pathname.replace(/\/$/, "")}/api/v1/${resource}/wishes/${item.wishId}/image`;
       const image = wishHref && candidate && candidate.origin === base.origin && candidate.pathname.toLowerCase() === path.toLowerCase() && !candidate.hash &&
         candidate.searchParams.getAll("token").length === 1 && !!candidate.searchParams.get("token") && [...candidate.searchParams.keys()].every(key => key === "token") ? candidate : null;
@@ -75,7 +80,7 @@ export function createReservationHistoryService(session, { apiBaseUrl = "http://
         ...(item.isArchived !== undefined ? { isArchived: item.isArchived } : {}),
         ...(item.ownerDisplayName !== undefined ? { ownerDisplayName: item.ownerDisplayName } : {}),
         ...(item.ownerId !== undefined ? { ownerHref: item.ownerId ? `/members/${item.ownerId}` : null } : {}),
-        ...(item.shareUrl !== undefined || ownedPath !== undefined ? { wishHref } : {}),
+        ...(item.shareUrl !== undefined || ownedPath !== undefined || groupPath !== undefined ? { wishHref } : {}),
         ...(item.imageUrl !== undefined ? { imageUrl: image?.href ?? null, imageUnavailable: item.imageUrl !== null && !image } : {}) });
     });
     return Object.freeze({ items: Object.freeze(items), currentPage: page.currentPage, pageSize: page.pageSize, totalCount: page.totalCount });

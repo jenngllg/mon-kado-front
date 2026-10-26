@@ -7,7 +7,7 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionResponse"]} WishCollectionResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"]} WishCollectionItemResponse */
 /** @typedef {Readonly<{id: string, wishlistId: string, name: string, note: string | null, price: number | null,
- * quantity: number, isFavorite?: boolean, color?: string | null, size?: string | null, position: string, entityTag: string, url: string | null, imageUrl: string | null,
+ * quantity: number, isFavorite?: boolean, isSurprise?: boolean, acceptsSecondHand?: boolean, color?: string | null, size?: string | null, position: string, entityTag: string, url: string | null, imageUrl: string | null,
  * productUnavailable: boolean, imageUnavailable: boolean, reservedQuantity?: number | null, availableQuantity?: number | null}>} Wish */
 /** @typedef {Readonly<{wishes: ReadonlyArray<Wish>, etag: string}>} WishCollection */
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishCollection>} LoadWishes */
@@ -163,7 +163,8 @@ function editable(response, wishlistId, wishId, base) {
   if (wish.id.toLowerCase() !== wishId.toLowerCase()) throw invalid();
   // Navigation uses the safe projection; editing must not silently rewrite the original URL.
   const values = Object.freeze({ name: wish.name, note: wish.note ?? "", url: data.url ?? "", color: wish.color ?? "", size: wish.size ?? "",
-    price: wish.price === null ? "" : wish.price.toFixed(2).replace(".", ","), quantity: String(wish.quantity), isFavorite: wish.isFavorite === true });
+    price: wish.price === null ? "" : wish.price.toFixed(2).replace(".", ","), quantity: String(wish.quantity), isFavorite: wish.isFavorite === true,
+    isSurprise: wish.isSurprise === true, acceptsSecondHand: wish.acceptsSecondHand === true });
   return Object.freeze({ wish, etag: response.metadata.etag, values });
 }
 
@@ -176,6 +177,7 @@ function projectWish(value, wishlistId, base, invalid) {
     typeof item.quantity !== "number" || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100) throw invalid();
   const position = exactPosition(item.position); const price = readPrice(item.price);
   if (item.isFavorite !== undefined && typeof item.isFavorite !== "boolean") throw invalid();
+  for (const value of [item.isSurprise, item.acceptsSecondHand]) if (value !== undefined && typeof value !== "boolean") throw invalid();
   if (!nullableText(item.color ?? null) || !nullableText(item.size ?? null)) throw invalid();
   if (position === null || price === undefined) throw invalid();
   const reservedQuantity = item.reservedQuantity ?? null, availableQuantity = item.availableQuantity ?? null;
@@ -188,6 +190,7 @@ function projectWish(value, wishlistId, base, invalid) {
   const image = candidateImage && candidateImage.origin === base.origin && !candidateImage.hash && candidateImage.pathname.toLowerCase() === expectedPath.toLowerCase() &&
     candidateImage.searchParams.getAll("token").length === 1 && !!candidateImage.searchParams.get("token") && [...candidateImage.searchParams.keys()].every(key => key === "token") ? candidateImage : null;
   return Object.freeze({ id: item.id, wishlistId: item.wishlistId, name: item.name, note: item.note, color: item.color ?? null, size: item.size ?? null, price, quantity: item.quantity, isFavorite: item.isFavorite === true, position,
+    isSurprise: item.isSurprise === true, acceptsSecondHand: item.acceptsSecondHand === true,
     entityTag: item.entityTag, url: url?.href ?? null, imageUrl: image?.href ?? null, reservedQuantity, availableQuantity,
     productUnavailable: item.url !== null && url === null, imageUnavailable: item.imageUrl !== null && image === null });
 }

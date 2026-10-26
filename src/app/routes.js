@@ -1,4 +1,11 @@
 import { withResourcePageTitle } from "./resourcePageTitle.js";
+import { createGroupsService } from "../features/groups/groupsService.js";
+import { createGroupsView, createGroupView } from "../features/groups/groupsView.js";
+import { createGroupEditView } from "../features/groups/groupEditView.js";
+import { createGroupMemberProfileService } from "../features/groups/groupMemberProfileService.js";
+import { createGroupJoinView } from "../features/groups/groupJoinView.js";
+import { createGroupWishlistService } from "../features/groups/groupWishlistService.js";
+import { createGroupWishReservation } from "../features/groups/groupWishReservation.js";
 import { ApiError, createAbortError } from "../api/apiError.js";
 import {
   createHomeView,
@@ -35,6 +42,7 @@ import { createRegistrationView } from "../features/registration/registrationVie
 import { createEmailConfirmationService } from "../features/emailConfirmation/emailConfirmationService.js";
 import { createEmailConfirmationView } from "../features/emailConfirmation/emailConfirmationView.js";
 import { createProfileService } from "../features/profile/profileService.js";
+import { readProfilePhoto } from "../features/profile/profileImageService.js";
 import { createProfileView } from "../features/profile/profileView.js";
 import { createAccountLayout } from "../components/accountLayout.js";
 import { createPersonalDataService } from "../features/privacy/personalDataService.js";
@@ -156,6 +164,64 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
   return Object.freeze([
+    {
+      name: RouteNames.GroupJoin, path: RoutePaths.GroupJoin, title: "Rejoindre un groupe · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupJoinView({ session, service: createGroupsService(session), code: context.consumeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } }),
+    },
+    {
+      name: RouteNames.Groups, path: RoutePaths.Groups, title: "Mes groupes · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupsView({ service: createGroupsService(session), apiBaseUrl, signal: context.signal, navigate: path => { void context.navigate(path); } }),
+    },
+    {
+      name: RouteNames.GroupEdit, path: RoutePaths.GroupEdit, title: "Modifier le groupe · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupEditView({
+        service: createGroupsService(session), groupId: context.params.groupId, memberId: session.getSnapshot().user?.id ?? "", apiBaseUrl,
+        signal: context.signal, navigate: path => { void context.navigate(path); },
+      }),
+    },
+    {
+      name: RouteNames.Group, path: RoutePaths.Group, title: "Mon groupe · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupView({
+        service: createGroupsService(session), groupId: context.params.groupId, memberId: session.getSnapshot().user?.id ?? "", apiBaseUrl,
+        search: createMemberSearchService(session, { apiBaseUrl }).search,
+        signal: context.signal, navigate: path => { void context.navigate(path); },
+      }),
+    },
+    {
+      name: RouteNames.GroupMember, path: RoutePaths.GroupMember, title: "Listes du membre · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createMemberProfileView({
+        memberId: context.params.memberId, backHref: `/groups/${context.params.groupId}`, backLabel: "Retour au groupe", signal: context.signal,
+        load: withResourcePageTitle(createGroupMemberProfileService(createGroupsService(session), { groupId: context.params.groupId, apiBaseUrl }).load, context, profile => profile.displayName),
+      }),
+    },
+    {
+      name: RouteNames.GroupWishlist, path: RoutePaths.GroupWishlist, title: "Liste du groupe · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { groupId, wishlistId } = context.params;
+        const wishes = createGroupWishlistService(session, { groupId, apiBaseUrl });
+        return createSharedWishlistView({ groupId, shareLinkId: wishlistId, signal: context.signal, fromMemberId: context.searchParams.get("fromMember"),
+          load: withResourcePageTitle(wishes.load, context, result => result.name), loadOne: wishes.loadOne,
+          createReservation: (signal, onCancel) => createGroupWishReservation({ session, groupId, wishlistId, loadOne: wishes.loadOne, signal, confirmation: true, onCancel }),
+          initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
+          loadOwnerPhoto: async ({ signal, ownerId }) => {
+            const members = await createGroupsService(session).members(groupId, { signal });
+            const owner = members.items.find(item => item.id === ownerId);
+            return owner ? readProfilePhoto(owner.profileImageUrl, owner.id, apiBaseUrl).imageUrl : null;
+          },
+        });
+      },
+    },
+    {
+      name: RouteNames.GroupWish, path: RoutePaths.GroupWish, title: "Souhait du groupe · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { groupId, wishlistId, wishId } = context.params;
+        const wishes = createGroupWishlistService(session, { groupId, apiBaseUrl });
+        return createSharedWishView({ groupId, shareLinkId: wishlistId, wishId, signal: context.signal, fromMemberId: context.searchParams.get("fromMember"), returnSort: context.searchParams.get("sort"),
+          loadOne: withResourcePageTitle(wishes.loadOne, context, result => result.name),
+          createReservation: createGroupWishReservation({ session, groupId, wishlistId, loadOne: wishes.loadOne, signal: context.signal }),
+        });
+      },
+    },
     {
       name: RouteNames.FollowedLists, path: RoutePaths.FollowedLists, title: "Listes suivies · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
@@ -343,6 +409,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.ListDetails, path: RoutePaths.ListDetails, title: "Détail de la liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: withResourcePageTitle(createWishlistsService(session).loadOne, context, result => result.wishlist.name),
+          groups: createGroupsService(session),
           copy: ownedCopyOperations(context.params.listId),
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           setArchived: createWishlistsService(session).setArchived,
@@ -360,6 +427,15 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createReservationHistoryView({ ...createReservationHistoryService(session, { apiBaseUrl }), signal: context.signal,
           createCancel: (item, callbacks) => {
+            if (item.wishHref?.startsWith("/groups/")) {
+              const [, , groupId, , wishlistId, , wishId] = item.wishHref.split("/");
+              const reservations = createOwnedGiftReservationService(session, { groupId });
+              const wishes = createGroupWishlistService(session, { groupId, apiBaseUrl });
+              return createReservationCancelDialog({ ...callbacks, signal: context.signal,
+                cancel: (etag, signal) => reservations.cancel(wishlistId, wishId, { etag, signal }),
+                load: async signal => ({ name: (await wishes.loadOne(wishlistId, wishId, { signal })).name, lookup: await reservations.loadCurrent(wishlistId, wishId, { signal }) }),
+              });
+            }
             if (item.wishHref?.startsWith("/lists/")) {
               const [, , wishlistId, , wishId] = item.wishHref.split("/");
               const reservations = createOwnedGiftReservationService(session);
@@ -391,7 +467,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
             return dialog;
           },
           onOpenWish: href => {
-            if (href.startsWith("/lists/")) { void context.navigate(href); return; }
+            if (href.startsWith("/lists/") || href.startsWith("/groups/")) { void context.navigate(href); return; }
             const target = new URL(href, window.location.origin);
             const shareLinkId = target.pathname.split("/")[2];
             if (sharing.enter(shareLinkId, target.hash) === "ready") void context.navigate(target.pathname);
