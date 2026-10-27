@@ -95,8 +95,8 @@ describe("shared wish copies", () => {
     expect(modal().querySelector("a")?.getAttribute("href")).toBe(`/lists/${listId}`);
     submit(); expect(copy).toHaveBeenCalledOnce(); command("Fermer").click();
   });
-  it("reports a revoked source and closes the modal", async () => {
-    const ui = setup({ copy: async () => { throw new ApiError({ kind: "http", statusCode: 404, errorCode: "SHARED_WISH_NOT_FOUND" }); } });
+  it.each(["SHARED_WISH_NOT_FOUND", "GROUP_WISHLIST_NOT_FOUND"])("reports a revoked source %s and closes the modal", async errorCode => {
+    const ui = setup({ copy: async () => { throw new ApiError({ kind: "http", statusCode: 404, errorCode }); } });
     await settle(); ui.trigger.click(); await settle(); submit(); await settle();
     expect(ui.onUnavailable).toHaveBeenCalledOnce(); expect(globalThis.document.querySelector("dialog")).toBeNull();
   });

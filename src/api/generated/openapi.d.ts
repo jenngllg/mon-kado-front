@@ -973,6 +973,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/wishes/{wishId}/copies": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Copy an accessible group wish into an owned wishlist
+         * @description Requires authenticated current group membership and current access to the source wishlist. Source membership and effective audience are rechecked under parent locks. The destination must be owned, active and unsuspended. Creation is explicit and returns an independent wish and image with new identifiers and version; favorites and reservations are not copied. Does not create a public sharing link, participation or reservation. Revoked membership, hidden or archived/suspended sources and foreign source children return 404. Destination conflicts and capacity limits return 409. Image copying uses the same bounded admission, hash verification and atomic database/file lifecycle as owned and publicly shared copies.
+         */
+        readonly post: operations["CopyGroupWish"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/wishes/{wishId}/image": {
         readonly parameters: {
             readonly query?: never;
@@ -9062,6 +9082,129 @@ export interface operations {
             };
             /** @description Rate limit */
             readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly CopyGroupWish: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+                readonly wishId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["CopyOwnedWishRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description 201Created */
+            readonly 201: {
+                headers: {
+                    /** @description Quoted lowercase hexadecimal PostgreSQL xmin version. */
+                    readonly ETag?: string;
+                    /** @description URL of the created resource. */
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishResponse"];
+                };
+            };
+            /** @description 400BadRequest */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request failed */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request failed */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 404NotFound */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 409Conflict */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 413PayloadTooLarge */
+            readonly 413: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 415UnsupportedMediaType */
+            readonly 415: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request quota was exceeded. Retry-After gives the remaining wait in seconds. */
+            readonly 429: {
+                headers: {
+                    readonly "Retry-After"?: number;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request failed */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 503ServiceUnavailable */
+            readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

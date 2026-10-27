@@ -80,6 +80,26 @@ const ExpectedRoutes = [
 ];
 
 describe("application routes", () => {
+  it.each([RouteNames.GroupWishlist, RouteNames.GroupWish])("copies explicitly from %s into a different owned list without a public token", async routeName => {
+    const f = groupRoutesFixture(true); const view = await f.render(routeName); await f.settle();
+    const trigger = f.button(view, "Ajouter à mes listes");
+    expect(trigger.hidden).toBe(false);
+    expect(f.request.mock.calls.every(([, options]) => options.method === "GET")).toBe(true);
+    trigger.click(); await f.settle();
+    const destination = view.querySelector("dialog select");
+    expect(destination instanceof HTMLSelectElement && destination.value).toBe(f.ownerId);
+    expect(view.querySelector(`dialog option[value="${f.id}"]`)).toBeNull();
+    f.button(view, "Annuler").click(); expect(view.querySelector("dialog")).toBeNull();
+    trigger.click(); await f.settle();
+    view.querySelector("dialog form")?.dispatchEvent(new Event("submit", { cancelable: true })); await f.settle();
+    expect(f.request).toHaveBeenCalledWith(`/api/v1/groups/${f.id}/wishlists/${f.id}/wishes/${f.wishId}/copies`, {
+      method: "POST", authentication: "required", csrf: true, body: { destinationWishlistId: f.ownerId }, signal: expect.any(AbortSignal),
+    });
+    expect(view.textContent).toContain("Souhait ajouté.");
+    expect(view.querySelector(`a[href="/lists/${f.ownerId}"]`)).not.toBeNull();
+    expect(f.request.mock.calls.filter(([, options]) => options.method === "POST")).toHaveLength(1);
+    disposeComponent(view);
+  });
   it("opens a group member without reading their public profile", async () => {
     const f = groupRoutesFixture(); const view = await f.render(RouteNames.GroupMember); await f.settle();
     expect(view.querySelector("h1")?.textContent).toBe("Camille#0001");
@@ -350,7 +370,7 @@ describe("application routes", () => {
   });
 });
 
-function groupRoutesFixture() {
+function groupRoutesFixture(copyEnabled = false) {
   const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05", ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e06";
   const at = "2026-10-24T12:00:00Z";
   const group = { id, name: "Famille", ownerId, profileImageUrl: null, memberCount: 1, createdAt: at, updatedAt: null };
@@ -375,7 +395,11 @@ function groupRoutesFixture() {
     else if (path.startsWith("/api/v1/group-invitations?")) data = page([]);
     else if (path === `/api/v1/groups/${id}/wishlists/${id}`) data = list;
     else if (path === `/api/v1/groups/${id}/wishlists/${id}/wishes/${wishId}`) data = wish;
-    else if (path === "/api/v1/wishlists") data = [];
+    else if (path === "/api/v1/wishlists") data = copyEnabled ? [
+      { id, name: "Source", occasion: "other", eventDate: null, isArchived: false, isSuspended: false },
+      { id: ownerId, name: "Destination", occasion: "other", eventDate: null, isArchived: false, isSuspended: false },
+    ] : [];
+    else if (copyEnabled && path.endsWith("/copies")) { status = 201; data = { ...wish, id: "019c52dd-56c1-7cc6-8a95-243f3a032e07", wishlistId: ownerId, position: 1, isFavorite: false }; }
     else if (path.startsWith("/api/v1/members/current/reservations")) {
       historyMode = true;
       data = page([{ id, wishlistId: id, wishId, wishlistName: "Noël", wishName: "Théière", quantity: 1, status: "active", createdAt: at, lastActivityAt: at, endedAt: null,
@@ -388,7 +412,7 @@ function groupRoutesFixture() {
     getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "authenticated", user: { id: ownerId }, etag: null, logoutPending: false, authenticationPending: false, issue: null }) };
   const routes = createApplicationRoutes({ session, apiBaseUrl: "https://api.example" });
   const navigate = vi.fn(async () => null), replaceSearchParameter = vi.fn();
-  return { id, wishId, group, request, navigate, replaceSearchParameter,
+  return { id, wishId, ownerId, group, request, navigate, replaceSearchParameter,
     settle: async () => { for (let i = 0; i < 50; i++) await Promise.resolve(); },
     /** @param {string} name */ render: async name => {
       const route = routes.find(route => route.name === name); if (!route) throw new Error(name);

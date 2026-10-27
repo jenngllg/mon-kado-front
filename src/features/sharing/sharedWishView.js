@@ -46,8 +46,8 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
   function unavailable() {
     if (disposed || terminal) return;
     terminal = true; lifetime.abort(); clear(); clearNotice(); back.hidden = true;
-    title.textContent = "Lien de partage indisponible";
-    const alert = element("p", "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."); alert.setAttribute("role", "alert");
+    title.textContent = groupId ? "Liste indisponible" : "Lien de partage indisponible";
+    const alert = element("p", groupId ? "Cette liste n’est plus accessible dans ce groupe." : "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."); alert.setAttribute("role", "alert");
     results.append(alert);
     results.setAttribute("aria-busy", "false"); title.focus();
   }

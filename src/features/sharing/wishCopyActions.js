@@ -116,7 +116,7 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
         if (disposed || closed || isAbortError(error)) return;
         uncertain = !(error instanceof ApiError) || error.kind !== "http" || error.statusCode === null || error.statusCode >= 500;
         clearFeedback();
-        if (error instanceof ApiError && (error.errorCode === "SHARED_WISH_NOT_FOUND" || error.errorCode === "SHARED_WISHLIST_NOT_FOUND")) {
+        if (error instanceof ApiError && (error.errorCode === "SHARED_WISH_NOT_FOUND" || error.errorCode === "SHARED_WISHLIST_NOT_FOUND" || error.errorCode === "GROUP_WISHLIST_NOT_FOUND")) {
           saving = false; finish(); onUnavailable(); return;
         }
         feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" }));

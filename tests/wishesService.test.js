@@ -35,6 +35,22 @@ describe("owned gift collection service", () => {
     });
     expect(result.wish.wishlistId).toBe(id);
   });
+  it("copies a private group wish using membership without a share secret", async () => {
+    const service = setup({ ...wish, isFavorite: false }, 201, '"copied"');
+    const result = await service.copyGroup(id, wishId, id, id, { signal });
+    expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/groups/${id}/wishlists/${wishId}/wishes/${id}/copies`, {
+      method: "POST", authentication: "required", csrf: true, body: { destinationWishlistId: id }, signal,
+    });
+    expect(result.wish.wishlistId).toBe(id);
+  });
+  it.each([
+    ["invalid", wishId, id, id], [id, "invalid", wishId, id], [id, wishId, "invalid", id],
+    [id, wishId, id, "invalid"], [id, wishId, id, wishId.toUpperCase()],
+  ])("rejects invalid group-copy scope or source destination before transport %#", async (group, source, child, destination) => {
+    const service = setup();
+    await expect(service.copyGroup(group, source, child, destination, { signal })).rejects.toMatchObject({ statusCode: 400 });
+    expect(service.request).not.toHaveBeenCalled();
+  });
   it.each(["../private", id])("rejects invalid or identical owned-copy destination %s", async destination => {
     const service = setup();
     await expect(service.copyOwned(id, wishId, destination, { signal })).rejects.toMatchObject({ statusCode: 400 });
