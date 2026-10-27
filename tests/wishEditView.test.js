@@ -48,6 +48,20 @@ it("keeps wish deletion out of the edit page", async () => {
 });
 
 describe("gift editor", () => {
+  it("unlocks ten seconds after URL input and preserves the draft when a preview stalls", async () => {
+    vi.useFakeTimers(); const gate = barrier();
+    const preview = vi.fn(async () => { await gate.promise; return { name: "Trop tard", url: "https://shop.test/item", price: "20", image: null, warnings: [] }; });
+    const ui = setup({ preview }); await settle();
+    const name = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="name"]'));
+    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="url"]'));
+    name.value = "Mon brouillon"; name.dispatchEvent(new Event("input"));
+    link.value = "https://shop.test/item"; link.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(9999); expect(name.disabled).toBe(true);
+    await vi.advanceTimersByTimeAsync(1); await settle();
+    expect(name.disabled).toBe(false); expect(ui.form.getAttribute("aria-busy")).toBe("false");
+    expect(name.value).toBe("Mon brouillon"); expect(ui.update).not.toHaveBeenCalled();
+    gate.resolve(); await settle(); expect(name.value).toBe("Mon brouillon");
+  });
   it("saves preference-only edits with the current version and retains their draft after a conflict", async () => {
     const ui = setup(); await settle();
     const surprise = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("isSurprise"));
@@ -66,7 +80,7 @@ describe("gift editor", () => {
       const ui = setup({ preview }); await settle();
       const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="url"]'));
       link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
-      await vi.advanceTimersByTimeAsync(2000); await settle(); ui.send();
+      await vi.advanceTimersByTimeAsync(250); await settle(); ui.send();
       expect(ui.update).not.toHaveBeenCalled();
       if (statusCode === 404) expect(ui.view.querySelector("form")).toBeNull();
       else expect(ui.fields.every(field => field.readOnly)).toBe(true);
@@ -91,7 +105,7 @@ describe("gift editor", () => {
     expect(locked()).toBe(true); expect(link.disabled).toBe(false);
     expect(ui.form.getAttribute("aria-busy")).toBe("true"); expect(document.activeElement).toBe(link);
     ui.send(); expect(ui.update).not.toHaveBeenCalled(); expect(preview).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(250);
     expect(locked()).toBe(true); ui.send(); expect(ui.update).not.toHaveBeenCalled();
     gate.resolve(); await settle();
     expect(controls.every(control => !/** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
@@ -106,12 +120,12 @@ describe("gift editor", () => {
     expect(ui.fields.filter(field => field !== link).every(field => field.disabled)).toBe(true);
     // Act
     link.value = value; link.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(250);
     // Assert
     expect(ui.fields.every(field => !field.disabled)).toBe(true);
     expect(ui.form.getAttribute("aria-busy")).toBe("false"); expect(preview).not.toHaveBeenCalled();
   });
-  it("retrieves a changed product link after two seconds without saving", async () => {
+  it("retrieves a changed product link after a short typing pause without saving", async () => {
     // Arrange
     vi.useFakeTimers();
     const preview = vi.fn(async () => ({ name: "Nouveau produit", price: "25", url: "https://shop.test/new", image: null, warnings: [] }));
@@ -124,7 +138,7 @@ describe("gift editor", () => {
     const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
     // Act
     link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(1999);
+    await vi.advanceTimersByTimeAsync(249);
     expect(preview).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1); await settle();
     // Assert
@@ -143,7 +157,7 @@ describe("gift editor", () => {
     const preview = vi.fn(async () => { await gate.promise; return { name: "Obsolète", price: "25", url: "https://shop.test/old", image: null, warnings: [] }; });
     const ui = setup({ preview }); await settle();
     const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
-    link.value = "https://shop.test/old"; link.dispatchEvent(new Event("input")); await vi.advanceTimersByTimeAsync(2000);
+    link.value = "https://shop.test/old"; link.dispatchEvent(new Event("input")); await vi.advanceTimersByTimeAsync(250);
     expect(ui.view.querySelector(".ui-spinner")?.hasAttribute("hidden")).toBe(false);
     // Act
     link.value = ""; link.dispatchEvent(new Event("input")); gate.resolve(); await settle();

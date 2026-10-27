@@ -8,8 +8,8 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId, trimWishlistText } from "../wishlists/wishlistValidation.js";
 import { createWishForm } from "./wishForm.js";
 import { createWishImageSection } from "./wishImageSection.js";
-import { WishImageValidationError, decodeWishImage } from "./wishImageValidation.js";
-import { validateImportUrl } from "./wishImportService.js";
+import { WishImageValidationError } from "./wishImageValidation.js";
+import { validateImportUrl, loadWishImportSuggestions, WishImportDelayMs } from "./wishImportService.js";
 import { createWishPayload, parseWishPrice, WishPayloadTooLarge, WishServerMessages } from "./wishValidation.js";
 
 /** Edits an independently versioned gift without replacing a local draft on reread.
@@ -46,7 +46,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     addComponentEventListener(view, urlField.control, "input", () => {
       cancelAnalysis();
       if (!disposed && !busy && !blocked && !suspended && !terminal && validateImportUrl(urlField.control.value) === null)
-        analysisTimer = setTimeout(() => { analysisTimer = null; void analyzeLink(); }, 2000);
+        analysisTimer = setTimeout(() => { analysisTimer = null; void analyzeLink(); }, WishImportDelayMs);
       sync();
     });
   }
@@ -88,9 +88,8 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     analyzing = true; loader.hidden = false; sync();
     let imageUrl = null;
     try {
-      const result = await preview(wishlistId, snapshot.url, { signal: controller.signal });
-      if (disposed || controller.signal.aborted) return;
-      if (result.image) { imageUrl = URL.createObjectURL(result.image); await decodeWishImage(imageUrl, controller.signal); }
+      const result = await loadWishImportSuggestions(preview, wishlistId, snapshot.url, { signal: controller.signal });
+      imageUrl = result.previewImageUrl;
       if (disposed || controller.signal.aborted) return;
       analyzing = false; sync();
       const current = editor.getValues();
