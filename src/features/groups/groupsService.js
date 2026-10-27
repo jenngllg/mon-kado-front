@@ -11,6 +11,8 @@ import { validateWishImageFile } from "../wishes/wishImageValidation.js";
 /** @template T @typedef {{items:T[],currentPage:number,pageSize:number,totalCount:number,totalPages:number,hasNextPage:boolean,hasPreviousPage:boolean}} Page */
 /** @typedef {{signal:AbortSignal,page?:number}} ReadOptions */
 /** @typedef {{groupId:string,code:string,joinUrl:string,createdAt:string}} GroupJoinLink */
+/** @typedef {{wishlistId:string,isPublic:boolean,groups:ReadonlyArray<Readonly<{groupId:string,name:string,isVisible:boolean}>>}} WishlistGroupVisibility */
+/** @typedef {{id:string,name:string,memberCount:number,profileImageUrl:string|null}} GroupJoinPreview */
 /** @typedef {import("../../auth/sessionManager.js").SessionManager["request"]} Request */
 
 /** Private groups use authenticated server grants, never public share tokens or stored bearer links.
@@ -49,6 +51,33 @@ export function createGroupsService(session) {
     if (response.status !== 204 || response.data !== null) throw invalid();
   }
   return {
+    /** @param {string} wishlistId @param {ReadOptions} options */
+    wishlistVisibility: async (wishlistId, options) => readWishlistVisibility(await request(`/api/v1/wishlists/${identifier(wishlistId)}/group-visibility`, { method: "GET", signal: options.signal }), wishlistId),
+    /** @param {string} wishlistId @param {Array<{groupId:string,isVisible:boolean}>} groups @param {{etag:string,signal:AbortSignal}} options */
+    setWishlistVisibility: async (wishlistId, groups, options) => {
+      if (!isStrongEntityTag(options.etag) || !Array.isArray(groups) || groups.length > 50 || new Set(groups.map(group => group.groupId)).size !== groups.length || groups.some(group => !isWishlistId(group.groupId) || typeof group.isVisible !== "boolean")) throw new TypeError("Invalid group visibility.");
+      const result = readWishlistVisibility(await request(`/api/v1/wishlists/${identifier(wishlistId)}/group-visibility`, { method: "PUT", body: { groups: groups.map(group => ({ groupId: group.groupId, isVisible: group.isVisible })) }, ifMatch: options.etag, signal: options.signal }), wishlistId);
+      if (groups.some(choice => result.visibility.groups.find(group => group.groupId === choice.groupId)?.isVisible !== choice.isVisible)) throw invalid();
+      return result;
+    },
+    /** @param {string} id @param {ReadOptions} options */
+    previewInvitation: async (id, options) => {
+      if (options.signal.aborted) throw createAbortError();
+      const response = await session.request(`${groupPath(id)}/preview`, { method: "GET", authentication: "none", csrf: false, signal: options.signal });
+      if (options.signal.aborted) throw createAbortError();
+      const value = readJoinPreview(response);
+      if (value.id !== id) throw invalid();
+      return value;
+    },
+    /** @param {string} code @param {ReadOptions} options */
+    previewJoin: async (code, options) => {
+      const normalized = normalizeGroupCode(code);
+      if (!normalized) throw new TypeError("Invalid group code.");
+      if (options.signal.aborted) throw createAbortError();
+      const response = await session.request("/api/v1/groups/join", { method: "GET", authentication: "none", csrf: false, shareToken: normalized, signal: options.signal });
+      if (options.signal.aborted) throw createAbortError();
+      return readJoinPreview(response);
+    },
     /** @param {string} id @param {ReadOptions} options */
     joinLink: async (id, options) => readJoinLink(await request(`${groupPath(id)}/join-link`, { method: "GET", signal: options.signal }), id, 200),
     /** @param {string} id @param {ReadOptions} options */
@@ -105,12 +134,6 @@ export function createGroupsService(session) {
     invitations: options => page("/api/v1/group-invitations", options, isInvitation),
     /** @param {string} id @param {ReadOptions} options */
     sentInvitations: (id, options) => page(`${groupPath(id)}/invitations`, options, isInvitation, 100),
-    /** @param {string} id @param {string} memberId @param {ReadOptions} options */
-    invite: async (id, memberId, options) => {
-      const response = await request(`${groupPath(id)}/invitations`, { method: "POST", body: { memberId: identifier(memberId) }, signal: options.signal });
-      if (response.status !== 201 || !isInvitation(response.data) || response.data.groupId !== id || response.data.memberId !== memberId) throw invalid();
-      return response.data;
-    },
     /** @param {string} id @param {ReadOptions} options */
     accept: async (id, options) => {
       const response = await request(`/api/v1/group-invitations/${identifier(id)}/accept`, { method: "POST", signal: options.signal });
@@ -147,9 +170,25 @@ function readJoinLink(response, id, status) {
   if (response.status !== status || !link || link.groupId !== id || typeof link.code !== "string" || normalizeGroupCode(link.code) !== link.code || !utc(link.createdAt) || !isStrongEntityTag(response.metadata.etag)) throw invalid();
   try {
     const url = new URL(link.joinUrl, window.location.origin);
-    if (url.origin !== window.location.origin || url.pathname !== "/groups/join" || url.search || url.hash !== `#${link.code}` || url.username || url.password) throw invalid();
+    if (url.origin !== window.location.origin || !["/groups/join", `/groups/join/${id}`].includes(url.pathname) || url.search || url.hash !== `#${link.code}` || url.username || url.password) throw invalid();
   } catch { throw invalid(); }
   return { link, etag: response.metadata.etag };
+}
+
+/** @param {import("../../api/apiClient.js").ApiResponse<unknown>} response */
+function readJoinPreview(response) {
+  const value = /** @type {GroupJoinPreview|null} */ (response.data);
+  if (response.status !== 200 || !value || !isWishlistId(value.id) || !name(value.name) || !Number.isInteger(value.memberCount) || value.memberCount < 1 || value.memberCount > 100 ||
+    (value.profileImageUrl !== null && typeof value.profileImageUrl !== "string")) throw invalid();
+  return value;
+}
+
+/** @param {import("../../api/apiClient.js").ApiResponse<unknown>} response @param {string} wishlistId */
+function readWishlistVisibility(response, wishlistId) {
+  const value = /** @type {WishlistGroupVisibility|null} */ (response.data);
+  if (response.status !== 200 || !isStrongEntityTag(response.metadata.etag) || !value || value.wishlistId !== wishlistId || typeof value.isPublic !== "boolean" || !Array.isArray(value.groups) || value.groups.length > 50 ||
+    value.groups.some(group => !group || !isWishlistId(group.groupId) || !name(group.name) || typeof group.isVisible !== "boolean") || new Set(value.groups.map(group => group.groupId)).size !== value.groups.length) throw invalid();
+  return { visibility: Object.freeze({ wishlistId, isPublic: value.isPublic, groups: Object.freeze(value.groups.map(group => Object.freeze({groupId:group.groupId,name:group.name,isVisible:group.isVisible}))) }), etag: response.metadata.etag };
 }
 
 /** @param {unknown} value @returns {value is Group} */

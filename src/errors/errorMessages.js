@@ -21,6 +21,7 @@ const CommonMessages = Object.freeze({
   GROUP_INVITATION_NOT_FOUND: { title: "Invitation indisponible", message: "Cette invitation a expiré, a été retirée ou a déjà reçu une réponse." },
   GROUP_INVITATION_ALREADY_EXISTS: { title: "Invitation déjà envoyée", message: "Une invitation est déjà en attente pour cette personne." },
   GROUP_JOIN_LINK_NOT_FOUND: { title: "Accès indisponible", message: "Ce lien ou ce code n’est plus valide. Demande un nouveau code à un membre du groupe." },
+  WISHLIST_GROUP_VISIBILITY_VERSION_CONFLICT: { title: "Visibilité modifiée", message: "La visibilité de cette liste a changé. Vérifie les groupes avant d’enregistrer ta sélection." },
   GROUP_JOIN_LINK_ALREADY_EXISTS: { title: "Partage déjà actif", message: "Un lien est déjà disponible pour ce groupe." },
   GROUP_JOIN_LINK_VERSION_CONFLICT: { title: "Partage modifié", message: "Le lien a changé. Ferme cette fenêtre puis rouvre le partage." },
   GROUP_OWNER_CANNOT_LEAVE: { title: "Tu organises ce groupe", message: "Supprime le groupe pour le quitter. Les listes seront conservées." },

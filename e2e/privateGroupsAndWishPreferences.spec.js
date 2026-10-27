@@ -41,21 +41,22 @@ for (const width of [390, 1440]) {
     const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"00000001"' };
     await context.route("http://localhost:7000/api/v1/**", async route => {
       const request = route.request(), path = new URL(request.url()).pathname, method = request.method();
-      if (method === "OPTIONS" || !path.startsWith("/api/v1/groups") && path !== "/api/v1/group-invitations") return route.fallback();
-      expect(request.headers().authorization).toBe("Bearer access-test-only"); expect(request.url()).not.toContain(code);
+      if (method === "OPTIONS" || !path.startsWith("/api/v1/groups") && path !== "/api/v1/group-invitations" && path !== `/api/v1/wishlists/${listId}/group-visibility`) return route.fallback();
+      if (path !== "/api/v1/groups/join" || method !== "GET") expect(request.headers().authorization).toBe("Bearer access-test-only"); expect(request.url()).not.toContain(code);
       if (method !== "GET") expect(request.headers()["x-csrf-token"]).toBe("csrf-test-only");
       const send = (/** @type {number} */ status, /** @type {unknown} */ json) => route.fulfill({ status, headers, ...(status === 204 ? { body: "" } : { json }) });
       const paginated = (/** @type {unknown[]} */ items, size = 100) => ({ items, currentPage: 1, pageSize: size, totalCount: items.length, totalPages: items.length ? 1 : 0, hasNextPage: false, hasPreviousPage: false });
-      if (path === "/api/v1/groups/join") { expect(request.headers()["x-monkado-share-token"]).toBe(code); joins++; return send(200, group); }
+      if (path === `/api/v1/wishlists/${listId}/group-visibility`) { if (method === "PUT") shared = request.postDataJSON().groups[0].isVisible; return send(200, {wishlistId:listId,isPublic:false,groups:[{groupId,name:group.name,isVisible:shared}]}); }
+      if (path === "/api/v1/groups/join") { expect(request.headers()["x-monkado-share-token"]).toBe(code); if (method === "POST") joins++; return send(200, group); }
       if (path === "/api/v1/groups") { if (method === "POST") { created = true; return send(201, group); } return send(200, paginated(created ? [group] : [])); }
       if (path === "/api/v1/group-invitations") return send(200, paginated([], 20));
       if (path === `/api/v1/groups/${groupId}`) return send(200, group);
       if (path.endsWith("/members")) return send(200, paginated([{ id: memberId, displayName: "Camille", displayNameTag: "0428", profileImageUrl: null, joinedAt: at }]));
-      if (path.endsWith("/invitations")) return send(200, paginated([]));
+      if (path.endsWith("/invitations")) { expect(method).toBe("GET"); return send(200, paginated([])); }
       if (path.endsWith("/join-link")) {
         if (method === "POST") enabled = true;
         if (method === "DELETE") { expect(request.headers()["if-match"]).toBe('"00000001"'); enabled = false; return send(204, null); }
-        return enabled ? send(method === "POST" ? 201 : 200, { groupId, code, joinUrl: `${frontendOrigin}/groups/join#${code}`, createdAt: at }) : send(404, { statusCode: 404, title: "Not found", message: "Not found", errorCode: "GROUP_JOIN_LINK_NOT_FOUND", validationErrors: [] });
+        return enabled ? send(method === "POST" ? 201 : 200, { groupId, code, joinUrl: `${frontendOrigin}/groups/join/${groupId}#${code}`, createdAt: at }) : send(404, { statusCode: 404, title: "Not found", message: "Not found", errorCode: "GROUP_JOIN_LINK_NOT_FOUND", validationErrors: [] });
       }
       const list = { ...api.wishlist, ownerId: memberId, ownerDisplayName: "Camille", createdAt: at };
       if (path.endsWith("/wishlists")) return send(200, paginated(shared ? [list] : [], 20));
@@ -75,23 +76,24 @@ for (const width of [390, 1440]) {
     await expect(page).toHaveURL(`/groups/${groupId}`);
     await expect(page.getByRole("button", { name: "Partager une liste", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Inviter un proche", exact: true })).toHaveCSS("background-color", "rgb(223, 229, 215)");
-    await expect(page.getByRole("button", { name: "Supprimer le groupe", exact: true })).toHaveCSS("background-color", "rgb(185, 62, 50)");
+    await expect(page.getByRole("button", { name: "Supprimer le groupe", exact: true })).toHaveCSS("color", "rgb(180, 35, 24)");
     await page.getByRole("heading", { name: group.name, exact: true }).click();
     await page.screenshot({ path: testInfo.outputPath("group-members.png"), fullPage: true });
     await page.goto(`/lists/${listId}`);
-    await page.getByRole("button", { name: "Partager dans un groupe", exact: true }).click();
-    await page.getByRole("combobox", { name: "Groupe", exact: false }).selectOption(groupId); await page.getByRole("dialog").getByRole("button", { name: "Partager", exact: true }).click();
-    await expect(page.getByText("Liste partagée avec le groupe.", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Fermer", exact: true }).click();
+    await page.getByRole("button", { name: "Visibilité dans mes groupes", exact: true }).click();
+    await page.getByRole("checkbox", { name: group.name, exact: true }).check();
+    await page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0); expect(shared).toBe(true);
     await page.goto(`/groups/${groupId}`);
-    await page.getByRole("button", { name: "Partager le groupe", exact: true }).click();
+    await page.getByRole("button", { name: "Inviter un proche", exact: true }).click();
+    await expect(page.getByRole("searchbox")).toHaveCount(0);
     await page.getByRole("button", { name: "Activer le partage", exact: true }).click();
     await expect(page.locator(".group-share-qr")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("private-group-qr.png"), fullPage: true });
     await page.getByRole("button", { name: "Fermer", exact: true }).click();
     await page.goto(`/groups/join#${code}`); await expect(page.getByLabel("Code du groupe", { exact: false })).toHaveValue(code); expect(joins).toBe(0);
     await page.getByRole("button", { name: "Rejoindre le groupe", exact: true }).click(); await expect(page).toHaveURL(`/groups/${groupId}`); expect(joins).toBe(1);
-    await page.getByRole("button", { name: "Partager le groupe", exact: true }).click();
+    await page.getByRole("button", { name: "Inviter un proche", exact: true }).click();
     await page.getByRole("button", { name: "Désactiver le lien et le code", exact: true }).click();
     await expect(page.getByRole("button", { name: "Activer le partage", exact: true })).toBeVisible(); expect(enabled).toBe(false);
     await page.getByRole("button", { name: "Fermer", exact: true }).click();

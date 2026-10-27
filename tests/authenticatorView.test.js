@@ -27,7 +27,7 @@ function button(root, label) {
 }
 /** @param {HTMLElement} root @param {string} value */
 function submit(root, value) {
-  const form = /** @type {HTMLFormElement} */ (root.querySelector("form"));
+  const form = /** @type {HTMLFormElement} */ (root.querySelector("main form"));
   const input = /** @type {HTMLInputElement} */ (form.querySelector("input")); input.value = value;
   form.dispatchEvent(new Event("submit", { cancelable: true })); return input;
 }
@@ -148,7 +148,7 @@ describe("authenticator management routes", () => {
     const { root, factorPosts } = await mount(false);
     // Assert
     expect(root.textContent).toContain("sa configuration sera demandée à la connexion"); expect(factorPosts()).toHaveLength(0);
-    expect(root.querySelector("form")).toBeNull();
+    expect(root.querySelector("main form")).toBeNull();
   });
   it("erases staged secrets on navigation and never restores them from browser history", async () => {
     // Arrange

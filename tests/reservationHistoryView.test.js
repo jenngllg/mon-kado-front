@@ -18,6 +18,8 @@ describe("reservation history presentation", () => {
   it("explains unavailable access beside the status with a dismissible disposable tooltip", async () => {
     const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, status: "unavailable", endedAt: item.lastActivityAt }] }) });
     await settle();
+    expect(view.querySelector(".reservation-history-card__media .image-placeholder__wordmark")?.textContent).toBe("MonKado.");
+    expect(view.querySelector(".reservation-history-card__media")?.textContent).not.toContain("Sans image");
     const information = /** @type {HTMLElement} */ (view.querySelector(".reservation-history-card__information"));
     const hint = /** @type {HTMLElement} */ (view.querySelector('[role="tooltip"]'));
     expect(hint.hidden).toBe(true);
@@ -175,7 +177,7 @@ describe("reservation history presentation", () => {
     expect(titleLink?.textContent).toBe("Théière");
     expect(titleLink?.getAttribute("href")).toBe("/shared-wishlists/test#private-test");
     expect(view.querySelector(".reservation-history-card__view")).toBeNull();
-    expect(link?.querySelector("svg")).toBeNull();
+    expect(link?.querySelector(":scope > svg")).toBeNull();
     disposeComponent(view);
     expect(link?.hasAttribute("href")).toBe(false);
     expect(titleLink?.hasAttribute("href")).toBe(false);

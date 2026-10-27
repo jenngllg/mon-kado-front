@@ -38,6 +38,7 @@ const unusedSession = {
 const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
   [RouteNames.GroupJoin, RoutePaths.GroupJoin],
+  [RouteNames.GroupInvitation, RoutePaths.GroupInvitation],
   [RouteNames.Groups, RoutePaths.Groups],
   [RouteNames.GroupEdit, RoutePaths.GroupEdit],
   [RouteNames.Group, RoutePaths.Group],
@@ -394,7 +395,7 @@ function groupRoutesFixture() {
       const context = { ...createRouteContext(`/groups/${id}`), params: { groupId: id, wishlistId: id, wishId, memberId: ownerId }, navigate, replaceSearchParameter };
       const view = await route.render(context); document.body.append(view); return view;
     },
-    /** @param {HTMLElement} view @param {string} label */ button: (view, label) => { const found = [...view.querySelectorAll("button")].find(button => button.textContent === label); if (!found) throw new Error(`Missing ${label}: ${view.textContent}`); return found; },
+    /** @param {HTMLElement} view @param {string} label */ button: (view, label) => { const found = [...view.querySelectorAll("button")].find(button => button.textContent === label || button.getAttribute("aria-label") === label); if (!found) throw new Error(`Missing ${label}: ${view.textContent}`); return found; },
   };
 }
 

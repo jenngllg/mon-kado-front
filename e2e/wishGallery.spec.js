@@ -94,7 +94,7 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag" };
     const wishes = Array.from({ length: 8 }, (_, index) => {
       const id = index === 0 ? wishId : `019c52dd-56c1-7cc6-8a95-243f3a032e${20 + index}`;
-      return { ...api.wish, id, position: index + 1, imageUrl: `http://localhost:7000/api/v1${sharedPath}/wishes/${id}/image?token=controlled` };
+      return { ...api.wish, id, position: index + 1, reservedQuantity: 0, availableQuantity: api.wish.quantity, imageUrl: `http://localhost:7000/api/v1${sharedPath}/wishes/${id}/image?token=controlled` };
     });
     const photo = readFileSync(new URL("../src/assets/design/birthday.webp", import.meta.url));
     const sharedList = { ...api.wishlist, name: "Liste 1", ownerDisplayName: "MonKado", eventDate: /** @type {string | null} */ ("2027-01-18"), message: /** @type {string | null} */ ("Pour me faire des beaux cadeaux à mon anniversaire :)"), wishes };

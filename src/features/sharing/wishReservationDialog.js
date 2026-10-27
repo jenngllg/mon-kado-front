@@ -42,7 +42,7 @@ export function createWishReservationDialog({ shareLinkId, wishId, name, loadOne
       if (disposed) return;
       wishName.textContent = wish.name;
       disposeComponent(content); content.replaceChildren();
-      if (wish.availableQuantity === null) {
+      if (wish.canReserve === false || wish.availableQuantity === null) {
         const message = document.createElement("p"); message.textContent = "La réservation n’est pas disponible pour ce souhait."; content.append(message); return;
       }
       content.append(createReservation(lifetime.signal, finish)(onUnavailable, wish, (message = "Réservation enregistrée") => {

@@ -744,6 +744,8 @@
 .wishlist-card__actions .icon-action,
 .wish-card__actions .icon-action,
 .wishlist-details-actions .icon-action,
+.groups-header .icon-action,
+.group-member__remove.icon-action,
 .reservation-history-card__actions .icon-action,
 .wishlist-share__channels .icon-action,
 .wish-image-section__media > .icon-action {
@@ -882,6 +884,7 @@
 .profile-image-section__frame { width: 128px; overflow: visible; }
 .profile-image-section__frame .wish-image-section__remove { top: -0.25rem; right: -0.25rem; }
 .wish-image-section__edit { position: absolute; top: calc(50% - 22px); left: calc(50% - 22px); }
+.wish-image-section__media--empty .wish-image-section__edit { top: auto; left: auto; right: var(--space-2); bottom: var(--space-2); }
 .icon-action.ui-button:not(:disabled):hover,
 .icon-action.action-link:not([aria-disabled="true"]):hover,
 .wish-image-section__remove.ui-button:not(:disabled):hover { transform: none; }

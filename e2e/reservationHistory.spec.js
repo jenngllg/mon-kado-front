@@ -1,6 +1,40 @@
 import { test, expect } from "@playwright/test";
 import { controlledApi, frontendOrigin, listId, shareId, sharedPath, secret, wishId } from "./controlledApi.js";
 
+for (const width of [390, 1440]) {
+  test(`missing reservation images use the proportional MonKado logo at ${width}px`, async ({ page, context }, testInfo) => {
+    const api = await controlledApi(context); api.state.authenticated = true;
+    await page.setViewportSize({ width, height: 1100 });
+    await context.route("**/api/v1/members/current/reservations**", route => {
+      if (route.request().method() === "OPTIONS") return route.fallback();
+      return route.fulfill({ status: 200, headers: {
+        "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true",
+      }, json: { items: ["active", "cancelled", "unavailable"].map((status, index) => ({
+        id: `019c52dd-56c1-7cc6-8a95-${String(index + 1).padStart(12, "0")}`,
+        wishlistId: listId, wishId, shareLinkId: null,
+        wishlistName: "Anniversaire", wishName: `Souhait ${index + 1}`, quantity: 1, status,
+        imageUrl: null,
+        createdAt: "2026-10-06T08:54:00Z", lastActivityAt: "2026-10-07T08:54:00Z",
+        endedAt: status === "active" ? null : "2026-10-07T08:54:00Z",
+      })), currentPage: 1, pageSize: 20, totalCount: 3 } });
+    });
+    await page.goto("/reservations");
+    const media = page.locator(".reservation-history-card__media");
+    await expect(media).toHaveCount(3);
+    await expect(media.locator(".image-placeholder__wordmark")).toHaveText(["MonKado.", "MonKado.", "MonKado."]);
+    await expect(media.locator("img")).toHaveCount(0);
+    for (const logo of await media.locator(".image-placeholder__logo").all()) {
+      await expect(logo).toBeVisible();
+      const bounds = await logo.boundingBox();
+      if (!bounds) throw new Error("Missing logo dimensions");
+      expect(bounds.width / bounds.height).toBeCloseTo(168 / 36, 1);
+    }
+    expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("reservation-logo-placeholders.png"), fullPage: true });
+    expect(api.unexpected).toEqual([]);
+  });
+}
+
 for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
   test(`reservation history opens the illustrated wish at ${viewport.width}px`, async ({ page, context }, testInfo) => {
     const api = await controlledApi(context);

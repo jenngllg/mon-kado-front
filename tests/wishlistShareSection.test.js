@@ -4,6 +4,7 @@ import { ApiError } from "../src/api/apiError.js";
 import { disposeComponent } from "../src/components/index.js";
 import { createWishlistShareSection } from "../src/features/wishlists/wishlistShareSection.js";
 import { barrier } from "./sessionTestHelpers.js";
+import QRCode from "qrcode";
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const link = Object.freeze({ id, shareUrl: `http://localhost/shared-wishlists/${id}#${"A".repeat(43)}`, etag: '"link"' });
@@ -20,7 +21,42 @@ function setup(options = {}) {
   return { view, input, load, create, copyText, onUnavailable, onRevoked, button };
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
+
+/** @param {HTMLElement} view Sharing section. @param {string} url Complete bearer URL. */
+function expectQr(view, url) {
+  const svg = view.querySelector('.wishlist-share__qr svg');
+  const matrix = QRCode.create(url, { errorCorrectionLevel: "M" }).modules;
+  const cells = [];
+  for (let row = 0; row < matrix.size; row++) for (let column = 0; column < matrix.size; column++) {
+    if (matrix.get(row, column)) cells.push(`M${column + 4} ${row + 4}h1v1h-1z`);
+  }
+  expect(svg?.getAttribute("viewBox")).toBe(`0 0 ${matrix.size + 8} ${matrix.size + 8}`);
+  expect(svg?.querySelector("path")?.getAttribute("d")).toBe(cells.join(""));
+  expect(svg?.getAttribute("aria-label")).toBe("QR code pour ouvrir la liste");
+  expect(svg?.querySelectorAll("image,script,a,foreignObject")).toHaveLength(0);
+  expect(svg?.outerHTML).not.toContain(url);
+}
 describe("owner share section", () => {
+  it("renders the complete active sharing URL locally without creating a link or contacting a QR provider", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch"), ui = setup({ load: async () => link }); await settle();
+    expectQr(ui.view, link.shareUrl);
+    expect(fetch).not.toHaveBeenCalled(); fetch.mockRestore();
+    expect(ui.create).not.toHaveBeenCalled(); expect(ui.copyText).not.toHaveBeenCalled();
+    disposeComponent(ui.view); expect(ui.view.querySelector('.wishlist-share__qr svg')).toBeNull();
+  });
+  it("shows no QR for a private list and renders one only after explicit link creation", async () => {
+    const ui = setup(); await settle();
+    expect(ui.view.querySelector('.wishlist-share__qr svg')).toBeNull(); expect(ui.create).not.toHaveBeenCalled();
+    ui.button("Créer le lien de partage").click(); await settle();
+    expectQr(ui.view, link.shareUrl); expect(ui.create).toHaveBeenCalledOnce();
+  });
+  it("clears an old QR during a failed refresh and ignores reads arriving after cancellation", async () => {
+    const controller = new AbortController(), load = vi.fn(/** @type {import("../src/features/wishlists/wishlistShareService.js").LoadWishlistShare} */ (async () => link));
+    const ui = setup({ load, signal: controller.signal }); await settle(); expectQr(ui.view, link.shareUrl);
+    const gate = barrier(); load.mockImplementationOnce(async () => { await gate.promise; return link; });
+    window.dispatchEvent(new Event("focus")); expect(ui.view.querySelector('.wishlist-share__qr svg')).toBeNull();
+    controller.abort(); gate.resolve(); await settle(); expect(ui.view.querySelector('.wishlist-share__qr svg')).toBeNull();
+  });
   it("names the list safely, shares modal exclusion, and allows creation only after confirmed deactivation", async () => {
     const gate = barrier(); const revoke = vi.fn(async () => { await gate.promise; }); const renew = vi.fn(async () => link);
     const ui = setup({ load: async () => link, revoke, renew, wishlistName: '<img src=x onerror=alert(1)>' }); await settle();
@@ -29,8 +65,10 @@ describe("owner share section", () => {
     ui.button("Annuler").click(); expect(ui.input.value).toBe(link.shareUrl); expect(document.activeElement).toBe(ui.button("Désactiver le partage"));
     ui.button("Désactiver le partage").click(); /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Désactiver le partage")).click();
     expect(ui.input.value).toBe(""); expect(ui.button("Créer le lien de partage").hidden).toBe(true); expect(ui.view.querySelector(':scope > [role=status]')?.textContent).not.toBe("Partage désactivé");
+    expect(ui.view.querySelector('.wishlist-share__qr svg')).toBeNull();
     expect(ui.onRevoked).not.toHaveBeenCalled();
     gate.resolve(); await settle(); expect(ui.view.querySelector("dialog")).toBeNull(); expect(ui.view.textContent).not.toContain("Partage désactivé"); expect(ui.onRevoked).toHaveBeenCalledExactlyOnceWith(); expect(ui.create).not.toHaveBeenCalled();
+    expect(ui.view.querySelector('.wishlist-share__qr svg')).toBeNull();
     expect(document.activeElement).toBe(ui.view.querySelector("h2")); ui.button("Créer le lien de partage").click(); await settle(); expect(ui.create).toHaveBeenCalledOnce();
   });
   it("keeps revocation blocked across closing and reread failure, without falsely attributing later absence", async () => {
@@ -45,10 +83,12 @@ describe("owner share section", () => {
   it("owns one renewal dialog, preserves the link on cancel and adopts only confirmed renewal", async () => {
     const renewed = { ...link, shareUrl: link.shareUrl.replace(/A/g, "E"), etag: '"new"' }; const renew = vi.fn(async () => renewed);
     const ui = setup({ load: async () => link, renew }); await settle();
+    expectQr(ui.view, link.shareUrl);
     ui.button("Renouveler le lien").click(); ui.button("Renouveler le lien").click(); expect(ui.view.querySelectorAll("dialog")).toHaveLength(1); expect(renew).not.toHaveBeenCalled();
     ui.button("Annuler").click(); expect(ui.input.value).toBe(link.shareUrl); expect(document.activeElement).toBe(ui.button("Renouveler le lien"));
     ui.button("Renouveler le lien").click(); /** @type {HTMLButtonElement} */ (ui.view.querySelector('dialog button[data-variant="danger"]') ?? [...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Renouveler le lien")).click();
     expect(ui.input.value).toBe(""); await settle(); expect(ui.input.value).toBe(renewed.shareUrl); expect(ui.view.querySelector("dialog")).toBeNull();
+    expectQr(ui.view, renewed.shareUrl);
     expect(ui.view.textContent).toContain("Lien de partage renouvelé"); expect(document.activeElement).toBe(ui.view.querySelector("h2")); expect(ui.copyText).not.toHaveBeenCalled();
   });
   it("cannot bypass renewal reread by closing the modal or invoking a hidden creation button", async () => {

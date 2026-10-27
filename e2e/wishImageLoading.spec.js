@@ -65,7 +65,7 @@ for (const failure of [429, 404]) {
       await page.goto(transport.route);
       const retry = page.getByRole("button", { name: "Réessayer les images", exact: true });
       await expect(retry).toBeVisible();
-      await expect(page.locator(".wish-card__media").filter({ hasText: "Image indisponible" })).toHaveCount(1);
+      await expect(page.getByRole("img", { name: "Image indisponible", exact: true })).toHaveCount(1);
       const select = page.getByRole("combobox", { name: "Trier par", exact: true });
       await select.selectOption("nameDesc");
       expect(transport.state.reads).toBe(1);

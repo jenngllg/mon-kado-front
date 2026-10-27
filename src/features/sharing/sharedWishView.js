@@ -63,11 +63,12 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
       clear(); title.textContent = wish.name;
       if (wish.isFavorite) title.append(createWishFavoriteIndicator());
       const layout = element("div", ""); layout.className = "shared-wish-layout";
-      introduction.hidden = !createReservation || wish.reservedQuantity === null;
+      const canReserve = !!createReservation && wish.canReserve !== false && wish.reservedQuantity !== null;
+      introduction.hidden = !canReserve;
       const product = element("div", ""); product.className = "shared-wish-product flow";
       const information = createWishDetailInformation(wish, title);
       const reservation = element("aside", ""); reservation.className = "shared-wish-reservation flow";
-      reservation.setAttribute("aria-label", "Réserver ce souhait");
+      reservation.setAttribute("aria-label", canReserve ? "Réserver ce souhait" : "Informations du souhait");
       const summary = element("div", ""); summary.className = "wish-detail__reservation-summary flow";
       const desired = element("p", `Quantité souhaitée : ${wish.quantity}`);
       desired.className = "wish-detail__desired";
@@ -81,7 +82,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
       } else if (wish.productUnavailable) information.append(element("p", "Lien produit indisponible"));
       if (actions.childElementCount) information.append(actions);
       product.append(createWishImage(wish), information); layout.append(product, reservation); results.append(layout);
-      if (createReservation && wish.reservedQuantity !== null) reservation.append(createReservation(() => {
+      if (createReservation && canReserve) reservation.append(createReservation(() => {
         if (disposed || terminal) return;
         terminal = true; lifetime.abort(); clear(); clearNotice();
         title.textContent = "Souhait introuvable"; title.focus();

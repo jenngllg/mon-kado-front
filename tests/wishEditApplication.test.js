@@ -35,7 +35,7 @@ function setup() {
   window.history.replaceState(null, "", path); const root = document.createElement("div"); document.body.append(root);
   const app = createSessionApplication(root, { apiBaseUrl: "http://localhost:7000", session }); cleanups.push(app.dispose);
   function send() {
-    const form = /** @type {HTMLFormElement} */ (root.querySelector("form")); const name = /** @type {HTMLInputElement} */ (form.elements.namedItem("name"));
+    const form = /** @type {HTMLFormElement} */ (root.querySelector("main form")); const name = /** @type {HTMLInputElement} */ (form.elements.namedItem("name"));
     name.value = "Corrigé"; name.dispatchEvent(new Event("input", { bubbles: true })); form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); return form;
   }
   return { ...app, state, transport, hub, send };

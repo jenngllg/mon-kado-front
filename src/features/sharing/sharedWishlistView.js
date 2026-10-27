@@ -108,6 +108,8 @@ export function createSharedWishlistView({ shareLinkId, load, loadOne, createRes
     try {
       const list = await load(shareLinkId, { signal: lifetime.signal, availableOnly });
       if (disposed || terminal || lifetime.signal.aborted) return;
+      const hiddenAvailability = list.wishes.some(wish => wish.availableQuantity === null);
+      if (hiddenAvailability) { availableOnly = false; filter.checked = false; }
       clear(details); populateWishlistSummary(details, title, list, list.ownerDisplayName, list.ownerId);
       const author = details.querySelector(".shared-wishlist-owner__profile");
       if (groupId && isWishlistId(list.ownerId) && author instanceof HTMLAnchorElement) {
@@ -123,14 +125,14 @@ export function createSharedWishlistView({ shareLinkId, load, loadOne, createRes
       view.classList.toggle("shared-wishlist-view--empty", emptyList);
       toolbar.hidden = emptyList;
       if (emptyList) clear(counts);
-      gifts.hidden = false; filterControls.hidden = false;
+      gifts.hidden = false; filterControls.hidden = hiddenAvailability;
       currentList = list;
       if (loadOwnerPhoto || list.ownerId) void readOwnerPhoto(list);
       reportButton.hidden = !report || reported;
       sorting.update({ allowAvailability: hasVisibleAvailability(list.wishes), disabled: true });
       onSortChange(sorting.value()); renderWishes();
       if (explicit && !filterChange) title.focus();
-      if (createParticipation) details.append(createParticipation({ onUnavailable: unavailable, signal: lifetime.signal }));
+      if (createParticipation && list.canReserve !== false) details.append(createParticipation({ onUnavailable: unavailable, signal: lifetime.signal }));
       if (createSubscription && list.canSubscribe !== false) subscriptionActions.append(createSubscription({ onUnavailable: unavailable, signal: lifetime.signal }));
     } catch (error) {
       if (disposed || terminal || isAbortError(error)) return;
@@ -166,7 +168,7 @@ export function createSharedWishlistView({ shareLinkId, load, loadOne, createRes
         row: true,
         reservationQuantities: { reservedQuantity: wish.reservedQuantity, availableQuantity: wish.availableQuantity },
         copyButton: copyActions?.button(wish.id, true),
-        ...(loadOne && createReservation ? { onReserve: trigger => openReservation(wish, trigger) } : {}),
+        ...(loadOne && createReservation && currentList.canReserve !== false ? { onReserve: trigger => openReservation(wish, trigger) } : {}),
         detailHref: withWishSort(`${listPath}/wishes/${wish.id}${memberOriginQuery(fromMemberId)}`, sorting.value()),
         onImageError: () => { if (!disposed && !terminal) retryImages.hidden = false; } }));
       results.append(cards);
@@ -187,7 +189,7 @@ export function createSharedWishlistView({ shareLinkId, load, loadOne, createRes
   function closeReservation() { if (reservationDialog) disposeComponent(reservationDialog); reservationDialog = null; }
   /** @param {import("./sharedWishlistService.js").SharedWish} wish Selected wish. @param {HTMLButtonElement} trigger Focus return target. */
   function openReservation(wish, trigger) {
-    if (!loadOne || !createReservation || disposed || terminal || busy || copying || reservationDialog) return;
+    if (!loadOne || !createReservation || currentList?.canReserve === false || disposed || terminal || busy || copying || reservationDialog) return;
     reservationStatus.hidden = true; reservationStatus.textContent = "";
     reservationDialog = createWishReservationDialog({ shareLinkId, wishId: wish.id, name: wish.name, loadOne, createReservation, signal: lifetime.signal,
       onUnavailable: unavailable,

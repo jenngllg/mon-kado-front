@@ -7,9 +7,9 @@ import { createProfilePhotoCrop } from "./profilePhotoCrop.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 
 /** Owns only the local file and rendered sources; the profile owns versions and mutations.
- * @param {{onChange: () => void, onRemove: () => void, saveAction: HTMLButtonElement, decode?: typeof decodeWishImage}} options Actions.
+ * @param {{onChange: () => void, onRemove: () => void, saveAction: HTMLButtonElement, decode?: typeof decodeWishImage, cancelLabel?:string}} options Actions.
  */
-export function createProfileImageSection({ onChange, onRemove, saveAction, decode = decodeWishImage }) {
+export function createProfileImageSection({ onChange, onRemove, saveAction, decode = decodeWishImage, cancelLabel = "Annuler" }) {
   const element = node("section", ""); element.className = "wish-image-section profile-image-section flow";
   const title = node("h2", "Photo de profil"); title.tabIndex = -1;
   title.className = "visually-hidden";
@@ -31,7 +31,7 @@ export function createProfileImageSection({ onChange, onRemove, saveAction, deco
   let encoding = false;
   const edit = createButton({ label: "Remplacer la photo", variant: "secondary", onClick: () => { if (!inactive && !encoding && !decoding) input.click(); } });
   edit.setAttribute("aria-label", "Remplacer la photo"); applyActionIcon(edit, "edit", "Remplacer la photo"); edit.classList.add("wish-image-section__edit");
-  const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: () => { if (!cancel.disabled) { clearSelection(); edit.focus(); } } });
+  const cancel = createButton({ label: cancelLabel, variant: "secondary", onClick: () => { if (!cancel.disabled) { clearSelection(); edit.focus(); } } });
   const remove = createButton({ label: "Supprimer la photo", variant: "secondary", onClick: () => { if (!remove.disabled) onRemove(); } });
   applyActionIcon(remove, "delete", "Supprimer la photo"); remove.classList.add("wish-image-section__remove", "icon-action--danger");
   const actions = node("div", ""); actions.className = "profile-image-section__actions cluster"; actions.append(cancel, saveAction);

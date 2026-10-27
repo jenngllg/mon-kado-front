@@ -91,13 +91,14 @@
 .wishlist-share-dialog .wishlist-share { padding: 0; margin: 0; border: 0; --flow-space: var(--space-5); }
 .wishlist-share-dialog .wishlist-share h2 { padding-inline-end: var(--space-7); font-size: 1.75rem; }
 .wishlist-share-dialog .wishlist-share > :empty { display: none; }
+.wishlist-share__qr > svg { display: block; width: min(100%, 15rem); height: auto; margin-inline: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .wishlist-share__link-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); }
 .wishlist-share-dialog .wishlist-share__link-row .form-field__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .wishlist-share-dialog .wishlist-share__link-row textarea { min-height: 3.25rem; height: 3.25rem; resize: none; padding: var(--space-3); font-size: var(--font-size-sm); line-height: 1.4; white-space: pre; overflow: auto; }
-.wishlist-share-dialog .wishlist-share__channels { display: flex; justify-content: space-evenly; gap: var(--space-2); padding-block: var(--space-6); border-block: 1px solid var(--color-border); }
+:is(.wishlist-share-dialog, .group-share-dialog) .wishlist-share__channels { display: flex; justify-content: space-evenly; gap: var(--space-2); padding-block: var(--space-6); border-block: 1px solid var(--color-border); }
 .wishlist-share__channel { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); min-width: 0; }
 .wishlist-share__channel-name { font-size: var(--font-size-sm); }
-.wishlist-share-dialog .wishlist-share__channels .icon-action { border-radius: var(--radius-full); }
+:is(.wishlist-share-dialog, .group-share-dialog) .wishlist-share__channels .icon-action { border-radius: var(--radius-full); }
 .wishlist-share-dialog .wishlist-share__actions { display: flex; flex-wrap: wrap; gap: var(--space-4); }
 .wishlist-share-dialog .wishlist-share__actions > button { flex: 1 1 12rem; }
 .wishlist-share-dialog .wishlist-share__actions > .ui-button--danger { background: var(--color-danger-soft); color: var(--color-danger); border-color: var(--color-danger); }
@@ -105,7 +106,7 @@
   .wishlist-share-dialog { padding: var(--space-5); }
   .wishlist-share-dialog .wishlist-share h2 { font-size: var(--font-size-xl); }
   .wishlist-share__link-row { grid-template-columns: minmax(0, 1fr); }
-  .wishlist-share-dialog .wishlist-share__channels { gap: var(--space-1); }
+  :is(.wishlist-share-dialog, .group-share-dialog) .wishlist-share__channels { gap: var(--space-1); }
   .wishlist-share-dialog__close { top: var(--space-4); right: var(--space-4); }
 }
 .wishlist-details-view--gallery .wish-grid.wish-grid--gallery {

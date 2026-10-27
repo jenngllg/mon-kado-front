@@ -1,4 +1,5 @@
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
+import { createImagePlaceholder } from "../../components/imagePlaceholder.js";
 
 /** Shared private image presentation. The service has already validated its signed URL.
  * @param {Pick<import("./wishesService.js").Wish, "imageUrl" | "imageUnavailable">} wish Safe image projection.
@@ -7,11 +8,11 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
  */
 export function createWishImage(wish, { onError = () => {}, emptyLabel = "Sans image" } = {}) {
   const media = document.createElement("div"); media.className = "wish-card__media";
-  const fallback = document.createElement("span"); fallback.textContent = wish.imageUnavailable ? "Image indisponible" : emptyLabel; media.append(fallback);
+  const fallback = createImagePlaceholder(wish.imageUnavailable ? "Image indisponible" : emptyLabel); media.append(fallback);
   if (wish.imageUrl) {
     const image = document.createElement("img"); image.alt = ""; image.width = 400; image.height = 300;
     image.loading = "lazy"; image.decoding = "async"; image.referrerPolicy = "no-referrer"; fallback.hidden = true;
-    addComponentEventListener(media, image, "error", () => { image.removeAttribute("src"); image.remove(); fallback.textContent = "Image indisponible"; fallback.hidden = false; onError(); }, { once: true });
+    addComponentEventListener(media, image, "error", () => { image.removeAttribute("src"); image.remove(); fallback.setAttribute("aria-label", "Image indisponible"); fallback.hidden = false; onError(); }, { once: true });
     registerComponentCleanup(media, () => { image.removeAttribute("src"); }); image.src = wish.imageUrl; media.append(image);
   }
   return media;

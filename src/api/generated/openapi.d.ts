@@ -831,6 +831,40 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/groups/{groupId}/preview": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read the publicly advertised invitation identity */
+        readonly get: operations["Groups_PreviewInvitation"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/preview/image": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** Read the current advertised group photo or MonKado fallback */
+        readonly get: operations["Groups_PreviewInvitationImage"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/groups/{groupId}/wishlists": {
         readonly parameters: {
             readonly query?: never;
@@ -860,7 +894,7 @@ export interface paths {
         };
         /**
          * Read a group wishlist
-         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         * @description Requires current membership and effective group visibility. Owners may read their own list. Reservation quantities are null for owners when surprise mode is enabled; availability filtering cannot reveal hidden reservations. Owners cannot reserve through the group view.
          */
         readonly get: operations["Groups_18"];
         /**
@@ -879,6 +913,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/subscriptions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Follow a private group wishlist
+         * @description Requires current group membership and current access to the wishlist. The owner cannot follow their own wishlist. Following is an explicit command and never creates a public share link, participation or reservation. The follow remains bound to its original access source; removal from that group or withdrawal of group access revokes access. At most one follow per member and wishlist, shared across group and public entry points. Responses contain an authorized frontend group URL without a share secret for group-derived follows.
+         */
+        readonly post: operations["CreateGroupWishlistSubscription"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/subscriptions/current": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read current group wishlist follow
+         * @description Requires current group membership and current access to the wishlist. The owner cannot follow their own wishlist. Following is an explicit command and never creates a public share link, participation or reservation. The follow remains bound to its original access source; removal from that group or withdrawal of group access revokes access. At most one follow per member and wishlist, shared across group and public entry points. Responses contain an authorized frontend group URL without a share secret for group-derived follows.
+         */
+        readonly get: operations["GetCurrentGroupWishlistSubscription"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/wishes/{wishId}": {
         readonly parameters: {
             readonly query?: never;
@@ -888,7 +962,7 @@ export interface paths {
         };
         /**
          * Read a group wishlist wish
-         * @description Private groups require accepted membership. Invitations never grant list access. All accepted members may invite and read pending invitations. Only owners rename/delete groups, revoke invitations and remove other members. Each list owner explicitly shares their own lists. All accesses are rechecked server-side; removal, leaving, archive and suspension revoke group-derived access. Public links and subscriptions remain independent. Reservations use global quantities, disclose no other participant identities and are unavailable to the list owner through group routes. Owners use their existing wishlist view. Mutations are atomic; reads never enroll or reserve. Invitations expire after 14 days. Group limit: 100 members including pending invitations; member limit: 50 groups.
+         * @description Requires current membership and effective group visibility. Owners may read their own list. Reservation quantities are null for owners when surprise mode is enabled; availability filtering cannot reveal hidden reservations. Owners cannot reserve through the group view.
          */
         readonly get: operations["Groups_21"];
         readonly put?: never;
@@ -954,7 +1028,8 @@ export interface paths {
             readonly path?: never;
             readonly cookie?: never;
         };
-        readonly get?: never;
+        /** Preview an invitation without enrolling or authenticating */
+        readonly get: operations["Groups_PreviewByCode"];
         readonly put?: never;
         /**
          * Join a group using its bearer code without approval
@@ -1739,6 +1814,30 @@ export interface paths {
         readonly patch: operations["SetWishlistArchivedRequest"];
         readonly trace?: never;
     };
+    readonly "/api/v1/wishlists/{wishlistId}/group-visibility": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read group audience
+         * @description Only the list owner may read or change visibility. Public lists (active public share link) are visible by default in all current and future owner groups, except explicitly unchecked groups. Private lists require explicit grants. No public capability is exposed. GET is side-effect free. PUT requires the visibility row xmin ETag, affects only supplied current memberships and atomically preserves omitted groups. Leaving removes the owner grants and exclusions. Public-link revocation removes default access without removing independent private grants. Images and reservation access use the same effective visibility.
+         */
+        readonly get: operations["Wishlists_ReadGroupVisibility"];
+        /**
+         * Set group audience atomically
+         * @description Only the list owner may read or change visibility. Public lists (active public share link) are visible by default in all current and future owner groups, except explicitly unchecked groups. Private lists require explicit grants. No public capability is exposed. GET is side-effect free. PUT requires the visibility row xmin ETag, affects only supplied current memberships and atomically preserves omitted groups. Leaving removes the owner grants and exclusions. Public-link revocation removes default access without removing independent private grants. Images and reservation access use the same effective visibility.
+         */
+        readonly put: operations["Wishlists_SetGroupVisibility"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/wishlists/{wishlistId}/share-link": {
         readonly parameters: {
             readonly query?: never;
@@ -2129,6 +2228,13 @@ export interface components {
              */
             readonly joinUrl: string;
         };
+        readonly GroupJoinPreviewResponse: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly memberCount: number;
+            readonly name: string;
+            readonly profileImageUrl: string | null;
+        };
         readonly GroupMemberResponse: {
             readonly displayName: string;
             readonly displayNameTag: string;
@@ -2418,11 +2524,20 @@ export interface components {
         readonly SetWishlistArchivedRequest: {
             readonly isArchived: boolean;
         };
+        readonly SetWishlistGroupVisibilityRequest: {
+            readonly groups: readonly {
+                /** Format: uuid */
+                readonly groupId: string;
+                readonly isVisible: boolean;
+            }[];
+        };
         readonly SharedWishDetailResponse: {
             /** @description Second-hand gifts are welcome; false does not require new. Omitted/null preserves the value on update, defaults to false on creation. */
             readonly acceptsSecondHand?: boolean;
             /** Format: int32 */
             readonly availableQuantity: number | null;
+            /** @description False for the authenticated owner: this shared view is read-only regardless of surprise mode. */
+            readonly canReserve: boolean;
             /** @description Optional single-line variant; blank values are normalized to null. */
             readonly color?: string | null;
             readonly currentParticipantReservedQuantity: number | null;
@@ -2444,6 +2559,8 @@ export interface components {
             readonly url: string | null;
         };
         readonly SharedWishlistResponse: {
+            /** @description False for the authenticated owner: this shared view is read-only regardless of surprise mode. */
+            readonly canReserve: boolean;
             readonly canSubscribe?: boolean;
             readonly currentParticipant: components["schemas"]["WishlistParticipantResponse"] | null;
             readonly eventDate: string | null;
@@ -2628,6 +2745,18 @@ export interface components {
             readonly url: string | null;
             readonly warnings: readonly string[];
         };
+        readonly WishlistGroupVisibilityResponse: {
+            readonly groups: readonly components["schemas"]["WishlistGroupVisibilityResponseItem"][];
+            readonly isPublic: boolean;
+            /** Format: uuid */
+            readonly wishlistId: string;
+        };
+        readonly WishlistGroupVisibilityResponseItem: {
+            /** Format: uuid */
+            readonly groupId: string;
+            readonly isVisible: boolean;
+            readonly name: string;
+        };
         /** @enum {string} */
         readonly WishlistModerationAction: "suspended" | "reasonUpdated" | "reactivated";
         readonly WishlistModerationEventResponse: {
@@ -2715,7 +2844,10 @@ export interface components {
             readonly name?: string;
             readonly occasion?: components["schemas"]["WishlistOccasion"];
             readonly ownerDisplayName?: string;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description Authorized frontend URL: either a public shared wishlist with its fragment capability or a private /groups/{groupId}/wishlists/{wishlistId} route requiring current membership.
+             */
             readonly shareUrl?: string;
             /** Format: uuid */
             readonly wishlistId?: string;
@@ -8214,6 +8346,88 @@ export interface operations {
             };
         };
     };
+    readonly Groups_PreviewInvitation: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description HTML Open Graph preview; application/json when explicitly requested. Active invitations advertise only group identity, never member identities, lists, join codes or credentials. Revocation returns 404. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupJoinPreviewResponse"];
+                    readonly "text/html": string;
+                };
+            };
+            /** @description Invalid or unavailable invitation */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid or unavailable invitation */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_PreviewInvitationImage: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Normalized current group photo or branded fallback, only while the invitation is active; no-store. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "image/png": string;
+                    readonly "image/webp": string;
+                };
+            };
+            /** @description Invalid or unavailable invitation */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid or unavailable invitation */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly Groups_17: {
         readonly parameters: {
             readonly query?: {
@@ -8363,15 +8577,6 @@ export interface operations {
             };
             /** @description Absent, expired or private foreign resource */
             readonly 404: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Membership, capacity or sharing conflict */
-            readonly 409: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -8601,6 +8806,184 @@ export interface operations {
             };
         };
     };
+    readonly CreateGroupWishlistSubscription: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 201: {
+                headers: {
+                    /** @description The created subscription URL. */
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishlistSubscriptionResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request quota was exceeded. Retry-After gives the remaining wait in seconds. */
+            readonly 429: {
+                headers: {
+                    readonly "Retry-After"?: number;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly GetCurrentGroupWishlistSubscription: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishlistSubscriptionResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request quota was exceeded. Retry-After gives the remaining wait in seconds. */
+            readonly 429: {
+                headers: {
+                    readonly "Retry-After"?: number;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly Groups_21: {
         readonly parameters: {
             readonly query?: never;
@@ -8652,15 +9035,6 @@ export interface operations {
             };
             /** @description Absent, expired or private foreign resource */
             readonly 404: {
-                headers: {
-                    readonly [name: string]: unknown;
-                };
-                content: {
-                    readonly "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Membership, capacity or sharing conflict */
-            readonly 409: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
@@ -9099,6 +9473,56 @@ export interface operations {
                 };
             };
             /** @description Rate limit */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Groups_PreviewByCode: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Invitation code, sent only in this header; never in a server URL. */
+                readonly "X-MonKado-Share-Token": string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Advertised group identity only */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupJoinPreviewResponse"];
+                };
+            };
+            /** @description Invalid or unavailable invitation */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid or unavailable invitation */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid or unavailable invitation */
             readonly 429: {
                 headers: {
                     readonly [name: string]: unknown;
@@ -12675,6 +13099,169 @@ export interface operations {
             };
             /** @description 503ServiceUnavailable */
             readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Wishlists_ReadGroupVisibility: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Current group visibility */
+            readonly 200: {
+                headers: {
+                    /** @description Strong xmin version of the visibility policy */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishlistGroupVisibilityResponse"];
+                };
+            };
+            /** @description Invalid request */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Owned list or current membership unavailable */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Archived or suspended list */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale visibility version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Wishlists_SetGroupVisibility: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "If-Match": string;
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["SetWishlistGroupVisibilityRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Current group visibility */
+            readonly 200: {
+                headers: {
+                    /** @description Strong xmin version of the visibility policy */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishlistGroupVisibilityResponse"];
+                };
+            };
+            /** @description Invalid request */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Owned list or current membership unavailable */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Archived or suspended list */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale visibility version */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match required */
+            readonly 428: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

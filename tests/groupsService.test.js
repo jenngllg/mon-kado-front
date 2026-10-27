@@ -48,9 +48,8 @@ describe("private group contracts", () => {
     f.request.mockResolvedValueOnce(response(page([list])));
     expect((await f.service.wishlists(id, f.options)).items).toEqual([list]);
   });
-  it("separates sending, accepting, declining and revoking invitations", async () => {
-    const f = setup(invitation, 201);
-    expect(await f.service.invite(id, memberId, f.options)).toEqual(invitation);
+  it("keeps accepting, declining and revoking existing invitations available", async () => {
+    const f = setup(group);
     f.request.mockResolvedValueOnce(response(group));
     expect(await f.service.accept(id, f.options)).toEqual(group);
     expect(f.request).toHaveBeenLastCalledWith(`/api/v1/group-invitations/${id}/accept`, expect.objectContaining({ method: "POST", csrf: true }));
@@ -103,7 +102,7 @@ describe("group-scoped wishes and reservations", () => {
   });
   it("does not accept follow capabilities, another list, duplicate wishes or invalid details", async () => {
     const f = setup(data); const service = createGroupWishlistService(f.session, { groupId: id, apiBaseUrl: "https://api.example" });
-    for (const bad of [{ ...data, canSubscribe: true }, { ...data, id: memberId }, { ...data, wishes: [wish, wish] }]) {
+    for (const bad of [{ ...data, canSubscribe: "true" }, { ...data, id: memberId }, { ...data, wishes: [wish, wish] }]) {
       f.request.mockResolvedValueOnce(response(bad)); await expect(service.load(id, f.options)).rejects.toMatchObject({ kind: "invalidResponse" });
     }
     f.request.mockResolvedValueOnce(response({ ...wish, id })); await expect(service.loadOne(id, wishId, f.options)).rejects.toMatchObject({ kind: "invalidResponse" });

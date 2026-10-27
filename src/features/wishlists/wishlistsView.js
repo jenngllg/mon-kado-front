@@ -7,6 +7,7 @@ import { WishlistOccasions as OccasionLabels } from "./wishlistValidation.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { wishlistArtwork } from "./wishlistArtwork.js";
 import { createWishlistDeleteDialog } from "./wishlistDeleteDialog.js";
+import { createWishlistOverviewToolbar } from "./wishlistOverviewToolbar.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -24,20 +25,10 @@ export function createWishlistsView({ load, loadOne, remove, isArchived = false,
   const title = textElement("h1", "Mes listes");
   title.tabIndex = -1;
   introduction.append(title);
-  const create = createActionLink({ label: "Créer une liste", href: RoutePaths.NewList });
-  create.classList.add("ui-button", "ui-button--primary", "page-primary-action");
   header.append(introduction);
-  const toolbar = textElement("div", "");
-  toolbar.className = "wishlists-view__toolbar";
+  const toolbar = createWishlistOverviewToolbar(isArchived ? "archived" : "active");
   const results = textElement("div", "");
   results.className = "wishlists-view__results flow";
-  const tabs = textElement("nav", ""); tabs.className = "wishlist-archive-tabs cluster"; tabs.setAttribute("aria-label", "Catégories de listes");
-  for (const [label, archived] of [["Actives", false], ["Archivées", true]]) {
-    const tab = createActionLink({ label: String(label), href: archived ? "/lists?isArchived=true" : "/lists" });
-    if (archived === isArchived) tab.setAttribute("aria-current", "page");
-    tabs.append(tab);
-  }
-  toolbar.append(tabs, create);
   view.append(header, toolbar, results);
   const lifetime = new AbortController();
   let disposed = false;

@@ -12,7 +12,8 @@ for (const width of [390, 1440]) {
     await expect(frame).toBeVisible();
     await expect(frame).toHaveCSS("border-top-width", "1px");
     await expect(frame).toHaveCSS("border-top-style", "solid");
-    await expect(frame.getByText("Aucune image", { exact: true })).toBeVisible();
+    await expect(frame.getByRole("img", { name: "Aucune image", exact: true })).toBeVisible();
+    await expect(frame.locator(".image-placeholder__logo")).toBeVisible();
     await expect(frame.getByRole("button", { name: "Ajouter une image", exact: true })).toBeVisible();
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("empty-image-frame.png"), fullPage: true });

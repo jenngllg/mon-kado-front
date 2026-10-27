@@ -203,7 +203,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
         trigger.classList.add("wishlist-details-share", "page-primary-action"); prependShareDialogIcon(trigger, "share"); actions.append(trigger);
       }
       if (groups && !item.isArchived) {
-        const trigger = createButton({ label: "Partager dans un groupe", variant: "secondary", onClick: () => {
+        const trigger = createButton({ label: "Visibilité dans mes groupes", variant: "secondary", onClick: () => {
           if (shareDialog || deletionDialog || copying || reordering || busy || favoritePending) return;
           shareDialog = createWishlistGroupShareDialog({ service: groups, wishlistId, signal: lifetime.signal,
             onClose: () => { shareDialog = null; if (trigger.isConnected) trigger.focus(); } });

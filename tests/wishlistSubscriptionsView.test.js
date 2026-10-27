@@ -33,7 +33,8 @@ describe("followed lists gallery", () => {
   });
   it("renders concise safe cards with author, no missing date, and persistent unfollow action", async () => {
     const f = setup(); await settle();
-    expect(f.view.querySelector("h1")?.textContent).toBe("Listes suivies");
+    expect(f.view.querySelector("h1")?.textContent).toBe("Mes listes");
+    expect(f.view.querySelector('[aria-current="page"]')?.textContent).toBe("Listes suivies");
     expect(f.view.querySelector("script")).toBeNull(); expect(f.view.textContent).toContain("Par Camille");
     expect(f.view.querySelector("time")).toBeNull(); expect(f.view.textContent).not.toContain("Sans date");
     const link = f.view.querySelector("a.wishlist-card__open"); if (!(link instanceof globalThis.HTMLAnchorElement)) throw new Error("Missing link");

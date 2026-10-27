@@ -29,7 +29,7 @@ function setup() {
   window.history.replaceState(null, "", "/lists/new"); const root = document.createElement("div"); document.body.append(root);
   const app = createSessionApplication(root, { apiBaseUrl: "http://localhost:7000", session }); cleanups.push(app.dispose);
   function fillAndSend() {
-    const form = /** @type {HTMLFormElement} */ (root.querySelector("form"));
+    const form = /** @type {HTMLFormElement} */ (root.querySelector("main form"));
     /** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value = ` ${item.name} `;
     /** @type {HTMLSelectElement} */ (form.elements.namedItem("occasion")).value = "birthday";
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); return form;

@@ -11,7 +11,11 @@ describe("deployed frontend policy", () => {
     expect(config).not.toContain("header_regexp User-Agent");
     expect(config).toContain("rewrite * /api/v1/shared-wishlists/{re.sharePreview.1}/preview");
     expect(config).toContain("rewrite * /api/v1/shared-wishlists/{re.previewImage.1}/preview/image");
-    expect(config.match(/reverse_proxy \{\$FRONTEND_API_ORIGIN\}/g)).toHaveLength(2);
+    expect(config).toContain("path_regexp groupPreview ^/groups/join/");
+    expect(config).toContain("rewrite * /api/v1/groups/{re.groupPreview.1}/preview");
+    expect(config).toContain("rewrite * /api/v1/groups/{re.groupPreviewImage.1}/preview/image");
+    expect(config).toContain("header_up Accept text/html");
+    expect(config.match(/reverse_proxy \{\$FRONTEND_API_ORIGIN\}/g)).toHaveLength(4);
     expect(config).not.toContain("tls_insecure_skip_verify");
     expect(config.indexOf("handle @sharePreview")).toBeLessThan(config.indexOf("try_files {path} /index.html"));
   });

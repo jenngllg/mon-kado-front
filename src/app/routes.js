@@ -166,7 +166,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   return Object.freeze([
     {
       name: RouteNames.GroupJoin, path: RoutePaths.GroupJoin, title: "Rejoindre un groupe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupJoinView({ session, service: createGroupsService(session), code: context.consumeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } }),
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, code: context.consumeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } }),
+    },
+    {
+      name: RouteNames.GroupInvitation, path: RoutePaths.GroupInvitation, title: "Invitation au groupe · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, groupId: context.params.groupId, code: context.consumeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } }),
     },
     {
       name: RouteNames.Groups, path: RoutePaths.Groups, title: "Mes groupes · MonKado",
@@ -183,7 +187,6 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.Group, path: RoutePaths.Group, title: "Mon groupe · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupView({
         service: createGroupsService(session), groupId: context.params.groupId, memberId: session.getSnapshot().user?.id ?? "", apiBaseUrl,
-        search: createMemberSearchService(session, { apiBaseUrl }).search,
         signal: context.signal, navigate: path => { void context.navigate(path); },
       }),
     },
@@ -201,6 +204,9 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const wishes = createGroupWishlistService(session, { groupId, apiBaseUrl });
         return createSharedWishlistView({ groupId, shareLinkId: wishlistId, signal: context.signal, fromMemberId: context.searchParams.get("fromMember"),
           load: withResourcePageTitle(wishes.load, context, result => result.name), loadOne: wishes.loadOne,
+          createSubscription: ({ signal, onUnavailable }) => createWishlistSubscriptionControl({
+            shareLinkId: wishlistId, ...createWishlistSubscriptionsService(session, { groupId }), signal, onUnavailable,
+          }),
           createReservation: (signal, onCancel) => createGroupWishReservation({ session, groupId, wishlistId, loadOne: wishes.loadOne, signal, confirmation: true, onCancel }),
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
           loadOwnerPhoto: async ({ signal, ownerId }) => {
@@ -228,6 +234,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         createWishlistSubscriptionsView({ ...createWishlistSubscriptionsService(session), signal: context.signal,
           onOpen: href => {
             const target = new URL(href, window.location.origin);
+            if (target.pathname.startsWith("/groups/")) { void context.navigate(target.pathname); return; }
             if (sharing.enter(target.pathname.split("/")[2], target.hash) === "ready") void context.navigate(target.pathname);
           } }),
     },
@@ -261,8 +268,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     },
     {
       name: RouteNames.Members, path: RoutePaths.Members, title: "Rechercher un membre · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createMemberSearchView({ ...createMemberSearchService(session, { apiBaseUrl }), signal: context.signal, state: memberSearchState }),
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const query = context.searchParams.get("q");
+        if (query !== null && query !== memberSearchState.query) { memberSearchState.query = query; memberSearchState.page = 1; }
+        return createMemberSearchView({ ...createMemberSearchService(session, { apiBaseUrl }), signal: context.signal, state: memberSearchState });
+      },
     },
     {
       name: RouteNames.MemberProfile, path: RoutePaths.MemberProfile, title: "Profil du membre · MonKado",
@@ -487,9 +497,9 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
             if (identity.authentication === "required") return createWishlistSubscriptionControl({
               shareLinkId: context.params.shareLinkId, ...createWishlistSubscriptionsService(session, { context: sharing }), signal, onUnavailable,
             });
-            const button = createButton({ label: "Se connecter pour s’abonner", variant: "secondary",
+            const button = createButton({ label: "Se connecter pour suivre", variant: "secondary",
               onClick: () => { sharingSignIn.onSignIn?.(context.params.shareLinkId); } });
-            applyActionIcon(button, "bell", "Se connecter pour s’abonner");
+            applyActionIcon(button, "bell", "Se connecter pour suivre");
             button.classList.add("wishlist-subscription-action");
             return button;
           },

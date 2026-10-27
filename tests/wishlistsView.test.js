@@ -21,6 +21,26 @@ function deferred() {
 }
 
 describe("owned wishlists view", () => {
+  it("opens one confirmation, cancels safely and returns focus to the card action", async () => {
+    const loadOne = vi.fn(async () => ({ wishlist: { ...item, message: null }, etag: '"current"' })), remove = vi.fn(async () => {});
+    const view = mount({ load: async () => [item], loadOne, remove }); await Promise.resolve();
+    const trigger = /** @type {HTMLButtonElement} */ (view.querySelector('button[aria-label^="Supprimer la liste"]'));
+    trigger.click(); trigger.click(); await Promise.resolve();
+    expect(view.querySelectorAll("dialog")).toHaveLength(1); expect(loadOne).toHaveBeenCalledOnce();
+    const cancel = [...view.querySelectorAll("dialog button")].find(button => button.textContent === "Annuler");
+    /** @type {HTMLButtonElement} */ (cancel).click(); await Promise.resolve();
+    expect(view.querySelector("dialog")).toBeNull(); expect(document.activeElement).toBe(trigger); expect(remove).not.toHaveBeenCalled();
+  });
+  it("refreshes the overview after a confirmed versioned deletion", async () => {
+    const load = vi.fn().mockResolvedValueOnce([item]).mockResolvedValueOnce([]);
+    const loadOne = vi.fn(async () => ({ wishlist: { ...item, message: null }, etag: '"current"' })), remove = vi.fn(async () => {});
+    const view = mount({ load, loadOne, remove }); await Promise.resolve();
+    /** @type {HTMLButtonElement} */ (view.querySelector('button[aria-label^="Supprimer la liste"]')).click(); await Promise.resolve();
+    const confirm = [...view.querySelectorAll("dialog button")].find(button => button.textContent === "Supprimer");
+    /** @type {HTMLButtonElement} */ (confirm).click(); for (let i = 0; i < 12; i++) await Promise.resolve();
+    expect(remove).toHaveBeenCalledExactlyOnceWith(item.id, { etag: '"current"', signal: expect.any(AbortSignal) });
+    expect(load).toHaveBeenCalledTimes(2); expect(view.querySelector("dialog")).toBeNull(); expect(view.textContent).toContain("Tu n’as pas encore de liste");
+  });
   it.each([
     { isArchived: false, isSuspended: false },
     { isArchived: true, isSuspended: false },

@@ -18,6 +18,19 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it.each([true, false])("keeps the owner's group list read-only with surprise mode %s", async surprise => {
+    const createReservation = vi.fn(), createParticipation = vi.fn();
+    const own = { ...list, canReserve: false, wishes: list.wishes.map(wish => ({ ...wish, ...(surprise ? { reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null } : {}) })) };
+    const ui = setup({ groupId: id, load: async () => own, loadOne: async () => ({ ...own.wishes[0], note: null, canReserve: false }), createReservation, createParticipation }); await settle();
+    expect(ui.view.querySelector("h1")?.textContent).toBe(list.name);
+    expect(ui.view.querySelector('a[href*="/wishes/"]')?.getAttribute("href")).toContain(`/groups/${id}/wishlists/${id}/wishes/${id}`);
+    expect(ui.view.querySelector(".wish-reading__reserve")).toBeNull();
+    expect(createReservation).not.toHaveBeenCalled(); expect(createParticipation).not.toHaveBeenCalled();
+    expect(ui.view.querySelector(".shared-wishlist-filter")?.parentElement?.hidden).toBe(surprise);
+    expect(ui.view.querySelector(".wish-gallery__reservation") === null).toBe(surprise);
+    expect(ui.view.querySelector(".wishlist-context-progress") === null).toBe(surprise);
+    if (surprise) expect(ui.view.querySelector("select")?.textContent).not.toContain("Disponibilité");
+  });
   it("keeps the author and return navigation inside the original private group", async () => {
     const ui = setup({ groupId: id, fromMemberId: id, load: async () => ({ ...list, ownerId: id }) }); await settle();
     expect(ui.view.querySelector(".shared-wishlist-owner a")?.getAttribute("href")).toBe(`/groups/${id}/members/${id}`);
@@ -275,7 +288,7 @@ describe("shared wishlist presentation", () => {
   });
   it("inserts HTML as text and provides unavailable media fallbacks", async () => {
     const html = '<img src=x onerror="alert(1)">'; const ui = setup({ load: async () => ({ ...list, name: html, ownerDisplayName: html, message: html, wishes: [{ ...list.wishes[0], name: html, url: null, productUnavailable: true, imageUrl: null, imageUnavailable: true }] }) }); await settle();
-    expect(ui.view.querySelector("h1")?.textContent).toBe(html); expect(ui.view.querySelector("img,script")).toBeNull(); expect(ui.view.textContent).toContain("Image indisponible"); expect(ui.view.textContent).not.toContain("Lien produit indisponible");
+    expect(ui.view.querySelector("h1")?.textContent).toBe(html); expect(ui.view.querySelector("img,script")).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Image indisponible"); expect(ui.view.textContent).not.toContain("Lien produit indisponible");
   });
   it("clears previous data while refreshing, prevents duplicates and focuses success", async () => {
     const ui = setup(); await settle(); const image = ui.view.querySelector("img"); const gate = barrier(); ui.load.mockImplementation(async () => { await gate.promise; return { ...list, name: "Actualisée", wishes: [] }; });
