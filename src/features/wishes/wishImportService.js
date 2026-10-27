@@ -1,6 +1,6 @@
-import { ApiError } from "../../api/apiError.js";
+import { ApiError, createAbortError } from "../../api/apiError.js";
 import { isWishlistId, trimWishlistText } from "../wishlists/wishlistValidation.js";
-import { MaximumWishImageBytes, validateWishImageFile } from "./wishImageValidation.js";
+import { MaximumWishImageBytes, validateWishImageFile, decodeWishImage } from "./wishImageValidation.js";
 import { parseWishPrice, safeHttpUrl, validateWishField } from "./wishValidation.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishImportPreview"]} PreviewResponse */
@@ -16,6 +16,64 @@ const Warnings = Object.freeze({
 });
 export const ImportImageUnavailable = Warnings.WISH_IMPORT_IMAGE_UNAVAILABLE;
 export const ImportUrlMessage = "Lien invalide";
+/** Automatic analysis plus its processing deadline never holds the form beyond ten seconds. */
+export const WishImportDelayMs = 250;
+const WishImportProcessingTimeoutMs = 10_000 - WishImportDelayMs;
+
+/** Bounds session refresh, preview retrieval and image decoding as one UI operation.
+ * Transfers the validated blob URL to the caller, who owns its eventual release.
+ * @param {PreviewWish} preview Preview-only dependency.
+ * @param {string} wishlistId Authorized parent.
+ * @param {string} url Product address.
+ * @param {{signal: AbortSignal}} options Component lifetime.
+ * @returns {Promise<WishSuggestions & {previewImageUrl: string | null}>} Prepared suggestions.
+ */
+export function loadWishImportSuggestions(preview, wishlistId, url, { signal }) {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) { reject(createAbortError()); return; }
+    const controller = new AbortController();
+    /** @type {WishSuggestions | null} */ let candidate = null;
+    /** @type {string | null} */ let imageUrl = null;
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (candidate) complete(withoutImage(candidate));
+      else fail(new ApiError({ kind: "timeout" }));
+      controller.abort();
+    }, WishImportProcessingTimeoutMs);
+    function cleanup() {
+      clearTimeout(timer); signal.removeEventListener("abort", abort);
+      if (imageUrl) URL.revokeObjectURL(imageUrl);
+      imageUrl = null;
+    }
+    function abort() { fail(createAbortError()); controller.abort(); }
+    /** @param {unknown} error Safe caller failure. */
+    function fail(error) { if (settled) return; settled = true; cleanup(); reject(error); }
+    /** @param {WishSuggestions} value Suggestions to retain. */
+    function complete(value) {
+      if (settled) return;
+      settled = true;
+      const ownedUrl = value.image ? imageUrl : null;
+      if (ownedUrl) imageUrl = null;
+      cleanup(); resolve(Object.freeze({ ...value, previewImageUrl: ownedUrl }));
+    }
+    signal.addEventListener("abort", abort, { once: true });
+    void (async () => {
+      const result = await preview(wishlistId, url, { signal: controller.signal });
+      if (settled) return;
+      candidate = result;
+      if (result.image) {
+        try { imageUrl = URL.createObjectURL(result.image); await decodeWishImage(imageUrl, controller.signal); }
+        catch { if (!settled) complete(withoutImage(result)); return; }
+      }
+      complete(result);
+    })().catch(fail);
+  });
+}
+
+/** @param {WishSuggestions} result Text survives an unavailable or slow optional image. */
+function withoutImage(result) {
+  return Object.freeze({ ...result, image: null, warnings: Object.freeze([...new Set([...result.warnings, ImportImageUnavailable])]) });
+}
 /** @param {string} value Untrusted URL. */
 export function validateImportUrl(value) {
   const clean = trimWishlistText(value); const url = safeHttpUrl(clean);
@@ -32,7 +90,7 @@ export function createWishImportService(session) {
     if (validateImportUrl(url)) throw new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "url", errorMessage: null }] });
     /** @type {import("../../api/generated/openapi.js").components["schemas"]["CreateWishImportPreviewRequest"]} */
     const body = { url: trimWishlistText(url) };
-    const response = await session.request(`/api/v1/wishlists/${wishlistId}/wish-import-previews`, { method: "POST", body, authentication: "required", timeoutMs: 30_000, signal });
+    const response = await session.request(`/api/v1/wishlists/${wishlistId}/wish-import-previews`, { method: "POST", body, authentication: "required", timeoutMs: 9_000, signal });
     const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
     const data = /** @type {PreviewResponse | null} */ (response.data);
     if (response.status !== 200 || !data || typeof data !== "object" || Array.isArray(data) ||

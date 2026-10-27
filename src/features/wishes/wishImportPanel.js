@@ -4,10 +4,8 @@ import { createAlert, createButton, createFormField, disposeComponent, setFormFi
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { decodeWishImage, validateWishImageFile, WishImageValidationError } from "./wishImageValidation.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
-import { ImportImageUnavailable, ImportUrlMessage, validateImportUrl } from "./wishImportService.js";
+import { ImportUrlMessage, validateImportUrl, loadWishImportSuggestions, WishImportDelayMs } from "./wishImportService.js";
 import { createImagePlaceholder } from "../../components/imagePlaceholder.js";
-
-const AnalysisDelayMs = 2000;
 
 /** Owns mode, analysis and disposable previews, never a creation or image mutation.
  * @param {{wishlistId: string, preview: import("./wishImportService.js").PreviewWish, initialMode?: string,
@@ -126,7 +124,7 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   function schedule() {
     cancelTimer();
     if (disposed || disabled || validateImportUrl(input.value) !== null) return;
-    analysisTimer = setTimeout(() => { analysisTimer = null; void run(false); }, AnalysisDelayMs);
+    analysisTimer = setTimeout(() => { analysisTimer = null; void run(false); }, WishImportDelayMs);
   }
   function validate() { checked = true; const error = input.value.trim() ? validateImportUrl(input.value) : null; setFormFieldValidation(field, error); return error; }
   function abort() { cancelTimer(); revision++; controller?.abort(); controller = null; analyzing = false; status.textContent = ""; }
@@ -175,16 +173,10 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
     /** @type {HTMLElement | null} */ let focusTarget = null;
     analyzing = true; status.textContent = ""; sync(); onBusy();
     try {
-      const result = await preview(wishlistId, input.value, { signal });
-      if (disposed || signal.aborted || expected !== revision) return;
-      let image = result.image; const warnings = [...result.warnings];
-      if (image) {
-        pendingUrl = URL.createObjectURL(image);
-        try { await decodeWishImage(pendingUrl, signal); }
-        catch (error) { if (signal.aborted || isAbortError(error)) return; URL.revokeObjectURL(pendingUrl); pendingUrl = null; image = null; warnings.push(ImportImageUnavailable); }
-      }
-      if (disposed || signal.aborted || expected !== revision) return;
-      pending = { ...result, image }; showWarnings(warnings);
+      const result = await loadWishImportSuggestions(preview, wishlistId, input.value, { signal });
+      if (disposed || signal.aborted || expected !== revision) { if (result.previewImageUrl) URL.revokeObjectURL(result.previewImageUrl); return; }
+      pendingUrl = result.previewImageUrl;
+      pending = result; showWarnings(result.warnings);
       focusTarget = status;
       analyzing = false;
       applyPending(); status.textContent = "";

@@ -33,6 +33,17 @@ function setup(options = {}) {
   return { view, form, analysis, input, values, analyze, submit, create, loadOne, loadWish, uploadImage, preview, onCreated };
 }
 describe("unified creation and suggestions", () => {
+  it("unlocks ten seconds after URL input even if the preview ignores cancellation", async () => {
+    vi.useFakeTimers(); const gate = barrier(); const ui = setup(); await settle();
+    ui.values.name.value = "Mon brouillon";
+    ui.preview.mockImplementation(async () => { await gate.promise; return { name: "Trop tard", url, price: "12", image: null, warnings: [] }; });
+    ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(9999); expect(ui.values.name.disabled).toBe(true);
+    await vi.advanceTimersByTimeAsync(1); await settle();
+    expect(ui.values.name.disabled).toBe(false); expect(ui.form.getAttribute("aria-busy")).toBe("false");
+    expect(ui.values.name.value).toBe("Mon brouillon"); expect(ui.create).not.toHaveBeenCalled();
+    gate.resolve(); await settle(); expect(ui.values.name.value).toBe("Mon brouillon");
+  });
   it("discards unchanged imported metadata when continuing without a link but keeps manual edits", async () => {
     const ui = setup(); await settle(); ui.values.name.value = "Mon nom"; ui.values.price.value = "8";
     ui.values.note.value = "Ma description"; ui.values.color.value = "Vert"; ui.values.size.value = "M";
@@ -63,7 +74,7 @@ describe("unified creation and suggestions", () => {
     expect(ui.form.getAttribute("aria-busy")).toBe("true");
     expect(document.activeElement).toBe(ui.input);
     await ui.submit(); expect(ui.create).not.toHaveBeenCalled(); expect(ui.preview).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(250);
     expect(locked()).toBe(true); await ui.submit(); expect(ui.create).not.toHaveBeenCalled();
     gate.resolve(); await settle();
     expect(controls.every(control => !/** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
@@ -148,7 +159,7 @@ describe("unified creation and suggestions", () => {
     ui.preview.mockImplementation(async () => { await gate.promise; return { name: "Produit", url, price: "", image: null, warnings: [] }; });
     // Act
     ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(250);
     // Assert
     expect(ui.analysis.hidden).toBe(false);
     expect(ui.input.required).toBe(false);
@@ -161,14 +172,14 @@ describe("unified creation and suggestions", () => {
     expect(spinner?.hasAttribute("hidden")).toBe(true);
   });
 
-  it("explains automatic analysis and waits two quiet seconds without a button or focus theft", async () => {
+  it("starts automatic analysis after a short typing pause without a button or focus theft", async () => {
     // Arrange
     vi.useFakeTimers(); const ui = setup(); await settle(); ui.input.focus();
     // Act
     ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(1500);
+    await vi.advanceTimersByTimeAsync(150);
     ui.input.value = url + "?color=blue"; ui.input.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(1999);
+    await vi.advanceTimersByTimeAsync(249);
     // Assert
     expect(ui.preview).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1); await settle();
@@ -189,7 +200,7 @@ describe("unified creation and suggestions", () => {
     // Act
     if (action === "dispose") disposeComponent(ui.view);
     else { ui.input.value = action === "empty" ? "" : "invalid"; ui.input.dispatchEvent(new Event("input")); }
-    await vi.advanceTimersByTimeAsync(2000);
+    await vi.advanceTimersByTimeAsync(250);
     // Assert
     expect(ui.preview).not.toHaveBeenCalled();
     if (action !== "dispose") {
@@ -201,7 +212,7 @@ describe("unified creation and suggestions", () => {
     // Arrange
     vi.useFakeTimers(); const gate = barrier(); const ui = setup(); await settle();
     ui.preview.mockImplementationOnce(async () => { await gate.promise; return { name: "Obsolète", url, price: "", image: null, warnings: [] }; });
-    ui.input.value = url; ui.input.dispatchEvent(new Event("input")); await vi.advanceTimersByTimeAsync(2000);
+    ui.input.value = url; ui.input.dispatchEvent(new Event("input")); await vi.advanceTimersByTimeAsync(250);
     // Act
     ui.input.value = url + "/new"; ui.input.dispatchEvent(new Event("input"));
     gate.resolve(); await settle();
@@ -209,7 +220,7 @@ describe("unified creation and suggestions", () => {
     expect(ui.preview.mock.calls[0][2].signal.aborted).toBe(true);
     expect(ui.values.name.value).toBe("");
     expect(ui.values.name.disabled).toBe(true);
-    await vi.advanceTimersByTimeAsync(2000); await settle();
+    await vi.advanceTimersByTimeAsync(250); await settle();
     expect(ui.preview).toHaveBeenCalledTimes(2);
     expect(ui.values.name.value).toBe("Théière");
   });
