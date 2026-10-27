@@ -29,9 +29,13 @@ describe("own lists read through a group", () => {
   it.each([
     null, { ...list, id: wishId }, { ...list, ownerId: "invalid" }, { ...list, name: " " },
     { ...list, ownerDisplayName: "Bad\nName" }, { ...list, occasion: "invalid" }, { ...list, eventDate: "2026-02-30" },
-    { ...list, message: 12 }, { ...list, wishes: null }, { ...list, canSubscribe: true },
+    { ...list, message: 12 }, { ...list, wishes: null }, { ...list, canSubscribe: null }, { ...list, canSubscribe: "true" },
   ])("rejects malformed group list metadata %#", async payload => {
     const f = setup(payload); await expect(f.load(id, { signal: f.signal })).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
+  it.each([true, false])("retains the server's following permission %s", async canSubscribe => {
+    const f = setup({ ...list, canSubscribe });
+    expect((await f.load(id, { signal: f.signal })).canSubscribe).toBe(canSubscribe);
   });
   it.each([null, { ...wish, id }, { ...wish, note: 12 }])("rejects a malformed detail response %#", async payload => {
     const f = setup(payload); await expect(f.loadOne(id, wishId, { signal: f.signal })).rejects.toMatchObject({ kind: "invalidResponse" });

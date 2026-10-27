@@ -913,6 +913,46 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/subscriptions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Follow a private group wishlist
+         * @description Requires current group membership and current access to the wishlist. The owner cannot follow their own wishlist. Following is an explicit command and never creates a public share link, participation or reservation. The follow remains bound to its original access source; removal from that group or withdrawal of group access revokes access. At most one follow per member and wishlist, shared across group and public entry points. Responses contain an authorized frontend group URL without a share secret for group-derived follows.
+         */
+        readonly post: operations["CreateGroupWishlistSubscription"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/subscriptions/current": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read current group wishlist follow
+         * @description Requires current group membership and current access to the wishlist. The owner cannot follow their own wishlist. Following is an explicit command and never creates a public share link, participation or reservation. The follow remains bound to its original access source; removal from that group or withdrawal of group access revokes access. At most one follow per member and wishlist, shared across group and public entry points. Responses contain an authorized frontend group URL without a share secret for group-derived follows.
+         */
+        readonly get: operations["GetCurrentGroupWishlistSubscription"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/wishes/{wishId}": {
         readonly parameters: {
             readonly query?: never;
@@ -2804,7 +2844,10 @@ export interface components {
             readonly name?: string;
             readonly occasion?: components["schemas"]["WishlistOccasion"];
             readonly ownerDisplayName?: string;
-            /** Format: uri */
+            /**
+             * Format: uri
+             * @description Authorized frontend URL: either a public shared wishlist with its fragment capability or a private /groups/{groupId}/wishlists/{wishlistId} route requiring current membership.
+             */
             readonly shareUrl?: string;
             /** Format: uuid */
             readonly wishlistId?: string;
@@ -8754,6 +8797,184 @@ export interface operations {
             };
             /** @description Rate limit */
             readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly CreateGroupWishlistSubscription: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 201: {
+                headers: {
+                    /** @description The created subscription URL. */
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishlistSubscriptionResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request quota was exceeded. Retry-After gives the remaining wait in seconds. */
+            readonly 429: {
+                headers: {
+                    readonly "Retry-After"?: number;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly GetCurrentGroupWishlistSubscription: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishlistSubscriptionResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request quota was exceeded. Retry-After gives the remaining wait in seconds. */
+            readonly 429: {
+                headers: {
+                    readonly "Retry-After"?: number;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

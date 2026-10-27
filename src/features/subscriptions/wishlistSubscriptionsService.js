@@ -8,12 +8,13 @@ import { isCalendarDate, isWishlistId, isWishlistOccasion } from "../wishlists/w
 /** @typedef {(id: string, options: {signal: AbortSignal}) => Promise<WishlistSubscription | null>} LoadCurrentSubscription */
 /** @typedef {(id: string, options: {signal: AbortSignal}) => Promise<WishlistSubscription>} SubscribeToWishlist */
 
-/** Uses authenticated transport and the existing private share capability.
+/** Uses authenticated transport and either a private group grant or a shared-list capability.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Current-member transport.
- * @param {{context?: import("../sharing/sharedWishlistContext.js").SharedWishlistContext, frontendOrigin?: string}} [options] Trusted origin and optional private sharing context.
+ * @param {{context?: import("../sharing/sharedWishlistContext.js").SharedWishlistContext, groupId?: string, frontendOrigin?: string}} [options] Trusted origin and optional private sharing context.
  * @returns {{load: LoadSubscriptions, remove: RemoveSubscription, loadCurrent: LoadCurrentSubscription, subscribe: SubscribeToWishlist}} Explicit subscription operations.
  */
-export function createWishlistSubscriptionsService(session, { context, frontendOrigin = window.location.origin } = {}) {
+export function createWishlistSubscriptionsService(session, { context, groupId, frontendOrigin = window.location.origin } = {}) {
+  if (groupId !== undefined && (!isWishlistId(groupId) || context)) throw new TypeError("Invalid group subscription scope.");
   return {
     async load({ signal, page = 1, pageSize = 20 }) {
       if (!Number.isInteger(page) || page < 1 || page > 2147483647 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) throw new TypeError("Invalid subscription pagination.");
@@ -60,6 +61,13 @@ export function createWishlistSubscriptionsService(session, { context, frontendO
       !isWishlistOccasion(item.occasion) || !(item.eventDate === null || isCalendarDate(item.eventDate)) ||
       typeof item.createdAt !== "string" || !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,7})?Z$/.test(item.createdAt) || !isCalendarDate(item.createdAt.slice(0, 10)) ||
       typeof item.shareUrl !== "string") throw invalid();
+    const groupPrefix = `${frontendOrigin}/groups/`;
+    if (item.shareUrl.startsWith(groupPrefix)) {
+      const parts = item.shareUrl.slice(groupPrefix.length).split("/");
+      if (parts.length !== 3 || !isWishlistId(parts[0]) || parts[1] !== "wishlists" || !isWishlistId(parts[2]) || parts[2].toLowerCase() !== item.wishlistId.toLowerCase()) throw invalid();
+      return Object.freeze({ id: item.id, wishlistId: item.wishlistId, name: item.name, ownerDisplayName: item.ownerDisplayName,
+        occasion: item.occasion, eventDate: item.eventDate, createdAt: item.createdAt, shareHref: `/groups/${parts[0].toLowerCase()}/wishlists/${parts[2].toLowerCase()}` });
+    }
     const prefix = `${frontendOrigin}/shared-wishlists/`;
     if (!item.shareUrl.startsWith(prefix)) throw invalid();
     const parts = item.shareUrl.slice(prefix.length).split("#");
@@ -71,6 +79,24 @@ export function createWishlistSubscriptionsService(session, { context, frontendO
   /** @param {string} id Share link. @param {AbortSignal} signal View lifetime. @param {boolean} mutation Explicit follow command. */
   async function shared(id, signal, mutation) {
     if (!isWishlistId(id)) throw new TypeError("Invalid share identifier.");
+    if (groupId) {
+      let response;
+      try {
+        response = await session.request(`/api/v1/groups/${groupId}/wishlists/${id}/subscriptions${mutation ? "" : "/current"}`, {
+          method: mutation ? "POST" : "GET", authentication: "required", signal, ...(mutation ? { csrf: true } : {}),
+        });
+      } catch (error) {
+        if (signal.aborted) throw createAbortError();
+        if (!mutation && error instanceof ApiError && error.statusCode === 404 && error.errorCode === "WISHLIST_SUBSCRIPTION_NOT_FOUND") return null;
+        throw error;
+      }
+      if (signal.aborted) throw createAbortError();
+      const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
+      if (response.status !== (mutation ? 201 : 200)) throw invalid();
+      const result = project(response.data, invalid);
+      if (result.wishlistId.toLowerCase() !== id.toLowerCase() || (mutation && result.shareHref !== `/groups/${groupId.toLowerCase()}/wishlists/${id.toLowerCase()}`)) throw invalid();
+      return result;
+    }
     if (!context) throw new TypeError("Share context required.");
     return context.run(id, async (shareToken, contextSignal) => {
       const combined = AbortSignal.any([signal, contextSignal]);
@@ -92,7 +118,7 @@ export function createWishlistSubscriptionsService(session, { context, frontendO
       const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
       if (response.status !== (mutation ? 201 : 200)) throw invalid();
       const result = project(response.data, invalid);
-      if (!result.shareHref.startsWith(`/shared-wishlists/${id.toLowerCase()}#`)) throw invalid();
+      if ((mutation || result.shareHref.startsWith("/shared-wishlists/")) && !result.shareHref.startsWith(`/shared-wishlists/${id.toLowerCase()}#`)) throw invalid();
       return result;
     });
   }

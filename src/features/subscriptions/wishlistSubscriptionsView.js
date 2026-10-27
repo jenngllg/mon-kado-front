@@ -103,8 +103,8 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
       content.append(date);
     }
     const actions = node("div", ""); actions.className = "wishlist-card__actions";
-    const unfollow = createButton({ label: "Se désabonner", variant: "secondary", onClick: () => { void unsubscribe(item, unfollow); } });
-    unfollow.setAttribute("aria-label", `Se désabonner de « ${item.name} »`); applyActionIcon(unfollow, "bell", "Se désabonner");
+    const unfollow = createButton({ label: "Ne plus suivre", variant: "secondary", onClick: () => { void unsubscribe(item, unfollow); } });
+    unfollow.setAttribute("aria-label", `Ne plus suivre « ${item.name} »`); applyActionIcon(unfollow, "bell", "Ne plus suivre");
     unfollow.setAttribute("aria-pressed", "true"); actions.append(unfollow);
     card.append(cover, content, actions);
     registerComponentCleanup(card, () => { link.removeAttribute("href"); cover.removeAttribute("src"); });
