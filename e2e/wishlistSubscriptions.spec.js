@@ -80,7 +80,7 @@ for (const width of [390, 1280, 1440, 1705]) {
     await expect(page.getByRole("button", { name: "Ne plus suivre", exact: true })).toBeEnabled();
     expect(api.subscriptions.writes).toBe(1);
     await page.goto("/followed-lists");
-    await page.getByRole("button", { name: /Ne plus suivre de/ }).click();
+    await page.getByRole("button", { name: /Ne plus suivre «/ }).click();
     await expect(page.getByText("Tu ne suis encore aucune liste.")).toBeVisible();
     expect(api.subscriptions.writes).toBe(2); expect(api.unexpected).toEqual([]);
   });
