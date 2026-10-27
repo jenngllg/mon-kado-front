@@ -5,14 +5,14 @@ import { applyActionIcon } from "../../components/actionIcon.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 
 /** A stateful, explicit follow command; uncertain writes require a read before another mutation.
- * @param {{shareLinkId: string, loadCurrent: import("./wishlistSubscriptionsService.js").LoadCurrentSubscription, subscribe: import("./wishlistSubscriptionsService.js").SubscribeToWishlist, remove: import("./wishlistSubscriptionsService.js").RemoveSubscription, signal: AbortSignal, onUnavailable: () => void}} options Scoped operations.
+ * @param {{shareLinkId: string, loadCurrent: import("./wishlistSubscriptionsService.js").LoadCurrentSubscription, subscribe: import("./wishlistSubscriptionsService.js").SubscribeToWishlist, remove: import("./wishlistSubscriptionsService.js").RemoveSubscription, signal: AbortSignal, onUnavailable: () => void}} options Scoped operations; the identifier is a share link or a group wishlist, according to the injected service.
  * @returns {HTMLElement} Disposable follow control.
  */
 export function createWishlistSubscriptionControl({ shareLinkId, loadCurrent, subscribe, remove, signal, onUnavailable }) {
   const host = document.createElement("div"); host.className = "wishlist-subscription-control";
   const status = document.createElement("span"); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const feedback = document.createElement("div");
-  const action = createButton({ label: "S’abonner", variant: "secondary", onClick: () => { void run(true); } });
+  const action = createButton({ label: "Suivre", variant: "secondary", onClick: () => { void run(true); } });
   action.classList.add("wishlist-subscription-action");
   const retry = createButton({ label: "Vérifier l’abonnement", variant: "secondary", onClick: () => { void run(false); } }); retry.hidden = true;
   host.append(action, status, feedback, retry);
@@ -27,7 +27,7 @@ export function createWishlistSubscriptionControl({ shareLinkId, loadCurrent, su
   return host;
 
   function controls() {
-    const label = current ? "Se désabonner" : "S’abonner";
+    const label = current ? "Ne plus suivre" : "Suivre";
     action.setAttribute("aria-label", label); applyActionIcon(action, "bell", label);
     action.setAttribute("aria-pressed", String(!!current));
     action.disabled = busy || !known || owner; action.hidden = owner;

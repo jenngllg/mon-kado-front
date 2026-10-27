@@ -102,7 +102,7 @@ describe("group-scoped wishes and reservations", () => {
   });
   it("does not accept follow capabilities, another list, duplicate wishes or invalid details", async () => {
     const f = setup(data); const service = createGroupWishlistService(f.session, { groupId: id, apiBaseUrl: "https://api.example" });
-    for (const bad of [{ ...data, canSubscribe: true }, { ...data, id: memberId }, { ...data, wishes: [wish, wish] }]) {
+    for (const bad of [{ ...data, canSubscribe: "true" }, { ...data, id: memberId }, { ...data, wishes: [wish, wish] }]) {
       f.request.mockResolvedValueOnce(response(bad)); await expect(service.load(id, f.options)).rejects.toMatchObject({ kind: "invalidResponse" });
     }
     f.request.mockResolvedValueOnce(response({ ...wish, id })); await expect(service.loadOne(id, wishId, f.options)).rejects.toMatchObject({ kind: "invalidResponse" });

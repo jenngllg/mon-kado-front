@@ -46,13 +46,13 @@ for (const width of [390, 1280, 1440, 1705]) {
     const api = await subscriptionsApi(context);
     // Act
     await page.goto(sharedPath + "#" + secret);
-    const follow = page.getByRole("button", { name: "S’abonner", exact: true });
+    const follow = page.getByRole("button", { name: "Suivre", exact: true });
     await expect(follow).toBeEnabled();
     // Assert
     expect(api.subscriptions.writes).toBe(0); expect(api.state.joins).toBe(0); expect(api.state.reservations).toBe(0);
     const target = await follow.boundingBox(); expect(target?.width).toBe(44); expect(target?.height).toBe(44);
     await follow.focus(); await follow.press("Enter");
-    await expect(page.getByRole("button", { name: "Se désabonner", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "Ne plus suivre", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.goto("/lists");
     const navigation = page.getByRole("navigation", { name: "Navigation principale", exact: true, includeHidden: true });
     await expect(navigation.getByRole("link", { name: "Listes suivies", exact: true })).toHaveCount(0);
@@ -72,15 +72,15 @@ for (const width of [390, 1280, 1440, 1705]) {
     const tile = page.locator(".wishlist-card");
     await expect(tile).toHaveCount(1); await expect(tile.getByText("Par Camille")).toBeVisible();
     await expect(tile.locator("time")).toBeVisible();
-    await expect(tile.getByRole("button", { name: /Se désabonner/ })).toBeVisible();
+    await expect(tile.getByRole("button", { name: /Ne plus suivre/ })).toBeVisible();
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("followed-lists.png"), fullPage: true });
     await tile.locator(".wishlist-card__open").click();
     await expect(page).toHaveURL(new RegExp(sharedPath + "$"));
-    await expect(page.getByRole("button", { name: "Se désabonner", exact: true })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Ne plus suivre", exact: true })).toBeEnabled();
     expect(api.subscriptions.writes).toBe(1);
     await page.goto("/followed-lists");
-    await page.getByRole("button", { name: /Se désabonner de/ }).click();
+    await page.getByRole("button", { name: /Ne plus suivre de/ }).click();
     await expect(page.getByText("Tu ne suis encore aucune liste.")).toBeVisible();
     expect(api.subscriptions.writes).toBe(2); expect(api.unexpected).toEqual([]);
   });
@@ -90,12 +90,12 @@ test("ambiguous follow requires an explicit read and revocation removes the gall
   const api = await subscriptionsApi(context); api.subscriptions.uncertain = true;
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(sharedPath + "#" + secret);
-  await page.getByRole("button", { name: "S’abonner", exact: true }).click();
+  await page.getByRole("button", { name: "Suivre", exact: true }).click();
   await expect(page.getByRole("button", { name: "Vérifier l’abonnement" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "S’abonner", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Suivre", exact: true })).toBeDisabled();
   expect(api.subscriptions.writes).toBe(1);
   await page.getByRole("button", { name: "Vérifier l’abonnement" }).click();
-  await expect(page.getByRole("button", { name: "Se désabonner", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Ne plus suivre", exact: true })).toBeEnabled();
   expect(api.subscriptions.writes).toBe(1);
   api.state.revoked = true;
   await page.goto("/followed-lists");
@@ -106,7 +106,7 @@ test("ambiguous follow requires an explicit read and revocation removes the gall
 test("anonymous follow continues through login without an automatic subscription", async ({ page, context }) => {
   const api = await controlledApi(context);
   await page.goto(sharedPath + "#" + secret);
-  await page.getByRole("button", { name: "Se connecter pour s’abonner", exact: true }).click();
+  await page.getByRole("button", { name: "Se connecter pour suivre", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Se connecter", exact: true })).toBeVisible();
   expect(api.state.joins).toBe(0); expect(api.state.reservations).toBe(0); expect(api.unexpected).toEqual([]);
 });
