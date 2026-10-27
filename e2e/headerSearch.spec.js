@@ -14,6 +14,7 @@ for (const width of [320, 390, 768, 1024, 1280, 1440]) {
       return route.fulfill({ json: { items: [], currentPage: 1, pageSize: 20, totalCount: 0 }, headers: { 'Access-Control-Allow-Origin': frontendOrigin, 'Access-Control-Allow-Credentials': 'true' } });
     });
     await page.goto('/lists');
+    await expect(page.locator('.wishlist-card')).toHaveCount(1);
     const header = page.locator('header'), search = header.getByRole('search', { name: 'Recherche de membres' });
     const toggle = search.getByRole('button', { name: 'Rechercher un membre', exact: true });
     const field = search.getByRole('searchbox', { name: 'Pseudo ou identifiant', exact: true });
@@ -42,7 +43,11 @@ for (const width of [320, 390, 768, 1024, 1280, 1440]) {
     await expect(page).toHaveURL('/members?q=Camille');
     await expect(page.getByText('Aucun membre trouvé', { exact: true }).last()).toBeVisible();
     expect(searches).toEqual(['Camille']); await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await toggle.click(); await field.fill('Alex#0428'); await search.getByRole('button', { name: 'Lancer la recherche', exact: true }).click();
+    await toggle.click(); await field.fill('Alex#0428');
+    await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/members' && new URL(response.url()).searchParams.get('displayName') === 'Alex#0428'),
+      search.getByRole('button', { name: 'Lancer la recherche', exact: true }).click(),
+    ]);
     await expect(page).toHaveURL('/members?q=Alex%230428'); expect(searches).toEqual(['Camille', 'Alex#0428']);
     await toggle.click(); await page.getByRole('heading', { name: 'Rechercher un membre', exact: true }).click();
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
