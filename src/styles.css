@@ -20,3 +20,4 @@
 
 @import "./styles/groups.css" layer(components);
 @import "./styles/wish-preferences.css" layer(components);
+@import "./styles/header-search.css" layer(components);

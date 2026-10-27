@@ -48,9 +48,8 @@ describe("private group contracts", () => {
     f.request.mockResolvedValueOnce(response(page([list])));
     expect((await f.service.wishlists(id, f.options)).items).toEqual([list]);
   });
-  it("separates sending, accepting, declining and revoking invitations", async () => {
-    const f = setup(invitation, 201);
-    expect(await f.service.invite(id, memberId, f.options)).toEqual(invitation);
+  it("keeps accepting, declining and revoking existing invitations available", async () => {
+    const f = setup(group);
     f.request.mockResolvedValueOnce(response(group));
     expect(await f.service.accept(id, f.options)).toEqual(group);
     expect(f.request).toHaveBeenLastCalledWith(`/api/v1/group-invitations/${id}/accept`, expect.objectContaining({ method: "POST", csrf: true }));

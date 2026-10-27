@@ -58,7 +58,8 @@ describe("application shell", () => {
   it.each(["anonymous", "initializing", "authenticated", "signingOut", "unavailable"])("keeps member search available in session state %s", status => {
     const shell = createTestShell();
     shell.setSession({ status: /** @type {import("../src/auth/sessionManager.js").SessionSnapshot["status"]} */ (status), user: null, etag: null, logoutPending: false, issue: null });
-    expect(shell.element.querySelector('nav a[href="/members"]')?.textContent).toBe("Rechercher un membre");
+    expect(shell.element.querySelector('header button[aria-label="Rechercher un membre"]')).not.toBeNull();
+    expect(shell.element.querySelector('nav a[href="/members"]')).toBeNull();
   });
   it("styles logout as a navigation item while retaining button behavior", () => {
     let calls = 0;
@@ -114,13 +115,11 @@ describe("application shell", () => {
     const links = [...shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')];
     expect(links.map((link) => link.textContent)).toEqual([
       "Accueil",
-      "Rechercher un membre",
       "Connexion",
       "S’inscrire",
     ]);
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       "/",
-      "/members",
       "/login",
       "/register",
     ]);
@@ -197,6 +196,7 @@ describe("application shell", () => {
     [RouteNames.Members, "Rechercher un membre"],
     [RouteNames.MemberProfile, "Rechercher un membre"],
     [RouteNames.Lists, "Mes listes"],
+    [RouteNames.FollowedLists, "Mes listes"],
     [RouteNames.NewList, "Mes listes"],
     [RouteNames.EditList, "Mes listes"],
       [RouteNames.NewWish, "Mes listes"],
@@ -213,7 +213,7 @@ describe("application shell", () => {
     const shell = createTestShell();
     document.body.append(shell.element);
     getMenuButton(shell.element).click();
-    if ([RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.ListDetails, RouteNames.Reservations].some(name => name === routeName)) {
+    if ([RouteNames.Lists, RouteNames.FollowedLists, RouteNames.NewList, RouteNames.EditList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.ListDetails, RouteNames.Reservations].some(name => name === routeName)) {
       shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
     }
 
@@ -224,8 +224,10 @@ describe("application shell", () => {
     const currentLinks = shell.element.querySelectorAll(
       '.app-navigation__link[aria-current="page"]',
     );
-    expect(currentLinks).toHaveLength(1);
-    expect(currentLinks[0]?.textContent).toBe(expectedLabel);
+    const searchRoute = routeName === RouteNames.Members || routeName === RouteNames.MemberProfile;
+    expect(currentLinks).toHaveLength(searchRoute ? 0 : 1);
+    if (searchRoute) expect(shell.element.querySelector('.app-member-search--active')).not.toBeNull();
+    else expect(currentLinks[0]?.textContent).toBe(expectedLabel);
     expect(getNavigation(shell.element).dataset.open).toBe("false");
   });
 

@@ -159,7 +159,7 @@ describe("owner wish gallery tile", () => {
     // Act
     const card = setup({ isFavorite: true, wishlistId: undefined }, false, { reordering: true, favoriteButton, onDelete });
     // Assert
-    expect(card.querySelector("a, button, [role=img]")).toBeNull();
+    expect(card.querySelector("a, button, [role=img]:not(.image-placeholder)")).toBeNull();
     expect(card.querySelector(".wish-gallery__photo")?.tagName).toBe("DIV"); expect(card.querySelector("h3 span")?.textContent).toBe(item.name);
     expect(card.querySelector(".wish-card__price")?.textContent).toBe("12,00 €"); expect(onDelete).not.toHaveBeenCalled();
   });
@@ -249,6 +249,6 @@ describe("owner wish gallery tile", () => {
     const card = setup({ name: "<script>alert(1)</script>", url: null, imageUnavailable: true });
     // Assert
     expect(card.querySelector("script")).toBeNull(); expect(card.querySelector("h3")?.textContent).toBe("<script>alert(1)</script>");
-    expect(card.querySelector('a[target="_blank"]')).toBeNull(); expect(card.textContent).toContain("Image indisponible");
+    expect(card.querySelector('a[target="_blank"]')).toBeNull(); expect(card.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Image indisponible");
   });
 });

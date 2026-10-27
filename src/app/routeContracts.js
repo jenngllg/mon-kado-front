@@ -20,6 +20,7 @@ export const RouteNames = Object.freeze({
   FollowedLists: "followed-lists",
   Groups: "groups",
   GroupJoin: "group-join",
+  GroupInvitation: "group-invitation",
   Group: "group",
   GroupEdit: "group-edit",
   GroupMember: "group-member",
@@ -63,6 +64,7 @@ export const RoutePaths = Object.freeze({
   FollowedLists: "/followed-lists",
   Groups: "/groups",
   GroupJoin: "/groups/join",
+  GroupInvitation: "/groups/join/:groupId",
   Group: "/groups/:groupId",
   GroupEdit: "/groups/:groupId/edit",
   GroupMember: "/groups/:groupId/members/:memberId",
@@ -96,7 +98,6 @@ export const NavigationItems = Object.freeze([
     href: RoutePaths.Lists,
     routeName: RouteNames.Lists,
   }),
-  Object.freeze({ label: "Listes suivies", href: RoutePaths.FollowedLists, routeName: RouteNames.FollowedLists }),
   Object.freeze({ label: "Mes groupes", href: RoutePaths.Groups, routeName: RouteNames.Groups }),
   Object.freeze({
     label: "Mes réservations",

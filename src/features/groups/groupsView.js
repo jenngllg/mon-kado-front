@@ -6,8 +6,10 @@ import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { readProfilePhoto } from "../profile/profileImageService.js";
 import { createGroupAvatar } from "./groupPhoto.js";
-import { openGroupInvitationDialog } from "./groupInvitationDialog.js";
 import { openGroupShareDialog } from "./groupShareDialog.js";
+import { openGroupCreateDialog } from "./groupCreateDialog.js";
+import { applyActionIcon } from "../../components/actionIcon.js";
+import { prependShareDialogIcon } from "../../components/shareDialogIcons.js";
 
 /** @typedef {ReturnType<typeof import("./groupsService.js").createGroupsService>} GroupsService */
 /** @typedef {{service:GroupsService,signal:AbortSignal,navigate:(path:string)=>void,apiBaseUrl?:string}} GroupsOptions */
@@ -16,9 +18,7 @@ import { openGroupShareDialog } from "./groupShareDialog.js";
 export function createGroupsView({ service, signal, navigate, apiBaseUrl = "" }) {
   const frame = createFrame("Mes groupes", signal);
   const create = createButton({ label: "Créer un groupe", onClick: () => {
-    openDialog(frame, create, { title: "Créer un groupe", label: "Créer", name: "", save: async name => {
-      const result = await service.create(name, { signal: frame.signal }); navigate(`/groups/${result.group.id}`);
-    } });
+    openGroupCreateDialog({ parent: frame.element, trigger: create, service, signal: frame.signal, navigate, onClose: () => { void frame.read(); } });
   } });
   const join = createActionLink({ label: "Rejoindre un groupe", href: "/groups/join" });
   frame.actions.append(join, create);
@@ -64,9 +64,8 @@ export function createGroupsView({ service, signal, navigate, apiBaseUrl = "" })
   return frame.element;
 }
 
-/** @param {GroupsOptions & {groupId:string,memberId:string,apiBaseUrl:string,
- * search:import("../members/memberSearchService.js").SearchMembers}} options Explicitly scoped group details. @returns {HTMLElement} */
-export function createGroupView({ service, groupId, memberId, apiBaseUrl, search, signal, navigate }) {
+/** @param {GroupsOptions & {groupId:string,memberId:string,apiBaseUrl:string}} options Explicitly scoped group details. @returns {HTMLElement} */
+export function createGroupView({ service, groupId, memberId, apiBaseUrl, signal, navigate }) {
   const frame = createFrame("Mon groupe", signal);
   const back = createBackLink({ label: "Retour à Mes groupes", href: "/groups" });
   back.classList.add("group-return");
@@ -84,30 +83,29 @@ export function createGroupView({ service, groupId, memberId, apiBaseUrl, search
     if (previousAvatar instanceof HTMLElement) { disposeComponent(previousAvatar); previousAvatar.remove(); }
     frame.title.before(createGroupAvatar(group, apiBaseUrl));
     document.title = `${group.name} · MonKado`;
+    const invite = createButton({ label: "Inviter un proche", variant: "secondary", onClick: () => {
+      openGroupShareDialog({ parent: frame.element, trigger: invite, signal: frame.signal, groupId, group, apiBaseUrl, owner, service });
+    } });
+    invite.setAttribute("aria-label", "Inviter un proche"); invite.title = "Inviter un proche";
+    invite.replaceChildren(); prependShareDialogIcon(invite, "share");
+    invite.classList.add("group-invite-action", "icon-action");
     if (owner) {
       const edit = createActionLink({ label: "Modifier le groupe", href: `/groups/${groupId}/edit` });
       edit.classList.add("ui-button", "ui-button--secondary");
-      const remove = createButton({ label: "Supprimer le groupe", onClick: () => openDialog(frame, remove, {
+      applyActionIcon(edit, "edit", "Modifier le groupe");
+      const remove = createButton({ label: "Supprimer le groupe", variant: "secondary", onClick: () => openDialog(frame, remove, {
         title: "Supprimer ce groupe ?", description: "Les membres perdront l’accès aux listes partagées dans ce groupe. Les listes et les souhaits seront conservés.", label: "Supprimer", danger: true,
         save: async () => { await service.remove(groupId, { etag, signal: frame.signal }); navigate("/groups"); },
       }) });
-      frame.actions.append(edit, remove);
+      applyActionIcon(remove, "delete", "Supprimer le groupe"); remove.classList.add("icon-action--danger");
+      frame.actions.append(edit, invite, remove);
     } else {
       const leave = createButton({ label: "Quitter le groupe", variant: "secondary", onClick: () => openDialog(frame, leave, {
         title: "Quitter ce groupe ?", description: "Tu perdras les accès accordés par ce groupe. Tes listes n’y seront plus partagées.", label: "Quitter", danger: true,
         save: async () => { await service.leave(groupId, { signal: frame.signal }); navigate("/groups"); },
       }) });
-      frame.actions.append(leave);
+      frame.actions.append(leave, invite);
     }
-    const share = createButton({ label: "Partager le groupe", variant: "secondary", onClick: () => {
-      openGroupShareDialog({ parent: frame.element, trigger: share, signal: frame.signal, groupId, owner, service });
-    } });
-    const invite = createButton({ label: "Inviter un proche", variant: "secondary", onClick: () => {
-      openGroupInvitationDialog({ parent: frame.element, trigger: invite, signal: frame.signal, search,
-        invite: (id, signal) => service.invite(groupId, id, { signal }), onRefresh: frame.read });
-    } });
-    invite.classList.add("group-invite-action");
-    frame.actions.append(share, invite);
     const people = node("section", "", "group-people flow");
     const roster = node("ul", "", "group-members"); roster.setAttribute("role", "list"); roster.setAttribute("aria-label", "Membres du groupe");
     for (const person of members.items) {
@@ -125,6 +123,8 @@ export function createGroupView({ service, groupId, memberId, apiBaseUrl, search
           description: "Ses listes ne seront plus partagées ici et cette personne perdra les accès accordés par le groupe.",
           save: async () => { await service.removeMember(groupId, person.id, { signal: frame.signal }); },
         }) });
+        applyActionIcon(remove, "delete", `Retirer ${person.displayName} du groupe`);
+        remove.classList.add("group-member__remove");
         row.append(remove);
       }
       roster.append(row);

@@ -5,6 +5,7 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createWishlistShareRenewDialog } from "./wishlistShareRenewDialog.js";
 import { createWishlistShareRevokeDialog } from "./wishlistShareRevokeDialog.js";
+import { createLocalQrCode } from "../twoFactor/localQrCode.js";
 import { shareWishlistWithSystem, openWishlistMailComposer, openWishlistMessengerComposer, openWishlistShareWindow, ShareChannels, wishlistShareDestination, wishlistShareMessage } from "./wishlistShareChannels.js";
 
 /** Owner-only share section, independent of the gift collection.
@@ -24,6 +25,7 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
   const empty = document.createElement("p"); empty.textContent = "Aucun lien de partage créé";
   const input = document.createElement("textarea"); input.readOnly = true; input.rows = 2; input.spellcheck = false; input.autocomplete = "off";
   const field = createFormField({ label: "Lien de partage", control: input });
+  const qr = document.createElement("div"); qr.className = "wishlist-share__qr"; qr.hidden = true;
   const channels = document.createElement("div"); channels.className = "wishlist-share__channels";
   channels.setAttribute("role", "group"); channels.setAttribute("aria-label", "Partager la liste sur un canal");
   const channelButtons = ShareChannels.map(channel => {
@@ -43,9 +45,10 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
   const renewButton = createButton({ label: "Renouveler le lien", variant: "secondary", onClick: openRenewal });
   const revokeButton = createButton({ label: "Désactiver le partage", variant: "danger", onClick: openRevocation });
   const linkRow = document.createElement("div"); linkRow.className = "wishlist-share__link-row"; linkRow.append(field, copy);
-  actions.append(generate, renewButton, revokeButton); section.append(title, help, feedback, status, empty, linkRow, channels, actions);
+  actions.append(generate, renewButton, revokeButton); section.append(title, help, feedback, status, empty, qr, linkRow, channels, actions);
   const lifetime = new AbortController();
   let disposed = false; let busy = false; let terminal = false; let absent = false;
+  let qrLink = "";
   /** @type {import("./wishlistShareService.js").WishlistShareLink | null} */ let link = null;
   /** @type {HTMLDialogElement | null} */ let dialog = null;
   /** @type {import("./wishlistShareChannels.js").ShareWindow | null} */ let pendingWindow = null;
@@ -66,9 +69,20 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     field.hidden = !link || terminal || disposed;
     linkRow.hidden = !link || terminal || disposed;
     channels.hidden = !link || terminal || disposed;
+    syncQr();
     renewButton.hidden = !renew || !link || busy || terminal || disposed;
     revokeButton.hidden = !revoke || !wishlistName || !link || busy || terminal || disposed;
     for (const button of [generate, copy, renewButton, revokeButton, ...channelButtons]) button.disabled = busy || terminal || disposed || dialog !== null || (channelButtons.includes(button) && !link);
+  }
+  function syncQr() {
+    const current = !terminal && !disposed ? link?.shareUrl ?? "" : "";
+    qr.hidden = !current;
+    if (current === qrLink) return;
+    qrLink = current; qr.replaceChildren();
+    if (!current) return;
+    const code = createLocalQrCode(current);
+    code.setAttribute("aria-label", "QR code pour ouvrir la liste");
+    qr.append(code);
   }
   function openRevocation() {
     if (!revoke || !wishlistName || !link || disposed || terminal || busy || dialog) return;

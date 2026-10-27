@@ -264,7 +264,7 @@ describe("session routes and shell", () => {
     // Assert
     expect(app.shell.sessionFeedback.textContent).toContain("Déconnexion serveur non confirmée");
     expect(app.shell.sessionFeedback.querySelector("button")?.textContent).toBe("Réessayer");
-    expect([...app.shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')].map(link => link.textContent)).toEqual(["Accueil", "Rechercher un membre", "Connexion", "S’inscrire"]);
+    expect([...app.shell.element.querySelectorAll('nav[aria-label="Navigation principale"] a')].map(link => link.textContent)).toEqual(["Accueil", "Connexion", "S’inscrire"]);
   });
 
   it("revalidates a guarded route even when navigating to its current URL", async () => {
@@ -322,7 +322,7 @@ describe("session routes and shell", () => {
     // Arrange
     const app = mount(); await app.start(); await app.session.start();
     const routes = createApplicationRoutes({ session: app.session, apiBaseUrl: "http://localhost:7000" });
-    expect(routes).toHaveLength(40);
+    expect(routes).toHaveLength(41);
     const button = [...app.shell.element.querySelectorAll("button")].find(item => item.textContent === "Se déconnecter");
     app.dispose(); app.dispose();
     const requests = app.transport.fetch.mock.calls.length;
@@ -330,7 +330,7 @@ describe("session routes and shell", () => {
     button?.click();
     // Assert
     expect(app.transport.fetch.mock.calls.length).toBe(requests);
-    expect(app.shell.element.querySelector("form")).toBeNull();
+    expect(app.shell.outlet.querySelector("form")).toBeNull();
   });
 });
 

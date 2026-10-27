@@ -5,6 +5,7 @@ import { applyActionIcon } from "../../components/actionIcon.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { wishlistArtwork } from "../wishlists/wishlistArtwork.js";
 import { WishlistOccasions } from "../wishlists/wishlistValidation.js";
+import { createWishlistOverviewToolbar } from "../wishlists/wishlistOverviewToolbar.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -14,7 +15,7 @@ const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "lo
  */
 export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }) {
   const view = node("section", ""); view.className = "wishlists-view wishlist-subscriptions-view flow";
-  const title = node("h1", "Listes suivies"); title.tabIndex = -1;
+  const title = node("h1", "Mes listes"); title.tabIndex = -1;
   const header = node("div", ""); header.className = "wishlists-view__header"; header.append(title);
   const status = node("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const results = node("div", ""); results.className = "wishlists-view__results flow";
@@ -24,7 +25,7 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
   const next = createButton({ label: "Suivante", variant: "secondary", onClick: () => { if (!busy && page < pages) { page += 1; void read(); } } });
   pagination.append(previous, next);
   pagination.hidden = true;
-  view.append(header, status, feedback, results, pagination);
+  view.append(header, createWishlistOverviewToolbar("followed"), status, feedback, results, pagination);
   const lifetime = new AbortController();
   const combined = AbortSignal.any([signal, lifetime.signal]);
   let disposed = false, busy = false, page = 1, pages = 0;

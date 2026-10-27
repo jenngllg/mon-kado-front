@@ -23,6 +23,11 @@ function setup(overrides = {}) {
   return { dialog, loadOne, createReservation, renderReservation, onSaved, onUnavailable, onClose };
 }
 describe("reading-card reservation", () => {
+  it("does not offer reservation after a fresh read declares the wish read-only", async () => {
+    const ui = setup({ loadOne: async () => ({ ...wish, canReserve: false }) }); await settle();
+    expect(ui.createReservation).not.toHaveBeenCalled();
+    expect(ui.dialog.textContent).toContain("La réservation n’est pas disponible pour ce souhait.");
+  });
   it("blocks Escape during a pending write, then restores close and reports success once", async () => {
     const section = document.createElement("section"); section.setAttribute("aria-busy", "true");
     const ui = setup({ createReservation: () => (...args) => { Reflect.set(section, "callbacks", args); return section; } });

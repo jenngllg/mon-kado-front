@@ -1,6 +1,8 @@
 import gripSource from "../assets/icons/grip-vertical.svg?raw";
 
 const Paths = {
+  search: "M21 21l-5-5M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0",
+  arrowRight: "M5 12h14M12 5l7 7-7 7",
   bell: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4",
   heart: "M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z",
   add: "M12 5v14M5 12h14",

@@ -11,7 +11,8 @@ export function readGroupPhoto(value, groupId, apiBaseUrl) {
     if (typeof value !== "string" || value.trim() !== value || /[\s\\]/u.test(value)) throw new Error();
     const url = new URL(value), base = new URL(apiBaseUrl), token = url.searchParams.get("token");
     if (!isWishlistId(groupId) || !["http:", "https:"].includes(url.protocol) || url.origin !== base.origin || url.username || url.password || url.hash ||
-      url.pathname !== `/api/v1/groups/${groupId}/image` || url.searchParams.size !== 1 || !token || !/^[A-Za-z0-9_-]+$/.test(token)) throw new Error();
+      !((url.pathname === `/api/v1/groups/${groupId}/image` && url.searchParams.size === 1 && token && /^[A-Za-z0-9_-]+$/.test(token)) ||
+        (url.pathname === `/api/v1/groups/${groupId}/preview/image` && !url.search))) throw new Error();
     return Object.freeze({ imageUrl: url.href, imageUnavailable: false });
   } catch { return Object.freeze({ imageUrl: null, imageUnavailable: true }); }
 }

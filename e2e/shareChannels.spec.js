@@ -44,6 +44,11 @@ for (const width of [390, 1440]) {
     expect(destinations).toEqual([]); expect(shareWrites).toBe(0);
     for (const icon of await group.locator("img").all()) expect(await icon.evaluate(node => /** @type {HTMLImageElement} */ (node).naturalWidth)).toBeGreaterThan(0);
     const input = page.getByRole("textbox", { name: "Lien de partage" });
+    const qr = page.getByRole("img", { name: "QR code pour ouvrir la liste", exact: true });
+    await expect(qr).toBeVisible();
+    const originalQr = await qr.locator("path").getAttribute("d");
+    const qrBox = await qr.boundingBox();
+    expect(qrBox?.width).toBeGreaterThanOrEqual(200); expect(qrBox?.width).toBe(qrBox?.height);
     await input.focus(); await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: "Copier le lien", exact: true })).toBeFocused();
     const button = group.getByRole("button", { name: "Partager par Facebook", exact: true });
@@ -87,6 +92,7 @@ for (const width of [390, 1440]) {
     await page.locator(".wishlist-share-renew-dialog").getByRole("button", { name: "Renouveler le lien", exact: true }).click();
     await expect(page.locator(".wishlist-share-renew-dialog")).toHaveCount(0);
     await expect(input).toHaveValue(shareUrl());
+    await expect(qr).toBeVisible(); expect(await qr.locator("path").getAttribute("d")).not.toBe(originalQr);
     const renewedPopupPromise = page.waitForEvent("popup"); await button.click();
     const renewedPopup = await renewedPopupPromise; await renewedPopup.waitForURL(/^https:/);
     expect(new URL(renewedPopup.url()).searchParams.get("u")).toBe(shareUrl()); await renewedPopup.close();
@@ -100,6 +106,7 @@ for (const width of [390, 1440]) {
     await page.locator(".wishlist-share-revoke-dialog").getByRole("button", { name: "Désactiver le partage", exact: true }).click();
     await expect(page.locator(".wishlist-share-revoke-dialog")).toHaveCount(0);
     await expect(group).toBeHidden(); expect(shareWrites).toBe(2);
+    await expect(qr).toHaveCount(0);
     expect(api.unexpected).toEqual([]);
     api.wishlist.isArchived = true; await page.reload(); await expect(group).toHaveCount(0);
     api.wishlist.isArchived = false; api.wishlist.isSuspended = true; await page.reload(); await expect(group).toHaveCount(0);

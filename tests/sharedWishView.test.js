@@ -19,6 +19,16 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("shared gift presentation", () => {
+  it.each([true, false])("reads an owner's group wish without reservation controls with surprise mode %s", async surprise => {
+    const createReservation = vi.fn();
+    const own = { ...wish, canReserve: false, currentParticipantReservedQuantity: null, ...(surprise ? { reservedQuantity: null, availableQuantity: null } : {}) };
+    const ui = setup({ groupId: shareLinkId, loadOne: async () => own, createReservation }); await settle();
+    expect(ui.view.querySelector("h1")?.textContent).toBe(wish.name);
+    expect(createReservation).not.toHaveBeenCalled();
+    expect(ui.view.querySelector(".shared-wish-introduction")?.hasAttribute("hidden")).toBe(true);
+    expect(ui.view.textContent?.includes("Quantité disponible")).toBe(!surprise);
+    expect(ui.view.querySelector('a[href*="/groups/"]')?.getAttribute("href")).toContain(`/groups/${shareLinkId}/wishlists/${shareLinkId}`);
+  });
   it("shows only the reserved badge instead of quantities for one reserved unit", async () => {
     const ui = setup({ loadOne: async () => ({ ...wish, quantity: 1, reservedQuantity: 1, availableQuantity: 0, currentParticipantReservedQuantity: 0 }) });
     await settle();
@@ -91,10 +101,10 @@ describe("shared gift presentation", () => {
   });
   it.each([false, true])("renders absent note and unavailable media state %s", async unavailable => {
     const ui = setup({ loadOne: async () => ({ ...wish, note: null, price: null, imageUrl: null, url: null, imageUnavailable: unavailable, productUnavailable: unavailable }) }); await settle();
-    expect(ui.view.querySelector(".wishlist-details-note")).toBeNull(); expect(ui.view.querySelector(".wish-card__price")).toBeNull(); expect(ui.view.textContent).toContain(unavailable ? "Image indisponible" : "Sans image"); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
+    expect(ui.view.querySelector(".wishlist-details-note")).toBeNull(); expect(ui.view.querySelector(".wish-card__price")).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe(unavailable ? "Image indisponible" : "Sans image"); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
   });
   it("removes an expired image source without losing the detail or retrying automatically", async () => {
-    const ui = setup(); await settle(); const img = ui.view.querySelector("img"); img?.dispatchEvent(new Event("error")); await settle(); expect(img?.getAttribute("src")).toBeNull(); expect(ui.view.textContent).toContain("Image indisponible"); expect(ui.view.textContent).toContain(wish.name); expect(ui.loadOne).toHaveBeenCalledOnce();
+    const ui = setup(); await settle(); const img = ui.view.querySelector("img"); img?.dispatchEvent(new Event("error")); await settle(); expect(img?.getAttribute("src")).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Image indisponible"); expect(ui.view.textContent).toContain(wish.name); expect(ui.loadOne).toHaveBeenCalledOnce();
     window.dispatchEvent(new Event("focus")); await settle(); expect(ui.loadOne).toHaveBeenCalledTimes(2); expect(ui.view.querySelector("img")).not.toBeNull();
   });
   it("refreshes on window return, prevents double reads and does not steal focus", async () => {

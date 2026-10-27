@@ -23,9 +23,10 @@ export function createGroupWishlistService(session, { groupId, apiBaseUrl }) {
       const v = /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["SharedWishlistResponse"]>|null} */ (response.data);
       if (response.status !== 200 || !v || v.id !== id || !isWishlistId(v.ownerId) || !name(v.name) || !name(v.ownerDisplayName) || !isWishlistOccasion(v.occasion) ||
         !(v.eventDate === null || isCalendarDate(v.eventDate)) || !(v.message === null || typeof v.message === "string") || !Array.isArray(v.wishes) || v.canSubscribe !== false) throw invalid();
+      if (v.canReserve !== undefined && typeof v.canReserve !== "boolean") throw invalid();
       const wishes = v.wishes.map(wish => projectWish(wish, id, base, invalid, true, path));
       if (new Set(wishes.map(wish => wish.id)).size !== wishes.length) throw invalid();
-      return Object.freeze({ id, ownerId: v.ownerId, name: v.name, ownerDisplayName: v.ownerDisplayName, occasion: v.occasion, eventDate: v.eventDate, message: v.message, canSubscribe: false, wishes: Object.freeze(wishes) });
+      return Object.freeze({ id, ownerId: v.ownerId, name: v.name, ownerDisplayName: v.ownerDisplayName, occasion: v.occasion, eventDate: v.eventDate, message: v.message, canReserve: v.canReserve, canSubscribe: false, wishes: Object.freeze(wishes) });
     },
     loadOne: async (id, wishId, { signal }) => {
       const path = resource(id);

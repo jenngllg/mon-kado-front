@@ -46,7 +46,7 @@
   align-items: center;
   min-height: var(--control-min-size);
   color: var(--color-text);
-  font-size: var(--font-size-xl);
+  font-size: calc(var(--font-size-xl) * 1.25);
   font-weight: var(--font-weight-bold);
   letter-spacing: -0.04em;
   line-height: var(--line-height-tight);
@@ -55,8 +55,8 @@
 
 .app-brand::before {
   content: "";
-  width: 26px;
-  height: 26px;
+  width: 1.182em;
+  height: 1.182em;
   flex-shrink: 0;
   margin-right: var(--space-2);
   background-color: var(--color-accent);

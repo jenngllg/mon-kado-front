@@ -1,8 +1,6 @@
 /* Approved shared-list reading layouts; owner and form layouts stay independent. */
 .app-main:has(.wishlists-view) { position: relative; isolation: isolate; background: none; }
-.app-main:has(.wishlists-view)::before,
 .app-main:has(.wishlists-view)::after { content: ""; position: absolute; z-index: -1; pointer-events: none; width: 9rem; aspect-ratio: 480 / 492; background: url("../assets/design/botanical-complete.webp") center / contain no-repeat; opacity: .24; }
-.app-main:has(.wishlists-view)::before { inset-block-start: var(--space-4); inset-inline-start: 0; }
 .app-main:has(.wishlists-view)::after { inset-block-end: var(--space-4); inset-inline-end: 0; }
 
 /* 03 — the same full-bleed context and two horizontal card columns as the selected concept. */

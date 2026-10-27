@@ -35,14 +35,13 @@ function setup({ detail = false, owner = true, empty = false, pending = false } 
     return response(page(empty ? [] : [group], 100));
   });
   const service = createGroupsService({ request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request) });
-  const search = vi.fn(/** @type {import("../src/features/members/memberSearchService.js").SearchMembers} */ (async () => page([{ id: otherId, displayName: "Alex", displayNameTag: "0001" }])));
   const options = { service, signal: controller.signal, navigate };
-  const view = detail ? createGroupView({ ...options, groupId: id, memberId: owner ? memberId : otherId, apiBaseUrl: "https://api.example", search }) : createGroupsView(options);
+  const view = detail ? createGroupView({ ...options, groupId: id, memberId: owner ? memberId : otherId, apiBaseUrl: "https://api.example" }) : createGroupsView(options);
   globalThis.document.body.append(view);
-  return { view, request, service, controller, navigate, search };
+  return { view, request, service, controller, navigate };
 }
 /** @param {HTMLElement} view @param {string} label */
-function button(view, label) { const found = [...view.querySelectorAll("button")].find(button => button.textContent === label); if (!found) throw new Error(`Missing button: ${label}`); return found; }
+function button(view, label) { const found = [...view.querySelectorAll("button")].find(button => (button.getAttribute("aria-label") ?? button.textContent) === label); if (!found) throw new Error(`Missing button: ${label}`); return found; }
 
 describe("group overview", () => {
   it("keeps a pending creation modal open on Escape and validates a blank name locally", async () => {
@@ -116,11 +115,14 @@ describe("group overview", () => {
 });
 
 describe("private group detail", () => {
-  it("retains the separate sharing dialog and restores its trigger without an implicit write", async () => {
+  it("opens only link and code invitations and restores focus without an implicit write", async () => {
     const f = setup({ detail: true }); await settle();
     f.request.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 404, errorCode: "GROUP_JOIN_LINK_NOT_FOUND" }));
-    const share = button(f.view, "Partager le groupe"); share.click(); await settle();
+    const share = button(f.view, "Inviter un proche"); share.click(); await settle();
     expect(f.view.querySelector(".group-share-dialog")?.hasAttribute("open")).toBe(true);
+    expect(f.view.querySelector('input[type="search"]')).toBeNull();
+    expect(f.view.querySelector(".group-invite-search, .group-search-form")).toBeNull();
+    expect(f.request.mock.calls.some(([path]) => path.startsWith("/api/v1/members"))).toBe(false);
     expect(button(f.view, "Activer le partage").disabled).toBe(false);
     button(f.view, "Fermer").click(); expect(f.view.querySelector("dialog")).toBeNull();
     expect(globalThis.document.activeElement).toBe(share);
@@ -129,43 +131,16 @@ describe("private group detail", () => {
   it("disposes an open invitation dialog when navigating away", async () => {
     const f = setup({ detail: true }); await settle(); button(f.view, "Inviter un proche").click();
     expect(f.view.querySelector("dialog")?.open).toBe(true); f.controller.abort();
-    expect(f.view.querySelector("dialog")).toBeNull(); expect(f.search).not.toHaveBeenCalled();
+    expect(f.view.querySelector("dialog")).toBeNull();
   });
   it("combines organizer name and photo editing behind one native page link", async () => {
     const f = setup({ detail: true }); await settle();
     const edit = f.view.querySelector(`a[href="/groups/${id}/edit"]`);
-    expect(edit?.textContent).toBe("Modifier le groupe");
+    expect(edit?.getAttribute("aria-label")).toBe("Modifier le groupe");
+    expect(edit?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     expect(f.view.textContent).not.toContain("Photo du groupe");
     expect(f.view.textContent).not.toContain("Renommer");
     expect(f.view.querySelector("dialog")).toBeNull();
-  });
-  it("opens invitation search only in a modal and restores focus on Escape without sending", async () => {
-    const f = setup({ detail: true }); await settle(); const invite = button(f.view, "Inviter un proche");
-    expect(f.view.querySelector(".group-search-form")).toBeNull(); invite.click();
-    const input = f.view.querySelector('dialog input[type="search"]'); expect(globalThis.document.activeElement).toBe(input);
-    f.view.querySelector("dialog")?.dispatchEvent(new Event("cancel", { cancelable: true }));
-    expect(f.view.querySelector("dialog")).toBeNull(); expect(globalThis.document.activeElement).toBe(invite);
-    expect(f.search).not.toHaveBeenCalled(); expect(f.request.mock.calls.every(([, options]) => options.method === "GET")).toBe(true);
-  });
-  it("locks dismissal and double invitations while pending and verifies uncertain writes after closing", async () => {
-    const f = setup({ detail: true }); await settle(); button(f.view, "Inviter un proche").click();
-    const input = /** @type {HTMLInputElement} */ (f.view.querySelector('dialog input[type="search"]')); input.value = "Alex";
-    f.view.querySelector(".group-search-form")?.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
-    const gate = barrier(); f.request.mockImplementationOnce(async () => { await gate.promise; throw new ApiError({ kind: "network" }); });
-    const invite = button(f.view, "Inviter Alex"); invite.click(); invite.click();
-    f.view.querySelector("dialog")?.dispatchEvent(new Event("cancel", { cancelable: true }));
-    expect(f.view.querySelector("dialog")?.open).toBe(true); expect(button(f.view, "Fermer").disabled).toBe(true);
-    gate.resolve(); await settle(); expect(button(f.view, "Inviter Alex").disabled).toBe(true);
-    expect(f.view.textContent).toContain("vérifier les invitations"); button(f.view, "Fermer").click(); await settle();
-    expect(f.view.querySelector("dialog")).toBeNull(); expect(f.request.mock.calls.filter(([, options]) => options.method === "POST")).toHaveLength(1);
-  });
-  it("aborts a dismissed member search and does not render its late results", async () => {
-    const f = setup({ detail: true }); await settle(); button(f.view, "Inviter un proche").click();
-    const gate = barrier(); f.search.mockImplementationOnce(async () => { await gate.promise; return page([]); });
-    const input = /** @type {HTMLInputElement} */ (f.view.querySelector('dialog input[type="search"]')); input.value = "Alex";
-    f.view.querySelector(".group-search-form")?.dispatchEvent(new Event("submit", { cancelable: true }));
-    button(f.view, "Fermer").click(); gate.resolve(); await settle();
-    expect(f.view.querySelector("dialog")).toBeNull(); expect(f.search.mock.calls[0]?.[1]?.signal.aborted).toBe(true);
   });
   it("omits the wishlist section and sharing actions without reading lists or changing grants", async () => {
     const f = setup({ detail: true }); await settle();
@@ -175,23 +150,6 @@ describe("private group detail", () => {
     expect(f.view.querySelector(".group-lists-grid")).toBeNull();
     expect(f.request.mock.calls.some(([path]) => path.includes("wishlists"))).toBe(false);
     expect(f.request.mock.calls.every(([, options]) => options.method === "GET")).toBe(true);
-  });
-  it("paginates member search in both directions and reports empty/error results", async () => {
-    const f = setup({ detail: true }); await settle();
-    button(f.view, "Inviter un proche").click();
-    const input = /** @type {HTMLInputElement} */ (f.view.querySelector('input[type="search"]')); input.value = "Alex";
-    const first = { ...page([{ id: otherId, displayName: "Alex", displayNameTag: "0001" }]), totalCount: 21, totalPages: 2, hasNextPage: true };
-    f.search.mockResolvedValueOnce(first);
-    f.view.querySelector(".group-search-form")?.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
-    f.search.mockResolvedValueOnce({ ...first, currentPage: 2 });
-    button(f.view, "Suivante").click(); await settle();
-    expect(f.search).toHaveBeenLastCalledWith("Alex", expect.objectContaining({ page: 2 }));
-    f.search.mockResolvedValueOnce(first); button(f.view, "Précédente").click(); await settle();
-    expect(f.search).toHaveBeenLastCalledWith("Alex", expect.objectContaining({ page: 1 }));
-    f.search.mockResolvedValueOnce(page([])); f.view.querySelector(".group-search-form")?.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
-    expect(f.view.textContent).toContain("Aucun membre trouvé.");
-    f.search.mockRejectedValueOnce(new ApiError({ kind: "network" })); f.view.querySelector(".group-search-form")?.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
-    expect(f.view.querySelector("dialog [role=alert]")?.textContent).not.toBe("");
   });
   it("deletes only the group after explicit versioned confirmation", async () => {
     const f = setup({ detail: true }); await settle();
@@ -232,7 +190,6 @@ describe("private group detail", () => {
     const f = setup({ detail: true, owner: false }); await settle();
     expect(f.view.textContent).not.toContain("Renommer"); expect(button(f.view, "Inviter un proche").disabled).toBe(false);
     expect(f.view.querySelector(`a[href="/groups/${id}/edit"]`)).toBeNull();
-    expect(button(f.view, "Partager le groupe").disabled).toBe(false);
     expect(f.view.querySelector(`a[href="/groups/${id}/members/${memberId}"]`)).not.toBeNull();
     button(f.view, "Quitter le groupe").click(); await settle();
     expect(f.view.querySelector("dialog")?.textContent).toContain("Tes listes n’y seront plus partagées");
@@ -243,17 +200,5 @@ describe("private group detail", () => {
     button(f.view, "Retirer Alex").click(); expect(f.view.querySelector("dialog")?.textContent).toContain("Retirer Alex du groupe ?");
     button(f.view, "Retirer").click(); await settle();
     expect(f.request).toHaveBeenCalledWith(`/api/v1/groups/${id}/members/${otherId}`, expect.objectContaining({ method: "DELETE", csrf: true }));
-  });
-  it("searches only after a submitted query and invites only after explicit choice", async () => {
-    const f = setup({ detail: true }); await settle();
-    expect(f.search).not.toHaveBeenCalled();
-    expect(f.view.querySelector('input[type="search"]')).toBeNull();
-    const invite = button(f.view, "Inviter un proche"); expect(invite.classList.contains("group-invite-action")).toBe(true); expect(button(f.view, "Supprimer le groupe").classList.contains("ui-button--primary")).toBe(true); invite.click();
-    const input = /** @type {HTMLInputElement} */ (f.view.querySelector('input[type="search"]')); input.value = "Alex";
-    f.view.querySelector(".group-search-form")?.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
-    expect(f.search).toHaveBeenCalledOnce();
-    expect(f.request.mock.calls.filter(call => call[1].method === "POST")).toHaveLength(0);
-    f.request.mockResolvedValueOnce(response(invitation, 201)); button(f.view, "Inviter Alex").click(); await settle();
-    expect(f.request).toHaveBeenCalledWith(`/api/v1/groups/${id}/invitations`, expect.objectContaining({ method: "POST", body: { memberId: otherId } }));
   });
 });

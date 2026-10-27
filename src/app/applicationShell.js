@@ -3,6 +3,7 @@ import { addComponentEventListener, registerComponentCleanup } from "../componen
 import { createMemberAvatar } from "../components/memberAvatar.js";
 import { readProfilePhoto } from "../features/profile/profileImageService.js";
 import { hasAdminAccess } from "../features/admin/adminAccess.js";
+import { createHeaderMemberSearch } from "../features/members/headerMemberSearch.js";
 import {
   NavigationItems,
   RouteNames,
@@ -26,10 +27,10 @@ let shellIdentifier = 0;
 /**
  * Creates the persistent application shell.
  *
- * @param {{onLogout?: () => void, apiBaseUrl?: string}} [options] Session actions and trusted photo origin.
+ * @param {{onLogout?: () => void, apiBaseUrl?: string, onMemberSearch?: (query: string) => void}} [options] Session actions and trusted photo origin.
  * @returns {ApplicationShell} Application shell API.
  */
-export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } = {}) {
+export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", onMemberSearch = query => window.location.assign(`${RoutePaths.Members}?${new URLSearchParams({ q: query })}`) } = {}) {
   shellIdentifier += 1;
   const navigationIdentifier = `primary-navigation-${shellIdentifier}`;
   const element = document.createElement("div");
@@ -53,6 +54,7 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } 
   navigation.className = "app-navigation";
   navigation.dataset.open = "false";
   navigation.setAttribute("aria-label", "Navigation principale");
+  const memberSearch = createHeaderMemberSearch({ onSearch: onMemberSearch, onOpen: () => setNavigationOpen(false) });
 
   const navigationList = document.createElement("ul");
   navigationList.className = "app-navigation__list";
@@ -66,7 +68,7 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } 
   let currentRoute = null;
 
   navigation.append(navigationList);
-  headerContent.append(brand, menuButton, navigation);
+  headerContent.append(brand, memberSearch.element, menuButton, navigation);
   header.append(headerContent);
 
   const outlet = document.createElement("main");
@@ -179,6 +181,8 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } 
   function setCurrentRoute(route) {
     currentRoute = route;
     const activeNavigationRoute = getActiveNavigationRoute(route?.name ?? null);
+    memberSearch.close();
+    memberSearch.element.classList.toggle("app-member-search--active", activeNavigationRoute === RouteNames.Members);
 
     for (const [routeName, link] of navigationLinks) {
       if (routeName === activeNavigationRoute) {
@@ -203,9 +207,10 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } 
     navigationList.replaceChildren();
     navigationLinks.clear();
     for (const item of NavigationItems) {
+      if (item.routeName === RouteNames.Members) continue;
       if (item.routeName === RouteNames.ReportedWishlists && !hasAdminAccess(state)) continue;
       const isAccountAction = item.routeName === RouteNames.Login || item.routeName === RouteNames.Register;
-      if (item.routeName !== RouteNames.Home && item.routeName !== RouteNames.Members &&
+      if (item.routeName !== RouteNames.Home &&
         (mode === "pending" || (mode === "member" ? isAccountAction : !isAccountAction))) continue;
       const listItem = document.createElement("li");
       const link = document.createElement("a");
@@ -250,6 +255,7 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "" } 
    * @param {boolean} open Whether the mobile navigation is open.
    */
   function setNavigationOpen(open) {
+    if (open) memberSearch.close();
     navigation.dataset.open = String(open);
     menuButton.setAttribute("aria-expanded", String(open));
     menuButton.setAttribute(
@@ -305,6 +311,7 @@ function getActiveNavigationRoute(routeName) {
   if ([RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.PersonalData, RouteNames.Authenticator].some(name => name === routeName)) return RouteNames.Profile;
   if (
     routeName === RouteNames.Lists ||
+    routeName === RouteNames.FollowedLists ||
     routeName === RouteNames.NewList ||
     routeName === RouteNames.EditList ||
     routeName === RouteNames.NewWish ||

@@ -29,13 +29,19 @@ export function wishlistShareMessage(name, link) {
  * @returns {string} Explicit user-initiated destination. */
 export function wishlistShareDestination(channel, name, link, userAgent = navigator.userAgent) {
   const message = wishlistShareMessage(name, link);
+  const subject = `Ma liste${name ? ` « ${name} »` : ""} sur MonKado`;
+  return shareDestination(channel, { message, subject, link }, userAgent);
+}
+
+/** @param {ShareChannel} channel Destination. @param {{message:string,subject:string,link:string}} content Prepared sharing copy.
+ * @param {string} [userAgent] Browser platform hint. */
+export function shareDestination(channel, { message, subject, link }, userAgent = navigator.userAgent) {
   if (channel === "whatsapp") return `https://wa.me/?text=${encodeURIComponent(message)}`;
   if (channel === "facebook") return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`;
   if (channel === "messenger") return wishlistMessengerDestination(link, userAgent);
   if (channel === "x") return `https://x.com/intent/tweet?text=${encodeURIComponent(message)}`;
   // Discord sharing uses the system picker, which has no destination URL.
   if (channel === "discord") return "";
-  const subject = `Ma liste${name ? ` « ${name} »` : ""} sur MonKado`;
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
 }
 
@@ -75,6 +81,11 @@ export function openWishlistMessengerComposer(url) {
  * @returns {Promise<void>} Handoff only; it does not confirm delivery. */
 export function shareWishlistWithSystem(name, link) {
   const data = { title: name ? `Ma liste « ${name} » · MonKado` : "Ma liste · MonKado", text: wishlistShareMessage(name, link) };
+  return shareContentWithSystem(data);
+}
+
+/** @param {{title:string,text:string}} data Prepared content shared only on a user action. */
+export function shareContentWithSystem(data) {
   if (typeof navigator.share !== "function" || (typeof navigator.canShare === "function" && !navigator.canShare(data))) {
     throw new DOMException("System sharing is unavailable.", "NotSupportedError");
   }

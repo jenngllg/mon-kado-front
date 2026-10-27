@@ -5,6 +5,7 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 import { decodeWishImage, validateWishImageFile, WishImageValidationError } from "./wishImageValidation.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { ImportImageUnavailable, ImportUrlMessage, validateImportUrl } from "./wishImportService.js";
+import { createImagePlaceholder } from "../../components/imagePlaceholder.js";
 
 const AnalysisDelayMs = 2000;
 
@@ -39,7 +40,7 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   const appliedImage = node("div", ""); appliedImage.className = "wish-image-section__preview flow";
   const imagePanel = node("aside", ""); imagePanel.className = "wish-import__image-panel";
   imagePanel.setAttribute("aria-label", "Image du souhait");
-  const imageEmpty = node("p", "Aucune image"); imageEmpty.className = "wish-import__image-empty";
+  const imageEmpty = createImagePlaceholder("Aucune image"); imageEmpty.classList.add("wish-import__image-empty");
   const fileInput = document.createElement("input"); fileInput.type = "file"; fileInput.accept = "image/jpeg,image/png,image/webp"; fileInput.hidden = true;
   const chooseImage = createButton({ label: "Ajouter une image", variant: "secondary", onClick: () => { if (!disabled && !isBusy()) fileInput.click(); } });
   chooseImage.setAttribute("aria-label", "Ajouter une image"); applyActionIcon(chooseImage, "edit", "Choisir une image");

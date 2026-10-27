@@ -467,6 +467,25 @@ input[type="date"].form-field__control::-webkit-calendar-picker-indicator {
 }
 
 .member-avatar img[hidden] { display: none; }
+
+.image-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding: var(--space-3);
+}
+.image-placeholder__logo { display: block; width: min(100%, 10rem); height: auto; }
+.image-placeholder__gift { color: var(--color-accent); }
+.image-placeholder__wordmark {
+  fill: var(--color-text);
+  font-family: var(--font-family-sans);
+  font-size: 28px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.04em;
+}
+.image-placeholder__dot { fill: var(--color-accent); }
 .member-result { display: flex; align-items: center; gap: var(--space-3, 0.75rem); }
 .member-result > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .app-navigation__link .member-avatar {

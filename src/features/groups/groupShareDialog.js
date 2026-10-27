@@ -4,13 +4,15 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { createLocalQrCode } from "../twoFactor/localQrCode.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
+import { createGroupInvitationPreview } from "./groupInvitationPreview.js";
+import { createGroupShareChannels } from "./groupShareChannels.js";
 
 /** Share admission credentials only after an explicit member action.
- * @param {{parent:HTMLElement,trigger:HTMLButtonElement,signal:AbortSignal,groupId:string,owner:boolean,
+ * @param {{parent:HTMLElement,trigger:HTMLButtonElement,signal:AbortSignal,groupId:string,group:import("./groupsService.js").Group,apiBaseUrl:string,owner:boolean,
  * service:Pick<ReturnType<typeof import("./groupsService.js").createGroupsService>,"joinLink"|"createJoinLink"|"revokeJoinLink">,
  * copy?:(text:string)=>Promise<void>}} options Scoped operations.
  */
-export function openGroupShareDialog({ parent, trigger, signal, groupId, owner, service, copy = text => navigator.clipboard.writeText(text) }) {
+export function openGroupShareDialog({ parent, trigger, signal, groupId, group, apiBaseUrl, owner, service, copy = text => navigator.clipboard.writeText(text) }) {
   if (signal.aborted || parent.querySelector(".group-share-dialog")) return;
   const dialog = node("dialog", ""); dialog.className = "group-dialog group-share-dialog flow";
   const title = node("h2", "Partager le groupe"); title.id = `group-share-${crypto.randomUUID()}`; dialog.setAttribute("aria-labelledby", title.id);
@@ -40,11 +42,12 @@ export function openGroupShareDialog({ parent, trigger, signal, groupId, owner, 
     }
   }
   function inactive() {
-    content.append(node("p", "Un lien, un code ou un QR code pour rejoindre le groupe sans validation."), createButton({ label: "Activer le partage", onClick: () => { void mutate(false); } }));
+    content.append(createGroupInvitationPreview(group, apiBaseUrl), node("p", "Activer le partage rend le nom et la photo du groupe visibles dans l’aperçu du lien."), createButton({ label: "Activer le partage", onClick: () => { void mutate(false); } }));
   }
   function render() {
     clear(content); if (!current) { inactive(); return; }
     content.append(node("p", "Partage ce QR code, le lien ou le code du groupe. La personne connectée rejoint le groupe sans validation."));
+    content.append(createGroupInvitationPreview(group, apiBaseUrl));
     const qr = createLocalQrCode(current.link.joinUrl); qr.setAttribute("aria-label", "QR code pour rejoindre le groupe"); qr.classList.add("group-share-qr"); content.append(qr);
     for (const [label, value, command] of [["Lien du groupe", current.link.joinUrl, "Copier le lien"], ["Code du groupe", current.link.code.match(/.{4}/g)?.join("-") ?? current.link.code, "Copier le code"]]) {
       const control = document.createElement("input"); control.readOnly = true; control.value = value; control.spellcheck = false;
@@ -52,6 +55,7 @@ export function openGroupShareDialog({ parent, trigger, signal, groupId, owner, 
       field.classList.toggle("group-share-field--code", command === "Copier le code");
       const button = createButton({ label: command, variant: "secondary", onClick: () => { void copyValue(value); } }); applyActionIcon(button, "copy", command); field.append(button); content.append(field);
     }
+    content.append(createGroupShareChannels({ name: group.name, link: current.link.joinUrl, copy, status: feedback }));
     if (owner) content.append(createButton({ label: "Désactiver le lien et le code", variant: "secondary", onClick: () => { void mutate(true); } }));
   }
   /** @param {string} value Copy only on an explicit action, without remote QR providers. */

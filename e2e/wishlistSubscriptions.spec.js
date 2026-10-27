@@ -39,7 +39,7 @@ async function subscriptionsApi(context) {
   return { ...api, subscriptions: state, summary };
 }
 
-for (const width of [390, 1440]) {
+for (const width of [390, 1280, 1440, 1705]) {
   test(`explicit follow, gallery and unfollow remain accessible at ${width}px`, async ({ page, context }, testInfo) => {
     // Arrange
     await page.setViewportSize({ width, height: 1100 });
@@ -53,14 +53,28 @@ for (const width of [390, 1440]) {
     const target = await follow.boundingBox(); expect(target?.width).toBe(44); expect(target?.height).toBe(44);
     await follow.focus(); await follow.press("Enter");
     await expect(page.getByRole("button", { name: "Se désabonner", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await page.goto("/followed-lists");
-    await expect(page.getByRole("heading", { name: "Listes suivies" })).toBeVisible();
+    await page.goto("/lists");
+    const navigation = page.getByRole("navigation", { name: "Navigation principale", exact: true, includeHidden: true });
+    await expect(navigation.getByRole("link", { name: "Listes suivies", exact: true })).toHaveCount(0);
+    const categories = page.getByRole("navigation", { name: "Catégories de listes", exact: true });
+    await expect(categories.getByRole("link")).toHaveText(["Actives", "Archivées", "Listes suivies"]);
+    await categories.getByRole("link", { name: "Listes suivies", exact: true }).click();
+    await expect(page).toHaveURL("/followed-lists");
+    await expect(page.getByRole("heading", { name: "Mes listes", exact: true })).toBeVisible();
+    await expect(categories.getByRole("link", { name: "Listes suivies", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByRole("link", { name: "Mes listes", exact: true, includeHidden: true })).toHaveAttribute("aria-current", "page");
+    if (width >= 1280) {
+      const rows = await navigation.locator("li").evaluateAll(items => items.map(item => item.getBoundingClientRect()).filter(box => box.width && box.height).map(box => box.top + box.height / 2));
+      expect(Math.max(...rows) - Math.min(...rows)).toBeLessThanOrEqual(1);
+    } else {
+      await expect(page.getByRole("button", { name: "Ouvrir le menu principal", exact: true })).toBeVisible();
+    }
     const tile = page.locator(".wishlist-card");
     await expect(tile).toHaveCount(1); await expect(tile.getByText("Par Camille")).toBeVisible();
     await expect(tile.locator("time")).toBeVisible();
     await expect(tile.getByRole("button", { name: /Se désabonner/ })).toBeVisible();
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
-    await page.locator(".app-main").screenshot({ path: testInfo.outputPath("followed-lists.png") });
+    await page.screenshot({ path: testInfo.outputPath("followed-lists.png"), fullPage: true });
     await tile.locator(".wishlist-card__open").click();
     await expect(page).toHaveURL(new RegExp(sharedPath + "$"));
     await expect(page.getByRole("button", { name: "Se désabonner", exact: true })).toBeEnabled();

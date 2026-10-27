@@ -280,7 +280,7 @@ describe("wishlist owner detail", () => {
     const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, occasion: /** @type {typeof list.wishlist.occasion} */ (occasion), eventDate: null, message: null } }),
       loadWishes: async () => ({ ...collection, wishes: [{ ...wish, price: null, note: null, imageUrl: null, url: null }] }) }); await settle();
     expect(ui.view.querySelector(".shared-wishlist-occasion")?.textContent).toBe(label);
-    expect(ui.view.textContent).not.toContain("Sans date"); expect(ui.view.querySelector(".wish-card__price")).toBeNull(); expect(ui.view.textContent).toContain("Sans image");
+    expect(ui.view.textContent).not.toContain("Sans date"); expect(ui.view.querySelector(".wish-card__price")).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Sans image");
     expect(ui.view.querySelectorAll(".shared-wishlist-metadata")).toHaveLength(occasion === "other" ? 0 : 1);
     expect(ui.view.querySelector("img,time")).toBeNull(); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
   });
@@ -299,12 +299,12 @@ describe("wishlist owner detail", () => {
   it("reserves image dimensions, never places a grant in visible copy and degrades an expired image without retry", async () => {
     const ui = setup(); await settle(); const image = /** @type {HTMLImageElement} */ (ui.view.querySelector("img"));
     expect(image.alt).toBe(""); expect(image.width).toBe(400); expect(image.height).toBe(300); expect(image.loading).toBe("lazy"); expect(image.referrerPolicy).toBe("no-referrer");
-    image.dispatchEvent(new Event("error")); expect(image.hasAttribute("src")).toBe(false); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.textContent).toContain("Image indisponible");
+    image.dispatchEvent(new Event("error")); expect(image.hasAttribute("src")).toBe(false); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Image indisponible");
     expect(ui.loadWishes).toHaveBeenCalledOnce(); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("img")).not.toBeNull();
   });
   it("does not create elements for discarded unsafe product/image URLs", async () => {
     const ui = setup({ loadWishes: async () => ({ ...collection, wishes: [{ ...wish, url: null, imageUrl: null, productUnavailable: true, imageUnavailable: true }] }) }); await settle();
-    expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull(); expect(ui.view.textContent).toContain("Image indisponible");
+    expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Image indisponible");
   });
   it("refreshes only gifts, replaces stale cards and grants, blocks duplicate reads without stealing focus", async () => {
     const ui = setup(); await settle(); const oldImage = /** @type {HTMLImageElement} */ (ui.view.querySelector("img")); const gate = barrier();

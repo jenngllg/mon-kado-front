@@ -7,9 +7,9 @@ import { safeHttpUrl } from "../wishes/wishValidation.js";
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["SharedWishDetailResponse"]} SharedWishDetailResponse */
 /** @typedef {Readonly<{id: string, name: string, price: number | null, quantity: number, url: string | null,
  * imageUrl: string | null, note?: string | null, isFavorite?: boolean, isSurprise?: boolean, acceptsSecondHand?: boolean, color?: string | null, size?: string | null, productUnavailable: boolean, imageUnavailable: boolean,
- * reservedQuantity: number | null, availableQuantity: number | null, currentParticipantReservedQuantity: number | null}>} SharedWish */
+ * canReserve?: boolean, reservedQuantity: number | null, availableQuantity: number | null, currentParticipantReservedQuantity: number | null}>} SharedWish */
 /** @typedef {Readonly<{id: string, name: string, ownerId?: string, ownerDisplayName: string, occasion: import("../wishlists/wishlistValidation.js").WishlistOccasion,
- * eventDate: string | null, message: string | null, canSubscribe?: boolean, wishes: ReadonlyArray<SharedWish>}>} SharedWishlist */
+ * eventDate: string | null, message: string | null, canReserve?: boolean, canSubscribe?: boolean, wishes: ReadonlyArray<SharedWish>}>} SharedWishlist */
 /** @typedef {(id: string, options: {signal: AbortSignal, availableOnly?: boolean}) => Promise<SharedWishlist>} LoadSharedWishlist */
 /** @typedef {Readonly<SharedWish & {note: string | null}>} SharedWishDetail */
 /** @typedef {(shareLinkId: string, wishId: string, options: {signal: AbortSignal}) => Promise<SharedWishDetail>} LoadSharedWish */
@@ -41,6 +41,7 @@ export function createSharedWishlistService(session, { apiBaseUrl, context, auth
       if (response.status !== 200 || !item || !isWishlistId(item.id) || !name(item.name) || !name(item.ownerDisplayName) || (item.ownerId !== undefined && !isWishlistId(item.ownerId)) || !isWishlistOccasion(item.occasion) ||
         !(item.eventDate === null || isCalendarDate(item.eventDate)) || !text(item.message) || !Array.isArray(item.wishes)) throw invalid();
       if (item.canSubscribe !== undefined && typeof item.canSubscribe !== "boolean") throw invalid();
+      if (item.canReserve !== undefined && typeof item.canReserve !== "boolean") throw invalid();
       const seen = new Set();
       const wishes = item.wishes.map((/** @type {SharedWishResponse} */ wish) => {
         const projected = projectWish(wish, id, base, invalid, includeCurrent);
@@ -50,7 +51,7 @@ export function createSharedWishlistService(session, { apiBaseUrl, context, auth
       });
       return Object.freeze({ id: item.id, name: item.name, ownerDisplayName: item.ownerDisplayName, occasion: item.occasion,
         ...(item.ownerId === undefined ? {} : { ownerId: item.ownerId }),
-        eventDate: item.eventDate, message: item.message, canSubscribe: item.canSubscribe, wishes: Object.freeze(wishes) });
+        eventDate: item.eventDate, message: item.message, canReserve: item.canReserve, canSubscribe: item.canSubscribe, wishes: Object.freeze(wishes) });
     });
   }, loadOne: async (id, wishId, { signal }) => {
     if (!isWishlistId(id)) {
@@ -78,7 +79,7 @@ export function createSharedWishlistService(session, { apiBaseUrl, context, auth
   } };
 }
 /** Shared fields exclude owner-only metadata and all participant identities.
- * @param {Partial<SharedWishResponse> | null} wish API gift.
+ * @param {(Partial<SharedWishResponse> & {canReserve?: boolean}) | null} wish API gift.
  * @param {string} id Share link identifier.
  * @param {URL} base Trusted API.
  * @param {() => ApiError} invalid Safe failure factory.
@@ -90,6 +91,7 @@ export function projectWish(wish, id, base, invalid, includeCurrent, resource = 
   if (!wish || !isWishlistId(wish.id) || !name(wish.name) || !text(wish.url) || !text(wish.imageUrl) ||
     typeof wish.quantity !== "number" || !Number.isInteger(wish.quantity) || wish.quantity < 1 || wish.quantity > 100) throw invalid();
   const price = wish.price;
+  if (wish.canReserve !== undefined && typeof wish.canReserve !== "boolean") throw invalid();
   if (wish.isFavorite !== undefined && typeof wish.isFavorite !== "boolean") throw invalid();
   for (const value of [wish.isSurprise, wish.acceptsSecondHand]) if (value !== undefined && typeof value !== "boolean") throw invalid();
   const reserved = wish.reservedQuantity, available = wish.availableQuantity, current = wish.currentParticipantReservedQuantity;
@@ -106,6 +108,7 @@ export function projectWish(wish, id, base, invalid, includeCurrent, resource = 
   if (!text(wish.color ?? null) || !text(wish.size ?? null)) throw invalid();
   return Object.freeze({ id: wish.id, name: wish.name, color: wish.color ?? null, size: wish.size ?? null, price, quantity: wish.quantity, isFavorite: wish.isFavorite === true, url: url?.href ?? null, imageUrl: image?.href ?? null,
     isSurprise: wish.isSurprise === true, acceptsSecondHand: wish.acceptsSecondHand === true,
+    ...(wish.canReserve === undefined ? {} : { canReserve: wish.canReserve }),
     reservedQuantity: reserved, availableQuantity: available, currentParticipantReservedQuantity: includeCurrent ? current : null,
     productUnavailable: wish.url !== null && !url, imageUnavailable: wish.imageUrl !== null && !image });
 }

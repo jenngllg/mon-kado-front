@@ -10,6 +10,10 @@
   .app-navigation__list > li:nth-child(2) { margin-inline-start: auto; }
   .app-navigation__list > li:has(a[href="/reservations"]) { margin-inline-end: auto; }
 }
+@media (80rem <= width < 88rem) {
+  .app-header__content { grid-template-columns: 10rem minmax(0, 1fr); }
+  .app-navigation__list { gap: var(--space-1); }
+}
 .app-main:has(> :is(.wishlists-view, .wishlist-details-view--owner, .wishlist-create-view, .wish-create-view, .wishlist-edit-view, .wish-edit-view)) {
   --container-max-width: 86rem;
   padding-block: 2.8rem 4rem;
