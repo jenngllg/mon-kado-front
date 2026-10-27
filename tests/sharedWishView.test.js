@@ -19,6 +19,15 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("shared gift presentation", () => {
+  it("clears a revoked private group detail without asking for a public sharing link", async () => {
+    const access = new AbortController();
+    const ui = setup({ groupId: shareLinkId, accessSignal: access.signal }); await settle();
+    access.abort();
+    expect(ui.view.querySelector("h1")?.textContent).toBe("Liste indisponible");
+    expect(ui.view.textContent).toContain("Cette liste n’est plus accessible dans ce groupe.");
+    expect(ui.view.textContent).not.toContain("Demande un lien");
+    expect(ui.view.querySelector(".shared-wish-layout")).toBeNull();
+  });
   it.each([true, false])("reads an owner's group wish without reservation controls with surprise mode %s", async surprise => {
     const createReservation = vi.fn();
     const own = { ...wish, canReserve: false, currentParticipantReservedQuantity: null, ...(surprise ? { reservedQuantity: null, availableQuantity: null } : {}) };

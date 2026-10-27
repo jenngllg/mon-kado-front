@@ -15,6 +15,7 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** @typedef {(wishlistId: string, values: import("./wishValidation.js").WishValues, options: {signal: AbortSignal}) => Promise<CreatedWish>} CreateWish */
 /** @typedef {(wishlistId: string, sourceShareLinkId: string, sourceWishId: string, options: {shareToken: string, signal: AbortSignal}) => Promise<CreatedWish>} CopyWish */
 /** @typedef {(sourceWishlistId: string, sourceWishId: string, destinationWishlistId: string, options: {signal: AbortSignal}) => Promise<CreatedWish>} CopyOwnedWish */
+/** @typedef {(groupId: string, sourceWishlistId: string, sourceWishId: string, destinationWishlistId: string, options: {signal: AbortSignal}) => Promise<CreatedWish>} CopyGroupWish */
 /** @typedef {Readonly<CreatedWish & {values: Readonly<import("./wishValidation.js").WishValues>}>} EditableWish */
 /** @typedef {(wishlistId: string, wishId: string, options: {signal: AbortSignal}) => Promise<EditableWish>} LoadWish */
 /** @typedef {(wishlistId: string, wishId: string, values: import("./wishValidation.js").WishValues, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} UpdateWish */
@@ -28,12 +29,20 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** Reads the complete private collection; grants and versions belong to the caller's view.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{apiBaseUrl: string}} options Trusted API configuration.
- * @returns {{load: LoadWishes, create: CreateWish, copy: CopyWish, copyOwned: CopyOwnedWish, loadOne: LoadWish, update: UpdateWish, setFavorite: SetWishFavorite, remove: RemoveWish, reorder: ReorderWishes, uploadImage: UploadWishImage, removeImage: RemoveWishImage}} Injectable owner operations.
+ * @returns {{load: LoadWishes, create: CreateWish, copy: CopyWish, copyOwned: CopyOwnedWish, copyGroup: CopyGroupWish, loadOne: LoadWish, update: UpdateWish, setFavorite: SetWishFavorite, remove: RemoveWish, reorder: ReorderWishes, uploadImage: UploadWishImage, removeImage: RemoveWishImage}} Injectable owner operations.
  */
 export function createWishesService(session, { apiBaseUrl }) {
   const base = safeHttpUrl(apiBaseUrl);
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
-  return { copyOwned: async (sourceWishlistId, sourceWishId, destinationWishlistId, { signal }) => {
+  return { copyGroup: async (groupId, sourceWishlistId, sourceWishId, destinationWishlistId, { signal }) => {
+    if (![groupId, sourceWishlistId, sourceWishId, destinationWishlistId].every(isWishlistId) || sourceWishlistId.toLowerCase() === destinationWishlistId.toLowerCase()) throw new ApiError({ kind: "http", statusCode: 400 });
+    /** @type {import("../../api/generated/openapi.js").components["schemas"]["CopyOwnedWishRequest"]} */
+    const body = { destinationWishlistId };
+    const response = await session.request(`/api/v1/groups/${groupId}/wishlists/${sourceWishlistId}/wishes/${sourceWishId}/copies`, {
+      method: "POST", authentication: "required", csrf: true, body, signal,
+    });
+    return createdWish(response, destinationWishlistId, base);
+  }, copyOwned: async (sourceWishlistId, sourceWishId, destinationWishlistId, { signal }) => {
     const path = itemPath(sourceWishlistId, sourceWishId) + "/copies";
     if (!isWishlistId(destinationWishlistId) || sourceWishlistId === destinationWishlistId) throw new ApiError({ kind: "http", statusCode: 400 });
     /** @type {import("../../api/generated/openapi.js").components["schemas"]["CopyOwnedWishRequest"]} */

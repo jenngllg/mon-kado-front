@@ -160,6 +160,13 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       copy: (destinationWishlistId, wishId, options) => createWishesService(session, { apiBaseUrl }).copyOwned(sourceWishlistId, wishId, destinationWishlistId, options),
     };
   }
+  /** @param {string} groupId Membership scope. @param {string} sourceWishlistId Private source. @returns {import("../features/sharing/wishCopyActions.js").WishCopyOperations} */
+  function groupCopyOperations(groupId, sourceWishlistId) {
+    return {
+      loadLists: async options => Object.freeze((await createWishlistsService(session).load(options)).filter(item => item.id.toLowerCase() !== sourceWishlistId.toLowerCase())),
+      copy: (destinationWishlistId, wishId, options) => createWishesService(session, { apiBaseUrl }).copyGroup(groupId, sourceWishlistId, wishId, destinationWishlistId, options),
+    };
+  }
   const memberSearchState = { query: "", page: 1 };
   const memberNavigation = createMemberNavigation();
   const { google, onGoogleDestination = () => {}, onGoogleAuthenticated = () => {}, onGoogleLinkRequired = () => {}, onGoogleLinkDestination = () => {} } = googleFlow;
@@ -203,6 +210,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const { groupId, wishlistId } = context.params;
         const wishes = createGroupWishlistService(session, { groupId, apiBaseUrl });
         return createSharedWishlistView({ groupId, shareLinkId: wishlistId, signal: context.signal, fromMemberId: context.searchParams.get("fromMember"),
+          copy: groupCopyOperations(groupId, wishlistId),
           load: withResourcePageTitle(wishes.load, context, result => result.name), loadOne: wishes.loadOne,
           createSubscription: ({ signal, onUnavailable }) => createWishlistSubscriptionControl({
             shareLinkId: wishlistId, ...createWishlistSubscriptionsService(session, { groupId }), signal, onUnavailable,
@@ -223,6 +231,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const { groupId, wishlistId, wishId } = context.params;
         const wishes = createGroupWishlistService(session, { groupId, apiBaseUrl });
         return createSharedWishView({ groupId, shareLinkId: wishlistId, wishId, signal: context.signal, fromMemberId: context.searchParams.get("fromMember"), returnSort: context.searchParams.get("sort"),
+          copy: groupCopyOperations(groupId, wishlistId),
           loadOne: withResourcePageTitle(wishes.loadOne, context, result => result.name),
           createReservation: createGroupWishReservation({ session, groupId, wishlistId, loadOne: wishes.loadOne, signal: context.signal }),
         });
