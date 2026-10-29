@@ -8,7 +8,7 @@ import { validateWishField, WishServerMessages } from "./wishValidation.js";
 const Fields = Object.freeze([
   { name: "name", label: "Nom du souhait", required: true },
   { name: "note", label: "Description", required: false },
-  { name: "url", label: "Lien produit", required: false },
+  { name: "url", label: "Lien du produit", required: false },
   { name: "price", label: "Prix en euros", required: false },
   { name: "quantity", label: "Quantité souhaitée", required: true },
   { name: "color", label: "Couleur", required: false },

@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "MonKado — ajouter un souhait",
+  "version": "1.0.0",
+  "description": "Ajoute une page produit à une liste MonKado.",
+  "permissions": ["activeTab", "scripting"],
+  "icons": { "128": "icon.png" },
+  "content_scripts": [{ "matches": ["https://www.monkado.fr/*"], "js": ["session-bridge.js"] }],
+  "action": {
+    "default_icon": "icon.png",
+    "default_title": "Ajouter à MonKado",
+    "default_popup": "popup.html"
+  }
+}
