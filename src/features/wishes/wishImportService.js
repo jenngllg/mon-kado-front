@@ -11,8 +11,10 @@ const Warnings = Object.freeze({
   WISH_IMPORT_PAGE_UNAVAILABLE: "La page n’a pas pu être analysée. Tu peux compléter le souhait manuellement.",
   WISH_IMPORT_NAME_UNAVAILABLE: "Le nom du souhait n’a pas pu être récupéré.",
   WISH_IMPORT_PRICE_UNAVAILABLE: "Aucun prix fiable en euros n’a pu être récupéré.",
+  WISH_IMPORT_PRICE_MAY_BE_STALE: "Le prix importé est indicatif et peut dater de 48 heures : vérifie-le sur le site marchand.",
   WISH_IMPORT_CURRENCY_UNSUPPORTED: "Le prix utilise une devise non prise en charge. Renseigne un prix en euros si tu le souhaites.",
   WISH_IMPORT_IMAGE_UNAVAILABLE: "Aucune image utilisable n’a pu être récupérée.",
+  WISH_IMPORT_IMAGE_SIZE_MAY_DIFFER: "La photo peut montrer une taille différente de celle du prix. Vérifie les options sur le site.",
 });
 export const ImportImageUnavailable = Warnings.WISH_IMPORT_IMAGE_UNAVAILABLE;
 export const ImportUrlMessage = "Lien invalide";
