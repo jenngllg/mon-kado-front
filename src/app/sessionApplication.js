@@ -12,6 +12,7 @@ import { RouteNames, RoutePaths } from "./routeContracts.js";
 import { createGoogleService } from "../features/google/googleService.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
 import { createSharedSignInContinuation } from "../features/sharing/sharedSignInContinuation.js";
+import { installExtensionSessionBridge } from "../features/extension/extensionSessionBridge.js";
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
@@ -21,6 +22,7 @@ import { createSharedSignInContinuation } from "../features/sharing/sharedSignIn
  */
 export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, reportError, session = createSessionManager({ apiBaseUrl }),
   google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
+  const disposeExtensionBridge = installExtensionSessionBridge(session, apiBaseUrl);
   let disposed = false;
   /** @type {Storage | null} */ let sharingStorage = null;
   try { sharingStorage = window.sessionStorage; } catch { /* Sharing remains usable in memory when storage is restricted. */ }
@@ -217,6 +219,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      disposeExtensionBridge();
       passwordChangeNotice = false;
       googleDestination = null;
       removeGlobalErrors();

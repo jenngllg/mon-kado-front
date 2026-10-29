@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Ajouter à MonKado</title><link rel="stylesheet" href="popup.css"></head>
+<body><main>
+  <div class="brand"><img src="icon.png" alt=""> MonKado<span>.</span></div>
+  <h1>Ajouter un souhait</h1>
+  <p id="status" role="status">Chargement…</p>
+  <form id="form" hidden>
+    <img id="image" alt="Image du produit" hidden>
+    <label>Liste *<select id="list" required></select></label>
+    <label>Nom du souhait *<input id="name" maxlength="100" required></label>
+    <label>Prix en euros<input id="price" inputmode="decimal"></label>
+    <button id="add" type="submit">Ajouter</button>
+  </form>
+</main><script type="module" src="popup.js"></script></body></html>

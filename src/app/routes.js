@@ -64,7 +64,6 @@ import { createGoogleReturnView } from "../features/google/googleReturnView.js";
 import { createGoogleLinkView } from "../features/google/googleLinkView.js";
 import { createWishlistsService } from "../features/wishlists/wishlistsService.js";
 import { createWishlistShareService } from "../features/wishlists/wishlistShareService.js";
-import { createWishImportService } from "../features/wishes/wishImportService.js";
 import { createWishlistsView } from "../features/wishlists/wishlistsView.js";
 import { createWishlistView } from "../features/wishlists/createWishlistView.js";
 import { createWishlistEditView } from "../features/wishlists/wishlistEditView.js";
@@ -402,8 +401,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         const wishes = createWishesService(session, { apiBaseUrl });
         return createWishCreateView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
-          create: wishes.create, uploadImage: wishes.uploadImage, loadWish: wishes.loadOne, preview: createWishImportService(session).preview,
-          initialMode: context.searchParams.getAll("mode").length === 1 ? context.searchParams.get("mode") ?? "" : "",
+          create: wishes.create, uploadImage: wishes.uploadImage, loadWish: wishes.loadOne,
           signal: context.signal, onCreated: created => onWishCreated(created, context) });
       },
     },
@@ -412,7 +410,6 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishEditView({ ...createWishesService(session, { apiBaseUrl }), update: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).update, context, result => result.wish.name), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
           returnSort: context.searchParams.get("sort"),
-          preview: createWishImportService(session).preview,
           loadWishlist: createWishlistsService(session).loadOne, signal: context.signal, onDeleted: () => onWishDeleted(context) }),
     },
     {

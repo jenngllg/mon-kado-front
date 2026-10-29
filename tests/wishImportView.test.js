@@ -21,286 +21,55 @@ function setup(options = {}) {
   const create = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").CreateWish} */ (async () => created()));
   const loadWish = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").LoadWish} */ (async () => ({ ...created(), etag: '"fresh"' })));
   const uploadImage = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").UploadWishImage} */ (async () => created()));
-  const preview = vi.fn(/** @type {import("../src/features/wishes/wishImportService.js").PreviewWish} */ (async () => ({ name: "Théière", url, price: "19,99", image: new Blob(["fixture"], { type: "image/webp" }), warnings: [] })));
   const onCreated = vi.fn(async () => {});
-  const view = createWishCreateView({ wishlistId: id, loadOne, create, loadWish, uploadImage, preview, onCreated, initialMode: "url", ...options }); views.push(view); document.body.append(view);
+  const view = createWishCreateView({ wishlistId: id, loadOne, create, loadWish, uploadImage, onCreated, ...options }); views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector('form[aria-label="Ajouter un souhait"]'));
-  const analysis = /** @type {HTMLFormElement} */ (view.querySelector('form[aria-label="Analyser un lien produit"]'));
-  const input = /** @type {HTMLInputElement} */ (analysis.querySelector("input"));
   const values = Object.fromEntries([...form.querySelectorAll("input,textarea")].map(item => [/** @type {HTMLInputElement} */ (item).name, /** @type {HTMLInputElement} */ (item)]));
-  const analyze = async () => { input.value = url; input.dispatchEvent(new Event("input")); analysis.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await settle(); };
-  const submit = async () => { submitWishCreation(form); await settle(); };
-  return { view, form, analysis, input, values, analyze, submit, create, loadOne, loadWish, uploadImage, preview, onCreated };
-}
-describe("unified creation and suggestions", () => {
-  it("unlocks ten seconds after URL input even if the preview ignores cancellation", async () => {
-    vi.useFakeTimers(); const gate = barrier(); const ui = setup(); await settle();
-    ui.values.name.value = "Mon brouillon";
-    ui.preview.mockImplementation(async () => { await gate.promise; return { name: "Trop tard", url, price: "12", image: null, warnings: [] }; });
-    ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(9999); expect(ui.values.name.disabled).toBe(true);
-    await vi.advanceTimersByTimeAsync(1); await settle();
-    expect(ui.values.name.disabled).toBe(false); expect(ui.form.getAttribute("aria-busy")).toBe("false");
-    expect(ui.values.name.value).toBe("Mon brouillon"); expect(ui.create).not.toHaveBeenCalled();
-    gate.resolve(); await settle(); expect(ui.values.name.value).toBe("Mon brouillon");
-  });
-  it("discards unchanged imported metadata when continuing without a link but keeps manual edits", async () => {
-    const ui = setup(); await settle(); ui.values.name.value = "Mon nom"; ui.values.price.value = "8";
-    ui.values.note.value = "Ma description"; ui.values.color.value = "Vert"; ui.values.size.value = "M";
-    await ui.analyze(); expect(ui.values.name.value).toBe("Théière");
-    ui.values.name.value = "Nom corrigé";
-    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer sans lien" && !button.hidden)?.click();
-    expect(ui.form.dataset.creationStep).toBe("product"); expect(ui.values.url.value).toBe("");
-    expect(ui.values.name.value).toBe("Nom corrigé"); expect(ui.values.price.value).toBe("8");
-    expect(ui.values.note.value).toBe("Ma description"); expect(ui.values.color.value).toBe("Vert"); expect(ui.values.size.value).toBe("M");
-    expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull(); expect(revoke).toHaveBeenCalledOnce();
-    await ui.submit(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).not.toHaveBeenCalled();
-  });
-  it.each(["success", "failure"])("locks creation immediately through debounce and retrieval, then unlocks after %s", async outcome => {
-    // Arrange
-    vi.useFakeTimers(); const gate = barrier(); const ui = setup(); await settle();
-    ui.values.name.value = "Mon souhait";
-    ui.preview.mockImplementation(async () => {
-      await gate.promise;
-      if (outcome === "failure") throw new ApiError({ kind: "network" });
-      return { name: "Produit", url, price: "12", image: null, warnings: [] };
-    });
-    const controls = [...ui.form.querySelectorAll('input,textarea,button:not([aria-label="Diminuer la quantité souhaitée"])' )];
-    const locked = () => controls.every(control => /** @type {HTMLInputElement} */ (control).disabled);
-    // Act
-    ui.input.focus(); ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
-    // Assert
-    expect(locked()).toBe(true); expect(ui.input.disabled).toBe(false);
-    expect(ui.form.getAttribute("aria-busy")).toBe("true");
-    expect(document.activeElement).toBe(ui.input);
-    await ui.submit(); expect(ui.create).not.toHaveBeenCalled(); expect(ui.preview).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(250);
-    expect(locked()).toBe(true); await ui.submit(); expect(ui.create).not.toHaveBeenCalled();
-    gate.resolve(); await settle();
-    expect(controls.every(control => !/** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
-    expect(ui.form.getAttribute("aria-busy")).toBe("false");
-    expect(ui.values.name.value).toBe(outcome === "success" ? "Produit" : "Mon souhait");
-  });
-  it("preserves the favorite choice during URL import and saves it only on Add", async () => {
-    const ui = setup(); await settle();
-    const favorite = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="isFavorite"]'));
-    favorite.checked = true; favorite.dispatchEvent(new Event("input", { bubbles: true }));
-    await ui.analyze();
-    expect(favorite.checked).toBe(true); expect(ui.create).not.toHaveBeenCalled();
-    await ui.submit();
-    expect(ui.create).toHaveBeenCalledWith(id, expect.objectContaining({ isFavorite: true }), expect.anything());
-  });
-  it.each(["invalid", "unreadable", "aborted"])("preserves the current image after a failed local replacement: %s", async failure => {
-    // Arrange
-    const ui = setup(); await settle(); await ui.analyze();
-    const image = ui.view.querySelector('img[src^="blob:"]');
-    vi.mocked(decodeWishImage).mockRejectedValue(failure === "aborted" ? new DOMException("Cancelled", "AbortError") : new Error("Unreadable"));
-    const file = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="file"]'));
-    const choose = /** @type {HTMLButtonElement} */ (ui.view.querySelector('button[aria-label="Remplacer l’image"]'));
-    const picker = vi.spyOn(file, "click"); choose.click(); expect(picker).toHaveBeenCalledOnce();
-    const transfer = new DataTransfer();
-    transfer.items.add(failure === "invalid" ? new File(["text"], "invalid.txt", { type: "text/plain" }) : new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], "image.png", { type: "image/png" }));
-    // Act
-    file.files = transfer.files; file.dispatchEvent(new Event("change")); await settle();
-    // Assert
-    expect(ui.view.querySelector('img[src^="blob:"]')).toBe(image);
-    expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
-    expect(file.value).toBe("");
-    expect(ui.view.querySelector('[role="alert"]') !== null).toBe(failure !== "aborted");
-    expect(revoke).toHaveBeenCalledTimes(failure === "invalid" ? 0 : 1);
-  });
-  it.each(["dispose", "edit"])("revokes a pending local image and ignores late decoding after %s", async action => {
-    const ui = setup(); await settle(); const gate = barrier();
-    vi.mocked(decodeWishImage).mockImplementation(async () => { await gate.promise; });
-    const file = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="file"]'));
-    const transfer = new DataTransfer(); transfer.items.add(new File([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])], "image.png", { type: "image/png" }));
-    file.files = transfer.files; file.dispatchEvent(new Event("change")); await settle();
-    if (action === "dispose") disposeComponent(ui.view);
-    else { ui.input.value = url; ui.input.dispatchEvent(new Event("input")); }
-    gate.resolve(); await settle();
-    expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:preview-1");
-    expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull(); expect(ui.uploadImage).not.toHaveBeenCalled();
-  });
-  it("selects a local image before Ajouter without uploading until creation", async () => {
-    // Arrange
-    const ui = setup(); await settle(); ui.values.name.value = "Mon souhait";
-    const input = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="file"]'));
-    const transfer = new DataTransfer();
-    transfer.items.add(new File([new Uint8Array([137,80,78,71,13,10,26,10])], "photo.png", { type: "image/png" }));
-    // Act
+  const selectImage = async () => {
+    values.name.value = "Mon souhait";
+    const input = /** @type {HTMLInputElement} */ (view.querySelector('input[type="file"]'));
+    const transfer = new DataTransfer(); transfer.items.add(new File([new Uint8Array([137,80,78,71,13,10,26,10])], "photo.png", { type: "image/png" }));
     input.files = transfer.files; input.dispatchEvent(new Event("change")); await settle();
-    // Assert
-    const panel = ui.form.querySelector(".wish-import__image-panel");
-    expect(panel?.closest('[aria-label="Souhait"]')).not.toBeNull();
-    expect(panel?.querySelector('img[src^="blob:"]')).not.toBeNull();
-    expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
-    await ui.submit();
-    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
-  });
-  it("describes automatic prefilling below the URL with a decorative info icon and accessible association", async () => {
-    // Arrange
-    const ui = setup(); await settle();
-    const description = ui.analysis.querySelector(".form-field__description");
-    // Act
-    ui.input.value = "invalid";
-    ui.analysis.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
-    // Assert
-    expect(description?.textContent).toBe("Indique le lien du produit : les informations disponibles seront préremplies automatiquement.");
-    expect(ui.input.nextElementSibling).toBe(description);
-    expect(description?.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
-    expect(description?.querySelector("svg")?.getAttribute("focusable")).toBe("false");
-    expect(ui.input.getAttribute("aria-describedby")?.split(" ")).toContain(description?.id);
-    expect(ui.input.getAttribute("aria-invalid")).toBe("true");
-    expect(ui.preview).not.toHaveBeenCalled();
-  });
-  it("always shows an optional URL and only a spinner during retrieval", async () => {
-    // Arrange
-    vi.useFakeTimers(); const gate = barrier(); const ui = setup({ initialMode: undefined }); await settle();
-    ui.preview.mockImplementation(async () => { await gate.promise; return { name: "Produit", url, price: "", image: null, warnings: [] }; });
-    // Act
-    ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(250);
-    // Assert
-    expect(ui.analysis.hidden).toBe(false);
-    expect(ui.input.required).toBe(false);
-    expect(ui.view.querySelector(".wish-import__modes")).toBeNull();
-    const spinner = ui.view.querySelector(".wish-import__loader");
-    expect(spinner?.hasAttribute("hidden")).toBe(false);
-    expect(spinner?.textContent).toBe("");
-    expect(ui.view.textContent).not.toContain("Analyse du lien");
-    gate.resolve(); await settle();
-    expect(spinner?.hasAttribute("hidden")).toBe(true);
-  });
-
-  it("starts automatic analysis after a short typing pause without a button or focus theft", async () => {
-    // Arrange
-    vi.useFakeTimers(); const ui = setup(); await settle(); ui.input.focus();
-    // Act
-    ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(150);
-    ui.input.value = url + "?color=blue"; ui.input.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(249);
-    // Assert
-    expect(ui.preview).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1); await settle();
-    expect(ui.preview).toHaveBeenCalledExactlyOnceWith(id, url + "?color=blue", { signal: expect.any(AbortSignal) });
-    expect(document.activeElement).toBe(ui.input);
-    expect(ui.analysis.querySelector('button[type="submit"]')).toBeNull();
-    const description = ui.analysis.querySelector(".form-field__description");
-    expect(description?.textContent).toContain("les informations disponibles seront préremplies automatiquement");
-    expect(ui.input.getAttribute("aria-describedby")?.split(" ")).toContain(description?.id);
-    expect(ui.view.textContent).not.toContain("Les informations récupérées");
-    expect(ui.view.textContent).not.toContain("2 048 caractères");
-  });
-  it.each(["invalid", "empty", "dispose"])("cancels pending automatic analysis on %s", async action => {
-    // Arrange
-    vi.useFakeTimers(); const ui = setup(); await settle();
-    ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
-    expect(ui.values.name.disabled).toBe(true);
-    // Act
-    if (action === "dispose") disposeComponent(ui.view);
-    else { ui.input.value = action === "empty" ? "" : "invalid"; ui.input.dispatchEvent(new Event("input")); }
-    await vi.advanceTimersByTimeAsync(250);
-    // Assert
-    expect(ui.preview).not.toHaveBeenCalled();
-    if (action !== "dispose") {
-      expect(ui.values.name.disabled).toBe(false);
-      expect(ui.form.getAttribute("aria-busy")).toBe("false");
-    }
-  });
-  it("aborts obsolete analysis when typing resumes and ignores its late result", async () => {
-    // Arrange
-    vi.useFakeTimers(); const gate = barrier(); const ui = setup(); await settle();
-    ui.preview.mockImplementationOnce(async () => { await gate.promise; return { name: "Obsolète", url, price: "", image: null, warnings: [] }; });
-    ui.input.value = url; ui.input.dispatchEvent(new Event("input")); await vi.advanceTimersByTimeAsync(250);
-    // Act
-    ui.input.value = url + "/new"; ui.input.dispatchEvent(new Event("input"));
-    gate.resolve(); await settle();
-    // Assert
-    expect(ui.preview.mock.calls[0][2].signal.aborted).toBe(true);
-    expect(ui.values.name.value).toBe("");
-    expect(ui.values.name.disabled).toBe(true);
-    await vi.advanceTimersByTimeAsync(250); await settle();
-    expect(ui.preview).toHaveBeenCalledTimes(2);
-    expect(ui.values.name.value).toBe("Théière");
-  });
-  it("prefills a virgin form and waits for explicit creation before uploading with its individual tag", async () => {
-    const ui = setup(); await settle(); await ui.analyze(); expect(ui.values.name.value).toBe("Théière"); expect(ui.values.price.value).toBe("19,99"); expect(ui.values.quantity.value).toBe("1"); expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
-    await ui.submit(); expect(ui.create.mock.calls[0][1]).toEqual({ name: "Théière", note: "", price: "19,99", url, quantity: "1", color: "", size: "", isFavorite: false, isSurprise: false, acceptsSecondHand: false }); expect(ui.uploadImage.mock.calls[0][3].etag).toBe('"created"'); expect(ui.onCreated).toHaveBeenCalledTimes(1); expect(revoke).not.toHaveBeenCalled();
-    disposeComponent(ui.view); expect(revoke).toHaveBeenCalledOnce();
-    await ui.submit(); expect(ui.create).toHaveBeenCalledTimes(1);
-  });
-  it("automatically replaces draft metadata while retaining note and quantity without saving", async () => {
-    const ui = setup(); await settle(); ui.values.name.value = "Mon nom"; ui.values.note.value = "  note conservée  "; ui.values.quantity.value = "3"; await ui.analyze();
-    expect(ui.values.name.value).toBe("Théière"); expect(ui.values.note.value).toBe("  note conservée  "); expect(ui.values.quantity.value).toBe("3");
-    expect(ui.view.textContent).not.toContain("Appliquer les suggestions"); expect(ui.view.textContent).not.toContain("Garder ma saisie");
-    expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
-  });
-  it("preserves surprise and secondhand choices when importing a product", async () => {
-    const ui = setup(); await settle();
-    const surprise = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("isSurprise"));
-    const secondHand = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("acceptsSecondHand"));
-    surprise.click(); secondHand.click(); await ui.analyze();
-    expect(surprise.checked).toBe(true); expect(secondHand.checked).toBe(true);
-    expect(ui.form.querySelector(".wish-form__price label")?.textContent).toBe("Budget maximum (€)");
-    expect(ui.create).not.toHaveBeenCalled();
-  });
-  it("automatically replaces a previous imported image and revokes its preview", async () => {
-    const ui = setup(); await settle(); await ui.analyze();
-    ui.preview.mockResolvedValue({ name: "Nouveau produit", url: "https://shop.example/new", price: "29,99", image: new Blob(["new image"]), warnings: [] });
-    ui.input.value = "https://shop.example/new"; ui.input.dispatchEvent(new Event("input")); ui.analysis.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
-    expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:preview-1"); expect(ui.view.querySelectorAll('img[src^="blob:"]')).toHaveLength(1);
-    expect(ui.values.name.value).toBe("Nouveau produit"); expect(ui.values.price.value).toBe("29,99");
-    expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
-  });
-  it("removes the optional image without changing the creation request", async () => {
-    const ui = setup(); await settle(); await ui.analyze();
-    expect(ui.view.querySelectorAll('input[type="checkbox"]:not([role="switch"])')).toHaveLength(1);
-    expect(ui.view.querySelectorAll('input[role="switch"]')).toHaveLength(2);
-    expect(ui.view.querySelector('input[name="isFavorite"]')).not.toBeNull();
-    const remove = /** @type {HTMLButtonElement} */ (ui.view.querySelector('button[aria-label="Retirer la sélection"]'));
-    remove.click();
-    expect(ui.form.querySelector("img")).toBeNull(); expect(remove.hidden).toBe(true);
-    expect(revoke).toHaveBeenCalledOnce(); expect(ui.values.name.value).toBe("Théière");
-    await ui.submit(); expect(ui.create).toHaveBeenCalledTimes(1); expect(ui.uploadImage).not.toHaveBeenCalled(); expect(ui.onCreated).toHaveBeenCalledTimes(1);
-  });
-  it("drops an unreadable image while retaining text and allowing manual completion", async () => {
-    vi.mocked(decodeWishImage).mockRejectedValue(new Error("private data")); const ui = setup(); await settle(); await ui.analyze(); expect(ui.values.name.value).toBe("Théière"); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.textContent).not.toContain("private data"); expect(revoke).toHaveBeenCalledTimes(1);
-  });
-  it("rejects invalid URLs with an associated French validation and no call", async () => {
-    const ui = setup(); await settle(); ui.input.value = "javascript:alert(1)"; ui.analysis.dispatchEvent(new Event("submit", { cancelable: true })); await settle(); expect(ui.preview).not.toHaveBeenCalled(); expect(ui.input.getAttribute("aria-invalid")).toBe("true"); expect(document.activeElement).toBe(ui.input);
-  });
-  it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "http", statusCode: 429, retryAfterSeconds: 4 }), new ApiError({ kind: "http", statusCode: 400, errorCode: "WISH_IMPORT_URL_REJECTED" })])("keeps manual creation available after analysis failure %#", async error => {
-    const ui = setup(); await settle(); ui.values.name.value = "Manuel"; ui.preview.mockRejectedValue(error); await ui.analyze(); expect(ui.values.name.value).toBe("Manuel"); expect(ui.values.url.value).toBe(url); await ui.submit(); expect(ui.create).toHaveBeenCalledTimes(1);
-  });
-  it("cancels mode changes and ignores late suggestions without losing local inputs", async () => {
-    const gate = barrier(); const ui = setup(); await settle(); ui.preview.mockImplementation(async () => { await gate.promise; return { name: "Obsolète", url, price: "", image: null, warnings: [] }; });
-    await ui.analyze(); expect(ui.analysis.getAttribute("aria-busy")).toBe("true"); ui.input.value = ""; ui.input.dispatchEvent(new Event("input")); expect(ui.preview.mock.calls[0][2].signal.aborted).toBe(true); gate.resolve(); await settle(); expect(ui.values.name.value).toBe(""); expect(ui.view.textContent).not.toContain("Obsolète");
-  });
-  it("does not analyze or create for a suspended list", async () => {
-    const ui = setup(); ui.loadOne.mockResolvedValue({ wishlist: { id, name: "Liste", occasion: "birthday", eventDate: null, message: null, isSuspended: true }, etag: '"l"' }); await settle();
-    // The next explicit read observes the concurrent suspension.
-    ui.preview.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); await ui.analyze(); await ui.submit(); expect(ui.create).not.toHaveBeenCalled(); expect(ui.view.textContent).toContain("Consultation uniquement");
-  });
-  it("cleans image URLs, cancels analysis and clears fields on idempotent disposal", async () => {
-    const ui = setup(); await settle(); await ui.analyze(); disposeComponent(ui.view); disposeComponent(ui.view); expect(revoke).toHaveBeenCalledTimes(1); expect(ui.values.name.value).toBe(""); expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull();
-  });
-  it("ignores an obsolete image decode after a mode change and revokes its URL", async () => {
-    const gate = barrier(); vi.mocked(decodeWishImage).mockImplementation(async () => { await gate.promise; }); const ui = setup(); await settle(); await ui.analyze();
-    ui.input.value = ""; ui.input.dispatchEvent(new Event("input")); gate.resolve(); await settle(); expect(ui.values.name.value).toBe(""); expect(ui.view.querySelector("img")).toBeNull(); expect(revoke).toHaveBeenCalledTimes(1);
-  });
-  it("focuses server URL validation after reenabling the field, without exposing English", async () => {
-    const ui = setup(); await settle(); ui.preview.mockRejectedValue(new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "url", errorMessage: "PRIVATE_ENGLISH" }] })); await ui.analyze();
-    expect(document.activeElement).toBe(ui.input); expect(ui.input.getAttribute("aria-invalid")).toBe("true"); expect(ui.view.textContent).not.toContain("PRIVATE_ENGLISH");
-  });
-  it("renders suggested markup as text and keeps manual validation authoritative", async () => {
-    const ui = setup(); await settle(); ui.preview.mockResolvedValue({ name: "<img src=x onerror=alert(1)>", url, price: "", image: null, warnings: [] }); await ui.analyze();
-    expect(ui.values.name.value).toContain("<img"); expect(ui.view.querySelector("img")).toBeNull(); ui.values.quantity.value = "0"; await ui.submit(); expect(ui.create).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.values.quantity);
-  });
+  };
+  const submit = async () => { submitWishCreation(form); await settle(); };
+  return { view, form, values, selectImage, submit, create, loadOne, loadWish, uploadImage, onCreated };
+}
+it("keeps a link and manual details without analyzing them", async () => {
+  const ui = setup(); await settle();
+  ui.values.url.value = url; ui.values.url.dispatchEvent(new Event("input", { bubbles: true }));
+  ui.values.name.value = "Mon choix"; ui.values.price.value = "12,50";
+  await ui.submit();
+  expect(ui.create).toHaveBeenCalledOnce();
+  expect(ui.create).toHaveBeenCalledWith(id, expect.objectContaining({ url, name: "Mon choix", price: "12,50" }), expect.anything());
+  expect(ui.view.textContent).not.toContain("Récupération");
+});
+it("selects a local image and uploads only after creation", async () => {
+  const ui = setup(); await settle(); await ui.selectImage();
+  expect(ui.view.querySelector('img[src^="blob:"]')).not.toBeNull();
+  expect(ui.create).not.toHaveBeenCalled(); expect(ui.uploadImage).not.toHaveBeenCalled();
+  await ui.submit(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
+});
+it("keeps the selected image when a replacement is invalid", async () => {
+  const ui = setup(); await settle(); await ui.selectImage();
+  const image = ui.view.querySelector('img[src^="blob:"]');
+  const input = /** @type {HTMLInputElement} */ (ui.view.querySelector('input[type="file"]'));
+  const transfer = new DataTransfer(); transfer.items.add(new File(["invalid"], "invalid.txt", { type: "text/plain" }));
+  input.files = transfer.files; input.dispatchEvent(new Event("change")); await settle();
+  expect(ui.view.querySelector('img[src^="blob:"]')).toBe(image);
+  expect(ui.view.textContent).toContain("Image à vérifier");
+  expect(ui.uploadImage).not.toHaveBeenCalled();
+});
+it("discards a pending image when the view is disposed", async () => {
+  const ui = setup(); await settle(); const gate = barrier();
+  vi.mocked(decodeWishImage).mockImplementation(async () => { await gate.promise; });
+  await ui.selectImage(); disposeComponent(ui.view); gate.resolve(); await settle();
+  expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:preview-1");
+  expect(ui.view.querySelector('img[src^="blob:"]')).toBeNull();
+  expect(ui.create).not.toHaveBeenCalled();
 });
 describe("inline creation and image saving", () => {
   it("keeps the last step visible and locked until the image succeeds", async () => {
-    const gate = barrier(); const ui = setup(); await settle(); await ui.analyze();
+    const gate = barrier(); const ui = setup(); await settle(); await ui.selectImage();
     ui.uploadImage.mockImplementation(async () => { await gate.promise; return created(); });
     await ui.submit();
     expect(ui.form.hidden).toBe(false); expect(ui.form.dataset.creationStep).toBe("details");
@@ -319,7 +88,7 @@ describe("inline creation and image saving", () => {
     new ApiError({ kind: "http", statusCode: 400, errorCode: "WISH_IMAGE_INVALID" }),
     new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" }),
   ])("retains the confirmed wish and inline warning after image rejection %#", async error => {
-    const ui = setup(); await settle(); await ui.analyze(); ui.uploadImage.mockRejectedValue(error); await ui.submit();
+    const ui = setup(); await settle(); await ui.selectImage(); ui.uploadImage.mockRejectedValue(error); await ui.submit();
     expect(ui.form.hidden).toBe(false); expect(ui.form.dataset.creationStep).toBe("details");
     expect(ui.form.getAttribute("aria-busy")).toBe("false");
     expect(ui.form.querySelector('[type="submit"]')?.hasAttribute("disabled")).toBe(true);
@@ -331,7 +100,7 @@ describe("inline creation and image saving", () => {
     expect(ui.view.querySelector('a[aria-disabled="true"]')).toBeNull();
   });
   it.each(["success", "failure", "abort"])("ignores an image %s after departure", async outcome => {
-    const gate = barrier(); const ui = setup(); await settle(); await ui.analyze();
+    const gate = barrier(); const ui = setup(); await settle(); await ui.selectImage();
     ui.uploadImage.mockImplementation(async () => { await gate.promise; if (outcome !== "success") throw outcome === "abort" ? new DOMException("Cancelled", "AbortError") : new Error("private"); return created(); });
     await ui.submit(); disposeComponent(ui.view); gate.resolve(); await settle();
     expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
@@ -339,7 +108,7 @@ describe("inline creation and image saving", () => {
     expect(ui.view.textContent).not.toContain("private"); expect(revoke).toHaveBeenCalledOnce();
   });
   it("never replays either confirmed write after navigation failure", async () => {
-    const ui = setup(); await settle(); await ui.analyze(); ui.onCreated.mockRejectedValue(new Error("private")); await ui.submit();
+    const ui = setup(); await settle(); await ui.selectImage(); ui.onCreated.mockRejectedValue(new Error("private")); await ui.submit();
     expect(ui.view.textContent).toContain("l’ouverture de la liste a échoué"); expect(ui.view.textContent).not.toContain("private");
     await ui.submit(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
     expect(ui.form.hidden).toBe(false);

@@ -9,18 +9,17 @@ import { isWishlistId, trimWishlistText } from "../wishlists/wishlistValidation.
 import { createWishForm } from "./wishForm.js";
 import { createWishImageSection } from "./wishImageSection.js";
 import { WishImageValidationError } from "./wishImageValidation.js";
-import { validateImportUrl, loadWishImportSuggestions, WishImportDelayMs } from "./wishImportService.js";
 import { createWishPayload, parseWishPrice, WishPayloadTooLarge, WishServerMessages } from "./wishValidation.js";
 
 /** Edits an independently versioned gift without replacing a local draft on reread.
  * @param {{wishlistId: string, wishId: string, loadWishlist: import("../wishlists/wishlistsService.js").LoadWishlist,
  * loadOne: import("./wishesService.js").LoadWish, update: import("./wishesService.js").UpdateWish,
  * remove?: import("./wishesService.js").RemoveWish, onDeleted?: () => void | Promise<void>, signal?: AbortSignal,
- * preview?: import("./wishImportService.js").PreviewWish, returnSort?: string | null,
+ * returnSort?: string | null,
  * uploadImage?: import("./wishesService.js").UploadWishImage, removeImage?: import("./wishesService.js").RemoveWishImage}} options Owner operations.
  * @returns {HTMLElement} Disposable protected view.
  */
-export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, update, signal, uploadImage, removeImage, preview, returnSort }) {
+export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, update, signal, uploadImage, removeImage, returnSort }) {
   const view = element("section", ""); view.className = "wish-edit-view flow";
   const title = element("h1", "Modifier un souhait"); title.tabIndex = -1;
   const feedback = element("div", ""); feedback.className = "flow"; feedback.hidden = true;
@@ -34,22 +33,6 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   const editor = createWishForm({ label: "Modifier un souhait", inactive: () => disposed || busy || suspended || terminal,
     onChange: () => { if (validationSummary && editor.fields.every(field => field.error === null)) clearFeedback(); sync(); } });
   const { form, fields } = editor;
-  let analyzing = false;
-  /** @type {ReturnType<typeof setTimeout> | null} */ let analysisTimer = null;
-  /** @type {AbortController | null} */ let analysisController = null;
-  const urlField = fields.find(field => field.name === "url");
-  const loader = element("span", ""); loader.className = "ui-spinner wish-import__loader"; loader.hidden = true;
-  loader.setAttribute("role", "status"); loader.setAttribute("aria-label", "Récupération des informations en cours");
-  if (preview && urlField) {
-    const loadingLabel = element("span", "Récupération en cours…"); loadingLabel.className = "wish-import__loading-label"; loadingLabel.setAttribute("aria-hidden", "true");
-    form.prepend(urlField.element); urlField.element.classList.add("wish-import__url-field"); urlField.element.append(loader, loadingLabel);
-    addComponentEventListener(view, urlField.control, "input", () => {
-      cancelAnalysis();
-      if (!disposed && !busy && !blocked && !suspended && !terminal && validateImportUrl(urlField.control.value) === null)
-        analysisTimer = setTimeout(() => { analysisTimer = null; void analyzeLink(); }, WishImportDelayMs);
-      sync();
-    });
-  }
   const actions = element("div", ""); actions.className = "wishlist-form__actions cluster";
   const submit = createButton({ label: "Enregistrer", type: "submit" });
   const useVersion = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: useStored });
@@ -64,7 +47,6 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); base = null; editor.discardDeferredBlur(); editor.clear(); clearFeedback(); clearComparison();
-    cancelAnalysis();
     disposeComponent(imageSection.element); disposeComponent(imageNotice); imageNotice.replaceChildren();
     status.textContent = ""; sync();
   });
@@ -76,39 +58,6 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   return view;
 
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); feedback.hidden = true; validationSummary = false; }
-  function cancelAnalysis() {
-    if (analysisTimer !== null) clearTimeout(analysisTimer);
-    analysisTimer = null; analysisController?.abort(); analysisController = null; analyzing = false; loader.hidden = true;
-    sync();
-  }
-  async function analyzeLink() {
-    if (!preview || !urlField || disposed || busy || blocked || suspended || terminal) return;
-    const controller = new AbortController(); analysisController = controller;
-    const snapshot = editor.getValues(), selected = imageSection.getSelected();
-    analyzing = true; loader.hidden = false; sync();
-    let imageUrl = null;
-    try {
-      const result = await loadWishImportSuggestions(preview, wishlistId, snapshot.url, { signal: controller.signal });
-      imageUrl = result.previewImageUrl;
-      if (disposed || controller.signal.aborted) return;
-      analyzing = false; sync();
-      const current = editor.getValues();
-      editor.reset({ ...current,
-        name: result.name || current.name,
-        price: result.price || current.price });
-      if (result.image && imageSection.getSelected() === selected) imageSection.setSelected(result.image);
-      status.textContent = "";
-    } catch (error) {
-      if (!disposed && !controller.signal.aborted && !isAbortError(error)) {
-        if (error instanceof ApiError && error.statusCode === 404) notFound(true);
-        else if (error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED") lockSuspended();
-        else show({ title: "Récupération impossible", message: "Tu peux compléter les informations manuellement." });
-      }
-    } finally {
-      if (imageUrl) URL.revokeObjectURL(imageUrl);
-      if (!disposed && analysisController === controller) { analyzing = false; loader.hidden = true; sync(); }
-    }
-  }
   function clearComparison() { comparison.replaceChildren(); comparison.hidden = true; }
   /** @param {Parameters<typeof createAlert>[0]} options Safe local text. */
   function show(options) { clearFeedback(); feedback.hidden = false; const alert = createAlert({ variant: "error", ...options }); alert.tabIndex = -1; feedback.append(alert); return alert; }
@@ -126,22 +75,20 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   function hasTextDraft() { const values = editor.getValues(); return !!base && (fields.some(field => values[field.name] !== base?.values[field.name]) || ["isFavorite", "isSurprise", "acceptsSecondHand"].some(key => !!values[/** @type {"isFavorite" | "isSurprise" | "acceptsSecondHand"} */ (key)] !== !!base?.values[/** @type {"isFavorite" | "isSurprise" | "acceptsSecondHand"} */ (key)])); }
   function clearImageNotice() { disposeComponent(imageNotice); imageNotice.replaceChildren(); imageNotice.hidden = true; }
   function sync() {
-    const importing = analyzing || analysisTimer !== null;
-    loader.hidden = !importing;
-    editor.favorite.disabled = editor.surprise.disabled = editor.secondHand.disabled = disposed || terminal || busy || importing || suspended || blocked;
+    editor.favorite.disabled = editor.surprise.disabled = editor.secondHand.disabled = disposed || terminal || busy || suspended || blocked;
     form.hidden = disposed || terminal || base === null;
     for (const field of fields) {
       field.control.readOnly = suspended;
-      field.control.disabled = disposed || terminal || busy || (importing && field.name !== "url");
+      field.control.disabled = disposed || terminal || busy;
     }
     editor.syncQuantityControls();
-    submit.disabled = disposed || terminal || busy || importing || blocked || suspended || (!changed() && !imageSection.getSelected());
+    submit.disabled = disposed || terminal || busy || blocked || suspended || (!changed() && !imageSection.getSelected());
     if (!busy) submit.textContent = "Enregistrer";
     useVersion.hidden = !decision; useVersion.disabled = disposed || terminal || busy || suspended;
     reread.hidden = disposed || terminal || !base || !blocked; reread.disabled = busy;
     retry.hidden = disposed || terminal || base !== null || busy; retry.disabled = busy;
-    form.setAttribute("aria-busy", String(busy || importing));
-    imageSection.update(base?.wish ?? null, disposed || busy || importing || blocked || terminal, suspended);
+    form.setAttribute("aria-busy", String(busy));
+    imageSection.update(base?.wish ?? null, disposed || busy || blocked || terminal, suspended);
     imageSection.element.hidden = form.hidden;
   }
   /** An image success never replays a mutation if its subsequent read fails.
@@ -208,7 +155,6 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   }
   function useStored() {
     if (disposed || busy || suspended || terminal || !base) return;
-    cancelAnalysis();
     imageSection.clearSelection();
     editor.discardDeferredBlur(); editor.reset(base.values); decision = false; clearComparison();
     if (!blocked) clearFeedback();
@@ -257,8 +203,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     } finally { if (!disposed) { busy = false; sync(); } }
   }
   async function save() {
-    if (disposed || busy || analyzing || analysisTimer !== null || blocked || suspended || terminal || !base || (!changed() && !imageSection.getSelected())) return;
-    cancelAnalysis();
+    if (disposed || busy || blocked || suspended || terminal || !base || (!changed() && !imageSection.getSelected())) return;
     editor.discardDeferredBlur(); clearFeedback(); for (const field of fields) editor.validate(field);
     const invalid = fields.find(field => field.error !== null);
     if (invalid) { show({ title: "Informations à vérifier", message: "Certains champs contiennent une erreur." }); validationSummary = true; invalid.control.focus(); return; }
