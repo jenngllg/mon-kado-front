@@ -51,7 +51,7 @@ describe("owner wish detail", () => {
     expect(setFavorite).not.toHaveBeenCalled();
     const toggle = /** @type {HTMLButtonElement} */ (view.querySelector(".wish-favorite-button"));
     expect(view.querySelector(".wish-detail__commands")?.contains(toggle)).toBe(true);
-    expect(view.querySelector(".wish-detail-information")?.contains(view.querySelector("h1"))).toBe(true);
+    expect(view.querySelector("h1")?.textContent).toContain(wish.name);
     toggle.click();
     await vi.waitFor(() => expect(view.querySelector(".wish-favorite-button")?.getAttribute("aria-pressed")).toBe("true"));
     expect(setFavorite).toHaveBeenCalledExactlyOnceWith("list", "wish", true, { etag: '"1"', signal: expect.any(AbortSignal) });

@@ -115,6 +115,7 @@ export default [
       "tests/wishImageEditor.test.js",
       "tests/wishImageSection.test.js",
       "tests/wishImportView.test.js",
+      "tests/wishDirectImportPoc.test.js",
       "tests/wishImageDecode.test.js",
       "tests/wishDeleteApplication.test.js",
     ],

@@ -81,7 +81,7 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
       }
       reservation.append(summary);
       if (wish.url) {
-        information.append(createWishDetailProductLink(wish.url, wish.name));
+        information.querySelector(".wish-detail__merchant")?.append(createWishDetailProductLink(wish.url, wish.name));
       }
       if (editable) {
         if (copyActions) {
@@ -122,7 +122,7 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
       const product = document.createElement("div"); product.className = "shared-wish-product flow";
       product.append(createWishImage(wish), information);
       layout.append(product, reservation);
-      content.append(layout);
+      content.append(title, layout);
       if (editable && reservations) {
         reservationPanel = createOwnedGiftReservationSection({ wishlistId, wishId, wish, loadOne, reservations,
           surpriseMode: parent.wishlist.surpriseMode !== false,

@@ -62,6 +62,7 @@ for (const width of [390, 768, 1440, 1920]) {
     await page.mouse.move(0, 0); await page.locator(".app-main").focus();
     await expect(remove).toHaveCSS("opacity", "0"); await expect(favorite).toHaveCSS("opacity", "1");
     await expect(favorite).toHaveCSS("pointer-events", "auto");
+    await tile.scrollIntoViewIfNeeded();
     const before = await tile.boundingBox();
     await tile.hover();
     await expect(remove).toHaveCSS("opacity", "1"); await expect(favorite).toHaveCSS("opacity", "1");
@@ -118,9 +119,9 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     await expect(event).toContainText("Anniversaire");
     await expect(event.locator("time")).toHaveText("18 janvier 2027");
     await expect(event).toContainText("103 jours restants");
-    const identityBox = await identity.boundingBox(); const eventBox = await event.boundingBox();
-    expect(identityBox).not.toBeNull(); expect(eventBox).not.toBeNull();
-    expect(eventBox?.y).toBeGreaterThan((identityBox?.y ?? 0) + (identityBox?.height ?? 0));
+    const titleBox = await identity.getByRole("heading", { level: 1 }).boundingBox(); const eventBox = await event.boundingBox();
+    expect(titleBox).not.toBeNull(); expect(eventBox).not.toBeNull();
+    expect(eventBox?.y).toBeGreaterThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0));
     await expect(event).toHaveCSS("border-left-width", "0px");
     await expect(event).toHaveCSS("border-top-width", "0px");
     const positions = await tiles.evaluateAll(items => items.map(item => { const box = item.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width }; }));
@@ -227,7 +228,7 @@ for (const selector of [".wish-gallery__photo", "h3 a"]) {
     await expect(page).toHaveURL(new RegExp(`/lists/${listId}/wishes/${wishId}$`));
     const actions = page.getByRole("group", { name: "Actions du souhait" });
     await expect(actions.getByRole("link", { name: "Modifier", exact: true })).toHaveAttribute("href", `/lists/${listId}/wishes/${wishId}/edit`);
-    const product = page.getByRole("link", { name: `Voir le produit « ${api.wish.name} » (nouvel onglet)`, exact: true });
+    const product = page.getByRole("link", { name: `Voir « ${api.wish.name} » sur le site marchand (nouvel onglet)`, exact: true });
     await expect(product).toHaveAttribute("target", "_blank");
     await expect(actions.getByRole("link", { name: /Voir le produit/ })).toHaveCount(0);
     await expect(actions.getByRole("button", { name: /coup de cœur/ })).toBeVisible();

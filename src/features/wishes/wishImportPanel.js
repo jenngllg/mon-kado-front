@@ -6,6 +6,7 @@ import { decodeWishImage, validateWishImageFile, WishImageValidationError } from
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { ImportUrlMessage, validateImportUrl, loadWishImportSuggestions, WishImportDelayMs } from "./wishImportService.js";
 import { createImagePlaceholder } from "../../components/imagePlaceholder.js";
+import { validateWishField } from "./wishValidation.js";
 
 /** Owns mode, analysis and disposable previews, never a creation or image mutation.
  * @param {{wishlistId: string, preview: import("./wishImportService.js").PreviewWish, initialMode?: string,
@@ -54,55 +55,69 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   messages.append(status, feedback, suggestions); analysis.append(field, messages);
   imageFrame.append(imageEmpty, appliedImage, chooseImage, removeImage); imagePanel.append(imageFrame, fileInput);
   element.append(analysis, imagePanel);
-  let disposed = false, disabled = true, analyzing = false, revision = 0, checked = false, dirty = false;
+  let disposed = false, disabled = true, analyzing = false, imageLoading = false, revision = 0, checked = false, dirty = false;
   /** @type {AbortController | null} */ let controller = null;
   /** @type {import("./wishImportService.js").WishSuggestions | null} */ let pending = null;
   /** @type {string | null} */ let pendingUrl = null;
   /** @type {string | null} */ let appliedUrl = null;
   /** @type {Blob | null} */ let appliedBlob = null;
   let importedImage = false;
+  /** @type {string | null} */ let importedFromUrl = null;
   /** @type {Partial<Record<"name" | "price", {before: string, applied: string}>>} */
   let importedFields = {};
   /** @type {ReturnType<typeof setTimeout> | null} */ let analysisTimer = null;
   addComponentEventListener(element, analysis, "submit", event => { event.preventDefault(); void run(); });
   addComponentEventListener(element, fileInput, "change", () => { void selectLocalImage(); });
+  if (import.meta.env.DEV) {
+    // Local POC bridge: only an explicit extension action supplies these editable values.
+    analysis.dataset.directImportPoc = "1";
+    addComponentEventListener(element, analysis, "monkado-direct-import", event => {
+      if (!(event instanceof CustomEvent) || !event.cancelable || disposed || disabled || element.hidden || imageLoading) return;
+      const data = event.detail;
+      if (!data || typeof data.url !== "string" || typeof data.name !== "string" || typeof data.price !== "string") return;
+      const url = data.url.trim(), name = data.name.trim(), price = data.price.trim();
+      if (!url || validateImportUrl(url) || name && validateWishField("name", name) || validateWishField("price", price)) return;
+      if (input.value.trim() && input.value.trim() !== url) return;
+      const values = getValues();
+      abort(); discardPending(); suggestions.replaceChildren(); disposeComponent(feedback); feedback.replaceChildren();
+      input.value = url; dirty = true; checked = false; setFormFieldValidation(field, null);
+      apply({ ...values, url, name: values.name.trim() ? values.name : name, price: values.price.trim() ? values.price : price });
+      sync(); onBusy(); event.preventDefault();
+    });
+  }
   addComponentEventListener(element, input, "input", () => {
     dirty = true; abort(); discardPending(); suggestions.replaceChildren();
     disposeComponent(feedback); feedback.replaceChildren();
-    apply({ ...getValues(), url: input.value.trim() });
+    const values = { ...getValues(), url: input.value.trim() };
+    if (importedFromUrl !== null && values.url !== importedFromUrl) restoreImported(values);
+    apply(values);
     if (checked) validate();
     schedule(); sync(); onBusy();
   });
   addComponentEventListener(element, input, "blur", () => { if (dirty) validate(); });
   registerComponentCleanup(element, () => { disposed = true; clear(); element.replaceChildren(); });
   sync();
-  return { element, imagePanel, messages, isBusy, isUrlMode: () => true, getImage: () => appliedBlob, clear,
+  return { element, imagePanel, messages, isBusy: () => imageLoading, isUrlMode: () => true, getImage: () => appliedBlob, clear,
     hasUrl: () => input.value.trim() !== "", validateUrl: validate, focusUrl: () => input.focus(),
     skipUrl: () => {
-      if (disposed || disabled || isBusy()) return;
+      if (disposed || disabled || imageLoading) return;
       abort(); discardPending(); input.value = ""; checked = false; dirty = false;
       setFormFieldValidation(field, null); suggestions.replaceChildren();
       disposeComponent(feedback); feedback.replaceChildren();
       const values = { ...getValues(), url: "" };
-      // Restore only imported values that have not since been edited manually.
-      for (const key of /** @type {const} */ (["name", "price"])) {
-        const imported = importedFields[key];
-        if (imported && values[key] === imported.applied) values[key] = imported.before;
-      }
-      importedFields = {};
-      if (importedImage) discardApplied();
+      restoreImported(values);
       apply(values); sync(); onBusy();
     },
     update: (/** @type {boolean} */ value) => { disabled = value; if (value) abort(); element.hidden = value; sync(); } };
 
-  function isBusy() { return analyzing || analysisTimer !== null; }
+  function isBusy() { return analyzing || imageLoading || analysisTimer !== null; }
   function cancelTimer() { if (analysisTimer !== null) clearTimeout(analysisTimer); analysisTimer = null; }
   async function selectLocalImage() {
     const file = fileInput.files?.[0];
     if (!file || disposed || disabled || isBusy()) return;
     abort(); discardPending(); controller = new AbortController();
     const signal = controller.signal, expected = revision;
-    analyzing = true; sync(); onBusy();
+    imageLoading = true; sync(); onBusy();
     let localUrl = null;
     try {
       await validateWishImageFile(file);
@@ -118,19 +133,30 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
       }
     } finally {
       if (localUrl) URL.revokeObjectURL(localUrl);
-      if (!disposed && expected === revision) { analyzing = false; fileInput.value = ""; sync(); onBusy(); }
+      if (!disposed && expected === revision) { imageLoading = false; fileInput.value = ""; sync(); onBusy(); }
     }
   }
   function schedule() {
     cancelTimer();
     if (disposed || disabled || validateImportUrl(input.value) !== null) return;
-    analysisTimer = setTimeout(() => { analysisTimer = null; void run(false); }, WishImportDelayMs);
+    const snapshot = getValues();
+    analysisTimer = setTimeout(() => { analysisTimer = null; void run(false, snapshot); }, WishImportDelayMs);
   }
   function validate() { checked = true; const error = input.value.trim() ? validateImportUrl(input.value) : null; setFormFieldValidation(field, error); return error; }
-  function abort() { cancelTimer(); revision++; controller?.abort(); controller = null; analyzing = false; status.textContent = ""; }
+  function abort() { cancelTimer(); revision++; controller?.abort(); controller = null; analyzing = false; imageLoading = false; status.textContent = ""; }
   function discardPending() { if (pendingUrl) URL.revokeObjectURL(pendingUrl); pendingUrl = null; pending = null; }
   function discardApplied() { if (appliedUrl) URL.revokeObjectURL(appliedUrl); appliedUrl = null; appliedBlob = null; importedImage = false; imageHost.replaceChildren(); }
-  function clear() { abort(); discardPending(); discardApplied(); importedFields = {}; input.value = ""; suggestions.replaceChildren(); disposeComponent(feedback); feedback.replaceChildren(); sync(); }
+  /** @param {import("./wishValidation.js").WishValues} values Current draft. */
+  function restoreImported(values) {
+    // Keep values edited by the user, but do not associate old suggestions with a different product.
+    for (const key of /** @type {const} */ (["name", "price"])) {
+      const imported = importedFields[key];
+      if (imported && values[key] === imported.applied) values[key] = imported.before;
+    }
+    importedFields = {}; importedFromUrl = null;
+    if (importedImage) discardApplied();
+  }
+  function clear() { abort(); discardPending(); discardApplied(); importedFields = {}; importedFromUrl = null; input.value = ""; suggestions.replaceChildren(); disposeComponent(feedback); feedback.replaceChildren(); sync(); }
   function sync() {
     const busy = isBusy();
     loader.hidden = !busy;
@@ -144,13 +170,16 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
     imageFrame.classList.toggle("wish-image-section__media--empty", !appliedBlob);
     analysis.setAttribute("aria-busy", String(busy));
   }
-  function applyPending() {
+  /** @param {import("./wishValidation.js").WishValues} snapshot Values at the start of the analysis. */
+  function applyPending(snapshot) {
     if (!pending || analyzing || disabled || disposed) return;
+    importedFromUrl = input.value.trim();
     const old = getValues();
     const values = { ...old, url: pending.url };
     for (const key of /** @type {const} */ (["name", "price"])) {
       const value = pending[key];
-      if (!value) continue;
+      if (!value || old[key] !== snapshot[key]) continue;
+      if (key === "name" && pending.nameFromURL && old.name.trim() && old.name !== importedFields.name?.applied) continue;
       const previous = importedFields[key];
       importedFields[key] = { before: previous && old[key] === previous.applied ? previous.before : old[key], applied: value };
       values[key] = value;
@@ -164,12 +193,14 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   }
   /** @param {readonly string[]} warnings Safe translated copy. */
   function showWarnings(warnings) { if (warnings.length) feedback.append(createAlert({ variant: "warning", title: "Suggestions à vérifier", message: [...new Set(warnings)].join(" ") })); }
-  /** @param {boolean} explicit Whether a form submission requested focus feedback. */
-  async function run(explicit = true) {
+  /** @param {boolean} explicit Whether a form submission requested focus feedback.
+   * @param {import("./wishValidation.js").WishValues} [scheduledValues] Values when analysis was scheduled. */
+  async function run(explicit = true, scheduledValues) {
     if (disposed || disabled || analyzing || !input.value.trim()) return;
     cancelTimer();
     disposeComponent(feedback); feedback.replaceChildren(); if (validate()) { input.focus(); return; }
     abort(); discardPending(); suggestions.replaceChildren(); controller = new AbortController(); const signal = controller.signal; const expected = revision;
+    const snapshot = scheduledValues ?? getValues();
     /** @type {HTMLElement | null} */ let focusTarget = null;
     analyzing = true; status.textContent = ""; sync(); onBusy();
     try {
@@ -179,7 +210,7 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
       pending = result; showWarnings(result.warnings);
       focusTarget = status;
       analyzing = false;
-      applyPending(); status.textContent = "";
+      applyPending(snapshot); status.textContent = "";
     } catch (error) {
       if (disposed || signal.aborted || expected !== revision || isAbortError(error)) return;
       if (error instanceof ApiError && (error.statusCode === 404 || error.errorCode === "WISHLIST_SUSPENDED")) { onUnavailable(error); return; }

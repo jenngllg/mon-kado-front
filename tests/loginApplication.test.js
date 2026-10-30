@@ -24,7 +24,7 @@ function mount(path = "/login", hub = createCoordinatorHub()) {
 }
 /** @param {ReturnType<typeof mount>} app Mounted app. */
 function send(app) {
-  const fields = [...app.shell.outlet.querySelectorAll("input")];
+  const fields = ["email", "password"].map(name => /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector(`input[name="${name}"]`)));
   fields[0].value = LoginValues.email.trim(); fields[1].value = LoginValues.password;
   app.shell.outlet.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
   return fields;
@@ -145,7 +145,7 @@ describe("login routing and session integration", () => {
     const hub = createCoordinatorHub();
     const app = mount("/login?returnTo=%2Freservations", hub); await app.start();
     const other = loginFixture(hub); fixtures.push(other); await other.session.start();
-    const fields = [...app.shell.outlet.querySelectorAll("input")]; fields[1].value = "private-draft";
+    const fields = ["email", "password"].map(name => /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector(`input[name="${name}"]`))); fields[1].value = "private-draft";
     app.f.state.refreshStatus = 200;
     const complete = routed(app, "lists");
     // Act

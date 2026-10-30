@@ -78,10 +78,10 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
       const actions = element("div", ""); actions.className = "cluster";
       if (copyActions) actions.append(copyActions.button(wish.id));
       if (wish.url) {
-        actions.append(createWishDetailProductLink(wish.url, wish.name));
+        information.querySelector(".wish-detail__merchant")?.append(createWishDetailProductLink(wish.url, wish.name));
       } else if (wish.productUnavailable) information.append(element("p", "Lien produit indisponible"));
       if (actions.childElementCount) information.append(actions);
-      product.append(createWishImage(wish), information); layout.append(product, reservation); results.append(layout);
+      product.append(createWishImage(wish), information); layout.append(product, reservation); results.append(title, layout);
       if (createReservation && canReserve) reservation.append(createReservation(() => {
         if (disposed || terminal) return;
         terminal = true; lifetime.abort(); clear(); clearNotice();

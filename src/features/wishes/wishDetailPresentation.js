@@ -50,11 +50,14 @@ export function createWishDetailInformation(wish, title) {
 
 /** @param {string} url Safe product URL. @param {string} name Wish name. @returns {HTMLAnchorElement} External product action. */
 export function createWishDetailProductLink(url, name) {
-  const product = createActionLink({ label: "Voir le produit", href: url });
-  product.classList.add("ui-button", "ui-button--secondary", "wish-detail__product");
-  product.setAttribute("aria-label", `Voir le produit « ${name} » (nouvel onglet)`);
+  const product = createActionLink({ label: "Voir sur le site marchand", href: url });
+  product.classList.add("wish-detail__product");
+  product.textContent = "";
+  const icon = new DOMParser().parseFromString('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M13 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M14 3h7v7M21 3 10 14"/></svg>', "image/svg+xml").documentElement;
+  product.append(icon);
+  product.setAttribute("aria-label", `Voir « ${name} » sur le site marchand (nouvel onglet)`);
   product.target = "_blank"; product.rel = "noopener noreferrer";
-  product.title = "Voir le produit (nouvel onglet)";
+  product.title = "Voir sur le site marchand (nouvel onglet)";
   return product;
 }
 

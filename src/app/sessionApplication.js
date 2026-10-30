@@ -1,5 +1,5 @@
 import { createSessionManager } from "../auth/sessionManager.js";
-import { createLoginTarget, isProtectedRoute } from "../auth/sessionGuards.js";
+import { createLoginTarget, getLoginDestination, isProtectedRoute } from "../auth/sessionGuards.js";
 import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, showNotification } from "../components/index.js";
 import { createApplicationShell } from "./applicationShell.js";
 import { createApplicationRoutes } from "./routes.js";
@@ -12,6 +12,8 @@ import { RouteNames, RoutePaths } from "./routeContracts.js";
 import { createGoogleService } from "../features/google/googleService.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
 import { createSharedSignInContinuation } from "../features/sharing/sharedSignInContinuation.js";
+import { captureExtensionProduct, readExtensionProduct } from "../features/extension/extensionProduct.js";
+import { installExtensionSessionBridge } from "../features/extension/extensionSessionBridge.js";
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
@@ -21,6 +23,8 @@ import { createSharedSignInContinuation } from "../features/sharing/sharedSignIn
  */
 export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, reportError, session = createSessionManager({ apiBaseUrl }),
   google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
+  captureExtensionProduct(window);
+  const disposeExtensionBridge = installExtensionSessionBridge(session, apiBaseUrl);
   let disposed = false;
   /** @type {Storage | null} */ let sharingStorage = null;
   try { sharingStorage = window.sessionStorage; } catch { /* Sharing remains usable in memory when storage is restricted. */ }
@@ -179,7 +183,9 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       shell.outlet.replaceChildren(createLoadingState({ label: "Vérification de la session…" }));
       sharedSignIn.cancel();
       sharedSignIn.discardResume();
-      void router.replace(RoutePaths.Lists);
+      const destination = current.name === RouteNames.Login && getLoginDestination(current.url.searchParams) === RoutePaths.ExtensionAdd && readExtensionProduct()
+        ? RoutePaths.ExtensionAdd : RoutePaths.Lists;
+      void router.replace(destination);
     }
     const showingNewRecoveryCodes = state.endReason === "authenticatorChanged" && current?.name === RouteNames.Authenticator &&
       window.location.pathname === RoutePaths.Authenticator;
@@ -217,6 +223,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      disposeExtensionBridge();
       passwordChangeNotice = false;
       googleDestination = null;
       removeGlobalErrors();
@@ -243,7 +250,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     if (!googleVerified || disposed || router.getCurrentRoute()?.name !== googleFlowRoute ||
       window.location.pathname.replace(/\/+$/, "") !== (googleFlowRoute === RouteNames.LinkGoogle ? RoutePaths.LinkGoogle : RoutePaths.GoogleReturn) ||
       googleDestination === null || session.getSnapshot().status !== "authenticated") return;
-    const destination = RoutePaths.Lists;
+    const destination = googleDestination === RoutePaths.ExtensionAdd && readExtensionProduct() ? RoutePaths.ExtensionAdd : RoutePaths.Lists;
     const linked = googleFlowRoute === RouteNames.LinkGoogle;
     googleDestination = null;
     googleVerified = false;

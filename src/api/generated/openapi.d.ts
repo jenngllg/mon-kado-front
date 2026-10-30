@@ -1878,6 +1878,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/wishlists/{wishlistId}/wish-images/resolve": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Resolve one explicitly selected product image.
+         * @description Requires an authenticated owner of an active wishlist. Downloads only the submitted image through the public-only transport, without analyzing a product page or persisting data. Destinations and every redirect are validated; source bytes and image dimensions are bounded.
+         */
+        readonly post: operations["WishImages_ResolveSelected"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/wishlists/{wishlistId}/wish-import-previews": {
         readonly parameters: {
             readonly query?: never;
@@ -2530,6 +2550,10 @@ export interface components {
             readonly newPassword?: string | null;
             readonly token?: string | null;
             readonly userId?: string | null;
+        };
+        readonly ResolveWishImageRequest: {
+            /** Format: uri */
+            readonly url: string;
         };
         readonly RevokeMemberSessionsRequest: {
             readonly confirmedMemberId?: string | null;
@@ -13813,6 +13837,97 @@ export interface operations {
             };
             /** @description 503ServiceUnavailable */
             readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly WishImages_ResolveSelected: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ResolveWishImageRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Normalized image selected by the member. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishImportImage"];
+                };
+            };
+            /** @description Invalid JSON or image URL. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Origin or CSRF check failed. */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The private list is unavailable. */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The selected image could not be retrieved or decoded. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit exceeded. */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected error. */
+            readonly 500: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

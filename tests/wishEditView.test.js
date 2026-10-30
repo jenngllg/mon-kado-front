@@ -48,20 +48,6 @@ it("keeps wish deletion out of the edit page", async () => {
 });
 
 describe("gift editor", () => {
-  it("unlocks ten seconds after URL input and preserves the draft when a preview stalls", async () => {
-    vi.useFakeTimers(); const gate = barrier();
-    const preview = vi.fn(async () => { await gate.promise; return { name: "Trop tard", url: "https://shop.test/item", price: "20", image: null, warnings: [] }; });
-    const ui = setup({ preview }); await settle();
-    const name = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="name"]'));
-    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="url"]'));
-    name.value = "Mon brouillon"; name.dispatchEvent(new Event("input"));
-    link.value = "https://shop.test/item"; link.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(9999); expect(name.disabled).toBe(true);
-    await vi.advanceTimersByTimeAsync(1); await settle();
-    expect(name.disabled).toBe(false); expect(ui.form.getAttribute("aria-busy")).toBe("false");
-    expect(name.value).toBe("Mon brouillon"); expect(ui.update).not.toHaveBeenCalled();
-    gate.resolve(); await settle(); expect(name.value).toBe("Mon brouillon");
-  });
   it("saves preference-only edits with the current version and retains their draft after a conflict", async () => {
     const ui = setup(); await settle();
     const surprise = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("isSurprise"));
@@ -73,99 +59,16 @@ describe("gift editor", () => {
     ui.click("Relire le souhait"); await settle(); expect(surprise.checked).toBe(true); expect(secondHand.checked).toBe(true);
     ui.click("Utiliser la version enregistrée"); expect(surprise.checked).toBe(false); expect(secondHand.checked).toBe(false);
   });
-  it.each([404, 409])("honors loss of parent access discovered during product analysis (%s)", async statusCode => {
-    vi.useFakeTimers();
-    try {
-      const preview = vi.fn(async () => { throw new ApiError({ kind: "http", statusCode, errorCode: statusCode === 409 ? "WISHLIST_SUSPENDED" : "WISHLIST_NOT_FOUND" }); });
-      const ui = setup({ preview }); await settle();
-      const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="url"]'));
-      link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
-      await vi.advanceTimersByTimeAsync(250); await settle(); ui.send();
-      expect(ui.update).not.toHaveBeenCalled();
-      if (statusCode === 404) expect(ui.view.querySelector("form")).toBeNull();
-      else expect(ui.fields.every(field => field.readOnly)).toBe(true);
-      expect(ui.view.textContent).toContain(statusCode === 404 ? "Liste introuvable" : "Liste suspendue");
-    } finally { vi.useRealTimers(); }
-  });
-  it.each(["success", "failure"])("locks editing immediately through debounce and retrieval, then unlocks after %s", async outcome => {
-    // Arrange
-    vi.useFakeTimers(); const gate = barrier();
-    const preview = vi.fn(async () => {
-      await gate.promise;
-      if (outcome === "failure") throw new ApiError({ kind: "network" });
-      return { name: "Produit", price: "12", url: "https://shop.test/new", image: null, warnings: [] };
-    });
-    const ui = setup({ preview, uploadImage: vi.fn(), removeImage: vi.fn() }); await settle();
-    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
-    const controls = [...ui.form.querySelectorAll('input:not([name="url"]),textarea,.wish-image-section button,button[type="submit"]')];
-    const locked = () => controls.every(control => /** @type {HTMLInputElement} */ (control).disabled);
-    // Act
-    link.focus(); link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
-    // Assert
-    expect(locked()).toBe(true); expect(link.disabled).toBe(false);
-    expect(ui.form.getAttribute("aria-busy")).toBe("true"); expect(document.activeElement).toBe(link);
-    ui.send(); expect(ui.update).not.toHaveBeenCalled(); expect(preview).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(250);
-    expect(locked()).toBe(true); ui.send(); expect(ui.update).not.toHaveBeenCalled();
-    gate.resolve(); await settle();
-    expect(controls.every(control => !/** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
-    expect(ui.form.getAttribute("aria-busy")).toBe("false");
-    expect(/** @type {HTMLInputElement} */ (ui.form.querySelector('[name="name"]')).value).toBe(outcome === "success" ? "Produit" : "Souhait");
-  });
-  it.each(["", "invalid"])("unlocks editing when a pending link becomes %j", async value => {
-    // Arrange
-    vi.useFakeTimers(); const preview = vi.fn(); const ui = setup({ preview }); await settle();
+  it("keeps entered details when changing a link and saves the link", async () => {
+    const ui = setup(); await settle();
     const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="url"]'));
+    const name = /** @type {HTMLInputElement} */ (ui.form.querySelector('[name="name"]'));
+    name.value = "Mon choix"; name.dispatchEvent(new Event("input"));
     link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
-    expect(ui.fields.filter(field => field !== link).every(field => field.disabled)).toBe(true);
-    // Act
-    link.value = value; link.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(250);
-    // Assert
-    expect(ui.fields.every(field => !field.disabled)).toBe(true);
-    expect(ui.form.getAttribute("aria-busy")).toBe("false"); expect(preview).not.toHaveBeenCalled();
-  });
-  it("retrieves a changed product link after a short typing pause without saving", async () => {
-    // Arrange
-    vi.useFakeTimers();
-    const preview = vi.fn(async () => ({ name: "Nouveau produit", price: "25", url: "https://shop.test/new", image: null, warnings: [] }));
-    const ui = setup({ preview }); await settle();
-    for (const [name, value] of [["name", "Nom saisi avant analyse"], ["note", "Note personnelle\nà conserver"], ["quantity", "4"]]) {
-      const field = /** @type {HTMLInputElement | HTMLTextAreaElement} */ (ui.form.querySelector(`[name="${name}"]`));
-      field.value = value;
-      field.dispatchEvent(new Event("input"));
-    }
-    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
-    // Act
-    link.value = "https://shop.test/new"; link.dispatchEvent(new Event("input"));
-    await vi.advanceTimersByTimeAsync(249);
-    expect(preview).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1); await settle();
-    // Assert
-    expect(ui.form.querySelector("input")).toBe(link);
-    expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="name"]'))?.value).toBe("Nouveau produit");
-    expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="price"]'))?.value).toBe("25");
-    expect(/** @type {HTMLTextAreaElement | null} */ (ui.form.querySelector('textarea[name="note"]'))?.value).toBe("Note personnelle\nà conserver");
-    expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="quantity"]'))?.value).toBe("4");
-    expect(ui.view.textContent).not.toContain("Informations récupérées appliquées");
-    expect(ui.update).not.toHaveBeenCalled();
-    vi.useRealTimers();
-  });
-  it("discards obsolete product retrieval and keeps later edits", async () => {
-    // Arrange
-    vi.useFakeTimers(); const gate = barrier();
-    const preview = vi.fn(async () => { await gate.promise; return { name: "Obsolète", price: "25", url: "https://shop.test/old", image: null, warnings: [] }; });
-    const ui = setup({ preview }); await settle();
-    const link = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="url"]'));
-    link.value = "https://shop.test/old"; link.dispatchEvent(new Event("input")); await vi.advanceTimersByTimeAsync(250);
-    expect(ui.view.querySelector(".ui-spinner")?.hasAttribute("hidden")).toBe(false);
-    // Act
-    link.value = ""; link.dispatchEvent(new Event("input")); gate.resolve(); await settle();
-    // Assert
-    expect(/** @type {HTMLInputElement | null} */ (ui.form.querySelector('input[name="name"]'))?.value).toBe("Souhait");
-    expect(ui.view.querySelector(".ui-spinner")?.hasAttribute("hidden")).toBe(true);
-    expect(ui.update).not.toHaveBeenCalled();
-    vi.useRealTimers();
+    await settle();
+    expect(name.value).toBe("Mon choix"); expect(ui.view.textContent).not.toContain("Récupération");
+    ui.send(); await settle();
+    expect(ui.update).toHaveBeenCalledWith(id, wishId, expect.objectContaining({ name: "Mon choix", url: "https://shop.test/new" }), expect.anything());
   });
   it("reads parent then gift with one lifetime, renders five labelled fields and starts unchanged", async () => {
     const gate = barrier(); const parent = vi.fn(/** @type {import("../src/features/wishlists/wishlistsService.js").LoadWishlist} */ (async () => { await gate.promise; return list; })); const ui = setup({ loadWishlist: parent });
