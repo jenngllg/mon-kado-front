@@ -2,20 +2,22 @@ import { ApiError, createAbortError } from "../../api/apiError.js";
 import { isWishlistId, trimWishlistText } from "../wishlists/wishlistValidation.js";
 import { MaximumWishImageBytes, validateWishImageFile, decodeWishImage } from "./wishImageValidation.js";
 import { parseWishPrice, safeHttpUrl, validateWishField } from "./wishValidation.js";
+import { suggestNameFromProductUrl } from "./wishLinkTitle.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishImportPreview"]} PreviewResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishImportImage"]} PreviewImage */
-/** @typedef {Readonly<{name: string, url: string, price: string, image: Blob | null, warnings: readonly string[]}>} WishSuggestions */
+/** @typedef {Readonly<{name: string, url: string, price: string, image: Blob | null, warnings: readonly string[], nameFromURL?: boolean}>} WishSuggestions */
 /** @typedef {(wishlistId: string, url: string, options: {signal: AbortSignal}) => Promise<WishSuggestions>} PreviewWish */
 const Warnings = Object.freeze({
   WISH_IMPORT_PAGE_UNAVAILABLE: "La page n’a pas pu être analysée. Tu peux compléter le souhait manuellement.",
   WISH_IMPORT_NAME_UNAVAILABLE: "Le nom du souhait n’a pas pu être récupéré.",
-  WISH_IMPORT_PRICE_UNAVAILABLE: "Aucun prix fiable en euros n’a pu être récupéré.",
+  WISH_IMPORT_PRICE_UNAVAILABLE: "Aucun prix fiable en euros n’a pu être récupéré. Vérifie les options sur le site et saisis le prix si tu le souhaites.",
   WISH_IMPORT_PRICE_MAY_BE_STALE: "Le prix importé est indicatif et peut dater de 48 heures : vérifie-le sur le site marchand.",
   WISH_IMPORT_CURRENCY_UNSUPPORTED: "Le prix utilise une devise non prise en charge. Renseigne un prix en euros si tu le souhaites.",
   WISH_IMPORT_IMAGE_UNAVAILABLE: "Aucune image utilisable n’a pu être récupérée.",
   WISH_IMPORT_IMAGE_SIZE_MAY_DIFFER: "La photo peut montrer une taille différente de celle du prix. Vérifie les options sur le site.",
 });
+const NameFromUrlWarning = "La page n’a pas pu être analysée. Le nom est déduit du lien : vérifie-le et complète le souhait.";
 export const ImportImageUnavailable = Warnings.WISH_IMPORT_IMAGE_UNAVAILABLE;
 export const ImportUrlMessage = "Lien invalide";
 /** Automatic analysis plus its processing deadline never holds the form beyond ten seconds. */
@@ -74,7 +76,8 @@ export function loadWishImportSuggestions(preview, wishlistId, url, { signal }) 
 
 /** @param {WishSuggestions} result Text survives an unavailable or slow optional image. */
 function withoutImage(result) {
-  return Object.freeze({ ...result, image: null, warnings: Object.freeze([...new Set([...result.warnings, ImportImageUnavailable])]) });
+  const warnings = result.warnings.filter(warning => warning !== Warnings.WISH_IMPORT_IMAGE_SIZE_MAY_DIFFER);
+  return Object.freeze({ ...result, image: null, warnings: Object.freeze([...new Set([...warnings, ImportImageUnavailable])]) });
 }
 /** @param {string} value Untrusted URL. */
 export function validateImportUrl(value) {
@@ -99,16 +102,29 @@ export function createWishImportService(session) {
       !(data.name === null || typeof data.name === "string") || !(data.url === null || typeof data.url === "string") ||
       !(data.price === null || typeof data.price === "number" || typeof data.price === "string") ||
       ![1, "1"].includes(data.quantity ?? "") || !Array.isArray(data.warnings) || data.warnings.some(code => typeof code !== "string")) throw invalid();
+    /** @type {Set<string>} */
     const warnings = new Set(data.warnings.map(code => Object.hasOwn(Warnings, code) ? Warnings[/** @type {keyof typeof Warnings} */ (code)] : "Certaines informations n’ont pas pu être récupérées. Vérifie les suggestions."));
-    const name = data.name && validateWishField("name", data.name) === null ? data.name : "";
+    let name = data.name && validateWishField("name", data.name) === null ? data.name : "";
     const rawPrice = data.price === null ? "" : String(data.price);
     const price = rawPrice && parseWishPrice(rawPrice) !== undefined ? rawPrice.replace(".", ",") : "";
     if (!name) warnings.add(Warnings.WISH_IMPORT_NAME_UNAVAILABLE);
     if (!price) warnings.add(Warnings.WISH_IMPORT_PRICE_UNAVAILABLE);
     const image = await readImage(data.image);
-    if (!image) warnings.add(ImportImageUnavailable);
+    if (!image) { warnings.add(ImportImageUnavailable); warnings.delete(Warnings.WISH_IMPORT_IMAGE_SIZE_MAY_DIFFER); }
+    let nameFromURL = false;
+    if (!name && !price && !image && warnings.has(Warnings.WISH_IMPORT_PAGE_UNAVAILABLE)) {
+      warnings.delete(Warnings.WISH_IMPORT_NAME_UNAVAILABLE);
+      warnings.delete(Warnings.WISH_IMPORT_PRICE_UNAVAILABLE);
+      warnings.delete(Warnings.WISH_IMPORT_IMAGE_UNAVAILABLE);
+      const hint = suggestNameFromProductUrl(body.url ?? "");
+      if (hint && validateWishField("name", hint) === null) {
+        name = hint; nameFromURL = true;
+        warnings.delete(Warnings.WISH_IMPORT_PAGE_UNAVAILABLE);
+        warnings.add(NameFromUrlWarning);
+      }
+    }
     if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
-    return Object.freeze({ name, url: body.url ?? "", price, image, warnings: Object.freeze([...warnings]) });
+    return Object.freeze({ name, url: body.url ?? "", price, image, warnings: Object.freeze([...warnings]), ...(nameFromURL ? { nameFromURL: true } : {}) });
   } };
 }
 

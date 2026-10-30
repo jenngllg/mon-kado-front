@@ -1,0 +1,32 @@
+#app .app-main h1, .legal-page .legal-main h1 {
+  text-align: center;
+  font-size: clamp(2rem, 3.8vw, 3rem);
+  line-height: 1.15;
+  padding-block-end: 1rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 14'%3E%3Cpath d='M3 10.5 C13 9 20 9.7 29 7.7 C39 6.5 48 5.9 61 2.9 C53 5.8 43 7.2 31 8.8 C21 10.1 11 10.6 3 12 Z' fill='%23b93e32' stroke='%23b93e32' stroke-width='1.5' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-position: center bottom;
+  background-size: 3.5rem 0.8rem;
+  background-repeat: no-repeat;
+}
+
+.app-main h1:has(.wish-favorite-indicator) { justify-content: center; }
+.shared-wish-view .shared-wish-results > h1 { width: 100%; }
+.shared-wish-view h1:has(.wish-favorite-indicator) { display: flex; align-items: start; gap: var(--space-3); }
+.shared-wish-view h1 .wish-favorite-indicator { flex: 0 0 1em; width: 1em; height: 1em; margin: .125em 0 0; padding: 0; }
+.shared-wish-view h1 .wish-favorite-indicator svg { width: 100%; height: 100%; }
+.profile-layout { margin-inline: auto; }
+.app-main > :is(.registration-view, .recovery-view, .login-view, .google-return-view, .google-link-view, .email-confirmation-view, .two-factor-view, .authenticator-view) { margin-inline: auto; }
+.wishlists-view__header > .flow, .wishlists-view__header > h1 { flex: 1 1 100%; }
+.member-profile-header { flex-wrap: wrap; }
+.member-profile-header > h1 { order: -1; width: 100%; }
+.groups-header .group-identity { flex: 1 1 100%; justify-content: center; }
+.wishlist-details-view .shared-wishlist-summary:has(> .shared-wishlist-identity > h1) > .shared-wishlist-identity { display: contents; }
+.wishlist-details-view .shared-wishlist-summary > .shared-wishlist-identity > h1 { grid-column: 1 / -1; }
+.wishlist-details-view .shared-wishlist-summary > .shared-wishlist-identity > :not(h1) { grid-column: 1; }
+.wishlist-details-view .shared-wishlist-summary > .shared-wishlist-metadata { grid-column: 2; grid-row: 2 / span 2; }
+@media (max-width: 48rem) {
+  .wishlist-details-view .shared-wishlist-summary > .shared-wishlist-metadata { grid-column: 1; grid-row: auto; }
+}
+.app-main :is(.reservation-history-header, .wishlist-details-header, .groups-header, .member-profile-header) > h1 {
+  flex-basis: 100%;
+}

@@ -27,7 +27,7 @@ describe("wish detail presentation", () => {
   });
   it("keeps external product navigation separate and safely named", () => {
     const link = createWishDetailProductLink("https://shop.test/item", "Produit");
-    expect(link.textContent).toBe("Voir le produit");
+    expect(link.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     expect(link.rel).toBe("noopener noreferrer");
     expect(link.target).toBe("_blank");
     expect(link.getAttribute("aria-label")).toContain("Produit");

@@ -29,11 +29,12 @@ describe("owner reservation presentation", () => {
   it.each([1, 3])("keeps surprise state hidden on entry and reserves %s only explicitly", async quantity => {
     const ui = setup(true, quantity);
     expect(ui.reservations.loadCurrent).not.toHaveBeenCalled(); expect(ui.reservations.create).not.toHaveBeenCalled();
-    expect(ui.view.textContent).toContain("Le mode surprise est activé");
-    expect(ui.view.querySelector('a[href="/reservations"]')).not.toBeNull();
+    expect(ui.view.textContent).not.toContain("Le mode surprise est activé");
+    expect(ui.view.querySelector('a[href="/reservations"]')).toBeNull();
     expect(ui.view.querySelector("input") !== null).toBe(quantity > 1);
     submit(ui.view);
     await vi.waitFor(() => expect(ui.view.textContent).toContain("Retrouve ou gère ta réservation"));
+    expect(ui.view.querySelector('a[href="/reservations"]')).toBeNull();
     expect(ui.reservations.create).toHaveBeenCalledExactlyOnceWith("list", "wish", "1", { signal: expect.any(AbortSignal) });
     expect(ui.view.textContent).not.toMatch(/exemplaire|Quantité enregistrée|Tu as réservé/);
     expect(ui.reservations.update).not.toHaveBeenCalled(); expect(ui.onSaved).not.toHaveBeenCalled();
@@ -62,6 +63,7 @@ describe("owner reservation presentation", () => {
   it("outside surprise mode shows a personal reservation with versioned editing", async () => {
     const ui = setup(false, 3, true);
     await vi.waitFor(() => expect(ui.view.querySelector("input")).not.toBeNull());
+    expect(ui.view.querySelector('a[href="/reservations"]')).toBeNull();
     expect(ui.view.textContent).toContain("Tu as réservé 1 exemplaire");
     const input = /** @type {HTMLInputElement} */ (ui.view.querySelector("input")); input.value = "2"; input.dispatchEvent(new Event("input"));
     submit(ui.view);

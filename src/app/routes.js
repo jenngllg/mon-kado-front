@@ -15,7 +15,7 @@ import {
   RouteNames,
   RoutePaths,
 } from "./routeContracts.js";
-import { createSessionGuard } from "../auth/sessionGuards.js";
+import { createSessionGuard, getLoginDestination } from "../auth/sessionGuards.js";
 import { createAdminReportedWishlistsView, createAdminView } from "../features/admin/adminAccess.js";
 import { createWishlistReportReviewService } from "../features/admin/wishlistReportReviewService.js";
 import { createWishlistReportReviewView } from "../features/admin/wishlistReportReviewView.js";
@@ -64,13 +64,14 @@ import { createGoogleReturnView } from "../features/google/googleReturnView.js";
 import { createGoogleLinkView } from "../features/google/googleLinkView.js";
 import { createWishlistsService } from "../features/wishlists/wishlistsService.js";
 import { createWishlistShareService } from "../features/wishlists/wishlistShareService.js";
-import { createWishImportService } from "../features/wishes/wishImportService.js";
 import { createWishlistsView } from "../features/wishlists/wishlistsView.js";
 import { createWishlistView } from "../features/wishlists/createWishlistView.js";
 import { createWishlistEditView } from "../features/wishlists/wishlistEditView.js";
 import { createWishlistDetailsView } from "../features/wishlists/wishlistDetailsView.js";
 import { createWishesService } from "../features/wishes/wishesService.js";
 import { createWishCreateView } from "../features/wishes/wishCreateView.js";
+import { createExtensionAddView } from "../features/extension/extensionAddView.js";
+import { readExtensionProduct } from "../features/extension/extensionProduct.js";
 import { createWishEditView } from "../features/wishes/wishEditView.js";
 import { createWishDetailsView } from "../features/wishes/wishDetailsView.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
@@ -296,7 +297,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         createLoginView({ login: createLoginService(session), session, signal: context.signal,
           sharedReturn: sharingSignIn.continuation?.bindLogin(context.signal),
           passwordChanged: consumePasswordChangeNotice(), startGoogle: google?.enabled ? google.start : undefined,
-          returnTo: RoutePaths.Lists }),
+          returnTo: getLoginDestination(context.searchParams) === RoutePaths.ExtensionAdd && readExtensionProduct() ? RoutePaths.ExtensionAdd : RoutePaths.Lists }),
     },
     {
       name: RouteNames.LinkGoogle, path: RoutePaths.LinkGoogle, title: "Associer Google · MonKado",
@@ -387,6 +388,13 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         createWishlistsView({ ...createWishlistsService(session), isArchived: context.searchParams.get("isArchived") === "true", signal: context.signal }),
     },
     {
+      name: RouteNames.ExtensionAdd, path: RoutePaths.ExtensionAdd, title: "Ajouter un souhait · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createExtensionAddView({
+        lists: createWishlistsService(session), wishes: createWishesService(session, { apiBaseUrl }),
+        signal: context.signal,
+      }),
+    },
+    {
       name: RouteNames.NewList, path: RoutePaths.NewList, title: "Créer une liste · MonKado",
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishlistView({ create: createWishlistsService(session).create, signal: context.signal,
@@ -402,8 +410,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         const wishes = createWishesService(session, { apiBaseUrl });
         return createWishCreateView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
-          create: wishes.create, uploadImage: wishes.uploadImage, loadWish: wishes.loadOne, preview: createWishImportService(session).preview,
-          initialMode: context.searchParams.getAll("mode").length === 1 ? context.searchParams.get("mode") ?? "" : "",
+          create: wishes.create, uploadImage: wishes.uploadImage, loadWish: wishes.loadOne,
           signal: context.signal, onCreated: created => onWishCreated(created, context) });
       },
     },
@@ -412,7 +419,6 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
         createWishEditView({ ...createWishesService(session, { apiBaseUrl }), update: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).update, context, result => result.wish.name), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
           returnSort: context.searchParams.get("sort"),
-          preview: createWishImportService(session).preview,
           loadWishlist: createWishlistsService(session).loadOne, signal: context.signal, onDeleted: () => onWishDeleted(context) }),
     },
     {

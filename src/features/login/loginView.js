@@ -83,7 +83,8 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   rememberLabel.className = "login-form__remember";
   rememberLabel.append(remember, textElement("span", "Se souvenir de moi"));
   const submit = createButton({ label: "Se connecter", type: "submit" });
-  form.append(rememberLabel, submit);
+  form.prepend(rememberLabel);
+  form.append(submit);
   const googleButton = startGoogle ? createGoogleButton(() => { void departGoogle(); }) : null;
   if (googleButton) {
     const separator = textElement("p", "ou"); separator.className = "auth-method-separator";

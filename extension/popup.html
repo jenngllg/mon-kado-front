@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Ajouter à MonKado</title><link rel="stylesheet" href="popup.css"></head>
+<body><main>
+  <div class="brand"><img src="icon.png" alt=""> MonKado<span>.</span></div>
+  <h1>Ajouter un souhait</h1>
+  <p id="status" role="status">Chargement…</p>
+  <form id="form" hidden>
+    <label>Liste *<select id="list" required></select></label>
+    <label>Nom du souhait *<input id="name" maxlength="100" required></label>
+    <label>Prix en euros<input id="price" inputmode="decimal"></label>
+    <details class="variants">
+      <summary>Ajouter une couleur ou une taille</summary>
+      <div class="variants-fields">
+        <label>Couleur<input id="color" maxlength="100" placeholder="Ex. : vert sauge"></label>
+        <label>Taille / dimensions<input id="size" maxlength="100" placeholder="Ex. : M, 39, 140 × 200 cm"></label>
+      </div>
+    </details>
+    <fieldset id="images" hidden><legend>Choisir une image</legend>
+      <div class="image-choices" data-image-choices></div>
+      <p class="image-status" data-image-status role="status">Choisis une image ou continue sans image.</p>
+      <button class="image-clear" type="button" data-image-clear>Sans image</button>
+    </fieldset>
+    <button id="add" type="submit">Ajouter</button>
+  </form>
+</main><script type="module" src="popup.js"></script></body></html>

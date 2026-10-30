@@ -61,7 +61,7 @@ test("anonymous search → profile → shared list → wish and back preserves t
   await expect(page.locator(".shared-wish-information .wish-card__price")).toHaveText(/25,00\s*€/);
   await expect(page.locator(".shared-wish-information .wish-card__price")).toBeVisible();
   await expect(page.locator(".wishlist-details-note")).toHaveText(api.wish.note);
-  await expect(page.getByRole("link", { name: /Voir le produit/ })).toHaveAttribute("href", api.wish.url);
+  await expect(page.getByRole("link", { name: /sur le site marchand/ })).toHaveAttribute("href", api.wish.url);
   await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
   await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
   await page.getByRole("link", { name: "Retour à la recherche", exact: true }).click();

@@ -49,6 +49,25 @@ async function setup(context, surpriseMode, quantity) {
   return { ...api, owner: state };
 }
 for (const width of [390, 1440]) {
+  test(`page titles share size and page center at ${width}px`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await setup(context, false, 3);
+    /** @type {number | undefined} */ let titleSize;
+    for (const path of ["/lists", `/lists/${listId}/wishes/${wishId}`, "/reservations"]) {
+      await page.goto(path);
+      const title = page.locator("main h1");
+      await expect(title).toBeVisible();
+      if (path.includes("/wishes/")) await expect(title).toHaveText("Une théière");
+      const dimensions = await title.evaluate(element => {
+        const rect = element.getBoundingClientRect();
+        const main = element.closest("main")?.getBoundingClientRect();
+        return { center: rect.left + rect.width / 2, pageCenter: main ? main.left + main.width / 2 : 0, size: Number.parseFloat(globalThis.getComputedStyle(element).fontSize) };
+      });
+      expect(Math.abs(dimensions.center - dimensions.pageCenter)).toBeLessThan(2);
+      if (titleSize === undefined) titleSize = dimensions.size;
+      else expect(dimensions.size).toBe(titleSize);
+    }
+  });
   for (const surprise of [false, true]) {
     test(`owner reserves and cancels privately at ${width}px, surprise ${surprise}`, async ({ page, context }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
@@ -60,12 +79,13 @@ for (const width of [390, 1440]) {
       if (surprise) {
         expect(api.owner.reads).toBe(0);
         await expect(page.locator(".shared-wish-quantities")).toHaveCount(0);
-        await expect(panel).toContainText("Le mode surprise est activé");
+        await expect(panel).not.toContainText("Le mode surprise est activé");
         await expect(panel.getByRole("spinbutton")).toHaveCount(0);
       } else {
         await expect(panel.getByRole("spinbutton")).toBeVisible();
         await panel.getByRole("spinbutton").fill("2");
       }
+      await expect(panel.getByRole("link", { name: "Mes réservations", exact: true })).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath("owner-reserve.png"), fullPage: true });
       await panel.getByRole("button", { name: surprise ? "Je réserve ce cadeau" : "Réserver ce souhait", exact: true }).click();
       if (surprise) {
@@ -73,7 +93,7 @@ for (const width of [390, 1440]) {
         await expect(panel).not.toContainText(/exemplaire|Quantité enregistrée|Tu as réservé/);
       } else await expect(panel).toContainText("Tu as réservé 2 exemplaire");
       expect(api.owner.writes).toBe(1);
-      await panel.getByRole("link", { name: "Mes réservations", exact: true }).click();
+      await page.goto("/reservations");
       const card = page.locator(".reservation-history-card"); await expect(card).toBeVisible();
       await expect(card).toContainText(`Quantité réservée : ${surprise ? 1 : 2}`);
       await card.getByRole("link", { name: "Une théière", exact: true }).click();

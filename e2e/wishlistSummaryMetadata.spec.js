@@ -36,10 +36,7 @@ for (const width of [390, 1440]) {
           } else await expect(metadata.locator("time, .wishlist-event-countdown")).toHaveCount(0);
         } else {
           await expect(metadata).toHaveCount(0);
-          const identity = await banner.locator(".shared-wishlist-identity").boundingBox();
-          const box = await banner.boundingBox();
-          if (mode === "owner") expect(identity?.width).toBeCloseTo(box?.width ?? 0, 0);
-          else expect((identity?.x ?? 0) + (identity?.width ?? 0) / 2).toBeCloseTo((box?.x ?? 0) + (box?.width ?? 0) / 2, 0);
+          await expect(banner.getByRole("heading", { name: "Mes envies", exact: true })).toBeVisible();
         }
         expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
         await page.locator(".wishlist-details-info").screenshot({ path: testInfo.outputPath(`${scenario.name}.png`) });

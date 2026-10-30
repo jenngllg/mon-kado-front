@@ -21,3 +21,5 @@
 @import "./styles/groups.css" layer(components);
 @import "./styles/wish-preferences.css" layer(components);
 @import "./styles/header-search.css" layer(components);
+@import "./styles/extension-add.css" layer(components);
+@import "./styles/page-titles.css" layer(components);

@@ -25,7 +25,7 @@ function mount() {
   const view = createLoginView({ login, session, signal: controller.signal });
   document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const fields = [...view.querySelectorAll("input")];
+  const fields = ["email", "password", "rememberMe"].map(name => /** @type {HTMLInputElement} */ (form.elements.namedItem(name)));
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   const visibility = /** @type {HTMLButtonElement} */ (form.querySelector('[type="button"]'));
   return { view, form, fields, submit, visibility, login, session, controller, listeners,
@@ -66,6 +66,7 @@ describe("login form", () => {
     }
     expect(app.fields[2].checked).toBe(false);
     expect(app.fields[2].closest("label")?.textContent).toBe("Se souvenir de moi");
+    expect(app.form.firstElementChild).toBe(app.fields[2].closest("label"));
     expect(app.view.querySelector('a[href="/forgot-password"]')).not.toBeNull();
     expect(app.view.querySelector('a[href="/register"]')).not.toBeNull();
     expect(app.view.textContent).not.toContain("Google");

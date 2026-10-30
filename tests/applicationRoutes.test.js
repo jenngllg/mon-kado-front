@@ -68,6 +68,7 @@ const ExpectedRoutes = [
   [RouteNames.ConfirmAccountDeletion, RoutePaths.ConfirmAccountDeletion],
   [RouteNames.EmailChange, RoutePaths.EmailChange],
   [RouteNames.Lists, RoutePaths.Lists],
+  [RouteNames.ExtensionAdd, RoutePaths.ExtensionAdd],
   [RouteNames.NewList, RoutePaths.NewList],
   [RouteNames.EditList, RoutePaths.EditList],
   [RouteNames.NewWish, RoutePaths.NewWish],

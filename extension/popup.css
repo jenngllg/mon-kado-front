@@ -1,0 +1,28 @@
+body { width: 340px; margin: 0; background: #fbfaf6; color: #123f2b; font: 15px/1.4 system-ui, sans-serif; }
+main { padding: 18px; }
+.brand { font-size: 22px; font-weight: 800; letter-spacing: -.04em; }
+.brand img { width: 27px; height: 27px; vertical-align: -5px; }
+.brand span { color: #b93e32; }
+.environment { font-size: 12px; color: #466253; }
+h1 { font-size: 20px; margin: 16px 0; }
+form { display: grid; gap: 14px; }
+form[hidden], img[hidden] { display: none; }
+fieldset[hidden] { display: none; }
+label { display: grid; gap: 5px; font-weight: 700; }
+input, select { box-sizing: border-box; width: 100%; min-height: 44px; border: 1px solid #788772; border-radius: 8px; padding: 8px; font: inherit; font-weight: 400; color: #123f2b; background: #fffefa; }
+.variants summary { display: flex; align-items: center; min-height: 44px; gap: 8px; font-weight: 700; cursor: pointer; list-style: none; }
+.variants summary::-webkit-details-marker { display: none; }
+.variants summary::before { content: "▸"; color: #b93e32; }
+.variants[open] summary::before { content: "▾"; }
+.variants-fields { display: grid; gap: 14px; padding-top: 5px; }
+fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+legend { margin-bottom: 7px; font-weight: 700; }
+.image-choices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; max-height: 160px; overflow-y: auto; }
+.image-choice { display: flex; align-items: center; justify-content: center; min-width: 0; height: 66px; padding: 2px; border: 2px solid #d9ded6; border-radius: 8px; background: #fff; }
+.image-choice[aria-pressed="true"] { border-color: #b93e32; box-shadow: 0 0 0 1px #b93e32; }
+.image-choice img { width: 100%; height: 100%; object-fit: contain; }
+.image-status { margin: 6px 0; font-size: 12px; color: #466253; }
+button.image-clear { min-height: 32px; padding: 4px 10px; background: transparent; color: #123f2b; border: 1px solid #788772; }
+button { min-height: 44px; border: 0; border-radius: 8px; background: #b93e32; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .5; cursor: default; }
+:focus-visible { outline: 3px solid #123f2b; outline-offset: 2px; }

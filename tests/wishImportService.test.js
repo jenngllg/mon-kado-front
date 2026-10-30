@@ -10,14 +10,14 @@ function setup(data = /** @type {unknown} */ (response()), status = 200) {
 }
 describe("wish import suggestions contract", () => {
   afterEach(() => vi.unstubAllEnvs());
-  it("requests only a preview with the original cleaned link, production 9s budget and no mutation metadata", async () => {
+  it("requests only a preview with the original cleaned link and sufficient server budget", async () => {
     vi.stubEnv("DEV", false);
     const { service, request } = setup(); const signal = new AbortController().signal;
     const result = await service.preview(id, ` ${url} `, { signal });
     expect(request).toHaveBeenCalledExactlyOnceWith(`/api/v1/wishlists/${id}/wish-import-previews`, { method: "POST", body: { url }, authentication: "required", timeoutMs: 9000, signal });
     expect(result).toMatchObject({ name: "Une idée", price: "19,99", url, warnings: [] }); expect(result.image?.type).toBe("image/webp"); expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.warnings)).toBe(true);
   });
-  it("uses the same short request budget in local development", async () => {
+  it("uses the same request budget in local development", async () => {
     vi.stubEnv("DEV", true);
     const { service, request } = setup(); const signal = new AbortController().signal;
     await service.preview(id, url, { signal });
@@ -34,9 +34,39 @@ describe("wish import suggestions contract", () => {
     const s = setup({ ...response(), name: "a".repeat(101), price: 1.999, image: null, warnings: ["<script>secret", "WISH_IMPORT_CURRENCY_UNSUPPORTED"] });
     const result = await s.service.preview(id, url, { signal: new AbortController().signal }); expect(result).toMatchObject({ name: "", price: "", image: null }); expect(result.warnings.join(" ")).toContain("devise"); expect(JSON.stringify(result)).not.toContain("<script>");
   });
+  it("shows one actionable warning when the page yields no information", async () => {
+    const s = setup({ ...response(), name: null, price: null, image: null, warnings: ["WISH_IMPORT_PAGE_UNAVAILABLE", "WISH_IMPORT_NAME_UNAVAILABLE", "WISH_IMPORT_PRICE_UNAVAILABLE", "WISH_IMPORT_IMAGE_UNAVAILABLE"] });
+    const result = await s.service.preview(id, url, { signal: new AbortController().signal });
+    expect(result.warnings).toEqual(["La page n’a pas pu être analysée. Tu peux compléter le souhait manuellement."]);
+  });
+  it("marks a readable URL-derived hint when the merchant page has no information", async () => {
+    const s = setup({ ...response(), name: null, price: null, image: null, warnings: ["WISH_IMPORT_PAGE_UNAVAILABLE", "WISH_IMPORT_NAME_UNAVAILABLE", "WISH_IMPORT_PRICE_UNAVAILABLE", "WISH_IMPORT_IMAGE_UNAVAILABLE"] });
+    const link = "https://www.fnac.com/Figurine-Funko-Pop-TV-Wednesday-Addams/a21262654/w-4";
+    const result = await s.service.preview(id, link, { signal: new AbortController().signal });
+    expect(result).toMatchObject({ name: "Figurine Funko Pop TV Wednesday Addams", price: "", image: null, nameFromURL: true });
+    expect(result.warnings).toEqual(["La page n’a pas pu être analysée. Le nom est déduit du lien : vérifie-le et complète le souhait."]);
+  });
+  it("retains specific warnings when a partial result or unsupported currency needs attention", async () => {
+    const partial = setup({ ...response(), name: "Une idée", price: null, image: null, warnings: ["WISH_IMPORT_PAGE_UNAVAILABLE"] });
+    const result = await partial.service.preview(id, url, { signal: new AbortController().signal });
+    expect(result.warnings.join(" ")).toContain("Vérifie les options sur le site et saisis le prix si tu le souhaites."); expect(result.warnings.join(" ")).toContain("Aucune image utilisable");
+    const currency = setup({ ...response(), name: null, price: null, image: null, warnings: ["WISH_IMPORT_PAGE_UNAVAILABLE", "WISH_IMPORT_CURRENCY_UNSUPPORTED"] });
+    expect((await currency.service.preview(id, url, { signal: new AbortController().signal })).warnings.join(" ")).toContain("devise");
+  });
   it.each([null, { contentType: "image/svg+xml", contentBase64: webp }, { contentType: "image/webp", contentBase64: "@@@@" }, { contentType: "image/webp", contentBase64: btoa("<svg>") }, { contentType: "image/webp", contentBase64: "a".repeat(4 * Math.ceil(10485760 / 3) + 4) }])("drops invalid optional images, not text %#", async image => {
     const s = setup({ ...response(), image }); const result = await s.service.preview(id, url, { signal: new AbortController().signal }); expect(result.image).toBeNull(); expect(result.name).toBe("Une idée"); expect(result.warnings.join(" ")).toContain("image utilisable");
   });
-  it.each(["WISH_IMPORT_PAGE_UNAVAILABLE", "WISH_IMPORT_NAME_UNAVAILABLE", "WISH_IMPORT_PRICE_UNAVAILABLE", "WISH_IMPORT_CURRENCY_UNSUPPORTED", "WISH_IMPORT_IMAGE_UNAVAILABLE"])("translates warning %s", async code => { const s = setup({ ...response(), warnings: [code] }); const result = await s.service.preview(id, url, { signal: new AbortController().signal }); expect(result.warnings.length).toBe(1); expect(result.warnings[0]).not.toContain(code); });
+  it.each(["WISH_IMPORT_PAGE_UNAVAILABLE", "WISH_IMPORT_NAME_UNAVAILABLE", "WISH_IMPORT_PRICE_UNAVAILABLE", "WISH_IMPORT_PRICE_MAY_BE_STALE", "WISH_IMPORT_CURRENCY_UNSUPPORTED", "WISH_IMPORT_IMAGE_UNAVAILABLE", "WISH_IMPORT_IMAGE_SIZE_MAY_DIFFER"])("translates warning %s", async code => { const s = setup({ ...response(), warnings: [code] }); const result = await s.service.preview(id, url, { signal: new AbortController().signal }); expect(result.warnings.length).toBe(1); expect(result.warnings[0]).not.toContain(code); });
+  it("keeps the imported price while explaining that it may be 48 hours old", async () => {
+    const s = setup({ ...response(), warnings: ["WISH_IMPORT_PRICE_MAY_BE_STALE"] });
+    const result = await s.service.preview(id, url, { signal: new AbortController().signal });
+    expect(result.price).toBe("19,99");
+    expect(result.warnings).toEqual(["Le prix importé est indicatif et peut dater de 48 heures : vérifie-le sur le site marchand."]);
+  });
+  it("only warns about a different photo size when an image is available", async () => {
+    const s = setup({ ...response(), image: null, warnings: ["WISH_IMPORT_IMAGE_SIZE_MAY_DIFFER"] });
+    const result = await s.service.preview(id, url, { signal: new AbortController().signal });
+    expect(result.warnings).toEqual(["Aucune image utilisable n’a pu être récupérée."]);
+  });
   it.each([400,401,403,404,409,413,415,429,500,503])("does not retry %s", async statusCode => { const s = setup(); s.request.mockRejectedValue(new ApiError({ kind: "http", statusCode })); await expect(s.service.preview(id, url, { signal: new AbortController().signal })).rejects.toMatchObject({ statusCode }); expect(s.request).toHaveBeenCalledTimes(1); });
 });
