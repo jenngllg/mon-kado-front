@@ -10,7 +10,11 @@ for (const mode of ["create", "edit"]) {
     if (mode === "create") await page.getByRole("button", { name: "Retour", exact: true }).click();
     const link = page.getByLabel("Lien du produit", { exact: true });
     await link.fill("https://example.test/first"); await link.fill("https://example.test/second");
-    if (mode === "create") await page.getByRole("button", { name: "Continuer", exact: true }).click();
+    if (mode === "create") {
+      await page.getByRole("button", { name: "Continuer", exact: true }).click();
+      await expect.poll(() => api.state.importReads).toBe(1);
+      await expect(page.getByText("Suggestions à vérifier", { exact: true })).toBeVisible();
+    }
     await expect(page.getByLabel(/Nom du souhait/)).toHaveValue("Mon brouillon");
     expect(api.state.wishWrites).toBe(0); expect(api.unexpected).toEqual([]);
   });

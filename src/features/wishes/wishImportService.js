@@ -6,7 +6,7 @@ import { suggestNameFromProductUrl } from "./wishLinkTitle.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishImportPreview"]} PreviewResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishImportImage"]} PreviewImage */
-/** @typedef {Readonly<{name: string, url: string, price: string, image: Blob | null, warnings: readonly string[], nameFromURL?: boolean}>} WishSuggestions */
+/** @typedef {Readonly<{name: string, url: string, price: string, note?: string, color?: string, size?: string, image: Blob | null, warnings: readonly string[], nameFromURL?: boolean}>} WishSuggestions */
 /** @typedef {(wishlistId: string, url: string, options: {signal: AbortSignal}) => Promise<WishSuggestions>} PreviewWish */
 const Warnings = Object.freeze({
   WISH_IMPORT_PAGE_UNAVAILABLE: "La page n’a pas pu être analysée. Tu peux compléter le souhait manuellement.",
@@ -124,7 +124,13 @@ export function createWishImportService(session) {
       }
     }
     if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
-    return Object.freeze({ name, url: body.url ?? "", price, image, warnings: Object.freeze([...warnings]), ...(nameFromURL ? { nameFromURL: true } : {}) });
+    /** @type {Partial<Record<"note" | "color" | "size", string>>} */
+    const details = {};
+    for (const key of /** @type {const} */ (["note", "color", "size"])) {
+      const value = data[key];
+      if (typeof value === "string" && value.trim() && validateWishField(key, value) === null) details[key] = value;
+    }
+    return Object.freeze({ name, url: body.url ?? "", price, ...details, image, warnings: Object.freeze([...warnings]), ...(nameFromURL ? { nameFromURL: true } : {}) });
   } };
 }
 

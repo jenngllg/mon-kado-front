@@ -9,6 +9,14 @@ function setup(data = /** @type {unknown} */ (response()), status = 200) {
   return { request, service: createWishImportService({ request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request) }) };
 }
 describe("wish import suggestions contract", () => {
+  it("validates optional description and variant attributes independently", async () => {
+    const valid = setup({ ...response(), note: "Coton bio", color: "Bleu", size: "EU 42" });
+    expect(await valid.service.preview(id, url, { signal: new AbortController().signal })).toMatchObject({ note: "Coton bio", color: "Bleu", size: "EU 42" });
+    const invalid = setup({ ...response(), note: "x".repeat(501), color: {}, size: "L\u0000" });
+    const result = await invalid.service.preview(id, url, { signal: new AbortController().signal });
+    expect(result.name).toBe("Une idée"); expect(result.price).toBe("19,99");
+    expect(result.note).toBeUndefined(); expect(result.color).toBeUndefined(); expect(result.size).toBeUndefined();
+  });
   afterEach(() => vi.unstubAllEnvs());
   it("requests only a preview with the original cleaned link and sufficient server budget", async () => {
     vi.stubEnv("DEV", false);

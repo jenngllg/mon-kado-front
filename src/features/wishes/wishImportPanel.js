@@ -63,7 +63,7 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   /** @type {Blob | null} */ let appliedBlob = null;
   let importedImage = false;
   /** @type {string | null} */ let importedFromUrl = null;
-  /** @type {Partial<Record<"name" | "price", {before: string, applied: string}>>} */
+  /** @type {Partial<Record<"name" | "price" | "note" | "color" | "size", {before: string, applied: string}>>} */
   let importedFields = {};
   /** @type {ReturnType<typeof setTimeout> | null} */ let analysisTimer = null;
   addComponentEventListener(element, analysis, "submit", event => { event.preventDefault(); void run(); });
@@ -149,7 +149,7 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
   /** @param {import("./wishValidation.js").WishValues} values Current draft. */
   function restoreImported(values) {
     // Keep values edited by the user, but do not associate old suggestions with a different product.
-    for (const key of /** @type {const} */ (["name", "price"])) {
+    for (const key of /** @type {const} */ (["name", "price", "note", "color", "size"])) {
       const imported = importedFields[key];
       if (imported && values[key] === imported.applied) values[key] = imported.before;
     }
@@ -176,20 +176,21 @@ export function createWishImportPanel({ wishlistId, preview, getValues, apply, o
     importedFromUrl = input.value.trim();
     const old = getValues();
     const values = { ...old, url: pending.url };
-    for (const key of /** @type {const} */ (["name", "price"])) {
+    for (const key of /** @type {const} */ (["name", "price", "note", "color", "size"])) {
       const value = pending[key];
       if (!value || old[key] !== snapshot[key]) continue;
+      if (old[key]?.trim() && old[key] !== importedFields[key]?.applied) continue;
       if (key === "name" && pending.nameFromURL && old.name.trim() && old.name !== importedFields.name?.applied) continue;
       const previous = importedFields[key];
-      importedFields[key] = { before: previous && old[key] === previous.applied ? previous.before : old[key], applied: value };
+      importedFields[key] = { before: previous && old[key] === previous.applied ? previous.before : old[key] ?? "", applied: value };
       values[key] = value;
     }
     apply(values);
-    if (pending.image && pendingUrl) {
+    if (pending.image && pendingUrl && (!appliedBlob || importedImage)) {
       discardApplied(); appliedBlob = pending.image; appliedUrl = pendingUrl; pendingUrl = null; importedImage = true;
       const image = document.createElement("img"); image.alt = "Image proposée pour le souhait"; image.src = appliedUrl; imageHost.append(image);
     }
-    pending = null; suggestions.replaceChildren(); sync();
+    discardPending(); suggestions.replaceChildren(); sync();
   }
   /** @param {readonly string[]} warnings Safe translated copy. */
   function showWarnings(warnings) { if (warnings.length) feedback.append(createAlert({ variant: "warning", title: "Suggestions à vérifier", message: [...new Set(warnings)].join(" ") })); }

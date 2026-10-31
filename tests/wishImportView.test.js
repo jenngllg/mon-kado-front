@@ -34,6 +34,60 @@ function setup(options = {}) {
   const submit = async () => { submitWishCreation(form); await settle(); };
   return { view, form, values, selectImage, submit, create, loadOne, loadWish, uploadImage, onCreated };
 }
+describe("automatic product link suggestions", () => {
+  const suggestions = { name: "Pull en coton", price: "29,90", note: "Coton biologique", color: "Bleu", size: "M", url, image: null, warnings: [] };
+  /** @param {ReturnType<typeof setup>} ui Current view. @param {string} link Product URL. */
+  async function paste(ui, link) {
+    const input = /** @type {HTMLInputElement} */ (ui.view.querySelector('form[aria-label="Analyser un lien produit"] input'));
+    input.value = link; input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(250); await settle();
+  }
+  it("fills all available fields and saves them only on final submission", async () => {
+    vi.useFakeTimers();
+    const preview = vi.fn(async () => suggestions); const ui = setup({ preview }); await settle();
+    await paste(ui, url);
+    for (const [key, value] of Object.entries({ name: suggestions.name, price: suggestions.price, note: suggestions.note, color: suggestions.color, size: suggestions.size })) expect(ui.values[key].value).toBe(value);
+    expect(ui.values.quantity.value).toBe("1"); expect(ui.create).not.toHaveBeenCalled();
+    await ui.submit();
+    expect(ui.create).toHaveBeenCalledOnce();
+    expect(ui.create).toHaveBeenCalledWith(id, expect.objectContaining({ name: suggestions.name, note: suggestions.note, color: suggestions.color, size: suggestions.size }), expect.anything());
+  });
+  it("preserves personal description and preferences when another product is pasted", async () => {
+    vi.useFakeTimers(); const ui = setup({ preview: vi.fn(async () => suggestions) }); await settle();
+    ui.values.note.value = "Pour les vacances"; ui.values.size.value = "L";
+    ui.values.name.value = "Mon choix"; ui.values.price.value = "35";
+    await paste(ui, url);
+    expect(ui.values.note.value).toBe("Pour les vacances"); expect(ui.values.size.value).toBe("L"); expect(ui.values.color.value).toBe("Bleu");
+    expect(ui.values.name.value).toBe("Mon choix"); expect(ui.values.price.value).toBe("35");
+    ui.values.color.value = "Mon bleu préféré";
+    await paste(ui, "https://shop.example/second");
+    expect(ui.values.note.value).toBe("Pour les vacances"); expect(ui.values.size.value).toBe("L"); expect(ui.values.color.value).toBe("Mon bleu préféré");
+  });
+  it("withdraws unchanged imported details when the link is removed", async () => {
+    vi.useFakeTimers(); const ui = setup({ preview: vi.fn(async () => suggestions) }); await settle();
+    await paste(ui, url);
+    ui.values.note.value = "Ma description";
+    await paste(ui, "");
+    expect(ui.values.name.value).toBe(""); expect(ui.values.color.value).toBe(""); expect(ui.values.size.value).toBe(""); expect(ui.values.note.value).toBe("Ma description");
+  });
+  it("keeps a manually selected picture and releases the unused imported preview", async () => {
+    vi.useFakeTimers();
+    const ui = setup({ preview: vi.fn(async () => ({ ...suggestions, image: new Blob(["normalized"], { type: "image/webp" }) })) }); await settle();
+    await ui.selectImage();
+    const manualImage = ui.view.querySelector('img[src^="blob:"]');
+    await paste(ui, url);
+    expect(ui.view.querySelector('img[src^="blob:"]')).toBe(manualImage);
+    expect(revoke).toHaveBeenCalledWith("blob:preview-2");
+    expect(revoke).not.toHaveBeenCalledWith("blob:preview-1");
+  });
+  it("does not import product data while surprise mode is enabled", async () => {
+    vi.useFakeTimers(); const preview = vi.fn(async () => suggestions); const ui = setup({ preview }); await settle();
+    const surprise = /** @type {HTMLInputElement} */ (ui.view.querySelector('[name="isSurprise"]'));
+    surprise.checked = true; surprise.dispatchEvent(new Event("change", { bubbles: true }));
+    await paste(ui, url);
+    expect(preview).not.toHaveBeenCalled(); expect(ui.values.note.value).toBe("");
+  });
+});
 it("keeps a link and manual details without analyzing them", async () => {
   const ui = setup(); await settle();
   ui.values.url.value = url; ui.values.url.dispatchEvent(new Event("input", { bubbles: true }));
