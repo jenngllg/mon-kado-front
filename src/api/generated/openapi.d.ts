@@ -2781,11 +2781,14 @@ export interface components {
             readonly contentType: string | null;
         };
         readonly WishImportPreview: {
+            readonly color: string | null;
             readonly image: components["schemas"]["WishImportImage"] | null;
             readonly name: string | null;
+            readonly note: string | null;
             readonly price: number | null;
             /** Format: int32 */
             readonly quantity: number;
+            readonly size: string | null;
             readonly url: string | null;
             readonly warnings: readonly string[];
         };

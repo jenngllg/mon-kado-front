@@ -19,7 +19,10 @@ export const frontendOrigin = `http://localhost:${Number(process.env.MONKADO_E2E
  * @param {{sharedWishlistId?: string}} [options] Explicit source-list identity for copy eligibility scenarios.
  */
 export async function controlledApi(context, { sharedWishlistId = listId } = {}) {
-  const state = { authenticated: false, isGoogleLinked: false, joins: 0, reservations: 0, reads: 0, revoked: false, listExists: true, listWrites: 0, listVersion: 1, reservedQuantity: 0, reservationVersion: 1, wishExists: true, wishWrites: 0, wishVersion: 1 };
+  const state = { authenticated: false, isGoogleLinked: false, joins: 0, reservations: 0, reads: 0, importReads: 0, revoked: false, listExists: true, listWrites: 0, listVersion: 1, reservedQuantity: 0, reservationVersion: 1, wishExists: true, wishWrites: 0, wishVersion: 1 };
+  /** @type {import('../src/api/generated/openapi.js').components['schemas']['WishImportPreview']} */
+  const preview = { name: null, note: null, color: null, size: null, price: null, url: null, quantity: 1, image: null,
+    warnings: ["WISH_IMPORT_PAGE_UNAVAILABLE", "WISH_IMPORT_NAME_UNAVAILABLE", "WISH_IMPORT_PRICE_UNAVAILABLE", "WISH_IMPORT_IMAGE_UNAVAILABLE"] };
   const wishlist = { id: listId, name: "Anniversaire — test navigateur", occasion: "birthday", eventDate: "2027-12-20", message: "Liste de test", isSuspended: false, isArchived: false };
   const wish = { id: wishId, wishlistId: listId, name: "Une théière", note: "Une note\nsur deux lignes.", url: "https://example.test/produit", price: 25, quantity: 3, isFavorite: false, position: 1, entityTag: '"wish-1"', imageUrl: /** @type {string | null} */ (null), reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null };
   /** @type {string[]} */
@@ -77,6 +80,12 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
         state.listVersion++;
         return send(200, wishlist, `"list-${state.listVersion}"`);
       }
+    }
+    if (path === `/api/v1/wishlists/${listId}/wish-import-previews` && method === "POST") {
+      expect(request.headers().authorization).toBe("Bearer access-test-only");
+      expect(Object.keys(request.postDataJSON())).toEqual(["url"]);
+      state.importReads++;
+      return send(200, { ...preview, url: request.postDataJSON().url });
     }
     if (path === `/api/v1/wishlists/${listId}/wishes`) {
       if (method === "GET") return send(200, { wishes: state.wishExists ? [wish] : [] }, '"collection-1"');
@@ -142,5 +151,5 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
     unexpected.push(`${method} ${path}`);
     return error(500, null);
   });
-  return { state, unexpected, wishlist, wish };
+  return { state, unexpected, wishlist, wish, preview };
 }

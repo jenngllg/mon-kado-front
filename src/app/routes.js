@@ -70,6 +70,7 @@ import { createWishlistEditView } from "../features/wishlists/wishlistEditView.j
 import { createWishlistDetailsView } from "../features/wishlists/wishlistDetailsView.js";
 import { createWishesService } from "../features/wishes/wishesService.js";
 import { createWishCreateView } from "../features/wishes/wishCreateView.js";
+import { createWishImportService } from "../features/wishes/wishImportService.js";
 import { createExtensionAddView } from "../features/extension/extensionAddView.js";
 import { readExtensionProduct } from "../features/extension/extensionProduct.js";
 import { createWishEditView } from "../features/wishes/wishEditView.js";
@@ -410,7 +411,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
         const wishes = createWishesService(session, { apiBaseUrl });
         return createWishCreateView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
-          create: wishes.create, uploadImage: wishes.uploadImage, loadWish: wishes.loadOne,
+          create: wishes.create, uploadImage: wishes.uploadImage, loadWish: wishes.loadOne, preview: createWishImportService(session).preview,
           signal: context.signal, onCreated: created => onWishCreated(created, context) });
       },
     },

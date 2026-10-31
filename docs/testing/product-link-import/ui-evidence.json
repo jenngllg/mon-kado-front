@@ -1,0 +1,187 @@
+{
+  "observedAt": "2026-10-31T11:26:10.647Z",
+  "mode": "real-local-api-direct-providers-disabled",
+  "viewportDesktop": {
+    "width": 1440,
+    "height": 1100
+  },
+  "viewportMobile": {
+    "width": 390,
+    "height": 844
+  },
+  "previewCount": 4,
+  "cases": [
+    {
+      "merchant": "IKEA",
+      "url": "https://www.ikea.com/fr/fr/p/kallax-etagere-blanc-20275814/",
+      "status": 200,
+      "preview": {
+        "name": "KALLAX Étagère - blanc 77x77 cm",
+        "note": "KALLAX Étagère - blanc 77x77 cm. Le design simple et les lignes épurées de la KALLAX permettent de lui trouver facilement une place n'importe où dans la maison. Vous avez le choix entre le fixer au mur ou le placer au sol. La charge max. pour une structure murale dépend du matériau du mur.",
+        "color": "blanc",
+        "size": null,
+        "url": "https://www.ikea.com/fr/fr/p/kallax-etagere-blanc-20275814/",
+        "price": 34.99,
+        "quantity": 1,
+        "warnings": [],
+        "image": {
+          "contentType": "image/webp",
+          "bytes": 156606,
+          "sha256": "a952eef92d9cdb22c0d0d543210debe0c1d59c3af6e5c64b37299cc0a2ce4c07"
+        }
+      },
+      "creation": {
+        "status": 201,
+        "payload": {
+          "name": "KALLAX Étagère - blanc 77x77 cm",
+          "note": "KALLAX Étagère - blanc 77x77 cm. Le design simple et les lignes épurées de la KALLAX permettent de lui trouver facilement une place n'importe où dans la maison. Vous avez le choix entre le fixer au mur ou le placer au sol. La charge max. pour une structure murale dépend du matériau du mur.",
+          "url": "https://www.ikea.com/fr/fr/p/kallax-etagere-blanc-20275814/",
+          "price": 34.99,
+          "quantity": 1,
+          "color": "blanc",
+          "size": null,
+          "isFavorite": false,
+          "isSurprise": false,
+          "acceptsSecondHand": false
+        },
+        "response": {
+          "isSurprise": false,
+          "acceptsSecondHand": false,
+          "color": "blanc",
+          "size": null,
+          "id": "01a191b5-ac3f-726b-b425-4ae4cf7d4fdf",
+          "wishlistId": "01a191b1-558b-771a-bb88-fc390988a320",
+          "name": "KALLAX Étagère - blanc 77x77 cm",
+          "note": "KALLAX Étagère - blanc 77x77 cm. Le design simple et les lignes épurées de la KALLAX permettent de lui trouver facilement une place n'importe où dans la maison. Vous avez le choix entre le fixer au mur ou le placer au sol. La charge max. pour une structure murale dépend du matériau du mur.",
+          "url": "https://www.ikea.com/fr/fr/p/kallax-etagere-blanc-20275814/",
+          "price": 34.99,
+          "quantity": 1,
+          "isFavorite": false,
+          "reservedQuantity": 0,
+          "availableQuantity": 1,
+          "position": 2,
+          "createdAt": "2026-10-31T11:26:04.863158Z",
+          "updatedAt": null,
+          "imageUrl": null
+        }
+      },
+      "persisted": {
+        "status": 200,
+        "response": {
+          "isSurprise": false,
+          "acceptsSecondHand": false,
+          "color": "blanc",
+          "size": null,
+          "id": "01a191b5-ac3f-726b-b425-4ae4cf7d4fdf",
+          "wishlistId": "01a191b1-558b-771a-bb88-fc390988a320",
+          "name": "KALLAX Étagère - blanc 77x77 cm",
+          "note": "KALLAX Étagère - blanc 77x77 cm. Le design simple et les lignes épurées de la KALLAX permettent de lui trouver facilement une place n'importe où dans la maison. Vous avez le choix entre le fixer au mur ou le placer au sol. La charge max. pour une structure murale dépend du matériau du mur.",
+          "url": "https://www.ikea.com/fr/fr/p/kallax-etagere-blanc-20275814/",
+          "price": 34.99,
+          "quantity": 1,
+          "isFavorite": false,
+          "reservedQuantity": 0,
+          "availableQuantity": 1,
+          "position": 2,
+          "createdAt": "2026-10-31T11:26:04.863158Z",
+          "updatedAt": "2026-10-31T11:26:05.520361Z",
+          "imageUrl": "/api/v1/wishlists/01a191b1-558b-771a-bb88-fc390988a320/wishes/01a191b5-ac3f-726b-b425-4ae4cf7d4fdf/image"
+        }
+      }
+    },
+    {
+      "merchant": "Amazon",
+      "url": "https://www.amazon.fr/dp/B0DHSDNPHC",
+      "status": 200,
+      "preview": {
+        "name": "LEGO Super Mario : Mario Kart – Yoshimoto 72031 | Jeu de construction pour enfant dès 7 ans,",
+        "note": "LEGO Super Mario : Mario Kart – Yoshimoto 72031 | Jeu de construction pour enfant dès 7 ans, maquette collector, figurine de Yoshi, cadeau pour fan de jeux vidéo, 133 pièces : Amazon.fr: Jeux et Jouets",
+        "color": null,
+        "size": null,
+        "url": "https://www.amazon.fr/dp/B0DHSDNPHC",
+        "price": null,
+        "quantity": 1,
+        "warnings": [
+          "WISH_IMPORT_PRICE_UNAVAILABLE"
+        ],
+        "image": {
+          "contentType": "image/webp",
+          "bytes": 88132,
+          "sha256": "c3ff4590724e11e9c890b14d68359f6da2bab8104fbb6aba89b3a1cbab49d85e"
+        }
+      },
+      "fields": {
+        "name": "LEGO Super Mario : Mario Kart – Yoshimoto 72031 | Jeu de construction pour enfant dès 7 ans,",
+        "price": "",
+        "note": "LEGO Super Mario : Mario Kart – Yoshimoto 72031 | Jeu de construction pour enfant dès 7 ans, maquette collector, figurine de Yoshi, cadeau pour fan de jeux vidéo, 133 pièces : Amazon.fr: Jeux et Jouets"
+      }
+    },
+    {
+      "merchant": "Cdiscount",
+      "url": "https://www.cdiscount.com/juniors/jeux-de-construction/lego-city-60454-le-camping-car-d-aventures-jeu-d/f-12083-lego60454.html",
+      "status": 200,
+      "preview": {
+        "name": null,
+        "note": null,
+        "color": null,
+        "size": null,
+        "url": "https://www.cdiscount.com/juniors/jeux-de-construction/lego-city-60454-le-camping-car-d-aventures-jeu-d/f-12083-lego60454.html",
+        "price": null,
+        "quantity": 1,
+        "warnings": [
+          "WISH_IMPORT_PAGE_UNAVAILABLE",
+          "WISH_IMPORT_IMAGE_UNAVAILABLE",
+          "WISH_IMPORT_NAME_UNAVAILABLE",
+          "WISH_IMPORT_PRICE_UNAVAILABLE"
+        ],
+        "image": null
+      }
+    },
+    {
+      "scenario": "surprise",
+      "previewRequests": 0
+    },
+    {
+      "merchant": "Rituals",
+      "url": "https://www.rituals.com/fr-fr/the-ritual-of-sakura---large-gift-set-2024-1118461.html",
+      "status": 200,
+      "observedAt": "2026-10-31T11:39:08.155Z",
+      "preview": {
+        "name": "The Ritual of Sakura Gift Set L",
+        "note": "Ce très beau coffret cadeau est parfait pour offrir à un ami, à un membre de la famille ou pour se faire plaisir ! Il contient une mousse de douche, une bougie parfumée, une crème pour le corps et des mini bâtonnets parfumés. Célébrez chaque jour comme un nouveau départ avec ces essentiels bien-être formulés à partir des ingrédients raffinés que sont les fleurs de cerisier et le lait de riz. Donnez une seconde vie à votre coffret cadeau offert réutilisable en y rangeant des photos, des lettres",
+        "color": null,
+        "size": null,
+        "url": "https://www.rituals.com/fr-fr/the-ritual-of-sakura---large-gift-set-2024-1118461.html",
+        "price": null,
+        "quantity": 1,
+        "warnings": [
+          "WISH_IMPORT_PRICE_UNAVAILABLE"
+        ],
+        "image": {
+          "contentType": "image/webp",
+          "bytes": 1299180,
+          "sha256": "c63c5c261bba3a171c8ae60362cc1da0ba6649b3159b087eea49a414f3a2cb94"
+        }
+      },
+      "fields": {
+        "name": "The Ritual of Sakura Gift Set L",
+        "price": "",
+        "note": "Ce très beau coffret cadeau est parfait pour offrir à un ami, à un membre de la famille ou pour se faire plaisir ! Il contient une mousse de douche, une bougie parfumée, une crème pour le corps et des mini bâtonnets parfumés. Célébrez chaque jour comme un nouveau départ avec ces essentiels bien-être formulés à partir des ingrédients raffinés que sont les fleurs de cerisier et le lait de riz. Donnez une seconde vie à votre coffret cadeau offert réutilisable en y rangeant des photos, des lettres"
+      },
+      "purpose": "Conflicting structured and visible prices stay unset; retained product details remain editable."
+    }
+  ],
+  "pageErrors": [],
+  "additionalLivePreviewRequests": 2,
+  "finalIkeaRegressionCheck": {
+    "observedAt": "2026-10-31T11:40:10.496Z",
+    "status": 200,
+    "name": "KALLAX Étagère - blanc 77x77 cm",
+    "notePresent": true,
+    "color": "blanc",
+    "size": null,
+    "price": 34.99,
+    "imagePresent": true,
+    "warnings": []
+  }
+}

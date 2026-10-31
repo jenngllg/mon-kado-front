@@ -62,12 +62,12 @@ it("cancels a queued or ongoing preview before applying direct suggestions", asy
 });
 
 it("applies a completed preview and restores unchanged suggestions when skipping the link", async () => {
-  const ui = setup({ name: "Avant", price: "8" });
+  const ui = setup();
   ui.input.value = url; ui.input.dispatchEvent(new Event("input"));
   await vi.advanceTimersByTimeAsync(250);
   expect(ui.values()).toMatchObject({ name: "Provider", price: "99", url });
   ui.panel.skipUrl();
-  expect(ui.values()).toMatchObject({ name: "Avant", price: "8", url: "" });
+  expect(ui.values()).toMatchObject({ name: "", price: "", url: "" });
 });
 
 it("keeps manually edited suggestions when the link changes", async () => {
@@ -103,7 +103,7 @@ it("shows progress and warnings for a pending preview", async () => {
   await vi.advanceTimersByTimeAsync(250);
   expect(ui.panel.element.querySelector("form")?.getAttribute("aria-busy")).toBe("true");
   complete(); await vi.advanceTimersByTimeAsync(0);
-  expect(ui.values()).toMatchObject({ name: "Provider", price: "42" });
+  expect(ui.values()).toMatchObject({ name: "Brouillon", price: "42" });
   expect(ui.panel.element.textContent).toContain("À vérifier");
 });
 
