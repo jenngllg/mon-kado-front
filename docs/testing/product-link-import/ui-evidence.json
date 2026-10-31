@@ -15,11 +15,12 @@
       "merchant": "IKEA",
       "url": "https://www.ikea.com/fr/fr/p/kallax-etagere-blanc-20275814/",
       "status": 200,
+      "observedAt": "2026-10-31T11:48:26.439Z",
       "preview": {
         "name": "KALLAX Étagère - blanc 77x77 cm",
         "note": "KALLAX Étagère - blanc 77x77 cm. Le design simple et les lignes épurées de la KALLAX permettent de lui trouver facilement une place n'importe où dans la maison. Vous avez le choix entre le fixer au mur ou le placer au sol. La charge max. pour une structure murale dépend du matériau du mur.",
         "color": "blanc",
-        "size": null,
+        "size": "L 76.5 cm × H 76.5 cm × P 39 cm",
         "url": "https://www.ikea.com/fr/fr/p/kallax-etagere-blanc-20275814/",
         "price": 34.99,
         "quantity": 1,
@@ -39,7 +40,7 @@
           "price": 34.99,
           "quantity": 1,
           "color": "blanc",
-          "size": null,
+          "size": "L 76.5 cm × H 76.5 cm × P 39 cm",
           "isFavorite": false,
           "isSurprise": false,
           "acceptsSecondHand": false
@@ -48,8 +49,8 @@
           "isSurprise": false,
           "acceptsSecondHand": false,
           "color": "blanc",
-          "size": null,
-          "id": "01a191b5-ac3f-726b-b425-4ae4cf7d4fdf",
+          "size": "L 76.5 cm × H 76.5 cm × P 39 cm",
+          "id": "01a191ca-267a-7cb6-a4cc-8fb26c180d72",
           "wishlistId": "01a191b1-558b-771a-bb88-fc390988a320",
           "name": "KALLAX Étagère - blanc 77x77 cm",
           "note": "KALLAX Étagère - blanc 77x77 cm. Le design simple et les lignes épurées de la KALLAX permettent de lui trouver facilement une place n'importe où dans la maison. Vous avez le choix entre le fixer au mur ou le placer au sol. La charge max. pour une structure murale dépend du matériau du mur.",
@@ -59,8 +60,8 @@
           "isFavorite": false,
           "reservedQuantity": 0,
           "availableQuantity": 1,
-          "position": 2,
-          "createdAt": "2026-10-31T11:26:04.863158Z",
+          "position": 3,
+          "createdAt": "2026-10-31T11:48:26.874833Z",
           "updatedAt": null,
           "imageUrl": null
         }
@@ -71,8 +72,8 @@
           "isSurprise": false,
           "acceptsSecondHand": false,
           "color": "blanc",
-          "size": null,
-          "id": "01a191b5-ac3f-726b-b425-4ae4cf7d4fdf",
+          "size": "L 76.5 cm × H 76.5 cm × P 39 cm",
+          "id": "01a191ca-267a-7cb6-a4cc-8fb26c180d72",
           "wishlistId": "01a191b1-558b-771a-bb88-fc390988a320",
           "name": "KALLAX Étagère - blanc 77x77 cm",
           "note": "KALLAX Étagère - blanc 77x77 cm. Le design simple et les lignes épurées de la KALLAX permettent de lui trouver facilement une place n'importe où dans la maison. Vous avez le choix entre le fixer au mur ou le placer au sol. La charge max. pour une structure murale dépend du matériau du mur.",
@@ -82,10 +83,10 @@
           "isFavorite": false,
           "reservedQuantity": 0,
           "availableQuantity": 1,
-          "position": 2,
-          "createdAt": "2026-10-31T11:26:04.863158Z",
-          "updatedAt": "2026-10-31T11:26:05.520361Z",
-          "imageUrl": "/api/v1/wishlists/01a191b1-558b-771a-bb88-fc390988a320/wishes/01a191b5-ac3f-726b-b425-4ae4cf7d4fdf/image"
+          "position": 3,
+          "createdAt": "2026-10-31T11:48:26.874833Z",
+          "updatedAt": "2026-10-31T11:48:27.426656Z",
+          "imageUrl": "/api/v1/wishlists/01a191b1-558b-771a-bb88-fc390988a320/wishes/01a191ca-267a-7cb6-a4cc-8fb26c180d72/image"
         }
       }
     },
@@ -183,5 +184,20 @@
     "price": 34.99,
     "imagePresent": true,
     "warnings": []
+  },
+  "ikeaPreviousEvidenceAt": "2026-10-31T11:26:10.647Z",
+  "dimensionRevalidation": {
+    "observedAt": "2026-10-31T11:48:28.422Z",
+    "previewRequests": 2,
+    "viewportDesktop": {
+      "width": 1440,
+      "height": 1100
+    },
+    "viewportMobile": {
+      "width": 390,
+      "height": 844
+    },
+    "size": "L 76.5 cm × H 76.5 cm × P 39 cm",
+    "pageErrors": []
   }
 }

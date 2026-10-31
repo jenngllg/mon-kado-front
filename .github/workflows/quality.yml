@@ -96,7 +96,7 @@ jobs:
         with:
           repository: jenngllg/mon-kado
           # Validate companion additive schemas before their backend PRs merge.
-          ref: ${{ github.head_ref == 'feat/product-link-details' && '358afa2341f0440a8537ce70c983843463455bde' || github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || 'develop' }}
+          ref: ${{ github.head_ref == 'feat/product-link-details' && '93de0e0c5bfdee90944a667097f50d532aa1adfb' || github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || 'develop' }}
           path: .backend
           persist-credentials: false
       - name: Set up native Go

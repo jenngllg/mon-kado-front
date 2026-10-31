@@ -7,8 +7,8 @@ merchant-page mock was used for the screenshots or `ui-evidence.json`.
 
 | Scenario | Observed result | Evidence |
 | --- | --- | --- |
-| IKEA KALLAX | Name, EUR 34.99 price, photo, description and white colour imported. The size field stays empty because no unambiguous structured size was supplied. | [Product](01-ikea-product-desktop.png), [details](02-ikea-details-desktop.png) |
-| Save and reread | The UI submitted a real POST returning 201, uploaded the normalized image, then retrieved the saved wish with GET 200. Description, colour, price and image were retained. | [Saved wish](03-ikea-saved-desktop.png), [request and response evidence](ui-evidence.json) |
+| IKEA KALLAX | Name, EUR 34.99 price, photo, description, white colour and dimensions `L 76.5 cm × H 76.5 cm × P 39 cm` imported. | [Link](00-ikea-link-desktop.png), [product](01-ikea-product-desktop.png), [details](02-ikea-details-desktop.png) |
+| Save and reread | The UI submitted a real POST returning 201, uploaded the normalized image, then retrieved the saved wish with GET 200. Description, colour, dimensions, price and image were retained. | [Saved wish](03-ikea-saved-desktop.png), [request and response evidence](ui-evidence.json) |
 | Mobile at 390 px | The same imported fields remain usable without horizontal document overflow. | [Product](04-ikea-product-mobile.png), [details](05-ikea-details-mobile.png) |
 | Amazon LEGO 72031 | Name, description and photo recovered. Price remained empty with an explicit warning because no reliable EUR amount was recovered. | [Product and warning](06-amazon-product-desktop.png), [description](07-amazon-description-desktop.png) |
 | Cdiscount LEGO 60454 | Direct page retrieval was unavailable. The UI displayed the warning and allowed manual completion. A readable URL can supply a clearly labelled tentative title; this is not merchant extraction. | [Manual recovery](08-cdiscount-manual-recovery.png), [manual details](09-cdiscount-manual-details.png) |
@@ -26,6 +26,15 @@ same real local account and an additional live preview request, without saving a
 new wish. Its timestamp is recorded separately in `ui-evidence.json`.
 One further real IKEA preview against that final API still returned its name,
 description, white colour, EUR 34.99 price and normalized photo without warnings.
+
+After adding standard product dimensions, the IKEA screenshots 00 to 05 and its
+preview, creation and persisted-response evidence were refreshed against the API
+started at 11:47:30 UTC. Two additional live previews verified the dimensions on
+desktop and mobile. A new real POST 201 and GET 200 confirmed that the full
+dimensions string was saved with the description, colour, price and photo.
+`dimensionRevalidation` records this later run's timestamp separately, and
+`ikeaPreviousEvidenceAt` preserves the earlier observation date. The Amazon,
+Cdiscount, Rituals and surprise evidence remains from its recorded earlier runs.
 
 `ui-evidence.json` includes the actual product URLs, public preview fields,
 normalized image byte counts and SHA-256 hashes, creation payload and persisted
