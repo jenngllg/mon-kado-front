@@ -1,7 +1,7 @@
 import QRCode from "qrcode";
 
 /** Render locally without a third-party image URL, canvas export or HTML injection.
- * @param {string} uri Validated otpauth URI, never persisted.
+ * @param {string} uri Validated authentication or sharing URI, never persisted.
  * @returns {SVGSVGElement} In-memory QR image.
  */
 export function createLocalQrCode(uri) {

@@ -5,17 +5,21 @@ import { createWishPayload, safeHttpUrl } from "./wishValidation.js";
 import { validateWishImageFile } from "./wishImageValidation.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionResponse"]} WishCollectionResponse */
-/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"]} WishCollectionItemResponse */
+/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"] & {reservedQuantity?:number|null,availableQuantity?:number|null}} WishCollectionItemResponse */
 /** @typedef {Readonly<{id: string, wishlistId: string, name: string, note: string | null, price: number | null,
- * quantity: number, position: string, entityTag: string, url: string | null, imageUrl: string | null,
- * productUnavailable: boolean, imageUnavailable: boolean}>} Wish */
+ * quantity: number, isFavorite?: boolean, isSurprise?: boolean, acceptsSecondHand?: boolean, color?: string | null, size?: string | null, position: string, entityTag: string, url: string | null, imageUrl: string | null,
+ * productUnavailable: boolean, imageUnavailable: boolean, reservedQuantity?: number | null, availableQuantity?: number | null}>} Wish */
 /** @typedef {Readonly<{wishes: ReadonlyArray<Wish>, etag: string}>} WishCollection */
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishCollection>} LoadWishes */
 /** @typedef {Readonly<{wish: Wish, etag: string}>} CreatedWish */
 /** @typedef {(wishlistId: string, values: import("./wishValidation.js").WishValues, options: {signal: AbortSignal}) => Promise<CreatedWish>} CreateWish */
+/** @typedef {(wishlistId: string, sourceShareLinkId: string, sourceWishId: string, options: {shareToken: string, signal: AbortSignal}) => Promise<CreatedWish>} CopyWish */
+/** @typedef {(sourceWishlistId: string, sourceWishId: string, destinationWishlistId: string, options: {signal: AbortSignal}) => Promise<CreatedWish>} CopyOwnedWish */
+/** @typedef {(groupId: string, sourceWishlistId: string, sourceWishId: string, destinationWishlistId: string, options: {signal: AbortSignal}) => Promise<CreatedWish>} CopyGroupWish */
 /** @typedef {Readonly<CreatedWish & {values: Readonly<import("./wishValidation.js").WishValues>}>} EditableWish */
 /** @typedef {(wishlistId: string, wishId: string, options: {signal: AbortSignal}) => Promise<EditableWish>} LoadWish */
 /** @typedef {(wishlistId: string, wishId: string, values: import("./wishValidation.js").WishValues, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} UpdateWish */
+/** @typedef {(wishlistId: string, wishId: string, isFavorite: boolean, options: {etag: string, signal: AbortSignal}) => Promise<EditableWish>} SetWishFavorite */
 /** @typedef {(wishlistId: string, wishId: string, options: {etag: string, signal: AbortSignal}) => Promise<void>} RemoveWish */
 /** @typedef {Readonly<{wishes: ReadonlyArray<Readonly<{id: string, position: string, entityTag: string}>>, etag: string}>} WishOrder */
 /** @typedef {(wishlistId: string, wishIds: ReadonlyArray<string>, options: {etag: string, signal: AbortSignal}) => Promise<WishOrder>} ReorderWishes */
@@ -25,12 +29,42 @@ import { validateWishImageFile } from "./wishImageValidation.js";
 /** Reads the complete private collection; grants and versions belong to the caller's view.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Session transport.
  * @param {{apiBaseUrl: string}} options Trusted API configuration.
- * @returns {{load: LoadWishes, create: CreateWish, loadOne: LoadWish, update: UpdateWish, remove: RemoveWish, reorder: ReorderWishes, uploadImage: UploadWishImage, removeImage: RemoveWishImage}} Injectable owner operations.
+ * @returns {{load: LoadWishes, create: CreateWish, copy: CopyWish, copyOwned: CopyOwnedWish, copyGroup: CopyGroupWish, loadOne: LoadWish, update: UpdateWish, setFavorite: SetWishFavorite, remove: RemoveWish, reorder: ReorderWishes, uploadImage: UploadWishImage, removeImage: RemoveWishImage}} Injectable owner operations.
  */
 export function createWishesService(session, { apiBaseUrl }) {
   const base = safeHttpUrl(apiBaseUrl);
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
-  return { uploadImage: async (wishlistId, wishId, file, { etag, signal }) => {
+  return { copyGroup: async (groupId, sourceWishlistId, sourceWishId, destinationWishlistId, { signal }) => {
+    if (![groupId, sourceWishlistId, sourceWishId, destinationWishlistId].every(isWishlistId) || sourceWishlistId.toLowerCase() === destinationWishlistId.toLowerCase()) throw new ApiError({ kind: "http", statusCode: 400 });
+    /** @type {{destinationWishlistId:string}} */
+    const body = { destinationWishlistId };
+    const response = await session.request(`/api/v1/groups/${groupId}/wishlists/${sourceWishlistId}/wishes/${sourceWishId}/copies`, {
+      method: "POST", authentication: "required", csrf: true, body, signal,
+    });
+    return createdWish(response, destinationWishlistId, base);
+  }, copyOwned: async (sourceWishlistId, sourceWishId, destinationWishlistId, { signal }) => {
+    const path = itemPath(sourceWishlistId, sourceWishId) + "/copies";
+    if (!isWishlistId(destinationWishlistId) || sourceWishlistId === destinationWishlistId) throw new ApiError({ kind: "http", statusCode: 400 });
+    /** @type {{destinationWishlistId:string}} */
+    const body = { destinationWishlistId };
+    const response = await session.request(path, { method: "POST", authentication: "required", csrf: true, body, signal });
+    return createdWish(response, destinationWishlistId, base);
+  }, copy: async (wishlistId, sourceShareLinkId, sourceWishId, { shareToken, signal }) => {
+    if (![wishlistId, sourceShareLinkId, sourceWishId].every(isWishlistId)) throw new ApiError({ kind: "http", statusCode: 400 });
+    /** @type {{sourceShareLinkId:string,sourceWishId:string}} */
+    const body = { sourceShareLinkId, sourceWishId };
+    const response = await session.request(`/api/v1/wishlists/${wishlistId}/wishes/copies`, {
+      method: "POST", authentication: "required", csrf: true, body, shareToken, signal,
+    });
+    return createdWish(response, wishlistId, base);
+  }, setFavorite: async (wishlistId, wishId, isFavorite, { etag, signal }) => {
+    const path = itemPath(wishlistId, wishId);
+    if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
+    if (typeof isFavorite !== "boolean") throw new TypeError("A boolean favorite preference is required.");
+    const body = { isFavorite };
+    const response = await session.request(path, { method: "PATCH", authentication: "required", body, ifMatch: etag, signal });
+    return editable(response, wishlistId, wishId, base);
+  }, uploadImage: async (wishlistId, wishId, file, { etag, signal }) => {
     const path = itemPath(wishlistId, wishId) + "/image";
     if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
     const mediaType = await validateWishImageFile(file);
@@ -103,6 +137,14 @@ export function createWishesService(session, { apiBaseUrl }) {
     if (!isWishlistId(wishlistId)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_NOT_FOUND" });
     const body = createWishPayload(values);
     const response = await session.request(`/api/v1/wishlists/${wishlistId}/wishes`, { method: "POST", authentication: "required", body, signal });
+    return createdWish(response, wishlistId, base);
+  } };
+}
+
+/** @param {Awaited<ReturnType<import("../../auth/sessionManager.js").SessionManager["request"]>>} response Creation response.
+ * @param {string} wishlistId Destination. @param {URL} base Trusted API. @returns {CreatedWish} Validated creation.
+ */
+function createdWish(response, wishlistId, base) {
     const data = /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["WishResponse"]> | null} */ (response.data);
     const invalid = () => new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });
     if (response.status !== 201 || !data || Array.isArray(data) || !isStrongEntityTag(response.metadata.etag)) throw invalid();
@@ -110,7 +152,6 @@ export function createWishesService(session, { apiBaseUrl }) {
     const quantity = typeof data.quantity === "string" && /^\d+$/.test(data.quantity) ? Number(data.quantity) : data.quantity;
     const wish = projectWish({ ...data, quantity, entityTag: response.metadata.etag }, wishlistId, base, invalid);
     return Object.freeze({ wish, etag: response.metadata.etag });
-  } };
 }
 
 /** @param {string} wishlistId Parent. @param {string} wishId Gift. @returns {string} Validated private path. */
@@ -130,8 +171,9 @@ function editable(response, wishlistId, wishId, base) {
   const wish = projectWish({ ...data, quantity, entityTag: response.metadata.etag }, wishlistId, base, invalid);
   if (wish.id.toLowerCase() !== wishId.toLowerCase()) throw invalid();
   // Navigation uses the safe projection; editing must not silently rewrite the original URL.
-  const values = Object.freeze({ name: wish.name, note: wish.note ?? "", url: data.url ?? "",
-    price: wish.price === null ? "" : wish.price.toFixed(2).replace(".", ","), quantity: String(wish.quantity) });
+  const values = Object.freeze({ name: wish.name, note: wish.note ?? "", url: data.url ?? "", color: wish.color ?? "", size: wish.size ?? "",
+    price: wish.price === null ? "" : wish.price.toFixed(2).replace(".", ","), quantity: String(wish.quantity), isFavorite: wish.isFavorite === true,
+    isSurprise: wish.isSurprise === true, acceptsSecondHand: wish.acceptsSecondHand === true });
   return Object.freeze({ wish, etag: response.metadata.etag, values });
 }
 
@@ -143,14 +185,22 @@ function projectWish(value, wishlistId, base, invalid) {
     typeof item.name !== "string" || item.name.trim() === "" || !nullableText(item.note) || !nullableText(item.url) || !nullableText(item.imageUrl) || !isStrongEntityTag(item.entityTag) ||
     typeof item.quantity !== "number" || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100) throw invalid();
   const position = exactPosition(item.position); const price = readPrice(item.price);
+  if (item.isFavorite !== undefined && typeof item.isFavorite !== "boolean") throw invalid();
+  for (const value of [item.isSurprise, item.acceptsSecondHand]) if (value !== undefined && typeof value !== "boolean") throw invalid();
+  if (!nullableText(item.color ?? null) || !nullableText(item.size ?? null)) throw invalid();
   if (position === null || price === undefined) throw invalid();
+  const reservedQuantity = item.reservedQuantity ?? null, availableQuantity = item.availableQuantity ?? null;
+  if (!(reservedQuantity === null && availableQuantity === null) &&
+      (typeof reservedQuantity !== "number" || !Number.isSafeInteger(reservedQuantity) || reservedQuantity < 0 ||
+       typeof availableQuantity !== "number" || availableQuantity !== Math.max(0, item.quantity - reservedQuantity))) throw invalid();
   const url = item.url === null ? null : safeHttpUrl(item.url);
   const candidateImage = item.imageUrl === null ? null : safeHttpUrl(item.imageUrl);
   const expectedPath = `${base.pathname.replace(/\/$/, "")}/api/v1/wishlists/${wishlistId}/wishes/${item.id}/image`;
   const image = candidateImage && candidateImage.origin === base.origin && !candidateImage.hash && candidateImage.pathname.toLowerCase() === expectedPath.toLowerCase() &&
     candidateImage.searchParams.getAll("token").length === 1 && !!candidateImage.searchParams.get("token") && [...candidateImage.searchParams.keys()].every(key => key === "token") ? candidateImage : null;
-  return Object.freeze({ id: item.id, wishlistId: item.wishlistId, name: item.name, note: item.note, price, quantity: item.quantity, position,
-    entityTag: item.entityTag, url: url?.href ?? null, imageUrl: image?.href ?? null,
+  return Object.freeze({ id: item.id, wishlistId: item.wishlistId, name: item.name, note: item.note, color: item.color ?? null, size: item.size ?? null, price, quantity: item.quantity, isFavorite: item.isFavorite === true, position,
+    isSurprise: item.isSurprise === true, acceptsSecondHand: item.acceptsSecondHand === true,
+    entityTag: item.entityTag, url: url?.href ?? null, imageUrl: image?.href ?? null, reservedQuantity, availableQuantity,
     productUnavailable: item.url !== null && url === null, imageUnavailable: item.imageUrl !== null && image === null });
 }
 
@@ -169,5 +219,5 @@ function readPrice(value) {
   if (value === null) return null;
   if (!(typeof value === "number" || typeof value === "string") || !/^\d{1,8}(?:\.\d{1,2})?$/.test(String(value))) return undefined;
   const price = Number(value);
-  return Number.isFinite(price) && price > 0 && price <= 99999999.99 ? price : undefined;
+  return Number.isFinite(price) && price >= 0 && price <= 99999999.99 ? price : undefined;
 }

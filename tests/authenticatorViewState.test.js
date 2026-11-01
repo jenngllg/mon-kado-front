@@ -13,7 +13,7 @@ afterEach(() => {
 
 function fixture() {
   /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */
-  let state = { status: "authenticated", user: { id: "fixture-member", displayName: "Fixture", email: "fixture@example.test", roles: ["member"] }, etag: '"fixture"', logoutPending: false, issue: null };
+  let state = { status: "authenticated", user: { id: "fixture-member", displayName: "Fixture", email: "fixture@example.test", isAdmin: false }, etag: '"fixture"', logoutPending: false, issue: null };
   /** @type {Set<(value: typeof state) => void>} */ const listeners = new Set();
   const session = { getSnapshot: () => state, subscribe: (/** @type {(value: typeof state) => void} */ listener) => {
     listeners.add(listener); listener(state); return () => { listeners.delete(listener); };
@@ -135,7 +135,7 @@ describe("authenticator view lifecycle", () => {
     const f = fixture(); const view = f.mount(); await idle(view); button(view, "Régénérer mes codes de récupération").click(); submit(view); await idle(view);
     button(view, "Remplacer les codes et fermer mes sessions").click(); await idle(view); expect(view.textContent).toContain(RecoveryCodes[0]);
     // Act
-    f.emit({ status: "authenticated", user: { id: "other-fixture", displayName: "Other", email: "other@example.test", roles: ["member"] } });
+    f.emit({ status: "authenticated", user: { id: "other-fixture", displayName: "Other", email: "other@example.test", isAdmin: false } });
     // Assert
     expect(view.textContent).not.toContain(RecoveryCodes[0]); expect(view.textContent).toContain("Reconnecte-toi"); expect(f.onFinished).not.toHaveBeenCalled();
   });

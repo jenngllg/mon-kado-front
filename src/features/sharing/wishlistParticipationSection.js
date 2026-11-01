@@ -1,3 +1,4 @@
+import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { validateDisplayName, DisplayNameServerMessage } from "../../auth/displayNameValidation.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
@@ -7,13 +8,13 @@ import { ParticipationRightsMessage } from "./participationMessages.js";
 import { createPrivacyNotice } from "../../components/legalLinks.js";
 
 /** @typedef {{shareLinkId: string, loadCurrent: import("./wishlistParticipationService.js").LoadCurrentParticipant,
- * joinGuest: import("./wishlistParticipationService.js").JoinGuest, onUnavailable: () => void, onSignIn?: () => void, signal?: AbortSignal}} ParticipationOptions */
+ * joinGuest: import("./wishlistParticipationService.js").JoinGuest, onUnavailable: () => void, onRecognized?: (userInitiated?: boolean) => void, onSignIn?: () => void, signal?: AbortSignal}} ParticipationOptions */
 
 /** An explicit guest join, never a cookie reader or a reservation UI.
  * @param {ParticipationOptions} options Injectable operations.
  * @returns {HTMLElement} Disposable section.
  */
-export function createWishlistParticipationSection({ shareLinkId, loadCurrent, joinGuest, onUnavailable, onSignIn, signal }) {
+export function createWishlistParticipationSection({ shareLinkId, loadCurrent, joinGuest, onUnavailable, onRecognized, onSignIn, signal }) {
   const section = element("section", ""); section.className = "wishlist-participation flow";
   const title = element("h2", "Participer à cette liste"); title.tabIndex = -1;
   const explanation = element("p", "Tu peux participer sans créer de compte MonKado. Ce navigateur te reconnaîtra grâce à un cookie. Cette reconnaissance peut être perdue si le cookie expire ou si tu le supprimes.");
@@ -22,10 +23,17 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   const identity = element("p", ""); identity.hidden = true;
   const form = element("form", ""); form.noValidate = true; form.className = "flow"; form.setAttribute("aria-label", "Participer à cette liste"); form.hidden = true;
   const input = element("input", ""); input.type = "text"; input.name = "displayName"; input.setAttribute("autocomplete", "nickname");
-  const field = createFormField({ label: "Nom d’affichage", control: input, required: true, description: "Le nom utilisé pour ta participation. 80 caractères maximum." });
+  const field = createFormField({ label: "Nom d’affichage", control: input, required: true, description: "Le nom visible par les participants." });
   const submit = createButton({ label: "Participer à cette liste", type: "submit" });
   const reread = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { flushBlur(); void read(true); } }); reread.hidden = true;
-  form.append(field, createPrivacyNotice("Ton nom d’affichage est associé à ta participation et à tes réservations. Un pseudonyme suffit. Sans compte, conserve l’accès à ce navigateur pour gérer ta participation ; tu peux aussi contacter le service pour une demande sur tes données."), submit); section.append(title, explanation, element("p", ParticipationRightsMessage), status, feedback, identity, form, reread);
+  form.append(field, createPrivacyNotice("Ton nom d’affichage est associé à ta participation et à tes réservations. Un pseudonyme suffit. Sans compte, conserve l’accès à ce navigateur pour gérer ta participation ; tu peux aussi contacter le service pour une demande sur tes données."), submit); section.append(title, explanation, element("p", ParticipationRightsMessage), status, feedback, identity, reread, form);
+  if (onRecognized) {
+    title.textContent = "Pour réserver ce souhait";
+    explanation.textContent = "Indique ton nom pour retrouver ta réservation sur ce navigateur.";
+    form.setAttribute("aria-label", "Identification pour réserver");
+    const label = submit.querySelector(".ui-button__label");
+    if (label) label.textContent = "Continuer";
+  }
   const lifetime = new AbortController();
   let disposed = false, busy = false, mustRead = true, joined = false, checked = false, dirty = false, summary = false;
   const signIn = onSignIn ? createActionLink({ label: "Se connecter pour poursuivre avec mon compte", href: "/login" }) : null;
@@ -51,6 +59,7 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   });
   if (signal) { addComponentEventListener(section, signal, "abort", () => disposeComponent(section), { once: true }); if (signal.aborted) disposeComponent(section); }
   if (!disposed) void read(false);
+  if (!disposed) refreshOnReturn(section, () => { void read(false); });
   return section;
 
   function flushBlur() { const action = deferred; deferred = null; action?.(); }
@@ -71,7 +80,8 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   function recognized(participant, focus) {
     joined = true; mustRead = false; input.value = ""; checked = false; dirty = false; setFormFieldValidation(field, null); clearFeedback();
     form.hidden = true; title.textContent = "Tu participes à cette liste"; identity.textContent = `Nom d’affichage : ${participant.displayName}`; identity.hidden = false;
-    lookupAction("Actualiser ma participation"); if (focus) title.focus();
+    reread.hidden = true; if (focus) title.focus();
+    onRecognized?.();
   }
   /** @param {unknown} error Safe error. @param {boolean} focus Explicit operation. @param {string | null} [message] Local override. */
   function failure(error, focus, message = null) {
@@ -87,7 +97,7 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   /** @param {boolean} explicit User initiated. */
   async function read(explicit) {
     if (disposed || busy) return;
-    mustRead = true; joined = false; identity.textContent = ""; identity.hidden = true; title.textContent = "Participer à cette liste";
+    mustRead = true; joined = false; identity.textContent = ""; identity.hidden = true; title.textContent = onRecognized ? "Pour réserver ce souhait" : "Participer à cette liste";
     clearFeedback(); loading(true, "Vérification de ta participation…"); reread.hidden = true;
     try {
       const participant = await loadCurrent(shareLinkId, { signal: lifetime.signal }); if (disposed) return;
@@ -101,7 +111,7 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   async function join() {
     if (disposed || busy || mustRead || joined) return;
     if (validate()) {
-      clearFeedback(); feedback.hidden = false; feedback.append(createAlert({ title: "Informations à vérifier", message: "Vérifie le nom indiqué avant de continuer.", variant: "error" })); summary = true; input.focus(); return;
+      clearFeedback(); feedback.hidden = false; feedback.append(createAlert({ title: "Informations à vérifier", message: "Nom d’affichage invalide.", variant: "error" })); summary = true; input.focus(); return;
     }
     clearFeedback(); loading(true, "Participation en cours…");
     try {

@@ -1,0 +1,114 @@
+name: Publish temporary registration frontend
+
+on:
+  workflow_dispatch:
+    inputs:
+      temporary_test:
+        description: 'Publish the September frontend only to create the deployment test member; take the site offline after testing'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-production-publication
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/develop' && inputs.temporary_test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    permissions:
+      actions: read
+      contents: write
+    env:
+      FRONTEND_REVISION: 2575facf0c96f212598ce73a5f3d283cea127a4c
+      BACKEND_REVISION: b2f94e05be57a7fe625840c4fbbae8e50af035c1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Require protected approval and green exact revisions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = jenngllg/mon-kado-front
+          gh api "repos/$GITHUB_REPOSITORY/environments/production" \
+            --jq '.protection_rules | any(.type == "required_reviewers" and (.reviewers | length > 0))' | grep -x true
+          for revision in "$GITHUB_SHA" "$FRONTEND_REVISION"; do
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/quality.yml/runs?head_sha=$revision&branch=develop&per_page=100" \
+              --jq '[.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch")] | sort_by(.run_number) | last | .conclusion' | grep -x success
+          done
+          gh api repos/jenngllg/mon-kado/releases/tags/backend-production > "$RUNNER_TEMP/backend-release.json"
+          test "$(jq -er '.body | fromjson | .revision' "$RUNNER_TEMP/backend-release.json")" = "$BACKEND_REVISION"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 2575facf0c96f212598ce73a5f3d283cea127a4c
+          path: .bootstrap
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: jenngllg/mon-kado
+          ref: b2f94e05be57a7fe625840c4fbbae8e50af035c1
+          path: .backend
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+      - name: Check the installed backend configuration contract
+        run: python3 .backend/deployments/production/release_manifest.py release "$RUNNER_TEMP/backend-release.json"
+      - run: pnpm install --frozen-lockfile
+        working-directory: .bootstrap
+      - run: pnpm lint && pnpm typecheck && pnpm test:coverage
+        working-directory: .bootstrap
+      - name: Verify compatibility with the actual production API
+        run: pnpm api:types:check
+        working-directory: .bootstrap
+        env:
+          MONKADO_OPENAPI_URL: https://api.monkado.fr/openapi/v1.json
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: .bootstrap
+      - run: pnpm test:e2e
+        working-directory: .bootstrap
+      - name: Build the temporary registration site without Google activation
+        run: pnpm build
+        working-directory: .bootstrap
+        env:
+          VITE_API_BASE_URL: https://api.monkado.fr
+          VITE_GOOGLE_AUTH_ENABLED: 'false'
+      - name: Package using the existing installed manifest format
+        run: |
+          set -euo pipefail
+          configuration_hash=$(python3 .backend/deployments/production/release_manifest.py hash)
+          python3 .backend/src/Operations.Frontend/frontend_cli.py package \
+            --dist .bootstrap/dist --output "$RUNNER_TEMP/frontend-package" --revision "$FRONTEND_REVISION" \
+            --backend-revision "$BACKEND_REVISION" --configuration-hash "$configuration_hash"
+      - name: Publish immutable artifact and explicit temporary production pointer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "frontend-$FRONTEND_REVISION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download "frontend-$FRONTEND_REVISION" --repo "$GITHUB_REPOSITORY" \
+              --pattern frontend.tar.gz --pattern manifest.json --dir "$RUNNER_TEMP/existing-frontend"
+            cmp "$RUNNER_TEMP/existing-frontend/manifest.json" "$RUNNER_TEMP/frontend-package/manifest.json"
+            cmp "$RUNNER_TEMP/existing-frontend/frontend.tar.gz" "$RUNNER_TEMP/frontend-package/frontend.tar.gz"
+          else
+            gh release create "frontend-$FRONTEND_REVISION" "$RUNNER_TEMP/frontend-package/frontend.tar.gz" \
+              "$RUNNER_TEMP/frontend-package/manifest.json" --repo "$GITHUB_REPOSITORY" --target "$FRONTEND_REVISION" \
+              --title 'Temporary registration frontend' --notes 'Explicitly authorized temporary test. No legal approval or Google activation.' --latest=false
+          fi
+          if gh release view frontend-production --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit frontend-production --repo "$GITHUB_REPOSITORY" --notes-file "$RUNNER_TEMP/frontend-package/manifest.json" --latest=false
+          else
+            gh release create frontend-production --repo "$GITHUB_REPOSITORY" --target "$FRONTEND_REVISION" \
+              --title 'Temporary registration frontend' --notes-file "$RUNNER_TEMP/frontend-package/manifest.json" --latest=false
+          fi
+          echo 'Temporary September frontend published for account creation. No backend rollout, migration or Google activation. Take the public site offline after testing.' >> "$GITHUB_STEP_SUMMARY"

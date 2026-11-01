@@ -3,9 +3,14 @@ import { ApiError } from "../api/apiError.js";
 import { isWishlistId } from "../features/wishlists/wishlistValidation.js";
 
 /** @type {Set<string>} */
-const ProtectedRoutes = new Set([RouteNames.Authenticator, RouteNames.PersonalData, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.DeleteList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.ListDetails, RouteNames.Reservations]);
+const ProtectedRoutes = new Set([RouteNames.AdminMembers, RouteNames.Activity, RouteNames.WishlistModeration, RouteNames.WishlistReportReview, RouteNames.ReportedWishlists, RouteNames.Authenticator, RouteNames.PersonalData, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.WishDetails, RouteNames.ListDetails, RouteNames.Reservations]);
 /** @type {Set<string>} */
 const AnonymousRoutes = new Set([RouteNames.Login, RouteNames.Register]);
+ProtectedRoutes.add(RouteNames.WishlistReportHistory);
+ProtectedRoutes.add(RouteNames.WishlistModerationHistory);
+ProtectedRoutes.add(RouteNames.FollowedLists);
+ProtectedRoutes.add(RouteNames.ExtensionAdd);
+for (const name of [RouteNames.Groups, RouteNames.Group, RouteNames.GroupEdit, RouteNames.GroupMember, RouteNames.GroupWishlist, RouteNames.GroupWish]) ProtectedRoutes.add(name);
 
 /** @param {string} name Route name.
  * @param {Pick<import("./sessionManager.js").SessionManager, "ensureSession">} session Session boundary.
@@ -27,6 +32,9 @@ export function createSessionGuard(name, session) {
     if (AnonymousRoutes.has(name) && state.status === "authenticated") {
       return { redirectTo: RoutePaths.Lists, replace: true };
     }
+    if (state.user?.isGoogleLinked === true && (name === RouteNames.EmailChange || name === RouteNames.PasswordChange)) {
+      return { redirectTo: RoutePaths.Profile, replace: true };
+    }
   };
 }
 
@@ -40,13 +48,20 @@ export function getSafeReturnTo(target) {
     const path = url.pathname.replace(/\/+$/, "") || "/";
     const decoded = decodeURIComponent(path);
     if (url.origin !== "https://monkado.invalid" || hasUnsafeCharacters(decoded) || /[?#]/.test(decoded)) return RoutePaths.Lists;
-    const edit = /^\/lists\/([^/]+)\/(?:edit|delete)$/.exec(path);
+    if (path === RoutePaths.Groups || /^\/groups\/[0-9a-f-]+(?:\/wishlists\/[0-9a-f-]+(?:\/wishes\/[0-9a-f-]+)?)?$/i.test(path) && path.split("/").filter((_, index) => [2, 4, 6].includes(index)).every(isWishlistId)) return path;
+    const groupEdit = /^\/groups\/([^/]+)\/edit$/.exec(path);
+    if (groupEdit && isWishlistId(groupEdit[1])) return path;
+    const groupMember = /^\/groups\/([^/]+)\/members\/([^/]+)$/.exec(path);
+    if (groupMember && isWishlistId(groupMember[1]) && isWishlistId(groupMember[2])) return path;
+    const edit = /^\/lists\/([^/]+)\/edit$/.exec(path);
     if (edit && isWishlistId(edit[1])) return path;
     const newWish = /^\/lists\/([^/]+)\/wishes\/new$/.exec(path);
     if (newWish && isWishlistId(newWish[1])) return path;
+    const detailWish = /^\/lists\/([^/]+)\/wishes\/([^/]+)$/.exec(path);
+    if (detailWish && isWishlistId(detailWish[1]) && isWishlistId(detailWish[2])) return path;
     const editWish = /^\/lists\/([^/]+)\/wishes\/([^/]+)\/edit$/.exec(path);
     if (editWish && isWishlistId(editWish[1]) && isWishlistId(editWish[2])) return path;
-    if (path === RoutePaths.Authenticator || path === RoutePaths.PersonalData || path === RoutePaths.Profile || path === RoutePaths.PasswordChange || path === RoutePaths.EmailChange || path === RoutePaths.Lists || path === RoutePaths.Reservations ||
+    if (path === RoutePaths.ExtensionAdd || path === RoutePaths.Authenticator || path === RoutePaths.PersonalData || path === RoutePaths.Profile || path === RoutePaths.PasswordChange || path === RoutePaths.EmailChange || path === RoutePaths.Lists || path === RoutePaths.Reservations || path === RoutePaths.FollowedLists ||
       (/^\/lists\/[^/]+$/.test(path) && /^\/lists\/[^/]+$/.test(decoded))) return path;
   } catch { /* Malformed destinations are never reflected. */ }
   return RoutePaths.Lists;

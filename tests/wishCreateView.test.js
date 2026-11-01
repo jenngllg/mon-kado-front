@@ -4,12 +4,13 @@ import { createWishCreateView } from "../src/features/wishes/wishCreateView.js";
 import { disposeComponent } from "../src/components/index.js";
 import { ApiError } from "../src/api/apiError.js";
 import { barrier } from "./sessionTestHelpers.js";
+import { wishControls, submitWishCreation } from "./wishCreationTestHelpers.js";
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 /** @type {import("../src/features/wishlists/wishlistsService.js").CreatedWishlist} */
 const list = { wishlist: { id, name: "Liste privée", occasion: "birthday", eventDate: null, message: null, isSuspended: false }, etag: '"list"' };
 /** @type {import("../src/features/wishes/wishesService.js").CreatedWish} */
-const created = { wish: { id, wishlistId: id, name: "Cadeau", note: null, url: null, imageUrl: null, price: null, quantity: 1, position: "1", entityTag: '"gift"', imageUnavailable: false, productUnavailable: false }, etag: '"gift"' };
+const created = { wish: { id, wishlistId: id, name: "Souhait", note: null, url: null, imageUrl: null, price: null, quantity: 1, position: "1", entityTag: '"gift"', imageUnavailable: false, productUnavailable: false }, etag: '"gift"' };
 /** @type {HTMLElement[]} */ const views = [];
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
 /** @param {Partial<Parameters<typeof createWishCreateView>[0]>} [options] Overrides. */
@@ -19,12 +20,12 @@ function setup(options = {}) {
   const onCreated = vi.fn(/** @type {(result: import("../src/features/wishes/wishesService.js").CreatedWish) => Promise<void>} */ (async () => {}));
   const view = createWishCreateView({ wishlistId: id, loadOne, create, onCreated, ...options }); views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
-  const fields = /** @type {[HTMLInputElement, HTMLTextAreaElement, HTMLInputElement, HTMLInputElement, HTMLInputElement]} */ ([...form.querySelectorAll("input,textarea")]);
+  const fields = wishControls(form);
   const submit = /** @type {HTMLButtonElement} */ (form.querySelector('[type="submit"]'));
   /** @param {number} index Field index. @param {string} value Raw value. */
   function input(index, value) { fields[index].value = value; fields[index].dispatchEvent(new Event("input", { bubbles: true })); }
-  function fill() { input(0, " Cadeau 🎁 "); input(1, " Note\nmultiligne "); input(2, " https://example.test/product "); input(3, "19,90"); input(4, "2"); }
-  function send() { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); }
+  function fill() { input(0, " Souhait 🎁 "); input(1, " Note\nmultiligne "); input(2, " https://example.test/product "); input(3, "19,90"); input(4, "2"); }
+  function send() { submitWishCreation(form); }
   return { view, form, fields, submit, loadOne, create, onCreated, input, fill, send };
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
@@ -32,24 +33,58 @@ async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); 
 function retry(view) { [...view.querySelectorAll("button")].find(button => button.textContent === "Réessayer")?.click(); }
 
 describe("manual gift creation view", () => {
+  it.each(["", "40"])("keeps shared preferences on step three and accepts an open-ended wish with budget '%s'", async budget => {
+    const ui = setup(); await settle();
+    const surprise = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("isSurprise"));
+    const secondHand = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("acceptsSecondHand"));
+    expect(surprise.closest("label")?.hidden).toBe(false); expect(ui.form.dataset.creationStep).toBe("link");
+    ui.input(2, "unfinished product URL"); surprise.click();
+    expect(ui.fields[2].closest(".form-field")?.hasAttribute("hidden")).toBe(true);
+    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer" && !button.hidden)?.click();
+    expect(ui.fields[4].closest('[role="group"]')?.getAttribute("aria-label")).toBe("Précisions");
+    expect(secondHand.closest('[role="group"]')?.getAttribute("aria-label")).toBe("Précisions");
+    expect(ui.form.querySelector('[name="isFavorite"]')?.closest('[role="group"]')?.getAttribute("aria-label")).toBe("Précisions");
+    expect(ui.fields[3].required).toBe(false);
+    secondHand.click(); ui.input(0, "Un moment de détente"); ui.input(1, "Massage ou atelier"); ui.input(3, budget); ui.input(4, "2");
+    const observer = new MutationObserver(() => {}); observer.observe(ui.form, { subtree: true, childList: true });
+    ui.fields[1].focus(); ui.input(1, "Massage ou atelier créatif");
+    expect(observer.takeRecords().some(record => record.target instanceof Element && record.target.matches(".wish-step-panel"))).toBe(false);
+    observer.disconnect(); expect(document.activeElement).toBe(ui.fields[1]);
+    expect(ui.fields[1].closest('[role="group"]')?.getAttribute("aria-label")).toBe("Souhait");
+    expect(ui.view.querySelector('[aria-current="step"]')?.textContent).toBe("Souhait");
+    expect(ui.create).not.toHaveBeenCalled(); ui.send(); await settle();
+    expect(ui.create).toHaveBeenCalledExactlyOnceWith(id, expect.objectContaining({ isSurprise: true, acceptsSecondHand: true, name: "Un moment de détente", note: "Massage ou atelier créatif", price: budget, quantity: "2", url: "" }), { signal: expect.any(AbortSignal) });
+    expect(surprise.disabled).toBe(true); expect(secondHand.disabled).toBe(true);
+  });
+  it("changes only local panels on Continue and Back and clears a discarded link", async () => {
+    const ui = setup(); await settle(); ui.input(2, "https://example.test/product");
+    const skip = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer sans lien" && !button.hidden);
+    skip?.click(); expect(ui.form.dataset.creationStep).toBe("product"); expect(ui.fields[2].value).toBe("");
+    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Retour")?.click();
+    expect(ui.form.dataset.creationStep).toBe("link");
+    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer sans lien" && !button.hidden)?.click();
+    ui.input(0, "Produit"); [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer")?.click();
+    expect(ui.form.dataset.creationStep).toBe("details"); expect(ui.create).not.toHaveBeenCalled();
+  });
   it("reads the parent first and provides five accessible native fields without extra functionality", async () => {
     const ui = setup(); expect(ui.form.hidden).toBe(true); expect(ui.submit.disabled).toBe(true); ui.send(); expect(ui.create).not.toHaveBeenCalled(); await settle();
     expect(ui.loadOne).toHaveBeenCalledExactlyOnceWith(id, { signal: expect.any(AbortSignal) }); expect(ui.form.hidden).toBe(false); expect(ui.form.noValidate).toBe(true);
-    expect(ui.view.querySelector("h1")?.textContent).toBe("Ajouter un cadeau"); expect(ui.view.textContent).toContain(list.wishlist.name);
-    expect(ui.fields.map(field => field.name)).toEqual(["name", "note", "url", "price", "quantity"]); expect(ui.fields.map(field => field.required)).toEqual([true, false, false, false, true]);
+    expect(ui.view.querySelector("h1")?.textContent).toBe("Ajouter un souhait"); expect(ui.view.textContent).not.toContain(list.wishlist.name);
+    expect(ui.view.textContent).not.toContain("facultatif");
+    expect(ui.fields.map(field => field.name)).toEqual(["name", "note", "url", "price", "quantity", "color", "size"]); expect(ui.fields.map(field => field.required)).toEqual([true, false, false, false, true, false, false]);
     expect(ui.fields[1].tagName).toBe("TEXTAREA"); expect(ui.fields[3].type).toBe("text"); expect(ui.fields[3].inputMode).toBe("decimal"); expect(ui.fields[4].type).toBe("number"); expect(ui.fields[4].value).toBe("1");
-    for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(document.getElementById(field.getAttribute("aria-describedby") ?? "")).not.toBeNull(); expect(field.hasAttribute("maxlength")).toBe(false); }
-    expect(ui.view.querySelector(`a[href="/lists/${id}"]`)?.textContent).toBe("Annuler"); expect(document.activeElement).toBe(document.body); expect(ui.view.querySelector('input[type="file"],img')).toBeNull();
+    for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.hasAttribute("aria-describedby")).toBe(false); expect(field.hasAttribute("maxlength")).toBe(false); }
+    expect(ui.view.querySelector(`a[href="/lists/${id}"]`)?.textContent).toBe("Retour à la liste"); expect(document.activeElement).toBe(document.body); expect(ui.view.querySelector('input[type="file"],img')).toBeNull();
   });
   it("validates on submit, announces a summary and focuses the first invalid field", async () => {
     const ui = setup(); await settle(); ui.input(3, "12.345"); ui.input(4, "101"); ui.send();
-    expect(ui.create).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.fields[0]); expect(ui.view.querySelector('[role="alert"]')?.textContent).toContain("Informations à vérifier");
-    expect(ui.fields[0].getAttribute("aria-invalid")).toBe("true"); ui.input(0, "Cadeau"); ui.input(3, "12,34"); ui.input(4, "1"); expect(ui.view.querySelector('[role="alert"]')).toBeNull();
+    expect(ui.create).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.fields[0]); expect(ui.form.dataset.creationStep).toBe("product");
+    expect(ui.fields[0].getAttribute("aria-invalid")).toBe("true"); ui.input(0, "Souhait"); ui.input(3, "12,34"); ui.input(4, "1"); expect(ui.view.querySelector('[role="alert"]')).toBeNull();
   });
   it("does not validate pristine fields on blur but updates checked fields during corrections", async () => {
     const ui = setup(); await settle(); ui.fields[0].dispatchEvent(new FocusEvent("blur")); expect(ui.fields[0].getAttribute("aria-invalid")).not.toBe("true");
     ui.input(0, " "); ui.fields[0].dispatchEvent(new FocusEvent("blur")); expect(ui.fields[0].getAttribute("aria-invalid")).toBe("true");
-    ui.input(0, "Cadeau"); expect(ui.fields[0].getAttribute("aria-invalid")).not.toBe("true");
+    ui.input(0, "Souhait"); expect(ui.fields[0].getAttribute("aria-invalid")).not.toBe("true");
   });
   it("defers blur layout changes until button activation and flushes cancelled pointer sequences", async () => {
     const ui = setup(); await settle(); ui.fill(); ui.input(1, "x".repeat(501));
@@ -59,8 +94,8 @@ describe("manual gift creation view", () => {
   });
   it("disables all controls, announces loading and submits once before clearing and locking on success", async () => {
     const ui = setup(); await settle(); ui.fill(); const gate = barrier(); ui.create.mockImplementation(async () => { await gate.promise; return created; }); ui.send(); ui.send();
-    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.submit.disabled).toBe(true); expect(ui.form.getAttribute("aria-busy")).toBe("true"); expect(ui.view.textContent).toContain("Ajout de ton cadeau…");
-    gate.resolve(); await settle(); expect(ui.onCreated).toHaveBeenCalledExactlyOnceWith(created); expect(ui.fields.every(field => field.value === "")).toBe(true); expect(ui.form.hidden).toBe(true); ui.send(); expect(ui.create).toHaveBeenCalledOnce();
+    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.submit.disabled).toBe(true); expect(ui.form.getAttribute("aria-busy")).toBe("true"); expect(ui.view.textContent).toContain("Enregistrement de ton souhait…");
+    gate.resolve(); await settle(); expect(ui.onCreated).toHaveBeenCalledExactlyOnceWith(created); expect(ui.fields.every(field => field.disabled)).toBe(true); expect(ui.form.hidden).toBe(false); ui.send(); expect(ui.create).toHaveBeenCalledOnce();
   });
   it("does not repost when navigation fails after a confirmed creation", async () => {
     const ui = setup(); ui.onCreated.mockRejectedValue(new Error("PRIVATE")); await settle(); ui.fill(); ui.send(); await settle(); ui.send();
@@ -68,20 +103,20 @@ describe("manual gift creation view", () => {
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), ...[500, 503].map(statusCode => new ApiError({ kind: "http", statusCode }))])("keeps uncertain results honest and only retries on explicit submit", async error => {
     const ui = setup(); ui.create.mockRejectedValue(error); await settle(); ui.fill(); ui.send(); await settle();
-    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields[0].value).toBe(" Cadeau 🎁 "); expect(ui.view.textContent).toContain("L’ajout de ton cadeau ne peut pas être confirmé. Consulte ta liste avant de réessayer.");
+    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields[0].value).toBe(" Souhait 🎁 "); expect(ui.view.textContent).toContain("L’ajout de ton souhait ne peut pas être confirmé. Consulte ta liste avant de réessayer.");
     expect(ui.view.querySelector('[role="alert"]')).toBe(document.activeElement); expect(ui.view.querySelectorAll(`a[href="/lists/${id}"]`)).toHaveLength(2); ui.send(); await settle(); expect(ui.create).toHaveBeenCalledTimes(2);
   });
   it.each([400, 401, 403, 409, 413, 429])("presents safe HTTP %s with retained inputs and no retry", async statusCode => {
     const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode, correlationId: "support-fixture", retryAfterSeconds: 7 })); await settle(); ui.fill(); ui.send(); await settle();
-    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields[0].value).toBe(" Cadeau 🎁 "); expect(ui.view.querySelectorAll('[role="alert"]')).toHaveLength(1); expect(ui.view.textContent).toContain("support-fixture");
-    if (statusCode === 429) expect(ui.view.textContent).toContain("7 seconde(s)"); if (statusCode === 413) expect(ui.view.textContent).toContain("Raccourcis la note ou le lien produit");
+    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields[0].value).toBe(" Souhait 🎁 "); expect(ui.view.querySelectorAll('[role="alert"]')).toHaveLength(1); expect(ui.view.textContent).toContain("support-fixture");
+    if (statusCode === 429) expect(ui.view.textContent).toContain("7 seconde(s)"); if (statusCode === 413) expect(ui.view.textContent).toContain("Informations trop volumineuses pour l’envoi");
   });
   it("maps only the five known validation paths and never displays backend messages", async () => {
-    const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 400, validationErrors: ["name", "note", "url", "price", "quantity", "confirmation", "wishes[2].name"].map(propertyName => ({ propertyName, errorMessage: "PRIVATE_ENGLISH" })) })); await settle(); ui.fill(); ui.send(); await settle();
+    const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 400, validationErrors: ["name", "note", "url", "price", "quantity", "color", "size", "confirmation", "wishes[2].name"].map(propertyName => ({ propertyName, errorMessage: "PRIVATE_ENGLISH" })) })); await settle(); ui.fill(); ui.send(); await settle();
     expect(ui.fields.every(field => field.getAttribute("aria-invalid") === "true")).toBe(true); expect(document.activeElement).toBe(ui.fields[0]); expect(ui.view.textContent).not.toContain("PRIVATE_ENGLISH"); expect(ui.view.querySelector('[role="alert"]')).not.toBeNull();
   });
   it("explains the server gift limit without guessing a number", async () => {
-    const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISH_LIMIT_REACHED" })); await settle(); ui.fill(); ui.send(); await settle(); expect(ui.view.textContent).toContain("Cette liste a atteint le nombre maximal de cadeaux.");
+    const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISH_LIMIT_REACHED" })); await settle(); ui.fill(); ui.send(); await settle(); expect(ui.view.textContent).toContain("Cette liste a atteint le nombre maximal de souhaits.");
   });
   it("checks the UTF-8 aggregate limit before even an injected create operation", async () => {
     const ui = setup(); await settle(); ui.input(0, "🎁".repeat(100)); ui.input(1, "🎁".repeat(500)); ui.input(2, "https://example.test/" + "a".repeat(2027)); ui.send(); await settle(); expect(ui.create).not.toHaveBeenCalled(); expect(ui.view.textContent).toContain("Informations trop volumineuses"); expect(ui.fields[0].value).toBe("🎁".repeat(100));
@@ -89,7 +124,7 @@ describe("manual gift creation view", () => {
   it("blocks a suspended parent until a successful fresh read, preserving unsent values", async () => {
     const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); await settle(); ui.fill(); ui.send(); await settle(); expect(ui.form.hidden).toBe(true); ui.send(); expect(ui.create).toHaveBeenCalledOnce();
     ui.loadOne.mockRejectedValue(new ApiError({ kind: "network" })); retry(ui.view); await settle(); expect(ui.form.hidden).toBe(true);
-    ui.loadOne.mockResolvedValue(list); retry(ui.view); await settle(); expect(ui.form.hidden).toBe(false); expect(ui.fields[0].value).toBe(" Cadeau 🎁 "); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
+    ui.loadOne.mockResolvedValue(list); retry(ui.view); await settle(); expect(ui.form.hidden).toBe(false); expect(ui.fields[0].value).toBe(" Souhait 🎁 "); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
   });
   it("never enables creation on a suspended initial list", async () => {
     const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, isSuspended: true } }) }); await settle(); expect(ui.form.hidden).toBe(true); expect(ui.view.textContent).toContain("Consultation uniquement"); ui.send(); expect(ui.create).not.toHaveBeenCalled();

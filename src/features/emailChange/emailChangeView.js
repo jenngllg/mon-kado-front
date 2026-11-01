@@ -2,8 +2,7 @@ import { ApiError, createAbortError, isAbortError } from "../../api/apiError.js"
 import { isStrongEntityTag } from "../../api/entityTag.js";
 import { EmailServerValidationMessage, validateEmailAddress } from "../../auth/emailValidation.js";
 import { validateCurrentPassword } from "../../auth/passwordValidation.js";
-import { RoutePaths } from "../../app/routeContracts.js";
-import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
+import { createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createConfirmationError, replaceConfirmationContent } from "../emailConfirmation/confirmationPresentation.js";
 import { createRecoveryForm, textElement } from "../passwordRecovery/recoveryForm.js";
@@ -18,7 +17,7 @@ export function validateEmailChangeField(name, values, currentEmail) {
   const error = validateEmailAddress(values.email);
   if (error) return error;
   return values.email.trim().toLowerCase() === currentEmail.trim().toLowerCase()
-    ? "Indique une adresse e-mail différente de ton adresse actuelle." : null;
+    ? "La nouvelle adresse e-mail est identique à l’adresse actuelle." : null;
 }
 
 /** Creates the protected request page; pending status exists only in this mounted view.
@@ -67,8 +66,7 @@ export function createEmailChangeView({ load, requestChange, signal }) {
     const title = textElement("h1", "Changer mon adresse e-mail");
     replaceConfirmationContent(view, title,
       textElement("p", "Ton adresse actuelle reste utilisée tant que le changement n’est pas confirmé."),
-      currentEmail, feedback, loading, controls,
-      createActionLink({ label: "Retour au profil", href: RoutePaths.Profile }));
+      currentEmail, feedback, loading, controls);
   }
 
   /** @param {boolean} conflict Whether a write needs explicit reconsideration. */
@@ -92,7 +90,7 @@ export function createEmailChangeView({ load, requestChange, signal }) {
           { name: "currentPassword", label: "Mot de passe actuel", type: "password", autocomplete: "current-password" },
         ], submitLabel: "Demander le changement", loadingLabel: "Demande en cours…",
         validate: (name, values) => validateEmailChangeField(name, values, base?.email ?? ""),
-        serverMessages: { email: EmailServerValidationMessage, currentPassword: "Vérifie ton mot de passe actuel." },
+        serverMessages: { email: EmailServerValidationMessage, currentPassword: "Mot de passe actuel invalide." },
         serverErrorFields: {
           MEMBER_CURRENT_PASSWORD_INVALID: { name: "currentPassword", message: "Le mot de passe actuel est incorrect." },
           MEMBER_EMAIL_ALREADY_USED: { name: "email", message: "Cette adresse e-mail n’est pas disponible." },
@@ -143,7 +141,6 @@ export function createEmailChangeView({ load, requestChange, signal }) {
     replaceConfirmationContent(view, textElement("h1", "Demande prise en compte"),
       textElement("p", "Consulte la boîte de réception de l’adresse demandée et utilise le lien de confirmation reçu. Consulte aussi tes indésirables."),
       textElement("p", "Ton adresse actuelle reste utilisée tant que le changement n’est pas confirmé."),
-      createActionLink({ label: "Retour au profil", href: RoutePaths.Profile }),
       createButton({ label: "Demander un autre changement", variant: "secondary", onClick: () => {
         if (disposed) return;
         controls.replaceChildren(legend);

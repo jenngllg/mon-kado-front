@@ -3,7 +3,17 @@ import { describe, expect, it } from "vitest";
 import { createLegalLinks, createPrivacyNotice } from "../src/components/legalLinks.js";
 
 describe("legal navigation touch targets", () => {
-  it.each([createLegalLinks, createPrivacyNotice])("reuses accessible action links without intercepting document navigation %#", create => {
+  it("omits generic helper copy while retaining explicit privacy information", () => {
+    // Arrange / Act
+    const generic = createPrivacyNotice();
+    const specific = createPrivacyNotice("Image visible avec la liste.");
+    // Assert
+    expect(generic.querySelector("p")).toBeNull();
+    expect(specific.querySelector("p")?.textContent).toBe("Image visible avec la liste.");
+    expect(generic.querySelectorAll("a")).toHaveLength(0);
+    expect(specific.querySelectorAll("a")).toHaveLength(0);
+  });
+  it.each([createLegalLinks])("reuses accessible action links without intercepting document navigation %#", create => {
     // Arrange / Act
     const element = create();
     const links = [...element.querySelectorAll("a")];

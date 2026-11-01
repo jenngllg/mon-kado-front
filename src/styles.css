@@ -7,5 +7,20 @@
 @import "./styles/components.css" layer(components);
 @import "./styles/shell.css" layer(components);
 @import "./styles/views.css" layer(components);
+@import "./styles/members.css" layer(components);
+@import "./styles/mockup-fidelity.css" layer(components);
+@import "./styles/site-theme.css" layer(components);
+@import "./styles/wish-gallery.css" layer(components);
+@import "./styles/list-detail.css" layer(components);
+@import "./styles/wish-detail.css" layer(components);
+@import "./styles/wishlist-layouts.css" layer(components);
+@import "./styles/wish-variants.css" layer(components);
 @import "./styles/google.css" layer(components);
 @import "./styles/utilities.css" layer(utilities);
+
+@import "./styles/groups.css" layer(components);
+@import "./styles/wish-preferences.css" layer(components);
+@import "./styles/header-search.css" layer(components);
+@import "./styles/extension-add.css" layer(components);
+@import "./styles/page-titles.css" layer(components);
+@import "./styles/dashboard.css" layer(components);

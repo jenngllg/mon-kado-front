@@ -5,7 +5,7 @@ import { createSharedWishlistService } from "../src/features/sharing/sharedWishl
 import { barrier } from "./sessionTestHelpers.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05", listId = "019c52dd-56c1-7cc6-8a95-243f3a032e06", secret = "A".repeat(43);
 const image = `https://api.example/api/v1/shared-wishlists/${id}/wishes/${wishId}/image?token=IMAGE_GRANT`;
-const wish = { id: wishId, name: "Un cadeau", price: 12.34, quantity: 2, url: "https://shop.example/item", imageUrl: image, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 };
+const wish = { id: wishId, name: "Un souhait", price: 12.34, quantity: 2, url: "https://shop.example/item", imageUrl: image, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 };
 const data = { id: listId, name: "Anniversaire", ownerDisplayName: "Camille", occasion: "birthday", eventDate: "2024-02-29", message: "Bienvenue", wishes: [wish], currentParticipant: { displayName: "PRIVATE_PARTICIPANT" } };
 const detail = { ...wish, note: "  Note complète\n<script>texte</script>\nfin  ", currentParticipant: { displayName: "PRIVATE_PARTICIPANT" } };
 /** @param {unknown} [body] API data. @param {number} [status] Status. */
@@ -16,6 +16,16 @@ function setup(body = data, status = 200) {
   const controller = new AbortController(); return { ...service, request, context, controller, options: { signal: controller.signal } };
 }
 describe("public share context", () => {
+  it("preserves the verified author ID from the shared response", async () => {
+    const ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e07";
+    const service = setup({ ...data, ownerId });
+    expect((await service.load(id, service.options)).ownerId).toBe(ownerId);
+    expect(service.request).toHaveBeenCalledOnce();
+  });
+  it.each([null, "invalid", "javascript:alert(1)", 42])("rejects invalid author IDs: %s", async ownerId => {
+    const service = setup({ ...data, ownerId });
+    await expect(service.load(id, service.options)).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("retains only one context, not data, and permits internal return", async () => {
     const context = createSharedWishlistContext(); expect(context.enter(id, "")).toBe("missing"); expect(context.enter(id, "#" + secret)).toBe("ready");
     expect(context.enter(id.toUpperCase(), "")).toBe("ready"); expect(await context.run(id, async value => value === secret)).toBe(true);
@@ -35,6 +45,12 @@ describe("public share context", () => {
   });
 });
 describe("shared wishlist service", () => {
+  it("accepts fully hidden owner quantities", async () => {
+    const hidden = { ...wish, reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null };
+    const service = setup({ ...data, wishes: [hidden] });
+    const result = await service.load(id, service.options);
+    expect(result.wishes[0]).toMatchObject({ reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null });
+  });
   it.each([false, true])("sends only the requested backend availability filter %s and preserves its complete order", async availableOnly => {
     const own = { ...wish, id: listId, reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity: 1 };
     const service = setup({ ...data, wishes: [own, wish] });
@@ -92,10 +108,20 @@ describe("shared wishlist service", () => {
     const empty = setup({ ...data, wishes: [] }); expect((await empty.load(id, empty.options)).wishes).toEqual([]);
     const service = setup({ ...data, wishes: [{ ...wish, id: listId }, wish] }); expect((await service.load(id, service.options)).wishes.map(item => item.id)).toEqual([listId, wishId]);
   });
+  it("keeps a zero price for collection and detail sorting", async () => {
+    // Arrange
+    const collection = setup({ ...data, wishes: [{ ...wish, price: 0 }] });
+    const single = setup({ ...detail, price: 0 });
+    // Act
+    const loaded = await collection.load(id, collection.options);
+    const product = await single.loadOne(id, wishId, single.options);
+    // Assert
+    expect(loaded.wishes[0].price).toBe(0); expect(product.price).toBe(0);
+  });
   it.each([null, [], { ...data, id: "bad" }, { ...data, name: " " }, { ...data, ownerDisplayName: "" }, { ...data, occasion: "unknown" }, { ...data, eventDate: "2025-02-29" }, { ...data, message: 12 }, { ...data, wishes: null }, { ...data, wishes: [wish, wish] }, { ...data, wishes: [null] }])("rejects malformed collection without retaining its body", async body => {
     const service = setup(body); const error = await service.load(id, service.options).catch(value => value); expect(error).toMatchObject({ kind: "invalidResponse", correlationId: "support" }); expect(JSON.stringify(error)).not.toMatch(/PRIVATE_PARTICIPANT|IMAGE_GRANT/);
   });
-  it.each([{ id: "bad" }, { name: " " }, { price: -1 }, { price: 0 }, { price: 1.234 }, { price: 100000000 }, { price: "12.00" }, { quantity: "1" }, { quantity: 0 }, { quantity: 101 }, { quantity: 1.5 }, { url: 12 }, { imageUrl: {} }])("rejects malformed gift %o", changes => {
+  it.each([{ id: "bad" }, { name: " " }, { price: -1 }, { price: 1.234 }, { price: 100000000 }, { price: "12.00" }, { quantity: "1" }, { quantity: 0 }, { quantity: 101 }, { quantity: 1.5 }, { url: 12 }, { imageUrl: {} }])("rejects malformed gift %o", changes => {
     const service = setup({ ...data, wishes: [{ ...wish, ...changes }] }); return expect(service.load(id, service.options)).rejects.toMatchObject({ kind: "invalidResponse" });
   });
   it.each([201, 202, 204])("requires 200, not %s", status => {
@@ -124,10 +150,18 @@ describe("shared wishlist service", () => {
 });
 
 describe("shared gift detail service", () => {
+  it("keeps both preferences in public details without participant data", async () => {
+    const service = setup({ ...detail, isSurprise: true, acceptsSecondHand: true });
+    expect(await service.loadOne(id, wishId, service.options)).toMatchObject({ isSurprise: true, acceptsSecondHand: true });
+  });
+  it.each([{ isSurprise: "true" }, { acceptsSecondHand: 1 }, { acceptsSecondHand: null }])("rejects malformed public gift preferences", async change => {
+    const service = setup({ ...detail, ...change });
+    await expect(service.loadOne(id, wishId, service.options)).rejects.toMatchObject({ kind: "invalidResponse" });
+  });
   it("reads only the public detail with a combined signal, no ETag and an immutable safe projection", async () => {
     const service = setup(detail); const result = await service.loadOne(id, wishId, service.options);
     expect(service.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/shared-wishlists/${id}/wishes/${wishId}`, { method: "GET", authentication: "none", shareToken: secret, signal: expect.any(AbortSignal) });
-    expect(result).toEqual({ id: wishId, name: wish.name, note: detail.note, price: 12.34, quantity: 2, url: wish.url, imageUrl: image, imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 });
+    expect(result).toEqual({ id: wishId, name: wish.name, note: detail.note, color: null, size: null, price: 12.34, quantity: 2, isFavorite: false, isSurprise: false, acceptsSecondHand: false, url: wish.url, imageUrl: image, imageUnavailable: false, productUnavailable: false, reservedQuantity: 1, availableQuantity: 1, currentParticipantReservedQuantity: 1 });
     expect(Object.isFrozen(result)).toBe(true); expect(JSON.stringify(result)).not.toMatch(/"currentParticipant"|position|etag|PRIVATE|AAAA/i);
   });
   it.each([null, ""])("preserves absent or empty note %s", async note => {

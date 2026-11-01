@@ -1,4 +1,5 @@
 html {
+  scrollbar-gutter: stable;
   background: var(--color-background);
   color: var(--color-text);
   font-family: var(--font-family-sans);
@@ -64,6 +65,12 @@ a {
   *::after {
     scroll-behavior: auto !important;
     transition: none !important;
+  }
+
+  /* Keep the explicitly requested import progress indicator moving; decorative motion stays off. */
+  *:not(.wish-import__loader),
+  *::before,
+  *::after {
     animation: none !important;
   }
 }

@@ -1,8 +1,24 @@
-:root { font-family: system-ui, sans-serif; color: #172133; background: #f8fafc; line-height: 1.65; }
-body { max-width: 52rem; margin: auto; padding: 1.25rem; overflow-wrap: anywhere; }
-main { padding-block: 1rem 3rem; }
-h1, h2 { line-height: 1.25; }
-a { color: #173f91; text-underline-offset: .2em; }
-a:focus-visible { outline: 3px solid #173f91; outline-offset: 4px; }
-nav { display: flex; flex-wrap: wrap; gap: 1rem; }
-[data-publication-draft] { border: 2px solid #8b3200; padding: 1rem; color: #712800; }
+@import "@fontsource-variable/nunito-sans";
+@import "../styles.css";
+
+/* Public documents reuse the application theme without booting authentication or JavaScript. */
+.legal-page { display: flex; flex-direction: column; min-height: 100vh; }
+.legal-main {
+  flex: 1;
+  width: min(100% - 2 * var(--content-gutter), 52rem);
+  margin-inline: auto;
+  padding-block: var(--space-6) var(--space-8);
+}
+.legal-main > * + * { margin-block-start: var(--space-4); }
+.legal-main h1 { font-size: clamp(2rem, 3.8vw, 3rem); margin-block-end: var(--space-6); }
+.legal-main h2 { font-size: var(--font-size-xl); margin-block-start: var(--space-6); }
+.legal-main p, .legal-main li { max-width: none; }
+.legal-main ul, .legal-main ol { padding-inline-start: var(--space-5); }
+.legal-main:focus { outline: none; }
+[data-publication-draft] {
+  padding: var(--space-4);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}

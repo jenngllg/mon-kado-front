@@ -101,7 +101,7 @@ export function createGiftReservationService(session, { context, authentication 
 /** @param {import("../../api/apiClient.js").ApiResponse<unknown>} response Safe transport result.
  * @param {string} wishId Expected gift. @param {number} status Expected success. @returns {CurrentReservation} Immutable current reservation.
  */
-function projectReservation(response, wishId, status) {
+export function projectReservation(response, wishId, status) {
   const item = /** @type {Partial<GiftReservationResponse> | null} */ (response.data);
   if (response.status !== status || !item || !isWishlistId(item.id) || !isWishlistId(item.wishId) ||
     item.wishId.toLowerCase() !== wishId.toLowerCase() || typeof item.quantity !== "number" ||

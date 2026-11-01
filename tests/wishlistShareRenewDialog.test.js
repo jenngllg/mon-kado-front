@@ -40,7 +40,7 @@ describe("share renewal confirmation", () => {
   it("opens with accessible consequences but no HTTP or secret", () => {
     const ui = setup(); expect(ui.load).not.toHaveBeenCalled(); expect(ui.renew).not.toHaveBeenCalled();
     expect(ui.dialog.querySelector(`#${ui.dialog.getAttribute("aria-labelledby")}`)?.hasAttribute("autofocus")).toBe(true);
-    expect(ui.dialog.querySelector(`#${ui.dialog.getAttribute("aria-describedby")}`)?.textContent).toContain("Les participations existantes ne seront pas supprimées");
+    expect(ui.dialog.querySelector(`#${ui.dialog.getAttribute("aria-describedby")}`)?.textContent).toContain("les participations seront conservées");
     expect(ui.dialog.textContent).not.toMatch(/SECRET|initial/); expect(ui.dialog.querySelector("textarea,input,a")).toBeNull();
     ui.button("Annuler").click(); expect(ui.onClose).toHaveBeenCalledExactlyOnceWith(false); expect(ui.dialog.isConnected).toBe(false);
   });

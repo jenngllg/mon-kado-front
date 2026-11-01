@@ -1,3 +1,4 @@
+import { createImpersonationSession } from "../auth/impersonationSession.js";
 import { createSessionManager } from "../auth/sessionManager.js";
 import { createLoginTarget, getLoginDestination, isProtectedRoute } from "../auth/sessionGuards.js";
 import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, showNotification } from "../components/index.js";
@@ -12,6 +13,8 @@ import { RouteNames, RoutePaths } from "./routeContracts.js";
 import { createGoogleService } from "../features/google/googleService.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
 import { createSharedSignInContinuation } from "../features/sharing/sharedSignInContinuation.js";
+import { captureExtensionProduct, readExtensionProduct } from "../features/extension/extensionProduct.js";
+import { installExtensionSessionBridge } from "../features/extension/extensionSessionBridge.js";
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
@@ -20,9 +23,16 @@ import { createSharedSignInContinuation } from "../features/sharing/sharedSignIn
  * reportError?: (error: unknown, source: "browser" | "promise") => void}} options Dependencies.
  */
 export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, reportError, session = createSessionManager({ apiBaseUrl }),
-  google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
+  google }) {
+  const simulation=createImpersonationSession(session);
+  session=simulation.session;
+  google ??= createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled });
+  captureExtensionProduct(window);
+  const disposeExtensionBridge = installExtensionSessionBridge(session, apiBaseUrl);
   let disposed = false;
-  const sharing = createSharedWishlistContext();
+  /** @type {Storage | null} */ let sharingStorage = null;
+  try { sharingStorage = window.sessionStorage; } catch { /* Sharing remains usable in memory when storage is restricted. */ }
+  const sharing = createSharedWishlistContext({ storage: sharingStorage });
   const sharedSignIn = createSharedSignInContinuation(sharing);
   let routeErrorVisible = false;
   let passwordChangeNotice = false;
@@ -34,22 +44,48 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   let googleVerified = false;
   /** @type {string} */
   let googleFlowRoute = RouteNames.GoogleReturn;
-  const shell = createApplicationShell({ onLogout: () => { void session.logout(); } });
+  const shell = createApplicationShell({ apiBaseUrl, onLogout: () => { void session.logout(); },
+    onMemberSearch: query => { void router.navigate(`${RoutePaths.Members}?${new URLSearchParams({ q: query })}`); },
+  });
+  const simulationBanner=document.createElement("aside");simulationBanner.className="cluster impersonation-banner";simulationBanner.hidden=true;
+  const simulationLabel=document.createElement("strong");
+  const simulationExit=createButton({label:"Revenir à mon compte",variant:"secondary",onClick:()=>{void simulation.stop().catch(()=>showNotification(shell.notificationRegion,{message:"Impossible d’arrêter la simulation. Réessaie.",variant:"error"}));}});
+  simulationBanner.append(simulationLabel,simulationExit);shell.outlet.before(simulationBanner);
+  const onImpersonate=(/** @type {Event} */ event)=>{
+    const member=/** @type {CustomEvent<string>} */(event).detail;
+    void simulation.start(member).then(()=>router.replace(RoutePaths.Lists)).catch(()=>showNotification(shell.notificationRegion,{message:"Impossible de démarrer la simulation",variant:"error"}));
+  };
+  root.addEventListener("monkado-impersonate",onImpersonate);
   root.replaceChildren(shell.element);
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({
     outlet: shell.outlet,
     routes: createApplicationRoutes({ session, google, apiBaseUrl, sharing,
-      sharingSignIn: { continuation: sharedSignIn, onSignIn: id => {
+      onWishlistShareRevoked: context => {
+        const route = router.getCurrentRoute();
+        if (disposed || context.signal.aborted || route?.name !== RouteNames.ListDetails ||
+          route.params.listId !== context.params.listId || session.getSnapshot().status !== "authenticated") return;
+        showNotification(shell.notificationRegion, { message: "Partage désactivé", variant: "success" });
+      },
+      sharingSignIn: { continuation: sharedSignIn, onSignIn: (id, wishId) => {
         const state = session.getSnapshot(), route = router.getCurrentRoute();
         if (disposed || state.status !== "anonymous" || state.authenticationPending || state.logoutPending ||
-          route?.name !== RouteNames.SharedWishlist || route.params.shareLinkId !== id || !sharedSignIn.prepare(id)) return;
+          (route?.name !== RouteNames.SharedWishlist && route?.name !== RouteNames.SharedWish) ||
+          route.params.shareLinkId !== id || (wishId !== undefined && route.params.wishId !== wishId) || !sharedSignIn.prepare(id, wishId)) return;
         void router.navigate(RoutePaths.Login).then(result => { if (result?.name !== RouteNames.Login) sharedSignIn.cancel(); });
       } },
       onWishDeleted: async context => {
-        const editPath = RoutePaths.EditWish.replace(":listId", context.params.listId).replace(":wishId", context.params.wishId);
-        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.EditWish ||
-          window.location.pathname.replace(/\/+$/, "") !== editPath || session.getSnapshot().status !== "authenticated") return;
+        const current = router.getCurrentRoute();
+        if (!disposed && !context.signal.aborted && current?.name === RouteNames.ListDetails &&
+          current.params.listId === context.params.listId && session.getSnapshot().status === "authenticated") {
+          showNotification(shell.notificationRegion, { message: "Souhait supprimé", variant: "success" });
+          return;
+        }
+        const sourceName = router.getCurrentRoute()?.name;
+        const sourceTemplate = sourceName === RouteNames.WishDetails ? RoutePaths.WishDetails : RoutePaths.EditWish;
+        const sourcePath = sourceTemplate.replace(":listId", context.params.listId).replace(":wishId", context.params.wishId);
+        if (disposed || context.signal.aborted || (sourceName !== RouteNames.EditWish && sourceName !== RouteNames.WishDetails) ||
+          window.location.pathname.replace(/\/+$/, "") !== sourcePath || session.getSnapshot().status !== "authenticated") return;
         const epoch = protectedViewEpoch;
         const destination = RoutePaths.ListDetails.replace(":listId", context.params.listId);
         confirmedWishDeletion = { epoch, destination };
@@ -57,7 +93,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
           const route = await router.replace(destination);
           if (!disposed && epoch === protectedViewEpoch && route !== null && route === router.getCurrentRoute() &&
             route.name === RouteNames.ListDetails && window.location.pathname === destination && session.getSnapshot().status === "authenticated") {
-            showNotification(shell.notificationRegion, { message: "Cadeau supprimé", variant: "success" });
+            showNotification(shell.notificationRegion, { message: "Souhait supprimé", variant: "success" });
           }
         } finally { confirmedWishDeletion = null; }
       },
@@ -71,7 +107,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
         const route = await router.replace(destination);
         if (!disposed && epoch === protectedViewEpoch && route !== null && route === router.getCurrentRoute() &&
           route.name === RouteNames.ListDetails && window.location.pathname === destination && session.getSnapshot().status === "authenticated") {
-          showNotification(shell.notificationRegion, { message: "Cadeau ajouté", variant: "success" });
+          showNotification(shell.notificationRegion, { message: "Souhait ajouté", variant: "success" });
         }
       },
       onWishlistCreated: async (created, context) => {
@@ -86,8 +122,8 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
         }
       },
       onWishlistDeleted: async context => {
-        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.DeleteList ||
-          window.location.pathname.replace(/\/+$/, "") !== RoutePaths.DeleteList.replace(":listId", context.params.listId) ||
+        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.ListDetails ||
+          window.location.pathname.replace(/\/+$/, "") !== RoutePaths.ListDetails.replace(":listId", context.params.listId) ||
           session.getSnapshot().status !== "authenticated") return;
         const epoch = protectedViewEpoch;
         confirmedWishlistDeletionEpoch = epoch;
@@ -125,14 +161,25 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
           createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists }));
       }
       if (confirmedWishDeletion?.epoch === protectedViewEpoch && session.getSnapshot().status === "authenticated") {
-        view.append(createAlert({ title: "Cadeau supprimé", message: "Ton cadeau est supprimé, mais le retour à la liste a échoué.", variant: "success" }),
+        view.append(createAlert({ title: "Souhait supprimé", message: "Ton souhait est supprimé, mais le retour à la liste a échoué.", variant: "success" }),
           createActionLink({ label: "Retour à la liste", href: confirmedWishDeletion.destination }));
       }
       return view;
     },
   });
   let previous = session.getSnapshot();
+  const activityPages = new Set(["home", "members", "member-profile", "profile", "personal-data", "authenticator", "password-change", "email-change", "lists", "extension-add", "followed-lists", "groups", "group-join", "group-invitation", "group", "group-edit", "group-member", "group-wishlist", "group-wish", "new-list", "edit-list", "new-wish", "edit-wish", "wish-details", "list-details", "reservations", "reported-wishlists", "wishlist-report-review", "wishlist-moderation", "wishlist-report-history", "wishlist-moderation-history", "shared-wishlist", "shared-wish", "activity"]);
+  /** @type {import("../router/router.js").RouteSnapshot | null} */ let recordedRoute = null;
+  let recordedMember = "";
+  function recordVisit() {
+    const route = router.getCurrentRoute(), state = session.getSnapshot();
+    if (disposed || !route?.name || !activityPages.has(route.name) || state.status !== "authenticated" || !state.user || (recordedRoute === route && recordedMember === state.user.id)) return;
+    recordedRoute = route; recordedMember = state.user.id;
+    void session.request("/api/v1/member-activity/page-visits", { method: "POST", body: { page: route.name }, authentication: "required", csrf: true, expectEmptyResponse: true }).catch(() => {});
+  }
   const unsubscribeRouter = router.subscribe(route => {
+    recordVisit();
+    if (route && route.name !== RouteNames.SharedWishlist && route.name !== RouteNames.SharedWish) sharing.forgetContinuity();
     if (route?.name !== RouteNames.Login) sharedSignIn.cancel();
     if (route?.name !== RouteNames.Login) passwordChangeNotice = false;
     if (route?.name !== googleFlowRoute) { googleDestination = null; googleVerified = false; }
@@ -142,11 +189,19 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     renderFeedback();
     finishGoogle();
   });
+  let simulationWasActive=false;
   const unsubscribeSession = session.subscribe(state => {
+    const simulating=simulation.isActive();
+    simulationBanner.hidden=!simulating;simulationLabel.textContent=simulating?`Simulation de ${state.user?.displayName} — modifications réelles`:"";
+    if(simulationWasActive && !simulating && !disposed)void router.replace(RoutePaths.Activity);
+    simulationWasActive=simulating;
+    if(!previous.user || previous.user.id===state.user?.id)recordVisit();
     shell.setSession(state);
     const current = router.getCurrentRoute();
     const lostAccess = previous.status === "authenticated" && state.status !== "authenticated";
     const gainedAccess = previous.status !== "authenticated" && state.status === "authenticated";
+    // Public bearer access survives logout in memory; only reload continuity is discarded.
+    if (lostAccess || (previous.user && state.user && previous.user.id !== state.user.id)) sharing.forgetContinuity();
     if (lostAccess) protectedViewEpoch++;
     previous = state;
     renderFeedback();
@@ -155,9 +210,11 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       // Clear credentials entered in this tab before the protected guard yields.
       disposeComponent(shell.outlet);
       shell.outlet.replaceChildren(createLoadingState({ label: "Vérification de la session…" }));
-      const destination = current.name === RouteNames.Login
-        ? (state.user && sharedSignIn.consume(state.user.id)) || getLoginDestination(current.url.searchParams) : RoutePaths.Lists;
-      void router.replace(destination).then(result => { if (result?.url.pathname !== destination) sharedSignIn.discardResume(); });
+      sharedSignIn.cancel();
+      sharedSignIn.discardResume();
+      const destination = current.name === RouteNames.Login && getLoginDestination(current.url.searchParams) === RoutePaths.ExtensionAdd && readExtensionProduct()
+        ? RoutePaths.ExtensionAdd : RoutePaths.Lists;
+      void router.replace(destination);
     }
     const showingNewRecoveryCodes = state.endReason === "authenticatorChanged" && current?.name === RouteNames.Authenticator &&
       window.location.pathname === RoutePaths.Authenticator;
@@ -195,6 +252,8 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      root.removeEventListener("monkado-impersonate",onImpersonate);
+      disposeExtensionBridge();
       passwordChangeNotice = false;
       googleDestination = null;
       removeGlobalErrors();
@@ -221,7 +280,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     if (!googleVerified || disposed || router.getCurrentRoute()?.name !== googleFlowRoute ||
       window.location.pathname.replace(/\/+$/, "") !== (googleFlowRoute === RouteNames.LinkGoogle ? RoutePaths.LinkGoogle : RoutePaths.GoogleReturn) ||
       googleDestination === null || session.getSnapshot().status !== "authenticated") return;
-    const destination = googleDestination;
+    const destination = googleDestination === RoutePaths.ExtensionAdd && readExtensionProduct() ? RoutePaths.ExtensionAdd : RoutePaths.Lists;
     const linked = googleFlowRoute === RouteNames.LinkGoogle;
     googleDestination = null;
     googleVerified = false;

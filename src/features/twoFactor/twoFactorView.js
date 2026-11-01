@@ -1,5 +1,5 @@
-import { ApiError, isAbortError } from "../../api/apiError.js";
-import { createActionLink, createAlert, createButton, createFormField, disposeComponent } from "../../components/index.js";
+import { isAbortError } from "../../api/apiError.js";
+import { createBackLink, createAlert, createButton, createFormField, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createLocalQrCode } from "./localQrCode.js";
@@ -12,7 +12,7 @@ import { createLocalQrCode } from "./localQrCode.js";
  * @returns {HTMLElement} Private, disposable continuation.
  */
 export function createTwoFactorView({ session, signal, onAuthenticated = () => {} }) {
-  const view = document.createElement("section"); view.className = "flow";
+  const view = document.createElement("section"); view.className = "two-factor-view flow";
   const heading = text("h1", "Vérification en deux étapes");
   const content = document.createElement("div"); content.className = "flow";
   const feedback = document.createElement("div"); feedback.tabIndex = -1;
@@ -35,7 +35,7 @@ export function createTwoFactorView({ session, signal, onAuthenticated = () => {
   }
   return view;
 
-  function clearContent() { disposeComponent(content); content.replaceChildren(); }
+  function clearContent() { disposeComponent(content); content.replaceChildren(); view.querySelector(":scope > .back-link")?.remove(); }
   function render() {
     const state = session.getSnapshot();
     if (state.status === "authenticated") {
@@ -51,7 +51,8 @@ export function createTwoFactorView({ session, signal, onAuthenticated = () => {
     }
     if (!state.twoFactor || !session.secondFactor) {
       clearContent(); codes = null;
-      content.append(text("p", "Cette vérification n’est plus disponible. Recommence la connexion."), createActionLink({ label: "Revenir à la connexion", href: "/login" }));
+      view.prepend(createBackLink({ label: "Revenir à la connexion", href: "/login" }));
+      content.append(text("p", "Cette vérification n’est plus disponible. Recommence la connexion."));
       return;
     }
     if (codes !== null) { renderCodes(codes); return; }
@@ -73,17 +74,26 @@ export function createTwoFactorView({ session, signal, onAuthenticated = () => {
       content.append(createButton({ label: "Terminer la connexion", onClick: () => { void execute(async () => { await session.secondFactor?.complete({}, { signal: lifetime.signal }); }); } }));
     } else {
       content.append(codeForm(false), createButton({ label: recovering ? "Utiliser l’authentificateur" : "Utiliser un code de récupération", variant: "secondary",
-        onClick: () => { if (!busy) { recovering = !recovering; render(); } } }));
+        onClick: () => { if (!busy) {
+          recovering = !recovering; disposeComponent(feedback); feedback.replaceChildren(); render();
+          content.querySelector("input")?.focus();
+        } } }));
     }
   }
   /** @param {boolean} setup Whether confirming a newly staged key. */
   function codeForm(setup) {
-    const form = document.createElement("form"); form.className = "flow";
+    const form = document.createElement("form"); form.className = "flow"; form.noValidate = true;
     const recovery = recovering && !setup;
     const input = document.createElement("input"); input.type = "text"; input.name = recovery ? "recoveryCode" : "code";
     input.autocomplete = recovery ? "off" : "one-time-code"; input.spellcheck = false;
     input.inputMode = recovery ? "text" : "numeric"; input.maxLength = recovery ? 39 : 6;
-    form.append(createFormField({ control: input, label: recovery ? "Code de récupération" : "Code à six chiffres", required: true }),
+    const field = createFormField({ control: input, label: recovery ? "Code de récupération" : "Code à six chiffres", required: true });
+    let invalid = false;
+    addComponentEventListener(form, input, "input", () => {
+      if (!invalid) return;
+      invalid = false; setFormFieldValidation(field, null); disposeComponent(feedback); feedback.replaceChildren();
+    });
+    form.append(field,
       createButton({ label: setup ? "Confirmer l’authentificateur" : "Vérifier le code", type: "submit" }));
     registerComponentCleanup(form, () => { input.value = ""; });
     addComponentEventListener(form, form, "submit", event => {
@@ -91,7 +101,10 @@ export function createTwoFactorView({ session, signal, onAuthenticated = () => {
       if (busy) return;
       const value = input.value.trim(); input.value = "";
       if (!(recovery ? /^[a-f\d-]{32,39}$/i : /^\d{6}$/).test(value)) {
-        showError(new ApiError({ kind: "http", statusCode: 400 })); input.focus(); return;
+        const message = recovery ? "Code de récupération invalide ou incomplet." : "Code d’authentification invalide : six chiffres attendus.";
+        invalid = true; setFormFieldValidation(field, message);
+        disposeComponent(feedback); feedback.replaceChildren(createAlert({ title: "Code à vérifier", message, variant: "error" }));
+        input.focus(); return;
       }
       void execute(async () => {
         if (setup) {
@@ -109,10 +122,10 @@ export function createTwoFactorView({ session, signal, onAuthenticated = () => {
   function renderCodes(values) {
     clearContent();
     content.append(text("p", "Enregistre ces dix codes dans un endroit sûr. Ils ne seront affichés qu’une seule fois."));
-    const list = document.createElement("ul");
+    const list = document.createElement("ul"); list.className = "recovery-codes";
     for (const code of values) list.append(text("li", code));
     const saved = document.createElement("input"); saved.type = "checkbox";
-    const label = document.createElement("label"); label.append(saved, text("span", "J’ai enregistré mes codes de récupération"));
+    const label = document.createElement("label"); label.className = "recovery-codes-confirmation"; label.append(saved, text("span", "J’ai enregistré mes codes de récupération"));
     const finish = createButton({ label: "Terminer la connexion", onClick: () => {
       if (!saved.checked || busy) return;
       void execute(async () => { await session.secondFactor?.complete({}, { signal: lifetime.signal }); });

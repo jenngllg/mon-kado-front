@@ -14,12 +14,27 @@ port, Grafana account, Node server or production secret in CI is introduced.
 
 `publication.json` is public, revision-bound configuration. A production build
 ignores ambient `VITE_API_BASE_URL` and `VITE_GOOGLE_AUTH_ENABLED` overrides.
-Google is currently **disabled** and legal approval is **false**. Builds and local
+Google is explicitly **enabled in the reviewed frontend configuration** for the
+operator-requested temporary production test, and legal approval is **false**.
+This public flag does not configure the backend OAuth client or grant administrator
+privileges. Verify the production backend/client and Google callback before activation.
+Builds and local
 tests are possible; publication is intentionally refused. The separate `e2e` mode
 pins the simulated API to localhost, has Google disabled, and writes `.e2e-dist`.
 Never package that test directory. Browser routes abort unexpected destinations.
 
 ## Legal approval is a human decision
+
+For the explicitly authorized temporary social-preview production test only,
+the protected publication workflow accepts `temporary_test: true`. This exception
+does not modify `legalApproved`, dates or draft markers and never enables Google
+implicitly. It returns the boolean explicitly recorded in the reviewed
+`publication.json`; backend OAuth configuration and its normal security checks
+remain mandatory. The operator separately authorized Google sign-in for this test.
+The default workflow still refuses draft documents; quality, API compatibility,
+environment approval, artifact validation and installed configuration checks remain
+mandatory. The operator must take the public site offline after the test through
+the server console; this input does not schedule or guarantee automatic removal.
 
 The three French documents are substantive **drafts**, not a compliance
 certification or published terms. The public contact approved for this work is

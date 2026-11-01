@@ -31,8 +31,27 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - name: Verify assets retained for already-open tabs
+        run: python3 -m unittest discover -s tools/publication -p 'test_retain_assets.py'
       - run: pnpm test:coverage
       - run: pnpm build
+      - name: Check the reviewed production archive contract
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: jenngllg/mon-kado
+          ref: a3491b9eb2cc4b6355898ecd8c29edb20c1cc77d
+          path: .publication-backend
+          persist-credentials: false
+      - name: Package the build using the production allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          configuration_hash=$(python3 .publication-backend/deployments/production/release_manifest.py hash)
+          google_enabled=$(node --input-type=module -e 'import p from "./publication.json" with { type: "json" }; console.log(String(p.googleEnabled))')
+          python3 .publication-backend/src/Operations.Frontend/frontend_cli.py package \
+            --dist dist --output "$RUNNER_TEMP/frontend-quality-package" --revision "$GITHUB_SHA" \
+            --backend-revision a3491b9eb2cc4b6355898ecd8c29edb20c1cc77d \
+            --configuration-hash "$configuration_hash" --google-enabled "$google_enabled"
       - name: Validate deployed Caddy configuration
         run: >-
           docker run --rm --network none
@@ -44,6 +63,13 @@ jobs:
           caddy validate --config /etc/caddy/Caddyfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - name: Retain the verified production build for publication
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontend-production-build
+          path: dist/
+          retention-days: 1
+          if-no-files-found: error
       - name: Keep synthetic browser diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -51,7 +77,7 @@ jobs:
           name: chromium-failure
           path: |
             playwright-report/
-            test-results/
+            .e2e-results/
           retention-days: 3
           if-no-files-found: ignore
 
@@ -60,18 +86,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
-      COMPOSE_PROJECT_NAME: monkado-front-contract
-      API_HOST: http://localhost
-      HTTP_PORT: '7000'
-      HTTPS_PORT: '7443'
+      HTTP_ADDRESS: '127.0.0.1:7000'
       FRONTEND_ORIGIN: http://localhost:5173
-      API_ALLOWED_HOST: localhost
-      POSTGRES_DB: contract_test
-      POSTGRES_USER: contract_test
-      POSTGRES_PASSWORD: disposable-ci-only
-      POSTGRES_PORT: '5432'
-      GOOGLE_AUTHENTICATION_ENABLED: 'false'
-      IMAGE_TAG: frontend-contract
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      GOOGLE_ENABLED: 'false'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -82,44 +100,71 @@ jobs:
           package-manager-cache: false
       - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
       - run: pnpm install --frozen-lockfile
-      - name: Check out current backend contract
+      - name: Check out the matching backend contract
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: jenngllg/mon-kado
-          ref: develop
+          # Validate paired releases before their backend merge; develop checks its current backend contract.
+          ref: ${{ github.head_ref == 'codex/complete-production-20261101' && '52aa836576681118262b723987cdcbf4773b13a2' || github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || github.head_ref == 'codex/admin-bool-session' && '6e8bed08f02b1509c3414777d2a58523cf18cdb0' || github.head_ref == 'codex/admin-boolean-only' && 'd6b4b6c913769cccfb5e9d8ce0a890c35faa5817' || ((github.base_ref == 'main' || github.ref == 'refs/heads/main') && 'main' || 'develop') }}
           path: .backend
           persist-credentials: false
-      - name: Record backend revision and generate disposable key
+      - name: Set up native Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .backend/go.mod
+          cache-dependency-path: .backend/go.sum
+      - name: Initialize isolated native PostgreSQL
+        run: bash .backend/scripts/Initialize-CIPostgres.sh
+      - name: Record backend revision and generate disposable keys
         shell: bash
         run: |
+          set -euo pipefail
           git -C .backend rev-parse HEAD
-          key=$(openssl rand -base64 32)
-          echo "::add-mask::$key"
-          echo "JWT_SIGNING_KEY=$key" >> "$GITHUB_ENV"
-      - name: Build isolated API
-        working-directory: .backend
-        run: docker compose -f compose.yaml -f compose.local.yaml build api
-      - name: Start API, migrations and database without Worker
-        working-directory: .backend
-        run: docker compose -f compose.yaml -f compose.local.yaml up --detach caddy
-      - name: Wait for the contract endpoint
-        shell: bash
-        run: |
-          for attempt in {1..30}; do
-            if curl --fail --silent http://localhost:7000/openapi/v1.json --output "$RUNNER_TEMP/contract.json"; then
-              exit 0
-            fi
-            sleep 2
+          for name in JWT_SIGNING_KEY DATA_ENCRYPTION_KEY; do
+            key=$(openssl rand -base64 32)
+            echo "::add-mask::$key"
+            echo "$name=$key" >> "$GITHUB_ENV"
           done
-          echo 'The isolated contract endpoint did not start.' >&2
-          exit 1
-      - run: pnpm api:types:check
-        env:
-          MONKADO_OPENAPI_URL: http://localhost:7000/openapi/v1.json
-      - name: Remove disposable backend resources
-        if: always()
+      - name: Build native API and migration tool without Worker
         working-directory: .backend
-        run: docker compose -f compose.yaml -f compose.local.yaml down --volumes --remove-orphans
+        run: |
+          go build -o "$RUNNER_TEMP/monkado-contract-api" ./cmd/api
+          go build -o "$RUNNER_TEMP/monkado-contract-migrate" ./cmd/migrate
+      - name: Check the served native OpenAPI contract
+        shell: bash
+        env:
+          DATABASE_URL: ${{ env.MONKADO_TEST_DATABASE_URL }}
+          MONKADO_OPENAPI_URL: http://localhost:7000/openapi/v1.json
+          IMAGE_PATH: ${{ runner.temp }}/monkado-contract-images
+          EXPORT_PATH: ${{ runner.temp }}/monkado-contract-exports
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/monkado-contract-migrate"
+          "$RUNNER_TEMP/monkado-contract-api" > "$RUNNER_TEMP/monkado-contract-api.log" 2>&1 &
+          api_pid=$!
+          trap 'kill "$api_pid" 2>/dev/null || true; wait "$api_pid" 2>/dev/null || true' EXIT
+          curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 --max-time 5 \
+            "$MONKADO_OPENAPI_URL" --output "$RUNNER_TEMP/contract.json"
+          pnpm api:types:check
+          cmp "$RUNNER_TEMP/contract.json" .backend/internal/httpapi/specification.json
+          mkdir -p "$RUNNER_TEMP/frontend-backend-proof"
+          backend_revision=$(git -C .backend rev-parse HEAD)
+          contract_hash=$(sha256sum "$RUNNER_TEMP/contract.json" | cut -d' ' -f1)
+          jq -n --arg backend "$backend_revision" --arg contract "$contract_hash" \
+            '{backendRevision: $backend, openapiSha256: $contract}' > "$RUNNER_TEMP/frontend-backend-proof/proof.json"
+      - name: Retain the exact native backend contract proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontend-backend-proof
+          path: ${{ runner.temp }}/frontend-backend-proof/
+          retention-days: 1
+          if-no-files-found: error
+      - name: Remove disposable native PostgreSQL cluster
+        if: always()
+        run: |
+          if pg_lsclusters --no-header | grep -q '^18[[:space:]]\+monkado[[:space:]]'; then
+            sudo pg_dropcluster --stop 18 monkado
+          fi
 
   gate:
     name: Frontend quality gate

@@ -6,6 +6,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import {
   createApplicationShell,
@@ -28,9 +29,50 @@ afterEach(() => {
   }
 
   document.body.replaceChildren();
+  vi.restoreAllMocks();
 });
 
 describe("application shell", () => {
+  it.each(["pointerup", "pointercancel", "keydown", "blur"])("keeps pointer activation stable and restores focus scrolling after %s", release => {
+    const shell = createTestShell(); document.body.append(shell.element);
+    const button = document.createElement("button");
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    button.append(icon); shell.outlet.append(button);
+    const header = shell.element.querySelector("header");
+    if (!header) throw new Error("Missing header");
+    vi.spyOn(header, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 300, 80));
+    vi.spyOn(button, "getBoundingClientRect").mockReturnValue(new DOMRect(100, 46, 44, 44));
+    const scroll = vi.spyOn(window, "scrollBy").mockImplementation(() => {});
+
+    icon.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    button.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(scroll).not.toHaveBeenCalled();
+    (release === "blur" ? window : document).dispatchEvent(new Event(release, { bubbles: true }));
+    button.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({ top: -42, behavior: "instant" });
+    disposeComponent(shell.element);
+    button.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    expect(scroll).toHaveBeenCalledOnce();
+  });
+  it.each(["anonymous", "initializing", "authenticated", "signingOut", "unavailable"])("keeps member search available in session state %s", status => {
+    const shell = createTestShell();
+    shell.setSession({ status: /** @type {import("../src/auth/sessionManager.js").SessionSnapshot["status"]} */ (status), user: null, etag: null, logoutPending: false, issue: null });
+    expect(shell.element.querySelector('header button[aria-label="Rechercher un membre"]')).not.toBeNull();
+    expect(shell.element.querySelector('nav a[href="/members"]')).toBeNull();
+  });
+  it("styles logout as a navigation item while retaining button behavior", () => {
+    let calls = 0;
+    const shell = createApplicationShell({ onLogout: () => { calls += 1; } });
+    shellElements.push(shell.element);
+    shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
+    const logout = /** @type {HTMLButtonElement} */ (shell.element.querySelector("button.app-navigation__link"));
+    expect(logout.textContent).toBe("Se déconnecter");
+    expect(logout.type).toBe("button");
+    expect(logout.hasAttribute("aria-current")).toBe(false);
+    logout.click();
+    expect(calls).toBe(1);
+  });
   it("groups session recovery feedback in a named landmark without a duplicate live region", () => {
     // Arrange
     const shell = createTestShell();
@@ -151,10 +193,12 @@ describe("application shell", () => {
 
   it.each([
     [RouteNames.Home, "Accueil"],
+    [RouteNames.Members, "Rechercher un membre"],
+    [RouteNames.MemberProfile, "Rechercher un membre"],
     [RouteNames.Lists, "Mes listes"],
+    [RouteNames.FollowedLists, "Mes listes"],
     [RouteNames.NewList, "Mes listes"],
     [RouteNames.EditList, "Mes listes"],
-      [RouteNames.DeleteList, "Mes listes"],
       [RouteNames.NewWish, "Mes listes"],
       [RouteNames.EditWish, "Mes listes"],
     [RouteNames.ListDetails, "Mes listes"],
@@ -169,7 +213,7 @@ describe("application shell", () => {
     const shell = createTestShell();
     document.body.append(shell.element);
     getMenuButton(shell.element).click();
-    if ([RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.DeleteList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.ListDetails, RouteNames.Reservations].some(name => name === routeName)) {
+    if ([RouteNames.Lists, RouteNames.FollowedLists, RouteNames.NewList, RouteNames.EditList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.ListDetails, RouteNames.Reservations].some(name => name === routeName)) {
       shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
     }
 
@@ -180,9 +224,18 @@ describe("application shell", () => {
     const currentLinks = shell.element.querySelectorAll(
       '.app-navigation__link[aria-current="page"]',
     );
-    expect(currentLinks).toHaveLength(1);
-    expect(currentLinks[0]?.textContent).toBe(expectedLabel);
+    const searchRoute = routeName === RouteNames.Members || routeName === RouteNames.MemberProfile;
+    expect(currentLinks).toHaveLength(searchRoute ? 0 : 1);
+    if (searchRoute) expect(shell.element.querySelector('.app-member-search--active')).not.toBeNull();
+    else expect(currentLinks[0]?.textContent).toBe(expectedLabel);
     expect(getNavigation(shell.element).dataset.open).toBe("false");
+  });
+
+  it.each([RouteNames.Profile, RouteNames.EmailChange, RouteNames.PasswordChange, RouteNames.PersonalData, RouteNames.Authenticator])("keeps account navigation active on %s", routeName => {
+    const shell = createTestShell();
+    shell.setSession({ status: "authenticated", user: null, etag: null, logoutPending: false, issue: null });
+    shell.setCurrentRoute(createRouteSnapshot(routeName));
+    expect(shell.element.querySelector('.app-navigation__link[href="/profile"]')?.getAttribute("aria-current")).toBe("page");
   });
 
   it("clears the current item for a route outside the primary navigation", () => {

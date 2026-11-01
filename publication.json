@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "apiOrigin": "https://api.monkado.fr",
-  "googleEnabled": false,
+  "googleEnabled": true,
   "legalApproved": false,
   "legalVersion": null
 }

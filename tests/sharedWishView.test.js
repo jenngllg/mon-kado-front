@@ -6,7 +6,7 @@ import { createSharedWishView } from "../src/features/sharing/sharedWishView.js"
 import { barrier } from "./sessionTestHelpers.js";
 const shareLinkId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
 /** @type {import("../src/features/sharing/sharedWishlistService.js").SharedWishDetail} */
-const wish = { id: wishId, name: "Un cadeau", note: "  Une note\ncomplète <script>texte</script>  ", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false, reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity: 1 };
+const wish = { id: wishId, name: "Un souhait", note: "  Une note\ncomplète <script>texte</script>  ", price: 12.34, quantity: 2, url: "https://shop.test/item", imageUrl: "https://api.test/image?token=TEST", imageUnavailable: false, productUnavailable: false, reservedQuantity: 2, availableQuantity: 0, currentParticipantReservedQuantity: 1 };
 /** @type {HTMLElement[]} */ const views = [];
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
 /** @param {Partial<Parameters<typeof createSharedWishView>[0]>} [options] Dependencies. */
@@ -19,6 +19,32 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
 describe("shared gift presentation", () => {
+  it("clears a revoked private group detail without asking for a public sharing link", async () => {
+    const access = new AbortController();
+    const ui = setup({ groupId: shareLinkId, accessSignal: access.signal }); await settle();
+    access.abort();
+    expect(ui.view.querySelector("h1")?.textContent).toBe("Liste indisponible");
+    expect(ui.view.textContent).toContain("Cette liste n’est plus accessible dans ce groupe.");
+    expect(ui.view.textContent).not.toContain("Demande un lien");
+    expect(ui.view.querySelector(".shared-wish-layout")).toBeNull();
+  });
+  it.each([true, false])("reads an owner's group wish without reservation controls with surprise mode %s", async surprise => {
+    const createReservation = vi.fn();
+    const own = { ...wish, canReserve: false, currentParticipantReservedQuantity: null, ...(surprise ? { reservedQuantity: null, availableQuantity: null } : {}) };
+    const ui = setup({ groupId: shareLinkId, loadOne: async () => own, createReservation }); await settle();
+    expect(ui.view.querySelector("h1")?.textContent).toBe(wish.name);
+    expect(createReservation).not.toHaveBeenCalled();
+    expect(ui.view.querySelector(".shared-wish-introduction")).toBeNull();
+    expect(ui.view.textContent?.includes("Quantité disponible")).toBe(!surprise);
+    expect(ui.view.querySelector('a[href*="/groups/"]')?.getAttribute("href")).toContain(`/groups/${shareLinkId}/wishlists/${shareLinkId}`);
+  });
+  it("shows only the reserved badge instead of quantities for one reserved unit", async () => {
+    const ui = setup({ loadOne: async () => ({ ...wish, quantity: 1, reservedQuantity: 1, availableQuantity: 0, currentParticipantReservedQuantity: 0 }) });
+    await settle();
+    expect(ui.view.querySelector('.wish-detail__reservation')?.textContent?.trim()).toBe("Réservé");
+    expect(ui.view.textContent).not.toMatch(/Quantité réservée|Quantité disponible|Ma quantité réservée|Entièrement réservé/);
+    expect(ui.view.textContent).toContain("Quantité souhaitée : 1");
+  });
   it("ignores verification from an earlier reservation section after refreshing the gift", async () => {
     // Arrange
     /** @type {Array<(value: typeof wish) => void>} */
@@ -30,7 +56,7 @@ describe("shared gift presentation", () => {
     await settle();
 
     // Act
-    ui.button("Actualiser le cadeau").click();
+    window.dispatchEvent(new Event("focus"));
     await settle();
     callbacks[0]({ ...wish, quantity: 99, availableQuantity: 98 });
 
@@ -67,45 +93,46 @@ describe("shared gift presentation", () => {
     let saved = (/** @type {string | undefined} */ message) => { void message; }, busy = (/** @type {boolean} */ value) => { void value; };
     const ui = setup({ createReservation: (_missing, _wish, onSaved, onBusy) => { saved = onSaved; busy = onBusy; return document.createElement("section"); } });
     await settle(); saved("Réservation modifiée"); await settle(); expect(ui.view.textContent).toContain("Réservation modifiée");
-    busy(true); expect(ui.view.textContent).not.toContain("Réservation modifiée"); expect(ui.button("Actualiser le cadeau").disabled).toBe(true);
+    busy(true); expect(ui.view.textContent).not.toContain("Réservation modifiée"); expect(ui.view.textContent).not.toContain("Actualiser le souhait");
   });
   it("invalidates the mounted detail independently of its own pending request", async () => {
     const access = new AbortController(), gate = barrier(); let sent = /** @type {AbortSignal | null} */ (null); const ui = setup({ accessSignal: access.signal, loadOne: async (_id, _wish, { signal }) => { sent = signal; await gate.promise; return wish; } }); access.abort(); gate.resolve(); await settle(); expect(/** @type {AbortSignal | null} */ (sent)?.aborted).toBe(true); expect(ui.view.querySelector("h1")?.textContent).toBe("Lien de partage indisponible"); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.textContent).not.toContain(wish.note);
   });
   it("renders a fresh public detail with safe text, full note, image and separate product link", async () => {
-    const ui = setup(); expect(ui.view.textContent).toContain("Chargement du cadeau…"); expect(ui.view.querySelector('[aria-busy="true"]')).not.toBeNull(); await settle();
+    const ui = setup(); expect(ui.view.textContent).toContain("Chargement du souhait…"); expect(ui.view.querySelector('[aria-busy="true"]')).not.toBeNull(); await settle();
     expect(ui.loadOne).toHaveBeenCalledExactlyOnceWith(shareLinkId, wishId, { signal: expect.any(AbortSignal) });
     expect(ui.view.querySelector("h1")?.textContent).toBe(wish.name); expect(ui.view.querySelector(".wishlist-details-note")?.textContent).toBe(wish.note); expect(ui.view.querySelector("script")).toBeNull();
     expect(ui.view.textContent).toContain("12,34"); expect(ui.view.textContent).toContain("Quantité souhaitée : 2"); expect(ui.view.textContent).not.toMatch(/Modifier|Supprimer|Réserver|Participer|disponibilité|réservation/i);
     const product = ui.view.querySelector('a[target="_blank"]'); expect(product?.getAttribute("rel")).toBe("noopener noreferrer"); expect(product?.getAttribute("aria-label")).toContain(wish.name);
     expect(ui.view.querySelector(`a[href="/shared-wishlists/${shareLinkId}"]`)?.textContent).toBe("Retour à la liste"); expect(ui.view.querySelector("img")?.referrerPolicy).toBe("no-referrer");
     expect([...ui.view.querySelectorAll("a")].every(link => !link.hash && !link.search)).toBe(true);
+    expect(ui.view.querySelector('a[href="/"]')).toBeNull();
   });
   it.each([false, true])("renders absent note and unavailable media state %s", async unavailable => {
     const ui = setup({ loadOne: async () => ({ ...wish, note: null, price: null, imageUrl: null, url: null, imageUnavailable: unavailable, productUnavailable: unavailable }) }); await settle();
-    expect(ui.view.querySelector(".wishlist-details-note")).toBeNull(); expect(ui.view.textContent).toContain("Prix non renseigné"); expect(ui.view.textContent).toContain(unavailable ? "Image indisponible" : "Sans image"); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
+    expect(ui.view.querySelector(".wishlist-details-note")).toBeNull(); expect(ui.view.querySelector(".wish-card__price")).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe(unavailable ? "Image indisponible" : "Sans image"); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();
   });
   it("removes an expired image source without losing the detail or retrying automatically", async () => {
-    const ui = setup(); await settle(); const img = ui.view.querySelector("img"); img?.dispatchEvent(new Event("error")); await settle(); expect(img?.getAttribute("src")).toBeNull(); expect(ui.view.textContent).toContain("Image indisponible"); expect(ui.view.textContent).toContain(wish.name); expect(ui.loadOne).toHaveBeenCalledOnce();
-    ui.button("Actualiser le cadeau").click(); await settle(); expect(ui.loadOne).toHaveBeenCalledTimes(2); expect(ui.view.querySelector("img")).not.toBeNull();
+    const ui = setup(); await settle(); const img = ui.view.querySelector("img"); img?.dispatchEvent(new Event("error")); await settle(); expect(img?.getAttribute("src")).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Image indisponible"); expect(ui.view.textContent).toContain(wish.name); expect(ui.loadOne).toHaveBeenCalledOnce();
+    window.dispatchEvent(new Event("focus")); await settle(); expect(ui.loadOne).toHaveBeenCalledTimes(2); expect(ui.view.querySelector("img")).not.toBeNull();
   });
-  it("clears data while refreshing, prevents double reads and focuses the new title", async () => {
+  it("refreshes on window return, prevents double reads and does not steal focus", async () => {
     const ui = setup(); await settle(); const img = ui.view.querySelector("img"), gate = barrier(); ui.loadOne.mockImplementation(async () => { await gate.promise; return { ...wish, name: "Actualisé" }; });
-    const refresh = ui.button("Actualiser le cadeau"); refresh.click(); refresh.click(); expect(ui.loadOne).toHaveBeenCalledTimes(2); expect(ui.view.textContent).not.toContain(wish.name); expect(img?.getAttribute("src")).toBeNull();
-    gate.resolve(); await settle(); expect(document.activeElement).toBe(ui.view.querySelector("h1")); expect(ui.view.textContent).toContain("Actualisé");
+    window.dispatchEvent(new Event("focus")); window.dispatchEvent(new Event("focus")); expect(ui.loadOne).toHaveBeenCalledTimes(2); expect(ui.view.textContent).not.toContain(wish.name); expect(img?.getAttribute("src")).toBeNull();
+    gate.resolve(); await settle(); expect(document.activeElement).toBe(document.body); expect(ui.view.textContent).toContain("Actualisé");
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), ...[401, 403, 429, 503].map(statusCode => new ApiError({ kind: "http", statusCode, correlationId: "ref-test", retryAfterSeconds: 7 }))])("offers safe errors, focused explicit retry and no stale gift", async error => {
-    const ui = setup(); await settle(); ui.loadOne.mockRejectedValue(error); ui.button("Actualiser le cadeau").click(); await settle(); expect(document.activeElement?.getAttribute("role")).toBe("alert"); expect(ui.view.querySelector(".shared-wish-layout")).toBeNull(); expect(ui.view.textContent).not.toMatch(/The API|PRIVATE/);
+    const ui = setup(); await settle(); ui.loadOne.mockRejectedValue(error); window.dispatchEvent(new Event("focus")); await settle(); expect(document.activeElement).toBe(document.body); expect(ui.view.querySelector('[role="alert"]')).not.toBeNull(); expect(ui.view.querySelector(".shared-wish-layout")).toBeNull(); expect(ui.view.textContent).not.toMatch(/The API|PRIVATE/);
     if (error.statusCode === 429) { expect(ui.view.textContent).toContain("ref-test"); expect(ui.view.textContent).toContain("7 seconde(s)"); }
     const gate = barrier(); ui.loadOne.mockImplementation(async () => { await gate.promise; return wish; }); const retry = ui.button("Réessayer"); retry.click(); retry.click(); expect(ui.loadOne).toHaveBeenCalledTimes(3); gate.resolve(); await settle(); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
   });
   it.each(["SHARED_WISH_NOT_FOUND", "SHARED_WISHLIST_NOT_FOUND", "UNKNOWN"])("distinguishes missing states %s and focuses their alert", async errorCode => {
-    const ui = setup(); await settle(); ui.loadOne.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404, errorCode })); ui.button("Actualiser le cadeau").click(); await settle();
-    const missingWish = errorCode === "SHARED_WISH_NOT_FOUND"; expect(ui.view.querySelector("h1")?.textContent).toBe(missingWish ? "Cadeau introuvable" : "Lien de partage indisponible"); expect(ui.view.querySelector(`a[href="/shared-wishlists/${shareLinkId}"]`)?.hasAttribute("hidden")).toBe(!missingWish);
-    expect(ui.view.querySelector(".shared-wish-layout")).toBeNull(); expect(ui.view.textContent).not.toMatch(/suspendue|révoqué/); expect(document.activeElement?.getAttribute("role")).toBe("alert"); expect(ui.button("Actualiser le cadeau").hidden).toBe(true);
+    const ui = setup(); await settle(); ui.loadOne.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404, errorCode })); window.dispatchEvent(new Event("focus")); await settle();
+    const missingWish = errorCode === "SHARED_WISH_NOT_FOUND"; expect(ui.view.querySelector("h1")?.textContent).toBe(missingWish ? "Souhait introuvable" : "Lien de partage indisponible"); expect(ui.view.querySelector(`a[href="/shared-wishlists/${shareLinkId}"]`)?.hasAttribute("hidden")).toBe(!missingWish);
+    expect(ui.view.querySelector(".shared-wish-layout")).toBeNull(); expect(ui.view.textContent).not.toMatch(/suspendue|révoqué/); expect(document.activeElement).toBe(document.body); expect(ui.view.textContent).not.toContain("Actualiser le souhait");
   });
   it.each([false, true])("disposes idempotently and ignores late completion, rejected=%s", async rejected => {
-    const controller = new AbortController(), ui = setup({ signal: controller.signal }); await settle(); const img = ui.view.querySelector("img"), gate = barrier(); ui.loadOne.mockImplementation(async () => { await gate.promise; if (rejected) throw new ApiError({ kind: "network" }); return wish; }); ui.button("Actualiser le cadeau").click();
+    const controller = new AbortController(), ui = setup({ signal: controller.signal }); await settle(); const img = ui.view.querySelector("img"), gate = barrier(); ui.loadOne.mockImplementation(async () => { await gate.promise; if (rejected) throw new ApiError({ kind: "network" }); return wish; }); window.dispatchEvent(new Event("focus"));
     controller.abort(); disposeComponent(ui.view); gate.resolve(); await settle(); expect(ui.loadOne.mock.calls[1][2].signal.aborted).toBe(true); expect(img?.getAttribute("src")).toBeNull(); expect(ui.view.textContent).not.toContain(wish.name); expect(ui.view.querySelector('[role="alert"]')).toBeNull();
   });
   it("does not start a read for an already cancelled view", async () => {

@@ -91,7 +91,7 @@ export function createResendConfirmationView({ resend, signal, alert = null }) {
       if (!active || disposed || pending || signal.aborted) return;
       clearFeedback();
       if (validate() !== null) {
-        showError(createAlert({ title: "Informations à vérifier", message: "Vérifie ton adresse e-mail avant de continuer.", variant: "error" }));
+        showError(createAlert({ title: "Informations à vérifier", message: "Adresse e-mail invalide.", variant: "error" }));
         localSummary = true;
         email.focus();
         return;
@@ -111,7 +111,7 @@ export function createResendConfirmationView({ resend, signal, alert = null }) {
         if (validations.length > 0) {
           const emailInvalid = validations.some(validation => validation.propertyName === "email");
           if (emailInvalid) setFormFieldValidation(field, EmailServerValidationMessage);
-          showError(createAlert({ title: "Informations à vérifier", message: "Vérifie les informations saisies puis réessaie.", variant: "error" }));
+          showError(createAlert({ title: "Informations à vérifier", message: "Certaines informations n’ont pas été acceptées.", variant: "error" }));
           localSummary = validations.every(validation => validation.propertyName === "email");
           if (emailInvalid) { email.focus(); return; }
         } else showError(createConfirmationError(error));

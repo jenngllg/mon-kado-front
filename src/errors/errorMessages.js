@@ -12,6 +12,47 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  ACCOUNT_IMPERSONATION_READ_ONLY: {title:"Action protégée",message:"Cette opération est indisponible pendant la simulation."},
+  ACCOUNT_IMPERSONATION_RESTRICTED: {title:"Action protégée",message:"La sécurité du compte et les fonctions d’administration sont indisponibles pendant la simulation."},
+  ACCOUNT_IMPERSONATION_EXPIRED: {title:"Simulation terminée",message:"Reviens à ton compte pour continuer."},
+  ACCOUNT_IMPERSONATION_DENIED: {title:"Simulation refusée",message:"Ce compte ne peut pas être simulé depuis cette session."},
+  GROUP_NOT_FOUND: { title: "Groupe indisponible", message: "Ce groupe n’existe plus ou tu n’en fais pas partie." },
+  GROUP_IMAGE_NOT_FOUND: { title: "Photo indisponible", message: "Cette photo a été retirée ou n’est plus accessible." },
+  GROUP_ACCESS_DENIED: { title: "Accès refusé", message: "Tu ne peux pas effectuer cette action dans ce groupe." },
+  GROUP_VERSION_CONFLICT: { title: "Groupe modifié ailleurs", message: "Vérifie la version enregistrée du groupe avant de recommencer." },
+  GROUP_MEMBER_NOT_FOUND: { title: "Membre indisponible", message: "Ce membre ne peut plus être invité ou ne fait plus partie du groupe." },
+  GROUP_MEMBER_ALREADY_EXISTS: { title: "Déjà dans le groupe", message: "Cette personne fait déjà partie du groupe." },
+  GROUP_INVITATION_NOT_FOUND: { title: "Invitation indisponible", message: "Cette invitation a expiré, a été retirée ou a déjà reçu une réponse." },
+  GROUP_INVITATION_ALREADY_EXISTS: { title: "Invitation déjà envoyée", message: "Une invitation est déjà en attente pour cette personne." },
+  GROUP_JOIN_LINK_NOT_FOUND: { title: "Accès indisponible", message: "Ce lien ou ce code n’est plus valide. Demande un nouveau code à un membre du groupe." },
+  WISHLIST_GROUP_VISIBILITY_VERSION_CONFLICT: { title: "Visibilité modifiée", message: "La visibilité de cette liste a changé. Vérifie les groupes avant d’enregistrer ta sélection." },
+  GROUP_JOIN_LINK_ALREADY_EXISTS: { title: "Partage déjà actif", message: "Un lien est déjà disponible pour ce groupe." },
+  GROUP_JOIN_LINK_VERSION_CONFLICT: { title: "Partage modifié", message: "Le lien a changé. Ferme cette fenêtre puis rouvre le partage." },
+  GROUP_OWNER_CANNOT_LEAVE: { title: "Départ impossible", message: "Le groupe ne peut pas être quitté pour le moment." },
+  GROUP_LIMIT_REACHED: { title: "Limite de groupes atteinte", message: "Un membre peut rejoindre 50 groupes. Un groupe peut accueillir 100 membres, invitations en attente comprises." },
+  GROUP_WISHLIST_ALREADY_EXISTS: { title: "Liste déjà partagée", message: "Cette liste est déjà accessible dans le groupe." },
+  GROUP_WISHLIST_NOT_FOUND: { title: "Liste indisponible", message: "Cette liste n’est plus accessible dans ce groupe." },
+  GROUP_OWNER_WISHLIST: { title: "C’est ta liste", message: "Ouvre-la depuis Mes listes pour préserver la surprise." },
+  MEMBER_HANDLE_ALREADY_USED: {
+    title: "Pseudo indisponible",
+    message: "Ce pseudo est déjà utilisé avec ton tag. Choisis un autre pseudo.",
+  },
+  MEMBER_DISPLAY_NAME_TAG_UNAVAILABLE: {
+    title: "Pseudo indisponible",
+    message: "Choisis un autre pseudo : tous les tags de ce nom sont utilisés.",
+  },
+  WISHLIST_ARCHIVED: {
+    title: "Liste archivée",
+    message: "Désarchive la liste pour la modifier.",
+  },
+  WISHLIST_SUSPENDED: {
+    title: "Liste suspendue",
+    message: "Consultation uniquement.",
+  },
+  WISHLIST_VERSION_CONFLICT: {
+    title: "Liste modifiée ailleurs",
+    message: "Reviens à la liste pour consulter son état actuel avant de recommencer.",
+  },
   CLIENT_TWO_FACTOR_MANAGEMENT_REQUIRED: {
     title: "Vérification nécessaire",
     message: "Recommence la vérification de ton authentificateur avant cette opération.",

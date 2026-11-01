@@ -20,7 +20,7 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 16; i++) await Promise.resolve(); }
 describe("guest participation presentation", () => {
-  it("explains that guest participation grants no editing rights", async () => { const ui = setup(); await settle(); expect(ui.view.textContent).toContain("Tu peux consulter cette liste. Participer ne permet pas de modifier ses cadeaux."); expect(ui.view.querySelector('a[href*="/edit"]')).toBeNull(); });
+  it("explains that guest participation grants no editing rights", async () => { const ui = setup(); await settle(); expect(ui.view.textContent).toContain("Tu peux consulter cette liste. Participer ne permet pas de modifier ses souhaits."); expect(ui.view.querySelector('a[href*="/edit"]')).toBeNull(); });
   it("offers dedicated sign-in after lookup failure but not while an operation runs", async () => {
     const onSignIn = vi.fn(), gate = barrier(); const ui = setup({ onSignIn, loadCurrent: async () => { await gate.promise; throw new ApiError({ kind: "network" }); } });
     const link = /** @type {HTMLAnchorElement} */ (ui.view.querySelector('a[href="/login"]')); expect(link.hidden).toBe(true); link.click(); expect(onSignIn).not.toHaveBeenCalled(); gate.resolve(); await settle(); expect(link.hidden).toBe(false); link.click(); expect(onSignIn).toHaveBeenCalledOnce(); expect(ui.joinGuest).not.toHaveBeenCalled();
@@ -46,11 +46,12 @@ describe("guest participation presentation", () => {
   });
   it("requires lookup to succeed before enabling join and supports a lost cookie", async () => {
     const ui = setup({ loadCurrent: async () => { throw new ApiError({ kind: "network" }); } }); await settle(); expect(ui.input.disabled).toBe(true); expect(ui.joinGuest).not.toHaveBeenCalled();
-    const existing = setup({ loadCurrent: async () => participant }); await settle(); existing.button("Actualiser ma participation").click(); await settle(); expect(existing.joinGuest).not.toHaveBeenCalled();
+    const existing = setup({ loadCurrent: async () => participant }); await settle(); window.dispatchEvent(new Event("focus")); await settle(); expect(existing.joinGuest).not.toHaveBeenCalled();
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("blocks a second POST after uncertainty until a successful explicit lookup", async error => {
     const ui = setup(); await settle(); ui.fill("Alex"); ui.joinGuest.mockRejectedValue(error); ui.button("Participer à cette liste").click(); await settle();
     expect(ui.input.value).toBe("Alex"); expect(ui.view.textContent).toContain("Ta participation ne peut pas être confirmée"); expect(ui.button("Participer à cette liste").disabled).toBe(true); expect(document.activeElement?.getAttribute("role")).toBe("alert");
+    expect(ui.button("Vérifier ma participation").compareDocumentPosition(ui.input) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
     ui.loadCurrent.mockRejectedValue(new ApiError({ kind: "network" })); ui.button("Vérifier ma participation").click(); await settle(); expect(ui.button("Participer à cette liste").disabled).toBe(true); expect(ui.input.value).toBe("Alex");
     ui.loadCurrent.mockResolvedValue(null); ui.button("Réessayer").click(); await settle(); expect(ui.button("Participer à cette liste").disabled).toBe(false); expect(ui.joinGuest).toHaveBeenCalledOnce(); expect(ui.input.value).toBe("Alex"); expect(document.activeElement).toBe(ui.view.querySelector("h2"));
   });
@@ -61,7 +62,7 @@ describe("guest participation presentation", () => {
     const ui = setup(); await settle(); ui.fill("Alex"); ui.joinGuest.mockRejectedValue(new ApiError({ kind: "http", statusCode, correlationId: "support-ref", retryAfterSeconds: 7 })); ui.button("Participer à cette liste").click(); await settle(); expect(ui.input.value).toBe("Alex"); expect(ui.view.textContent).not.toContain("The API"); expect(ui.view.textContent).toContain("support-ref"); if (statusCode === 429) expect(ui.view.textContent).toContain("7 seconde(s)");
   });
   it("maps only displayName validations and preserves unknown paths globally", async () => {
-    const ui = setup(); await settle(); ui.fill("Alex"); ui.joinGuest.mockRejectedValue(new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "displayName", errorMessage: "PRIVATE" }, { propertyName: "unknown", errorMessage: "PRIVATE" }] })); ui.button("Participer à cette liste").click(); await settle(); expect(document.activeElement).toBe(ui.input); expect(ui.view.textContent).toContain("Vérifie ton nom"); expect(ui.view.textContent).not.toContain("PRIVATE"); expect(ui.view.querySelector('[role="alert"]')).not.toBeNull();
+    const ui = setup(); await settle(); ui.fill("Alex"); ui.joinGuest.mockRejectedValue(new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "displayName", errorMessage: "PRIVATE" }, { propertyName: "unknown", errorMessage: "PRIVATE" }] })); ui.button("Participer à cette liste").click(); await settle(); expect(document.activeElement).toBe(ui.input); expect(ui.view.textContent).toContain("Nom d’affichage invalide"); expect(ui.view.textContent).not.toContain("PRIVATE"); expect(ui.view.querySelector('[role="alert"]')).not.toBeNull();
   });
   it("presents the participant limit without invented counts", async () => {
     const ui = setup(); await settle(); ui.fill("Alex"); ui.joinGuest.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_PARTICIPANT_LIMIT_REACHED" })); ui.button("Participer à cette liste").click(); await settle(); expect(ui.view.textContent).toContain("Cette liste a atteint le nombre maximal de participants."); expect(ui.view.textContent).not.toContain("100 participants");

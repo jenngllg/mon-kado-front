@@ -3,8 +3,8 @@
  * @returns {string | null} Safe local copy.
  */
 export function validateCurrentPassword(value) {
-  if (value.trim() === "") return "Renseigne ton mot de passe.";
-  if ([...value].length > 128) return "Le mot de passe ne doit pas dépasser 128 caractères.";
+  if (value.trim() === "") return "Mot de passe obligatoire.";
+  if ([...value].length > 128) return "Mot de passe trop long : 128 caractères maximum.";
   return null;
 }
 
@@ -14,7 +14,7 @@ export function validateCurrentPassword(value) {
  * @returns {string | null} Safe local copy.
  */
 export function validatePasswordConfirmation(confirmation, password) {
-  if (confirmation === "") return "Confirme ton mot de passe.";
+  if (confirmation === "") return "Confirmation du mot de passe obligatoire.";
   if (confirmation !== password) return "Les deux mots de passe doivent être identiques.";
   return null;
 }

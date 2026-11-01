@@ -49,7 +49,7 @@ describe("routed email changes", () => {
   it("links from profile, retains its navigation group, and requests without changing identity", async () => {
     // Arrange
     const app = mount(); await app.start();
-    expect(app.shell.outlet.querySelector('a[href="/profile/email"]')?.textContent).toBe("Changer mon adresse e-mail");
+    expect(app.shell.outlet.querySelector('a[href="/profile/email"]')?.textContent).toBe("Adresse e-mail");
     // Act
     await app.router.navigate("/profile/email");
     await observe(app.shell.outlet, () => app.shell.outlet.querySelector("form") !== null);
@@ -57,7 +57,7 @@ describe("routed email changes", () => {
     app.shell.outlet.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
     await observe(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Demande prise en compte") === true);
     // Assert
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon profil");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
     expect(app.session.getSnapshot().user?.email).toBe("fixture@example.test");
     expect(app.transport.fetch.mock.calls.filter(([url]) => String(url).endsWith("/current/email"))).toHaveLength(1);
     await app.router.navigate("/"); await app.router.navigate("/profile/email");

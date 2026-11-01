@@ -6,7 +6,7 @@ import { getSafeReturnTo } from "../src/auth/sessionGuards.js";
 import { barrier, createCoordinatorHub, createSessionTransport } from "./sessionTestHelpers.js";
 
 const list = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e04", name: "Liste privée", occasion: "birthday", eventDate: null, message: null, isSuspended: false };
-const originalWish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: list.id, name: "Cadeau privé", note: null, url: null, price: 0.29, quantity: 2, imageUrl: null, position: "9223372036854775807" };
+const originalWish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: list.id, name: "Souhait privé", note: null, url: null, price: 0.29, quantity: 2, imageUrl: null, position: "9223372036854775807" };
 const detail = `/lists/${list.id}`, path = `${detail}/wishes/${originalWish.id}/edit`;
 /** @type {Array<() => void>} */ const cleanups = [];
 afterEach(() => { cleanups.splice(0).reverse().forEach(cleanup => cleanup()); vi.restoreAllMocks(); document.body.replaceChildren(); window.history.replaceState(null, "", "/"); });
@@ -22,7 +22,7 @@ function setup() {
       else {
         state.writes++; expect(init?.method).toBe("PUT"); const headers = new Headers(init?.headers);
         expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("If-Match")).toBe(`"gift-${state.version}"`); expect(headers.has("X-CSRF-TOKEN")).toBe(false); expect(init?.credentials).toBe("include");
-        const payload = JSON.parse(String(init?.body)); expect(Object.keys(payload).sort()).toEqual(["name", "note", "price", "quantity", "url"]);
+        const payload = JSON.parse(String(init?.body)); expect(Object.keys(payload).sort()).toEqual(["acceptsSecondHand", "color", "isFavorite", "isSurprise", "name", "note", "price", "quantity", "size", "url"]);
         await state.beforeWrite();
         if (state.status !== 200) return Response.json({ statusCode: state.status, errorCode: state.errorCode, title: "ENGLISH_PRIVATE", message: "BACKEND_PRIVATE" }, { status: state.status, headers: { "Retry-After": "13" } });
         state.wish = { ...state.wish, ...payload }; state.version++;
@@ -35,7 +35,7 @@ function setup() {
   window.history.replaceState(null, "", path); const root = document.createElement("div"); document.body.append(root);
   const app = createSessionApplication(root, { apiBaseUrl: "http://localhost:7000", session }); cleanups.push(app.dispose);
   function send() {
-    const form = /** @type {HTMLFormElement} */ (root.querySelector("form")); const name = /** @type {HTMLInputElement} */ (form.elements.namedItem("name"));
+    const form = /** @type {HTMLFormElement} */ (root.querySelector("main form")); const name = /** @type {HTMLInputElement} */ (form.elements.namedItem("name"));
     name.value = "Corrigé"; name.dispatchEvent(new Event("input", { bubbles: true })); form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); return form;
   }
   return { ...app, state, transport, hub, send };
@@ -54,14 +54,16 @@ describe("gift editing integration", () => {
   });
   it("stays on the editor after success and rereads the full collection on return", async () => {
     const app = setup(); await app.start(); await ready(app); expect(document.activeElement).toBe(app.shell.outlet); expect(app.shell.element.querySelector('nav [aria-current="page"]')?.textContent).toBe("Mes listes");
-    app.send(); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Modifications enregistrées"));
+    app.send(); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Souhait enregistré."));
     expect(window.location.pathname).toBe(path); expect(app.state.writes).toBe(1); expect(app.state.reads).toBe(1); expect(app.state.collectionReads).toBe(0);
     await app.router.navigate(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null);
     expect(app.state.parentReads).toBe(2); expect(app.state.collectionReads).toBe(1); expect(app.shell.outlet.textContent).toContain("Corrigé");
-    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.getAttribute("aria-label")).toBe("Modifier le cadeau « Corrigé »");
-    app.state.suspended = true; await app.router.replace(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(`a[href="${path}"]`) !== null);
-    expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.textContent).toBe("Consulter"); await app.router.navigate(path); await ready(app);
-    expect(app.shell.outlet.textContent).toContain("Consultation uniquement"); expect([...app.shell.outlet.querySelectorAll("input,textarea")].every(control => /** @type {HTMLInputElement} */ (control).disabled)).toBe(true);
+    const wishDetail = path.replace(/\/edit$/, "");
+    expect(app.shell.outlet.querySelector(`.wish-card h3 a[href="${wishDetail}"]`)?.textContent).toBe("Corrigé");
+    expect(app.shell.outlet.querySelector(`.wish-card a[href="${path}"]`)).toBeNull();
+    app.state.suspended = true; await app.router.replace(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(`.wish-card a[href="${wishDetail}"]`) !== null);
+    expect(app.shell.outlet.querySelector(".wish-gallery__delete")).toBeNull(); await app.router.navigate(path); await ready(app);
+    expect(app.shell.outlet.textContent).toContain("Consultation uniquement"); expect([...app.shell.outlet.querySelectorAll("input,textarea")].every(control => /** @type {HTMLInputElement} */ (control).disabled || /** @type {HTMLInputElement} */ (control).readOnly)).toBe(true);
   });
   it.each([401, 403, 404, 409, 412, 413, 428, 429, 503])("handles %s without retries or duplicate shell errors", async status => {
     const app = setup(); app.state.status = status; if (status === 409) app.state.errorCode = "WISH_QUANTITY_BELOW_RESERVED";
@@ -80,6 +82,6 @@ describe("gift editing integration", () => {
       else { app.transport.state.user.id = "different-member"; await other.establishSession(async () => ({ data: app.transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); }
     }
     gate.resolve(); await gate.promise;
-    expect(/** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value).toBe(""); expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toContain("Modifications enregistrées"); expect(JSON.stringify(app.hub.messages)).not.toContain("Corrigé");
+    expect(/** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value).toBe(""); expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toContain("Souhait enregistré."); expect(JSON.stringify(app.hub.messages)).not.toContain("Corrigé");
   });
 });

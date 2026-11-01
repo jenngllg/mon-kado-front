@@ -9,7 +9,7 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-
 /** @type {import("../src/features/wishlists/wishlistsService.js").CreatedWishlist} */
 const list = { wishlist: { id, name: "Liste privée", occasion: "birthday", eventDate: null, message: null, isSuspended: false }, etag: '"list"' };
 /** @param {string} [name] Name. @param {string} [etag] Tag. @returns {import("../src/features/wishes/wishesService.js").EditableWish} Gift. */
-function stored(name = "Cadeau", etag = '"gift"') {
+function stored(name = "Souhait", etag = '"gift"') {
   return { wish: { id: wishId, wishlistId: id, name, note: "Note", url: "https://example.test", imageUrl: null, price: 0.29, quantity: 2, position: "1", entityTag: etag, imageUnavailable: false, productUnavailable: false },
     etag, values: { name, note: "Note", url: "https://example.test", price: "0,29", quantity: "2" } };
 }
@@ -23,24 +23,68 @@ function setup(options = {}) {
   const onDeleted = vi.fn(async () => {}), onUnavailable = vi.fn();
   const dialog = createWishDeleteDialog({ wishlistId: id, wishId, loadWishlist, loadOne, remove, onDeleted, onUnavailable, ...options });
   views.push(dialog); document.body.append(dialog); dialog.showModal();
-  const confirm = /** @type {HTMLButtonElement} */ ([...dialog.querySelectorAll("button")].find(button => button.textContent === "Supprimer définitivement"));
+  const confirm = /** @type {HTMLButtonElement} */ ([...dialog.querySelectorAll("button")].find(button => button.textContent === "Supprimer"));
   const cancel = /** @type {HTMLButtonElement} */ ([...dialog.querySelectorAll("button")].find(button => button.textContent === "Annuler"));
   /** @param {string} label Label. */ function click(label) { [...dialog.querySelectorAll("button")].find(button => button.textContent === label)?.click(); }
   return { dialog, confirm, cancel, loadWishlist, loadOne, remove, onDeleted, onUnavailable, click };
 }
 async function settle() { for (let i = 0; i < 16; i++) await Promise.resolve(); }
 describe("native gift deletion dialog", () => {
-  it("loads parent then individual gift before enabling confirmation, with safe accessible details", async () => {
+  it("loads parent then individual gift before enabling a compact accessible confirmation", async () => {
     const gate = barrier(); const parent = vi.fn(/** @type {import("../src/features/wishlists/wishlistsService.js").LoadWishlist} */ (async () => { await gate.promise; return list; })); const ui = setup({ loadWishlist: parent });
     expect(ui.dialog.tagName).toBe("DIALOG"); expect(ui.dialog.open).toBe(true); expect(ui.confirm.disabled).toBe(true); ui.confirm.click(); expect(ui.loadOne).not.toHaveBeenCalled(); expect(ui.remove).not.toHaveBeenCalled();
     gate.resolve(); await settle(); expect(ui.loadOne).toHaveBeenCalledExactlyOnceWith(id, wishId, { signal: parent.mock.calls[0][1].signal }); expect(ui.confirm.disabled).toBe(false);
-    expect(ui.dialog.textContent).toContain('Supprimer définitivement « Cadeau » ?'); expect(ui.dialog.textContent).toContain("Les autres cadeaux seront conservés"); expect(ui.dialog.textContent).not.toMatch(/réserv|participant|image/i);
+    expect(ui.dialog.textContent).toContain('Supprimer définitivement « Souhait » ?'); expect(ui.dialog.textContent).not.toContain("Les autres souhaits seront conservés");
+    expect(ui.dialog.textContent).not.toContain("Liste privée"); expect(ui.dialog.textContent).not.toContain("https://example.test"); expect(ui.dialog.textContent).not.toContain("Note");
     expect(ui.dialog.querySelector(`#${ui.dialog.getAttribute("aria-labelledby")}`)?.hasAttribute("autofocus")).toBe(true);
-    expect(ui.dialog.querySelector(`#${ui.dialog.getAttribute("aria-describedby")}`)?.textContent).toContain("Cette action est définitive");
-    expect(ui.dialog.querySelectorAll("dt")).toHaveLength(5); expect(ui.dialog.querySelector("input,textarea,img")).toBeNull(); expect(ui.dialog.querySelector('a[href^="https:"]')).toBeNull();
+    expect(ui.dialog.querySelector(`#${ui.dialog.getAttribute("aria-describedby")}`)?.textContent).toBe("Mode surprise : quelqu’un a peut-être déjà réservé ce souhait.");
+    expect(ui.dialog.querySelector("dl,dt,dd,input,textarea,img")).toBeNull(); expect(ui.dialog.querySelector('a[href^="https:"]')).toBeNull();
+  });
+  it.each([null, 0, 1, 2])("keeps surprise copy identical regardless of reservation quantity %s", async reservedQuantity => {
+    // Arrange
+    const gift = stored(); const ui = setup({ loadWishlist: async () => ({ ...list, wishlist: { ...list.wishlist, surpriseMode: true } }), loadOne: async () => ({ ...gift, wish: { ...gift.wish, reservedQuantity } }) });
+    // Act
+    await settle();
+    // Assert
+    expect(ui.dialog.querySelector("p[id]")?.textContent).toBe("Mode surprise : quelqu’un a peut-être déjà réservé ce souhait."); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).not.toHaveBeenCalled();
+  });
+  it.each([1, 2])("warns of a confirmed reservation outside surprise mode with quantity %s", async reservedQuantity => {
+    // Arrange
+    const gift = stored(); const ui = setup({ loadWishlist: async () => ({ ...list, wishlist: { ...list.wishlist, surpriseMode: false } }), loadOne: async () => ({ ...gift, wish: { ...gift.wish, reservedQuantity } }) });
+    // Act
+    await settle();
+    // Assert
+    expect(ui.dialog.querySelector(`#${ui.dialog.getAttribute("aria-describedby")}`)?.textContent).toBe("Quelqu’un a déjà réservé ce souhait."); expect(ui.dialog.textContent).not.toContain("peut-être"); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).not.toHaveBeenCalled();
+  });
+  it.each([null, undefined, 0])("omits reservation copy outside surprise mode without confirmed reservations (%s)", async reservedQuantity => {
+    // Arrange
+    const gift = stored(); const ui = setup({ loadWishlist: async () => ({ ...list, wishlist: { ...list.wishlist, surpriseMode: false } }), loadOne: async () => ({ ...gift, wish: { ...gift.wish, reservedQuantity } }) });
+    // Act
+    await settle();
+    // Assert
+    expect(ui.dialog.textContent).not.toMatch(/réserv|surprise|définitive\./i); expect(ui.dialog.hasAttribute("aria-describedby")).toBe(false); expect(ui.dialog.querySelector("p[id]")?.hasAttribute("hidden")).toBe(true); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).not.toHaveBeenCalled();
+  });
+  it("updates the reservation warning after an explicit reread without replaying deletion", async () => {
+    // Arrange
+    const gift = stored(); const loadOne = vi.fn(async () => ({ ...gift, wish: { ...gift.wish, reservedQuantity: 1 } }));
+    const ui = setup({ loadWishlist: async () => ({ ...list, wishlist: { ...list.wishlist, surpriseMode: false } }), loadOne }); await settle();
+    ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
+    // Act
+    ui.confirm.click(); await settle(); loadOne.mockResolvedValue({ ...gift, wish: { ...gift.wish, reservedQuantity: 0 } }); ui.click("Relire le souhait"); await settle();
+    // Assert
+    expect(ui.dialog.textContent).not.toContain("réservé"); expect(ui.dialog.hasAttribute("aria-describedby")).toBe(false); expect(ui.remove).toHaveBeenCalledTimes(1); expect(ui.confirm.disabled).toBe(false);
   });
   it("treats markup-looking names and details as text", async () => {
     const ui = setup({ loadOne: async () => stored('<img src=x onerror="bad">') }); await settle(); expect(ui.dialog.textContent).toContain("<img"); expect(ui.dialog.querySelector("img")).toBeNull();
+  });
+  it("keeps image-only deletion copy separate from reservation warnings", async () => {
+    // Arrange
+    const gift = stored(); const ui = setup({ imageOnly: true, loadOne: async () => ({ ...gift, wish: { ...gift.wish, imageUrl: "https://example.test/image.webp", reservedQuantity: 1 } }) });
+    // Act
+    await settle();
+    // Assert
+    expect(ui.dialog.querySelector("h2")?.textContent).toBe("Supprimer l’image ?"); expect(ui.dialog.querySelector(`#${ui.dialog.getAttribute("aria-describedby")}`)?.textContent).toBe("Seule l’image sera supprimée. Le souhait sera conservé.");
+    expect(ui.dialog.textContent).not.toMatch(/réserv|surprise/); expect(ui.remove).not.toHaveBeenCalled();
   });
   it("closes, aborts and cleans on cancellation, including while a read is pending", async () => {
     const gate = barrier(); const loadOne = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").LoadWish} */ (async () => { await gate.promise; return stored(); }));
@@ -54,27 +98,27 @@ describe("native gift deletion dialog", () => {
     expect(document.activeElement).toBe(ui.dialog.querySelector("h2"));
     expect(ui.dialog.querySelector("h2")?.tabIndex).toBe(0);
     const pending = new Event("cancel", { cancelable: true }); ui.dialog.dispatchEvent(pending); expect(pending.defaultPrevented).toBe(true); expect(ui.cancel.disabled).toBe(true); ui.cancel.click(); expect(ui.dialog.open).toBe(true);
-    expect(remove).toHaveBeenCalledExactlyOnceWith(id, wishId, { etag: '"gift"', signal: expect.any(AbortSignal) }); expect(ui.dialog.textContent).toContain("Suppression de ton cadeau…");
+    expect(remove).toHaveBeenCalledExactlyOnceWith(id, wishId, { etag: '"gift"', signal: expect.any(AbortSignal) }); expect(ui.dialog.textContent).toContain("Suppression de ton souhait…");
     gate.resolve(); await settle(); expect(ui.onDeleted).toHaveBeenCalledTimes(1); expect(ui.confirm.hidden).toBe(true); expect(ui.cancel.disabled).toBe(false);
     expect(ui.dialog.querySelector("h2")?.tabIndex).toBe(-1);
     ui.confirm.click(); expect(remove).toHaveBeenCalledTimes(1); expect(ui.dialog.querySelectorAll("dd")).toHaveLength(0);
   });
   it("keeps success single-use even when navigation fails", async () => {
     const ui = setup({ onDeleted: async () => { throw new Error("navigation"); } }); await settle(); ui.confirm.click(); await settle();
-    expect(ui.dialog.textContent).toContain("Cadeau supprimé"); expect(ui.dialog.textContent).toContain("le retour à la liste a échoué"); expect(ui.dialog.querySelector('a[href^="/lists/"]')?.hasAttribute("hidden")).toBe(false); ui.confirm.click(); expect(ui.remove).toHaveBeenCalledTimes(1);
+    expect(ui.dialog.textContent).toContain("Souhait supprimé"); expect(ui.dialog.textContent).toContain("le retour à la liste a échoué"); expect(ui.dialog.querySelector('a[href^="/lists/"]')?.hasAttribute("hidden")).toBe(false); ui.confirm.click(); expect(ui.remove).toHaveBeenCalledTimes(1);
   });
   it("requires rereads and fresh explicit confirmation across successive conflicts", async () => {
     const ui = setup(); await settle(); ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISH_VERSION_CONFLICT" })); ui.confirm.click(); await settle();
     expect(ui.confirm.disabled).toBe(true); ui.confirm.click(); expect(ui.remove).toHaveBeenCalledTimes(1);
-    ui.loadOne.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.click("Relire le cadeau"); await settle(); expect(ui.confirm.disabled).toBe(true);
-    ui.loadOne.mockResolvedValue(stored("Version deux", '"two"')); ui.click("Relire le cadeau"); await settle(); expect(ui.dialog.textContent).toContain("Version deux"); expect(document.activeElement).toBe(ui.dialog.querySelector("h2")); expect(ui.remove).toHaveBeenCalledTimes(1);
+    ui.loadOne.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.click("Relire le souhait"); await settle(); expect(ui.confirm.disabled).toBe(true);
+    ui.loadOne.mockResolvedValue(stored("Version deux", '"two"')); ui.click("Relire le souhait"); await settle(); expect(ui.dialog.textContent).toContain("Version deux"); expect(document.activeElement).toBe(ui.dialog.querySelector("h2")); expect(ui.remove).toHaveBeenCalledTimes(1);
     ui.confirm.click(); await settle(); expect(ui.remove.mock.calls[1][2].etag).toBe('"two"'); expect(ui.confirm.disabled).toBe(true);
-    ui.loadOne.mockResolvedValue(stored("Version trois", '"three"')); ui.click("Relire le cadeau"); await settle(); ui.remove.mockResolvedValue(); ui.confirm.click(); await settle(); expect(ui.remove.mock.calls[2][2].etag).toBe('"three"'); expect(ui.onDeleted).toHaveBeenCalledTimes(1);
+    ui.loadOne.mockResolvedValue(stored("Version trois", '"three"')); ui.click("Relire le souhait"); await settle(); ui.remove.mockResolvedValue(); ui.confirm.click(); await settle(); expect(ui.remove.mock.calls[2][2].etag).toBe('"three"'); expect(ui.onDeleted).toHaveBeenCalledTimes(1);
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 500 }), new ApiError({ kind: "http", statusCode: 503 }), new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "PRIVATE" }] })])("blocks ambiguous or precondition failure %# until reread", async error => {
     const ui = setup(); await settle(); ui.remove.mockRejectedValue(error); ui.confirm.click(); await settle(); expect(ui.confirm.disabled).toBe(true); expect(ui.cancel.disabled).toBe(false); expect(ui.dialog.querySelector('[role="alert"]')).toBe(document.activeElement);
     if (error.kind !== "http" || (error.statusCode ?? 0) >= 500) expect(ui.dialog.textContent).toContain("ne peut pas être confirmée");
-    ui.loadOne.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 })); ui.click("Relire le cadeau"); await settle(); expect(ui.onDeleted).not.toHaveBeenCalled(); expect(ui.dialog.textContent).toContain("Cadeau introuvable"); expect(ui.dialog.textContent).not.toContain("Cadeau supprimé");
+    ui.loadOne.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 })); ui.click("Relire le souhait"); await settle(); expect(ui.onDeleted).not.toHaveBeenCalled(); expect(ui.dialog.textContent).toContain("Souhait introuvable"); expect(ui.dialog.textContent).not.toContain("Souhait supprimé");
   });
   it.each([401, 403, 409, 429])("shows HTTP %s safely without retries and restores cancellation", async statusCode => {
     const ui = setup(); await settle(); ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode, correlationId: "support-fixture", retryAfterSeconds: 9 })); ui.confirm.click(); await settle();
@@ -88,11 +132,11 @@ describe("native gift deletion dialog", () => {
   it("reports suspension without giving the editor a replacement version, and requires a valid reread", async () => {
     const ui = setup(); await settle(); ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); ui.confirm.click(); await settle();
     expect(ui.onUnavailable).toHaveBeenCalledExactlyOnceWith("suspended"); expect(ui.dialog.textContent).toContain("Consultation uniquement"); expect(ui.confirm.disabled).toBe(true);
-    ui.click("Relire le cadeau"); await settle(); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).toHaveBeenCalledTimes(1); expect(ui.onUnavailable).toHaveBeenCalledTimes(1);
+    ui.click("Relire le souhait"); await settle(); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).toHaveBeenCalledTimes(1); expect(ui.onUnavailable).toHaveBeenCalledTimes(1);
   });
   it("blocks initial suspension and weak returned preconditions", async () => {
     const ui = setup({ loadWishlist: async () => ({ ...list, wishlist: { ...list.wishlist, isSuspended: true } }) }); await settle(); expect(ui.confirm.disabled).toBe(true); expect(ui.onUnavailable).toHaveBeenCalledWith("suspended");
-    const weak = setup({ loadOne: async () => stored("Cadeau", 'W/"1"') }); await settle(); expect(weak.confirm.disabled).toBe(true); expect(weak.remove).not.toHaveBeenCalled();
+    const weak = setup({ loadOne: async () => stored("Souhait", 'W/"1"') }); await settle(); expect(weak.confirm.disabled).toBe(true); expect(weak.remove).not.toHaveBeenCalled();
   });
   it.each(["parent", "gift"])("rejects invalid %s before transport", async key => {
     const ui = setup(key === "parent" ? { wishlistId: "bad" } : { wishId: "bad" }); await settle(); expect(ui.loadWishlist).not.toHaveBeenCalled(); expect(ui.remove).not.toHaveBeenCalled(); expect(ui.confirm.hidden).toBe(true);

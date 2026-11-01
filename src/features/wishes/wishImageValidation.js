@@ -7,13 +7,13 @@ export class WishImageValidationError extends Error {}
 
 /** @param {Blob} file Untrusted source. @returns {Promise<string>} Recognized media type. */
 export async function validateWishImageFile(file) {
-  if (!(file instanceof Blob) || file.size === 0) throw new WishImageValidationError("Choisis une image non vide.");
+  if (!(file instanceof Blob) || file.size === 0) throw new WishImageValidationError("Fichier image vide ou absent.");
   if (file.size > MaximumWishImageBytes) throw new WishImageValidationError("L’image ne doit pas dépasser 10 Mio.");
   const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
   if ([137, 80, 78, 71, 13, 10, 26, 10].every((value, i) => bytes[i] === value)) return "image/png";
   if ([82, 73, 70, 70].every((value, i) => bytes[i] === value) && [87, 69, 66, 80].every((value, i) => bytes[i + 8] === value)) return "image/webp";
-  throw new WishImageValidationError("Choisis une image JPEG, PNG ou WebP non animée.");
+  throw new WishImageValidationError("Format d’image non pris en charge : JPEG, PNG ou WebP non animé uniquement.");
 }
 
 /** Decodes the preview without transforming the uploaded bytes.
@@ -30,7 +30,7 @@ export function decodeWishImage(url, signal) {
       cleanup();
       if (valid) resolve(); else reject(new WishImageValidationError("L’image doit contenir au maximum 40 millions de pixels."));
     };
-    image.onerror = () => { cleanup(); reject(new WishImageValidationError("Cette image ne peut pas être lue. Choisis un autre fichier.")); };
+    image.onerror = () => { cleanup(); reject(new WishImageValidationError("Cette image ne peut pas être lue.")); };
     signal.addEventListener("abort", abort, { once: true });
     if (signal.aborted) { abort(); return; }
     image.src = url;

@@ -34,18 +34,44 @@ function button(root, label) {
 async function idle(view) { await vi.waitFor(() => expect(button(view, "Demander mon export").disabled).toBe(false)); }
 
 describe("personal data lifecycle UI", () => {
-  it("reads the latest state once, requests only on click and explicitly refreshes the selected export", async () => {
+  it("uses the shared coral primary style for requesting the deletion link", async () => {
+    const f = fixture(); const view = f.mount(); await idle(view);
+    expect(button(view, "Recevoir le lien de suppression").classList.contains("ui-button--primary")).toBe(true);
+    expect(f.service.requestDeletion).not.toHaveBeenCalled();
+  });
+  it("announces export submission and puts the loading indicator on the activated action", async () => {
+    // Arrange
+    const f = fixture(); const view = f.mount(); await idle(view);
+    const release = barrier();
+    f.service.requestExport.mockImplementation(async () => { await release.promise; return { ...ready, status: "queued", expiresAt: null }; });
+    const request = button(view, "Demander mon export");
+
+    // Act
+    request.click();
+    // Assert
+    expect(view.querySelector('[role="status"]')?.textContent).toBe("Demande d’export en cours…");
+    expect(request.textContent).toContain("Chargement");
+    expect(view.textContent).not.toContain("Actualiser");
+    expect([...view.querySelectorAll("button")].every(item => item.disabled)).toBe(true);
+    // Act
+    release.resolve(); await idle(view);
+    // Assert
+    expect(request.textContent).toBe("Demander mon export");
+    expect(view.textContent).toContain("En attente de préparation");
+    expect(f.service.requestExport).toHaveBeenCalledOnce();
+  });
+  it("reads the latest state once, requests only on click and refreshes the selected export on return", async () => {
     // Arrange
     const f = fixture(); const view = f.mount(); await idle(view);
     // Assert
     expect(view.textContent).toContain("Aucune demande d’export"); expect(f.service.latest).toHaveBeenCalledOnce();
     expect(f.service.requestExport).not.toHaveBeenCalled();
     // Act
-    button(view, "Actualiser l’état").click(); await idle(view);
+    window.dispatchEvent(new Event("focus")); await idle(view);
     expect(f.service.latest).toHaveBeenCalledTimes(2);
     button(view, "Demander mon export").click(); await idle(view);
     expect(view.textContent).toContain("En attente de préparation");
-    button(view, "Actualiser l’état").click(); await idle(view);
+    window.dispatchEvent(new Event("focus")); await idle(view);
     // Assert
     expect(view.textContent).toContain("Archive disponible"); expect(view.textContent).toContain("Fin de disponibilité");
     expect(f.service.refresh).toHaveBeenCalledExactlyOnceWith(ready.id, { signal: expect.any(AbortSignal) });
@@ -91,11 +117,12 @@ describe("personal data lifecycle UI", () => {
   it("does not repeat a request or expose raw errors when the operation fails", async () => {
     // Arrange
     const f = fixture(); const view = f.mount(); await idle(view);
-    f.service.requestExport.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 429, retryAfterSeconds: 12 }));
+    f.service.requestExport.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 429, retryAfterSeconds: 12, correlationId: "audit-reference" }));
     // Act
     button(view, "Demander mon export").click(); await idle(view);
     // Assert
     expect(f.service.requestExport).toHaveBeenCalledOnce(); expect(view.textContent).toContain("12 seconde(s)");
+    expect(view.textContent).not.toContain("Référence : audit-reference");
     // Act
     f.service.requestExport.mockRejectedValueOnce(new Error("private-canary"));
     button(view, "Demander mon export").click(); await idle(view);
@@ -110,6 +137,17 @@ describe("personal data lifecycle UI", () => {
     // Assert
     expect(f.service.requestDeletion).toHaveBeenCalledExactlyOnceWith({ signal: expect.any(AbortSignal) });
     expect(view.textContent).toContain("Consulte tes e-mails"); expect(f.service.requestExport).not.toHaveBeenCalled();
+  });
+  it("shows the support reference for a technical failure without exposing the raw error", async () => {
+    // Arrange
+    const f = fixture(); const view = f.mount(); await idle(view);
+    f.service.requestExport.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 500, correlationId: "audit-reference" }));
+    // Act
+    button(view, "Demander mon export").click(); await idle(view);
+    // Assert
+    expect(view.textContent).toContain("Référence : audit-reference");
+    expect(view.querySelectorAll('[role="alert"]')).toHaveLength(1);
+    expect(f.service.requestExport).toHaveBeenCalledOnce();
   });
   it("disables competing operations while waiting and ignores cancellation errors", async () => {
     // Arrange

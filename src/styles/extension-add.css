@@ -1,0 +1,9 @@
+.extension-add { width: min(100%, var(--form-width-wish)); margin-inline: auto; }
+.extension-add .wishlist-form { padding: 0; border: 0; box-shadow: none; }
+.extension-add__image { max-width: 100%; max-height: 12rem; object-fit: contain; }
+.extension-add__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4); }
+.extension-add__environment { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+.extension-add .ui-button { min-height: 44px; }
+.app-shell:has(.extension-add) { grid-template-rows: auto auto 1fr; }
+.app-shell:has(.extension-add) .app-header__content > :not(.app-brand),
+.app-shell:has(.extension-add) .app-footer { display: none; }

@@ -5,13 +5,16 @@ import { createSessionCoordinator } from "./sessionCoordinator.js";
 import { waitForSession } from "./sessionAsync.js";
 import { isStrongEntityTag } from "../api/entityTag.js";
 import { validateDisplayName } from "./displayNameValidation.js";
+import { isDisplayNameTag } from "./memberHandle.js";
 import { readTwoFactorProof, readTwoFactorSetup, readRecoveryCodes } from "./twoFactorContract.js";
 
 const SessionPath = "/api/v1/auth/sessions";
 const RenewalMargin = 60_000;
 
 /** @typedef {import("../api/generated/openapi.js").components["schemas"]["AccessTokenResponse"]} AccessTokenResponse */
-/** @typedef {import("../api/generated/openapi.js").components["schemas"]["CurrentSessionResponse"]} CurrentSessionResponse */
+/** @typedef {import("../api/generated/openapi.js").components["schemas"]["CurrentSessionResponse"]} ServerCurrentSessionResponse */
+/** The browser projection requires the server administrator boolean; ancillary identity fields remain optional.
+ * @typedef {Omit<ServerCurrentSessionResponse, "displayNameTag" | "isGoogleLinked" | "isVisibleInMemberSearch" | "profileImageUrl"> & Partial<Pick<ServerCurrentSessionResponse, "displayNameTag" | "isGoogleLinked" | "isVisibleInMemberSearch" | "profileImageUrl">>} CurrentSessionResponse */
 /** @typedef {import("./sessionCoordinator.js").SessionMetadata} SessionMetadata */
 /** @typedef {import("../api/apiClient.js").ApiRequestOptions} ApiRequestOptions */
 /** @typedef {import("../api/apiClient.js").ApiClient["request"]} Request */
@@ -908,8 +911,15 @@ function readCredentials(response, now) {
 function readUser(response) {
   const value = response.data;
   if (!isRecord(value) || ![value.id, value.email, value.displayName].every(item => typeof item === "string" && item.trim().length > 0) ||
-    !Array.isArray(value.roles) || !value.roles.every(role => typeof role === "string" && role.trim().length > 0)) throw invalidResponse(response);
-  return Object.freeze({ id: String(value.id), email: String(value.email), displayName: String(value.displayName), roles: Object.freeze([...value.roles]) });
+    typeof value.isAdmin !== "boolean") throw invalidResponse(response);
+  if (value.isGoogleLinked !== undefined && typeof value.isGoogleLinked !== "boolean") throw invalidResponse(response);
+  if (value.isVisibleInMemberSearch !== undefined && typeof value.isVisibleInMemberSearch !== "boolean") throw invalidResponse(response);
+  if (value.displayNameTag !== undefined && !isDisplayNameTag(value.displayNameTag)) throw invalidResponse(response);
+  return Object.freeze({ id: String(value.id), email: String(value.email), displayName: String(value.displayName), isAdmin: value.isAdmin,
+    ...(typeof value.displayNameTag === "string" ? { displayNameTag: value.displayNameTag } : {}),
+    ...(typeof value.isGoogleLinked === "boolean" ? { isGoogleLinked: value.isGoogleLinked } : {}),
+    ...(typeof value.isVisibleInMemberSearch === "boolean" ? { isVisibleInMemberSearch: value.isVisibleInMemberSearch } : {}),
+    ...(typeof value.profileImageUrl === "string" || value.profileImageUrl === null ? { profileImageUrl: value.profileImageUrl } : {}) });
 }
 
 /** @param {unknown} value Candidate object.

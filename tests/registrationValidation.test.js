@@ -8,7 +8,7 @@ describe("registration validation", () => {
   });
   it("requires the confirmation explicitly", () => {
     // Arrange / Act / Assert
-    expect(validateRegistrationConfirmation("", "password fixture")).toBe("Confirme ton mot de passe.");
+    expect(validateRegistrationConfirmation("", "password fixture")).toBe("Confirmation du mot de passe obligatoire.");
   });
   it.each([
     ["password fixture", " password fixture "],

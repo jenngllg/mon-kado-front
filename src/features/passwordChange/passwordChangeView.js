@@ -15,12 +15,10 @@ export function createPasswordChangeView({ changePassword, signal }) {
   const title = textElement("h1", "Changer mon mot de passe");
   const form = createRecoveryForm({ title: "Changer mon mot de passe", fields: [
     { name: "currentPassword", label: "Mot de passe actuel", type: "password", autocomplete: "current-password" },
-    { name: "newPassword", label: "Nouveau mot de passe", type: "password", autocomplete: "new-password",
-      help: "De 12 à 128 caractères, différent du mot de passe actuel." },
-    { name: "confirmation", label: "Confirmer le nouveau mot de passe", type: "password", autocomplete: "new-password",
-      help: "Saisis à nouveau exactement le même mot de passe." },
+    { name: "newPassword", label: "Nouveau mot de passe", type: "password", autocomplete: "new-password", help: "De 12 à 128 caractères. Différent du mot de passe actuel." },
+    { name: "confirmation", label: "Confirmer le nouveau mot de passe", type: "password", autocomplete: "new-password" },
   ], submitLabel: "Enregistrer le nouveau mot de passe", loadingLabel: "Modification en cours…",
-  validate: validatePasswordChangeField, serverMessages: { currentPassword: "Vérifie ton mot de passe actuel.", newPassword: NewPasswordServerMessage },
+  validate: validatePasswordChangeField, serverMessages: { currentPassword: "Mot de passe actuel invalide.", newPassword: NewPasswordServerMessage },
   serverErrorFields: { MEMBER_CURRENT_PASSWORD_INVALID: { name: "currentPassword", message: "Le mot de passe actuel est incorrect." } },
   uncertainResult: true,
   submit: async (values, options) => { await changePassword({ currentPassword: values.currentPassword, newPassword: values.newPassword }, options); },
@@ -35,9 +33,9 @@ export function createPasswordChangeView({ changePassword, signal }) {
   } });
   const links = textElement("div", "");
   links.className = "cluster";
-  links.append(createActionLink({ label: "Retour au profil", href: RoutePaths.Profile }),
-    createActionLink({ label: "Mot de passe oublié ?", href: RoutePaths.ForgotPassword }));
-  view.append(title, textElement("p", "Après modification, tu devras te reconnecter avec ton nouveau mot de passe."), form, links);
+  links.append(createActionLink({ label: "Mot de passe oublié ?", href: RoutePaths.ForgotPassword }));
+  view.append(title,
+    textElement("p", "Après modification, tu devras te reconnecter avec ton nouveau mot de passe."), form, links);
   if (signal) {
     addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });
     if (signal.aborted) disposeComponent(view);

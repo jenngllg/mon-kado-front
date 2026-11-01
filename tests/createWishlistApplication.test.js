@@ -11,14 +11,16 @@ function setup() {
   const transport = createSessionTransport(); const original = transport.fetch.getMockImplementation(); const hub = createCoordinatorHub();
   const state = { status: 201, writes: 0, beforeWrite: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/v1/groups") return Response.json({ items: [], currentPage: 1, pageSize: 100, totalCount: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false });
     if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}`) return Response.json(item, { headers: { ETag: '"created"' } });
     if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}/wishes`) return Response.json({ wishes: [] }, { headers: { ETag: '"collection"' } });
     if (new URL(String(input)).pathname === "/api/v1/wishlists") {
+      if (init?.method === "GET") return Response.json([item]);
       state.writes++; expect(init?.method).toBe("POST");
       const headers = new Headers(init?.headers);
       expect(headers.get("Authorization")).toBe("Bearer jwt-fixture-1"); expect(headers.get("Content-Type")).toBe("application/json");
       expect(headers.has("If-Match")).toBe(false); expect(headers.has("X-CSRF-TOKEN")).toBe(false); expect(init?.credentials).toBe("include");
-      expect(JSON.parse(String(init?.body))).toEqual({ name: item.name, occasion: "birthday", eventDate: null, message: null });
+      expect(JSON.parse(String(init?.body))).toEqual({ name: item.name, occasion: "birthday", eventDate: null, message: null, surpriseMode: true });
       await state.beforeWrite();
       return Response.json(state.status === 201 ? item : { statusCode: state.status, title: "Private English", message: "Private message" }, { status: state.status, headers: { ETag: '"created"' } });
     }
@@ -28,10 +30,14 @@ function setup() {
   window.history.replaceState(null, "", "/lists/new"); const root = document.createElement("div"); document.body.append(root);
   const app = createSessionApplication(root, { apiBaseUrl: "http://localhost:7000", session }); cleanups.push(app.dispose);
   function fillAndSend() {
-    const form = /** @type {HTMLFormElement} */ (root.querySelector("form"));
+    const form = /** @type {HTMLFormElement} */ (root.querySelector("main form"));
     /** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value = ` ${item.name} `;
     /** @type {HTMLSelectElement} */ (form.elements.namedItem("occasion")).value = "birthday";
-    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); return form;
+    const observer = new MutationObserver(() => {
+      const submit = /** @type {HTMLButtonElement | null} */ (form.querySelector('[type="submit"]'));
+      if (submit && !submit.disabled && !submit.hidden) { observer.disconnect(); form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); }
+    });
+    observer.observe(form, { childList: true, subtree: true, attributes: true, characterData: true }); cleanups.push(() => observer.disconnect()); return form;
   }
   return { ...app, transport, state, hub, fillAndSend };
 }
@@ -55,7 +61,7 @@ describe("wishlist creation application integration", () => {
     const form = app.fillAndSend();
     await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Liste créée") === true);
     expect(window.location.pathname).toBe("/lists/" + item.id); expect(window.history.length).toBe(length);
-    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Cette liste ne contient pas encore de cadeau") === true);
+    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("et donne des idées à tes proches") === true);
     expect(app.shell.outlet.querySelector("h1")?.textContent).toBe(item.name);
     expect(document.activeElement).toBe(app.shell.outlet); expect(app.state.writes).toBe(1);
     expect(app.shell.notificationRegion.children).toHaveLength(1);

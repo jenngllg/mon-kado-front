@@ -24,3 +24,22 @@ export function verifyPublication(value, documents) {
 
 /** Fail without echoing document contents or operator information. */
 function rejected() { return new Error("PUBLICATION_REVIEW_REQUIRED"); }
+
+/** Permit an explicitly requested temporary test without recording legal approval.
+ * The exception does not activate Google: its setting must be explicitly reviewed in the revision.
+ * @param {unknown} value Versioned public configuration.
+ * @param {readonly string[]} documents Built draft documents.
+ * @returns {boolean} The explicitly reviewed Google setting for this revision.
+ */
+export function verifyTemporaryPublication(value, documents) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw rejected();
+  const configuration = /** @type {Record<string, unknown>} */ (value);
+  if (Object.keys(configuration).sort().join() !== "apiOrigin,googleEnabled,legalApproved,legalVersion,schemaVersion" ||
+    configuration.schemaVersion !== 1 || configuration.apiOrigin !== "https://api.monkado.fr" ||
+    typeof configuration.googleEnabled !== "boolean" || configuration.legalApproved !== false || configuration.legalVersion !== null)
+    throw rejected();
+  if (documents.length !== LegalDocuments.length || documents.some(document =>
+    !document.includes('<html lang="fr"') || !document.includes("<h1>") ||
+    !document.includes('mailto:monkado.app@gmail.com'))) throw rejected();
+  return configuration.googleEnabled;
+}

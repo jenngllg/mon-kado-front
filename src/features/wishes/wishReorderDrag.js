@@ -10,7 +10,8 @@ export function installWishReorderDrag(owner, grid, { enabled, move }) {
   /** @type {{id: string, pointer: number, handle: HTMLElement, x: number, y: number, startX: number, startY: number, active: boolean, target: number | null} | null} */
   let gesture = null;
   let frame = 0;
-  function clearIndicator() { for (const card of grid.children) card.classList.remove("wish-reorder-before", "wish-reorder-after", "wish-reorder-dragging"); }
+  /** @type {HTMLElement | null} */ let suppressClick = null;
+  function clearIndicator() { grid.classList.remove("wish-reorder-single-column"); for (const card of grid.children) card.classList.remove("wish-reorder-before", "wish-reorder-after", "wish-reorder-dragging"); }
   function cancel() {
     const old = gesture; gesture = null;
     cancelAnimationFrame(frame); frame = 0; clearIndicator();
@@ -22,15 +23,35 @@ export function installWishReorderDrag(owner, grid, { enabled, move }) {
     const cards = [...grid.children];
     const source = cards.findIndex(card => /** @type {HTMLElement} */ (card).dataset.wishId === gesture?.id);
     cards[source]?.classList.add("wish-reorder-dragging");
-    const hit = document.elementFromPoint(gesture.x, gesture.y)?.closest("[data-wish-id]");
+    const element = document.elementFromPoint(gesture.x, gesture.y);
+    let hit = element?.closest("[data-wish-id]");
+    // The gutter belongs to the same insertion slot as its two neighbouring halves.
+    if (!hit && element && grid.contains(element)) {
+      const { x, y } = gesture;
+      hit = cards.find((card, index) => {
+        if (!index) return false;
+        const previous = cards[index - 1].getBoundingClientRect();
+        const next = card.getBoundingClientRect();
+        return Math.abs(previous.top - next.top) < 4
+          && x >= previous.right && x <= next.left
+          && y >= Math.max(previous.top, next.top) && y <= Math.min(previous.bottom, next.bottom);
+      });
+    }
     const index = cards.findIndex(card => card === hit);
     if (!hit || index < 0 || source < 0) return;
     const rect = hit.getBoundingClientRect();
     const multipleColumns = cards.some(card => card !== hit && Math.abs(card.getBoundingClientRect().top - rect.top) < 4);
+    grid.classList.toggle("wish-reorder-single-column", !multipleColumns);
     const after = multipleColumns ? gesture.x > rect.left + rect.width / 2 : gesture.y > rect.top + rect.height / 2;
     const slot = index + Number(after);
     gesture.target = slot > source ? slot - 1 : slot;
-    hit.classList.add(after ? "wish-reorder-after" : "wish-reorder-before");
+    const next = cards[slot];
+    // Always anchor an internal row boundary to the next card, even over the previous card.
+    if (multipleColumns && after && next && Math.abs(next.getBoundingClientRect().top - rect.top) < 4) {
+      next.classList.add("wish-reorder-before");
+    } else {
+      hit.classList.add(after ? "wish-reorder-after" : "wish-reorder-before");
+    }
   }
   function tick() {
     if (!gesture?.active) return;
@@ -45,6 +66,7 @@ export function installWishReorderDrag(owner, grid, { enabled, move }) {
     const e = /** @type {PointerEvent} */ (event);
     const handle = e.target instanceof Element ? /** @type {HTMLElement | null} */ (e.target.closest("[data-reorder-handle]")) : null;
     if (!handle || !grid.contains(handle) || !enabled() || gesture || e.button !== 0 || !e.isPrimary) return;
+    suppressClick = null;
     const id = /** @type {HTMLElement | null} */ (handle.closest("[data-wish-id]"))?.dataset.wishId;
     if (!id) return;
     gesture = { id, pointer: e.pointerId, handle, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, active: false, target: null };
@@ -65,8 +87,13 @@ export function installWishReorderDrag(owner, grid, { enabled, move }) {
     if (!gesture || gesture.pointer !== e.pointerId) return;
     if (gesture.active) { gesture.x = e.clientX; gesture.y = e.clientY; locate(); }
     const old = gesture; cancel();
+    if (old.active) suppressClick = old.handle;
     if (old.active && old.target !== null && enabled()) move(old.id, old.target);
   });
+  addComponentEventListener(owner, grid, "click", event => {
+    if (!suppressClick || !(event.target instanceof Node) || !suppressClick.contains(event.target)) return;
+    suppressClick = null; event.preventDefault(); event.stopImmediatePropagation();
+  }, { capture: true });
   for (const type of ["pointercancel", "lostpointercapture"]) addComponentEventListener(owner, grid, type, event => {
     if (gesture?.pointer === /** @type {PointerEvent} */ (event).pointerId) cancel();
   });

@@ -1,19 +1,25 @@
 import { ApiError } from "../../api/apiError.js";
 import { isCalendarDate, isWishlistId } from "../wishlists/wishlistValidation.js";
+import { safeHttpUrl } from "../wishes/wishValidation.js";
 
-/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GiftReservationHistoryResponse"]} HistoryResponse */
+/** @typedef {"wishDeleted" | "wishlistDeleted" | "notShared" | "suspended" | "archived"} InaccessibilityReason */
+/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GiftReservationHistoryResponse"] & {inaccessibilityReason?: InaccessibilityReason | null,groupId?:string|null,groupWishPath?:string|null,groupSuggestionPath?:string|null,isArchived?:boolean}} HistoryResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["PaginatedResponseOfGiftReservationHistoryResponse"]} PageResponse */
 /** @typedef {Readonly<{id: string, wishlistName: string, wishName: string, quantity: number,
- * status: "active" | "cancelled" | "unavailable", createdAt: string, lastActivityAt: string, endedAt: string | null}>} ReservationHistoryItem */
+ * status: "active" | "cancelled" | "unavailable", createdAt: string, lastActivityAt: string, endedAt: string | null,
+ * ownerDisplayName?: string | null, ownerHref?: string | null, wishHref?: string | null, imageUrl?: string | null, imageUnavailable?: boolean, isArchived?: boolean, isSuggestion?: boolean, inaccessibilityReason?: InaccessibilityReason | null}>} ReservationHistoryItem */
 /** @typedef {Readonly<{items: ReadonlyArray<ReservationHistoryItem>, currentPage: number, pageSize: number, totalCount: number}>} ReservationHistoryPage */
 /** @typedef {"active" | "cancelled" | "unavailable"} HistoryStatus */
 /** @typedef {(options: {signal: AbortSignal, page?: number, pageSize?: number, status?: HistoryStatus}) => Promise<ReservationHistoryPage>} LoadReservationHistory */
 
 /** Reads a current-member history page; no bearer sharing context is involved.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Authenticated transport.
+ * @param {{apiBaseUrl?: string, frontendOrigin?: string}} [options] Trusted origins.
  * @returns {{load: LoadReservationHistory}} History operations.
  */
-export function createReservationHistoryService(session) {
+export function createReservationHistoryService(session, { apiBaseUrl = "http://localhost", frontendOrigin = globalThis.location?.origin ?? "http://localhost" } = {}) {
+  const base = safeHttpUrl(apiBaseUrl);
+  if (!base) throw new TypeError("Invalid API origin.");
   return { async load({ signal, page: requestedPage = 1, pageSize = 20, status }) {
     if (!Number.isInteger(requestedPage) || requestedPage < 1 || requestedPage > 2147483647 ||
       !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100 ||
@@ -42,8 +48,46 @@ export function createReservationHistoryService(session) {
         !utc(item.createdAt) || !utc(item.lastActivityAt) || !(item.endedAt === null || utc(item.endedAt)) ||
         (item.status === "active") !== (item.endedAt === null) || seen.has(item.id.toLowerCase())) throw invalid();
       seen.add(item.id.toLowerCase());
+      if (item.ownerDisplayName !== undefined && item.ownerDisplayName !== null && !name(item.ownerDisplayName)) throw invalid();
+      if (item.ownerId != null && !isWishlistId(item.ownerId)) throw invalid();
+      if (item.isArchived !== undefined && typeof item.isArchived !== "boolean") throw invalid();
+      if (item.inaccessibilityReason != null && !["wishDeleted", "wishlistDeleted", "notShared", "suspended", "archived"].includes(item.inaccessibilityReason)) throw invalid();
+      let wishHref = null;
+      const ownedPath = item.ownedWishPath;
+      const groupPath = item.groupWishPath;
+      const suggestionPath = item.groupSuggestionPath;
+      if (suggestionPath != null) {
+        if (!isWishlistId(item.groupId) || suggestionPath !== `/groups/${item.groupId}/wishlists/${item.wishlistId}#suggestion-${item.wishId}` || groupPath != null || ownedPath != null || item.shareUrl != null || item.shareLinkId != null || item.isArchived) throw invalid();
+        wishHref = suggestionPath;
+      }
+      if (groupPath != null) {
+        if (!isWishlistId(item.groupId) || groupPath !== `/groups/${item.groupId}/wishlists/${item.wishlistId}/wishes/${item.wishId}` || ownedPath != null || item.shareUrl != null || item.shareLinkId != null || item.isArchived) throw invalid();
+        wishHref = groupPath;
+      }
+      if (ownedPath != null) {
+        if (ownedPath !== `/lists/${item.wishlistId}/wishes/${item.wishId}` || item.isArchived || item.shareUrl != null) throw invalid();
+        wishHref = ownedPath;
+      }
+      if (!wishHref && item.shareUrl != null && !item.isArchived) {
+        const prefix = `${frontendOrigin}/shared-wishlists/${item.shareLinkId}#`;
+        if (typeof item.shareUrl !== "string" || !item.shareLinkId || !item.shareUrl.startsWith(prefix) ||
+          !/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(item.shareUrl.slice(prefix.length))) throw invalid();
+        wishHref = `/shared-wishlists/${item.shareLinkId}/wishes/${item.wishId}#${item.shareUrl.slice(prefix.length)}`;
+      }
+      const candidate = item.imageUrl == null ? null : safeHttpUrl(item.imageUrl);
+      const resource = groupPath ? `groups/${item.groupId}/wishlists/${item.wishlistId}` : ownedPath ? `wishlists/${item.wishlistId}` : `shared-wishlists/${item.shareLinkId}`;
+      const path = `${base.pathname.replace(/\/$/, "")}/api/v1/${resource}/wishes/${item.wishId}/image`;
+      const image = wishHref && candidate && candidate.origin === base.origin && candidate.pathname.toLowerCase() === path.toLowerCase() && !candidate.hash &&
+        candidate.searchParams.getAll("token").length === 1 && !!candidate.searchParams.get("token") && [...candidate.searchParams.keys()].every(key => key === "token") ? candidate : null;
       return Object.freeze({ id: item.id, wishlistName: item.wishlistName, wishName: item.wishName, quantity: item.quantity,
-        status: item.status, createdAt: item.createdAt, lastActivityAt: item.lastActivityAt, endedAt: item.endedAt });
+        status: item.status, createdAt: item.createdAt, lastActivityAt: item.lastActivityAt, endedAt: item.endedAt,
+        ...(item.inaccessibilityReason !== undefined ? { inaccessibilityReason: item.inaccessibilityReason } : {}),
+        ...(item.isArchived !== undefined ? { isArchived: item.isArchived } : {}),
+        ...(item.ownerDisplayName !== undefined ? { ownerDisplayName: item.ownerDisplayName } : {}),
+        ...(item.ownerId !== undefined ? { ownerHref: item.ownerId ? `/members/${item.ownerId}` : null } : {}),
+        ...(suggestionPath ? { isSuggestion: true } : {}),
+        ...(item.shareUrl !== undefined || ownedPath !== undefined || groupPath !== undefined || suggestionPath !== undefined ? { wishHref } : {}),
+        ...(item.imageUrl !== undefined ? { imageUrl: image?.href ?? null, imageUnavailable: item.imageUrl !== null && !image } : {}) });
     });
     return Object.freeze({ items: Object.freeze(items), currentPage: page.currentPage, pageSize: page.pageSize, totalCount: page.totalCount });
   } };

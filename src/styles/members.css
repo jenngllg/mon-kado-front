@@ -1,0 +1,29 @@
+/* Public profiles reuse the approved list-card artwork, tokens and circular avatars. */
+.member-search-view { max-width: 48rem; margin-inline: auto; }
+.member-search-results, .member-profile-lists { list-style: none; padding: 0; display: grid; gap: var(--space-4); }
+.member-search-result > a {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--space-4); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); background: var(--color-surface);
+  color: var(--color-text); min-height: 44px;
+}
+.member-search-result > a > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.member-profile-view { max-width: 72rem; margin-inline: auto; }
+.member-profile-header { display: flex; align-items: center; gap: var(--space-4); }
+.member-profile-header h1 { overflow-wrap: anywhere; min-width: 0; }
+.member-profile-lists { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
+.member-profile-list { border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface); }
+.member-profile-list > a { display: grid; grid-template-columns: 36% minmax(0, 1fr); min-height: 11rem; height: 100%; color: var(--color-text); }
+.member-profile-list img { width: 100%; height: 100%; object-fit: cover; }
+.member-profile-list__content { padding: var(--space-5); overflow-wrap: anywhere; }
+.member-profile-list__occasion { font-size: var(--font-size-sm); }
+.member-profile-list h3 { font-size: var(--font-size-lg); }
+.member-profile-list time { color: var(--color-text-muted); }
+.member-search-result > a, .member-profile-list > a, .back-link { text-decoration: none; }
+.member-search-result > a:is(:hover, :focus-visible), .member-profile-list > a:is(:hover, :focus-visible) { text-decoration: none; background: var(--color-surface-sage); }
+.member-search-result > a:focus-visible, .member-profile-list > a:focus-visible { outline: 3px solid var(--color-text); outline-offset: -3px; }
+.back-link { width: var(--control-min-size); height: var(--control-min-size); padding: 0; }
+.back-link:is(:hover, :focus-visible) { text-decoration: none; }
+.back-link > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.back-link svg { width: 1.5rem; height: 1.5rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 45rem) { .member-profile-lists { grid-template-columns: 1fr; } }
