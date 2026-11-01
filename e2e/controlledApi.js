@@ -54,7 +54,7 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
       state.authenticated = false;
       return send(204, null);
     }
-    if (path === "/api/v1/auth/sessions/current") return send(200, { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", displayName: "Camille test", email: "test@example.test", roles: ["member"], isGoogleLinked: state.isGoogleLinked, isVisibleInMemberSearch: false }, '"identity"');
+    if (path === "/api/v1/auth/sessions/current") return send(200, { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", displayName: "Camille test", email: "test@example.test", isAdmin: false, isGoogleLinked: state.isGoogleLinked, isVisibleInMemberSearch: false }, '"identity"');
     if (path === "/api/v1/wishlists" && method === "GET") return send(200, state.listExists ? [wishlist] : []);
     if (path === "/api/v1/wishlists" && method === "POST") {
       expect(request.headers().authorization).toBe("Bearer access-test-only");

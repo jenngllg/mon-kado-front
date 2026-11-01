@@ -7,7 +7,7 @@ async function reorderApi(context) {
   const api = await controlledApi(context); api.state.authenticated = true;
   Object.assign(api.wishlist, { name: "Liste 1", eventDate: "2027-01-18", message: "Pour me faire des beaux cadeaux à mon anniversaire :)" });
   const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"collection-1"' };
-  await context.route("**/api/v1/auth/sessions/current", route => route.request().method() === "GET" ? route.fulfill({ headers, json: { id: wishId, displayName: "MonKado", email: "fixture@example.test", roles: ["member"], isGoogleLinked: false } }) : route.fallback());
+  await context.route("**/api/v1/auth/sessions/current", route => route.request().method() === "GET" ? route.fulfill({ headers, json: { id: wishId, displayName: "MonKado", email: "fixture@example.test", isAdmin: false, isGoogleLinked: false } }) : route.fallback());
   const names = ["Pull en laine", "Appareil photo instantané", "Panier pique-nique en osier", "Lampe de table", "Vase en céramique", "Plaid en coton"];
   let rows = names.map((name, index) => {
     const id = `019c52dd-56c1-7cc6-8a95-243f3a032e${20 + index}`;

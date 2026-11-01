@@ -105,13 +105,13 @@ describe("review page", () => {
   });
   it("protects the route, keeps returnTo unchanged and marks Modération active", () => {
     expect(isProtectedRoute(RouteNames.WishlistReportReview)).toBe(true); expect(getSafeReturnTo(`/admin/reported-wishlists/${wishlistId}/reports/${reportId}`)).toBe("/lists");
-    const shell = createApplicationShell(); shell.setSession(/** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, displayName: "Admin", roles: ["Admin"] }, authenticationPending: false, logoutPending: false })));
+    const shell = createApplicationShell(); shell.setSession(/** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, displayName: "Admin", isAdmin: true }, authenticationPending: false, logoutPending: false })));
     shell.setCurrentRoute(/** @type {import("../src/router/router.js").RouteSnapshot} */ (/** @type {unknown} */ ({ name: RouteNames.WishlistReportReview })));
     expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')?.getAttribute("aria-current")).toBe("page"); disposeComponent(shell.element);
   });
   it("owns the review by account and removes it before another account can read", async () => {
     /** @type {(state: import("../src/auth/sessionManager.js").SessionSnapshot) => void} */ let notify = () => {};
-    const snapshot = /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false }));
+    const snapshot = /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, isAdmin: true }, authenticationPending: false, logoutPending: false }));
     const gate = barrier(), loadOne = vi.fn(/** @type {import("../src/features/admin/wishlistReportReviewService.js").ReportReviewService["loadOne"]} */ (async () => { await gate.promise; return record; }));
     const host = createAdminView({ getSnapshot: () => snapshot, subscribe: callback => { notify = callback; return () => {}; } }, { createView: () => createWishlistReportReviewView({ wishlistId, reportId, loadOne, update: vi.fn() }) }); views.push(host); document.body.append(host);
     notify({ ...snapshot, user: null }); gate.resolve(); await settle(); expect(host.textContent).not.toContain("Original"); expect(host.textContent).toContain("Accès administrateur requis"); expect(loadOne.mock.calls[0][2].signal.aborted).toBe(true);

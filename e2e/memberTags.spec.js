@@ -11,7 +11,7 @@ for (const width of [390, 1440]) {
     await context.route("http://localhost:7000/api/v1/**", async route => {
       const request = route.request(), url = new URL(request.url());
       if (request.method() === "OPTIONS") return route.fallback();
-      const member = { id, displayName: name, displayNameTag: "0042", email: "test@example.test", roles: ["member"], isVisibleInMemberSearch: false, isGoogleLinked: false, profileImageUrl: null };
+      const member = { id, displayName: name, displayNameTag: "0042", email: "test@example.test", isAdmin: false, isVisibleInMemberSearch: false, isGoogleLinked: false, profileImageUrl: null };
       if (url.pathname === "/api/v1/auth/sessions/current") return route.fulfill({ status: 200, headers: { ...headers, ETag: '"current"' }, json: member });
       if (url.pathname === "/api/v1/members/current/profile" && request.method() === "PUT") {
         const body = request.postDataJSON(); expect(Object.keys(body).sort()).toEqual(["displayName", "isVisibleInMemberSearch"]);

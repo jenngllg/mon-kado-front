@@ -30,12 +30,12 @@ describe("member avatars", () => {
   it("updates a shell avatar in place without stealing focus or closing mobile navigation", () => {
     const shell = createApplicationShell({apiBaseUrl:'http://localhost:7000'}); document.body.append(shell.element);
     /** @type {import('../src/auth/sessionManager.js').SessionSnapshot} */
-    const state = {status:'authenticated',user:{id,displayName:'Jenn',email:'test@example.test',roles:['member'],profileImageUrl:url},etag:'"a"',issue:null,logoutPending:false};
+    const state = {status:'authenticated',user:{id,displayName:'Jenn',email:'test@example.test',isAdmin: false,profileImageUrl:url},etag:'"a"',issue:null,logoutPending:false};
     shell.setSession(state);
     const link = /** @type {HTMLAnchorElement} */ (shell.element.querySelector('a[href="/profile"]')); link.focus();
     const menu = /** @type {HTMLButtonElement} */ (shell.element.querySelector('.app-menu-button')); menu.click();
     const previous = /** @type {HTMLImageElement} */ (link.querySelector('img'));
-    shell.setSession({...state,user:{...state.user, id, displayName:'Autre nom', email:'test@example.test',roles:['member'],profileImageUrl:null}});
+    shell.setSession({...state,user:{...state.user, id, displayName:'Autre nom', email:'test@example.test',isAdmin: false,profileImageUrl:null}});
     expect(document.activeElement).toBe(link); expect(menu.getAttribute('aria-expanded')).toBe('true');
     expect(previous.hasAttribute('src')).toBe(false); expect(link.querySelector('svg')).not.toBeNull(); expect(link.textContent).toBe('Mon compte');
     shell.setSession({...state,authenticationPending:true}); expect(link.querySelector('.member-avatar')).toBeNull();
@@ -45,10 +45,10 @@ describe("member avatars", () => {
   it("clears an old account image before displaying the next member and ignores its late load", () => {
     const shell = createApplicationShell({apiBaseUrl:'http://localhost:7000'}); document.body.append(shell.element);
     /** @type {import('../src/auth/sessionManager.js').SessionSnapshot} */
-    const state = {status:'authenticated',user:{id,displayName:'Jenn',email:'test@example.test',roles:['member'],profileImageUrl:url},etag:'"a"',issue:null,logoutPending:false};
+    const state = {status:'authenticated',user:{id,displayName:'Jenn',email:'test@example.test',isAdmin: false,profileImageUrl:url},etag:'"a"',issue:null,logoutPending:false};
     shell.setSession(state); const old = /** @type {HTMLImageElement} */ (shell.element.querySelector('.member-avatar img'));
     const motif = shell.element.querySelector('.member-avatar svg')?.outerHTML;
-    shell.setSession({...state,user:{id:id.replace(/04$/,'08'),displayName:'Second compte',email:'second@example.test',roles:['member'],profileImageUrl:null}});
+    shell.setSession({...state,user:{id:id.replace(/04$/,'08'),displayName:'Second compte',email:'second@example.test',isAdmin: false,profileImageUrl:null}});
     old.dispatchEvent(new Event('load'));
     expect(old.hasAttribute('src')).toBe(false); expect(old.isConnected).toBe(false);
     expect(shell.element.querySelector('.member-avatar svg')?.outerHTML).not.toBe(motif);

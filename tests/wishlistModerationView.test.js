@@ -33,7 +33,7 @@ function setup(data = active) {
 }
 describe("moderation page", () => {
   it("keeps Modération active and destroys a pending confirmation on account change", async () => {
-    const snapshot = /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false }));
+    const snapshot = /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, isAdmin: true }, authenticationPending: false, logoutPending: false }));
     const shell = createApplicationShell(); shell.setSession(snapshot); shell.setCurrentRoute(/** @type {import("../src/router/router.js").RouteSnapshot} */ (/** @type {unknown} */ ({ name: RouteNames.WishlistModeration }))); expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')?.getAttribute("aria-current")).toBe("page"); disposeComponent(shell.element);
     /** @type {(state: import("../src/auth/sessionManager.js").SessionSnapshot) => void} */ let notify = () => {};
     const ui = setup(); await settle(); const host = createAdminView({ getSnapshot: () => snapshot, subscribe: callback => { notify = callback; return () => {}; } }, { createView: () => ui.view }); views.push(host); document.body.append(host); ui.draft(); ui.submit(); const modal = ui.view.querySelector("dialog"); notify({ ...snapshot, user: null }); expect(modal?.open).toBe(false); expect(ui.reason.value).toBe(""); expect(host.textContent).toContain("Accès administrateur requis");

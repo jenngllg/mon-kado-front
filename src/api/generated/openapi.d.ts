@@ -2172,13 +2172,12 @@ export interface components {
             readonly email: string;
             /** Format: uuid */
             readonly id: string;
-            /** @description Whether the current account has the live administrator role. Administrative requests also require a session verified with the current two-factor credential. */
+            /** @description Whether the current account has administrator access enabled in the database. Administrative requests also require a session verified with the current two-factor credential. */
             readonly isAdmin: boolean;
             /** @description Whether the current account is associated with Google, independent of the session's sign-in method. */
             readonly isGoogleLinked: boolean;
             readonly isVisibleInMemberSearch: boolean;
             readonly profileImageUrl: string | null;
-            readonly roles: readonly string[];
         };
         readonly ErrorResponse: {
             readonly errorCode: string | null;
