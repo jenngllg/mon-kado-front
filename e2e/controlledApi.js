@@ -1,11 +1,4 @@
 import { expect } from "@playwright/test";
-import { readFileSync } from "node:fs";
-
-const policyMatch = readFileSync(new URL("../deployments/caddy/Caddyfile", import.meta.url), "utf8")
-  .match(/Content-Security-Policy "([^"]+)"/);
-if (!policyMatch) throw new Error("The deployed CSP is required for browser tests.");
-const deployedPolicy = policyMatch[1].replaceAll("{$FRONTEND_API_ORIGIN}", "http://localhost:7000")
-  .replaceAll("{$FRONTEND_SENTRY_ORIGIN}", "");
 
 export const listId = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 export const shareId = "019c52dd-56c1-7cc6-8a95-243f3a032e06";
@@ -28,8 +21,9 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
     const request = route.request();
     const url = new URL(request.url());
     if (url.origin === frontendOrigin) {
-      const response = await route.fetch();
-      return route.fulfill({ response, headers: { ...response.headers(), "Content-Security-Policy": deployedPolicy } });
+      // The preview server sends the production CSP directly. Avoid fetching
+      // and fulfilling static requests that navigation can cancel in between.
+      return route.continue();
     }
     if (url.origin !== "http://localhost:7000") {
       unexpected.push(`${request.method()} ${url.origin}${url.pathname}`);
