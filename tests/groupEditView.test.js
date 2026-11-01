@@ -63,9 +63,9 @@ describe("combined group editor", () => {
     expect(getSafeReturnTo(`/groups/${id}/edit?unsafe=true#secret`)).toBe(`/groups/${id}/edit`);
     expect(getSafeReturnTo("/groups/not-an-id/edit")).toBe("/lists");
   });
-  it("refuses a normal member before exposing editor controls", async () => {
+  it("allows any member to use the group editor", async () => {
     const f = setup({ memberId: id }); await settle();
-    expect(f.form.hidden).toBe(true); expect(f.view.textContent).toContain("Action réservée à l’organisateur");
+    expect(f.form.hidden).toBe(false); expect(f.input.value).toBe("Famille");
     await f.submit(); expect(f.request).toHaveBeenCalledOnce();
   });
   it("rejects another group in the response and offers only explicit rereading", async () => {

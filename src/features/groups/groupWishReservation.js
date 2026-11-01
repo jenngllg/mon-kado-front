@@ -19,7 +19,7 @@ export function createGroupWishReservation({ session, groupId, wishlistId, loadO
     }
     /** @param {(busy:boolean)=>void} busy @param {(lookup:import("../sharing/giftReservationService.js").ReservationLookup)=>void} showLookup @param {import("../sharing/giftReservationService.js").CurrentReservation} [reservation] */
     function form(busy, showLookup, reservation) {
-      return createReservationCreateForm({ available: wish.availableQuantity ?? 0, singleItem: wish.quantity === 1, signal, confirmation: !reservation && confirmation, onCancel,
+      return createReservationCreateForm({ available: wish.availableQuantity ?? 0, singleItem: wish.quantity === 1, compact: !reservation && !confirmation, signal, confirmation: !reservation && confirmation, onCancel,
         onBusy: busy, onUnavailable, onSaved: () => onSaved(reservation ? "Réservation modifiée" : "Réservation enregistrée"),
         create: (quantity, active) => reservations.create(wishlistId, wish.id, quantity, { signal: active }),
         verify: active => verify(showLookup, active),

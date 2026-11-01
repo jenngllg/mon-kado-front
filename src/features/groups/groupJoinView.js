@@ -30,7 +30,7 @@ export function createGroupJoinView({ session, service, apiBaseUrl, groupId, cod
   const accountCopy = node("p", "Connecte-toi dans le nouvel onglet, puis reviens ici pour rejoindre le groupe.");
   access.append(accountCopy, accountActions, restore);
   form.append(field, submit);
-  view.append(createBackLink({ label: "Retour à Mes groupes", href: "/groups" }), node("h1", "Rejoindre un groupe"), preview, node("p", "Utilise le code reçu ou celui du lien. Aucune validation de l’organisateur n’est nécessaire."), access, form, feedback);
+  view.append(createBackLink({ label: "Retour à Mes groupes", href: "/groups" }), node("h1", "Rejoindre un groupe"), preview, node("p", "Utilise le code reçu ou celui du lien. Aucune validation supplémentaire n’est nécessaire."), access, form, feedback);
   const lifetime = new AbortController(); let identity = new AbortController();
   let disposed = false, pending = false, actor = "", verifiedCode = "";
   let previewRequest = new AbortController();

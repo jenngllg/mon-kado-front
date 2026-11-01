@@ -19,6 +19,7 @@ export function createSharedWishQuantities(wish) {
     const count = document.createElement("strong"); count.textContent = String(value);
     paragraph.append(caption, count);
     if (label === "Ma quantité réservée") paragraph.className = "shared-wish-quantities__personal";
+    if ((label === "Quantité réservée" || label === "Ma quantité réservée") && value === 0) paragraph.classList.add("shared-wish-quantities__zero-reserved");
     group.append(paragraph);
   }
   return group;

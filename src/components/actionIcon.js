@@ -10,6 +10,7 @@ const Paths = {
   archive: "M3 3h18v4H3zM5 7v14h14V7M9 11h6",
   view: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12m13 0a3 3 0 1 0-6 0 3 3 0 0 0 6 0",
   edit: "M16 3l5 5L9 20l-6 1 1-6L16 3ZM14 5l5 5M4 15l5 5",
+  leave: "M10 4H5v16h5M13 8l4 4-4 4M8 12h9",
   delete: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7",
 };
 

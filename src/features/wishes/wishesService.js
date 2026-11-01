@@ -5,7 +5,7 @@ import { createWishPayload, safeHttpUrl } from "./wishValidation.js";
 import { validateWishImageFile } from "./wishImageValidation.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionResponse"]} WishCollectionResponse */
-/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"]} WishCollectionItemResponse */
+/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"] & {reservedQuantity?:number|null,availableQuantity?:number|null}} WishCollectionItemResponse */
 /** @typedef {Readonly<{id: string, wishlistId: string, name: string, note: string | null, price: number | null,
  * quantity: number, isFavorite?: boolean, isSurprise?: boolean, acceptsSecondHand?: boolean, color?: string | null, size?: string | null, position: string, entityTag: string, url: string | null, imageUrl: string | null,
  * productUnavailable: boolean, imageUnavailable: boolean, reservedQuantity?: number | null, availableQuantity?: number | null}>} Wish */
@@ -36,7 +36,7 @@ export function createWishesService(session, { apiBaseUrl }) {
   if (!base || base.search || base.hash) throw new TypeError("A valid API base URL is required.");
   return { copyGroup: async (groupId, sourceWishlistId, sourceWishId, destinationWishlistId, { signal }) => {
     if (![groupId, sourceWishlistId, sourceWishId, destinationWishlistId].every(isWishlistId) || sourceWishlistId.toLowerCase() === destinationWishlistId.toLowerCase()) throw new ApiError({ kind: "http", statusCode: 400 });
-    /** @type {import("../../api/generated/openapi.js").components["schemas"]["CopyOwnedWishRequest"]} */
+    /** @type {{destinationWishlistId:string}} */
     const body = { destinationWishlistId };
     const response = await session.request(`/api/v1/groups/${groupId}/wishlists/${sourceWishlistId}/wishes/${sourceWishId}/copies`, {
       method: "POST", authentication: "required", csrf: true, body, signal,
@@ -45,13 +45,13 @@ export function createWishesService(session, { apiBaseUrl }) {
   }, copyOwned: async (sourceWishlistId, sourceWishId, destinationWishlistId, { signal }) => {
     const path = itemPath(sourceWishlistId, sourceWishId) + "/copies";
     if (!isWishlistId(destinationWishlistId) || sourceWishlistId === destinationWishlistId) throw new ApiError({ kind: "http", statusCode: 400 });
-    /** @type {import("../../api/generated/openapi.js").components["schemas"]["CopyOwnedWishRequest"]} */
+    /** @type {{destinationWishlistId:string}} */
     const body = { destinationWishlistId };
     const response = await session.request(path, { method: "POST", authentication: "required", csrf: true, body, signal });
     return createdWish(response, destinationWishlistId, base);
   }, copy: async (wishlistId, sourceShareLinkId, sourceWishId, { shareToken, signal }) => {
     if (![wishlistId, sourceShareLinkId, sourceWishId].every(isWishlistId)) throw new ApiError({ kind: "http", statusCode: 400 });
-    /** @type {import("../../api/generated/openapi.js").components["schemas"]["CopyWishRequest"]} */
+    /** @type {{sourceShareLinkId:string,sourceWishId:string}} */
     const body = { sourceShareLinkId, sourceWishId };
     const response = await session.request(`/api/v1/wishlists/${wishlistId}/wishes/copies`, {
       method: "POST", authentication: "required", csrf: true, body, shareToken, signal,

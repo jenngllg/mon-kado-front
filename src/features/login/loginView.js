@@ -88,7 +88,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   const googleButton = startGoogle ? createGoogleButton(() => { void departGoogle(); }) : null;
   if (googleButton) {
     const separator = textElement("p", "ou"); separator.className = "auth-method-separator";
-    form.append(separator, googleButton);
+    rememberLabel.after(googleButton, separator);
   }
   const links = textElement("div", "");
   links.className = "cluster";

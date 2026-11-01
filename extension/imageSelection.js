@@ -20,6 +20,7 @@ export function createImageSelection(api, container, onChange, loadSelectedImage
 
   /** @param {string[]} urls URLs already present in the page. */
   function setImages(urls) {
+    revision++; selected = ""; current = -1; loading = false;
     choices.replaceChildren(); buttons.length = 0;
     container.hidden = urls.length === 0;
     urls.slice(0, 12).forEach((url, index) => {
@@ -30,13 +31,15 @@ export function createImageSelection(api, container, onChange, loadSelectedImage
       button.append(picture); choices.append(button); buttons.push(button);
       button.addEventListener("click", () => { void select(url, index); });
     });
-    update();
+    if (urls.length) void select(urls[0], 0);
+    else { feedback.textContent = "Aucune image disponible."; update(); }
   }
 
   /** @param {string} url Selected image URL. @param {number} index Choice index. */
   async function select(url, index) {
+    if (current === index && (loading || selected)) return;
     const version = ++revision;
-    loading = true; selected = ""; current = -1; feedback.textContent = "Chargement de l’image…"; update();
+    loading = true; selected = ""; current = index; feedback.textContent = "Chargement de l’image…"; update();
     try {
       const parsed = new URL(url);
       const host = parsed.hostname.replace(/\.$/, "").toLowerCase();
@@ -47,12 +50,14 @@ export function createImageSelection(api, container, onChange, loadSelectedImage
         const [capture] = await api.scripting.executeScript({ target: { tabId: source.tabId }, func: imageAsWebp, args: [{ url: parsed.href, pageUrl: source.pageUrl }] });
         data = capture?.result || "";
       } catch { /* The image may be displayable but unavailable to page scripts. */ }
+      if (version !== revision) return;
       if (!data) data = await loadSelectedImage(parsed.href);
       if (!data || !data.startsWith("data:image/webp;base64,") || data.length > 2800000) throw new Error("image");
       if (version !== revision) return;
       selected = data; current = index; feedback.textContent = "Image sélectionnée.";
     } catch {
       if (version !== revision) return;
+      current = -1;
       feedback.textContent = "Cette image ne peut pas être importée. Essaie une autre image ou continue sans image.";
     } finally {
       if (version === revision) { loading = false; update(); }

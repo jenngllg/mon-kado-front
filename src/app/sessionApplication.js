@@ -1,3 +1,4 @@
+import { createImpersonationSession } from "../auth/impersonationSession.js";
 import { createSessionManager } from "../auth/sessionManager.js";
 import { createLoginTarget, getLoginDestination, isProtectedRoute } from "../auth/sessionGuards.js";
 import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, showNotification } from "../components/index.js";
@@ -22,7 +23,10 @@ import { installExtensionSessionBridge } from "../features/extension/extensionSe
  * reportError?: (error: unknown, source: "browser" | "promise") => void}} options Dependencies.
  */
 export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled = false, reportError, session = createSessionManager({ apiBaseUrl }),
-  google = createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled }) }) {
+  google }) {
+  const simulation=createImpersonationSession(session);
+  session=simulation.session;
+  google ??= createGoogleService({ session, apiBaseUrl, enabled: googleAuthEnabled });
   captureExtensionProduct(window);
   const disposeExtensionBridge = installExtensionSessionBridge(session, apiBaseUrl);
   let disposed = false;
@@ -43,6 +47,15 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   const shell = createApplicationShell({ apiBaseUrl, onLogout: () => { void session.logout(); },
     onMemberSearch: query => { void router.navigate(`${RoutePaths.Members}?${new URLSearchParams({ q: query })}`); },
   });
+  const simulationBanner=document.createElement("aside");simulationBanner.className="cluster impersonation-banner";simulationBanner.hidden=true;
+  const simulationLabel=document.createElement("strong");
+  const simulationExit=createButton({label:"Revenir à mon compte",variant:"secondary",onClick:()=>{void simulation.stop().catch(()=>showNotification(shell.notificationRegion,{message:"Impossible d’arrêter la simulation. Réessaie.",variant:"error"}));}});
+  simulationBanner.append(simulationLabel,simulationExit);shell.outlet.before(simulationBanner);
+  const onImpersonate=(/** @type {Event} */ event)=>{
+    const member=/** @type {CustomEvent<string>} */(event).detail;
+    void simulation.start(member).then(()=>router.replace(RoutePaths.Lists)).catch(()=>showNotification(shell.notificationRegion,{message:"Impossible de démarrer la simulation",variant:"error"}));
+  };
+  root.addEventListener("monkado-impersonate",onImpersonate);
   root.replaceChildren(shell.element);
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({
@@ -155,7 +168,17 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     },
   });
   let previous = session.getSnapshot();
+  const activityPages = new Set(["home", "members", "member-profile", "profile", "personal-data", "authenticator", "password-change", "email-change", "lists", "extension-add", "followed-lists", "groups", "group-join", "group-invitation", "group", "group-edit", "group-member", "group-wishlist", "group-wish", "new-list", "edit-list", "new-wish", "edit-wish", "wish-details", "list-details", "reservations", "reported-wishlists", "wishlist-report-review", "wishlist-moderation", "wishlist-report-history", "wishlist-moderation-history", "shared-wishlist", "shared-wish", "activity"]);
+  /** @type {import("../router/router.js").RouteSnapshot | null} */ let recordedRoute = null;
+  let recordedMember = "";
+  function recordVisit() {
+    const route = router.getCurrentRoute(), state = session.getSnapshot();
+    if (disposed || !route?.name || !activityPages.has(route.name) || state.status !== "authenticated" || !state.user || (recordedRoute === route && recordedMember === state.user.id)) return;
+    recordedRoute = route; recordedMember = state.user.id;
+    void session.request("/api/v1/member-activity/page-visits", { method: "POST", body: { page: route.name }, authentication: "required", csrf: true, expectEmptyResponse: true }).catch(() => {});
+  }
   const unsubscribeRouter = router.subscribe(route => {
+    recordVisit();
     if (route && route.name !== RouteNames.SharedWishlist && route.name !== RouteNames.SharedWish) sharing.forgetContinuity();
     if (route?.name !== RouteNames.Login) sharedSignIn.cancel();
     if (route?.name !== RouteNames.Login) passwordChangeNotice = false;
@@ -166,7 +189,13 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     renderFeedback();
     finishGoogle();
   });
+  let simulationWasActive=false;
   const unsubscribeSession = session.subscribe(state => {
+    const simulating=simulation.isActive();
+    simulationBanner.hidden=!simulating;simulationLabel.textContent=simulating?`Simulation de ${state.user?.displayName} — modifications réelles`:"";
+    if(simulationWasActive && !simulating && !disposed)void router.replace(RoutePaths.Activity);
+    simulationWasActive=simulating;
+    if(!previous.user || previous.user.id===state.user?.id)recordVisit();
     shell.setSession(state);
     const current = router.getCurrentRoute();
     const lostAccess = previous.status === "authenticated" && state.status !== "authenticated";
@@ -223,6 +252,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      root.removeEventListener("monkado-impersonate",onImpersonate);
       disposeExtensionBridge();
       passwordChangeNotice = false;
       googleDestination = null;

@@ -214,7 +214,7 @@ describe("public shared wishlist integration", () => {
     await observe(() => app.shell.outlet.querySelector(".wish-card") !== null); await app.router.navigate(detailPath);
     await observe(() => app.shell.outlet.querySelector('form[aria-label="Réserver ce souhait"]') !== null);
     expect(state.reservationWrites).toBe(0); const gate = barrier(), started = barrier(); state.beforeReserve = async () => { started.resolve(); await gate.promise; };
-    const submit = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Je réserve ce cadeau"); submit?.click(); submit?.click(); await started.promise;
+    const submit = [...app.shell.outlet.querySelectorAll("button")].find(button => button.getAttribute("aria-label") === "Je réserve ce cadeau"); submit?.click(); submit?.click(); await started.promise;
     expect(state.reservationWrites).toBe(1);
     expect([...app.shell.outlet.querySelectorAll("button")].filter(button => button.textContent?.startsWith("Actualiser")).every(button => button.disabled)).toBe(true);
     if (logout) await app.session.logout(); gate.resolve();
@@ -317,7 +317,7 @@ describe("public shared gift integration", () => {
     const { app, state } = setup(); state.reserved = editing; state.quantity = 3; state.reservationStatus = 409;
     await app.start(); await untilSession(app.session, value => value.status === "authenticated");
     await observe(() => app.shell.outlet.querySelector(".wish-card") !== null); await app.router.navigate(detailPath);
-    const label = editing ? "Enregistrer la quantité" : "Réserver ce souhait";
+    const label = editing ? "Enregistrer la quantité" : "Réserver";
     await observe(() => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === label));
     const quantity = /** @type {HTMLInputElement} */ (app.shell.outlet.querySelector('input[name="quantity"]'));
     quantity.value = "2"; quantity.dispatchEvent(new Event("input", { bubbles: true }));

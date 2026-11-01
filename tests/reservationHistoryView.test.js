@@ -15,6 +15,23 @@ async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); 
 /** @param {HTMLElement} view Current history view. */
 function changeFilter(view) { view.querySelector("select")?.dispatchEvent(new Event("change")); }
 describe("reservation history presentation", () => {
+  it("identifies a surprise idea and links to its original group",async()=>{
+    const wishHref="/groups/example/wishlists/list#suggestion-idea";
+    const {view}=setup({load:async()=>({...page,items:[{...item,isSuggestion:true,wishHref}]})});await settle();
+    expect(view.textContent).toContain("Idée surprise proposée");expect(view.querySelector(`a[href="${wishHref}"]`)).not.toBeNull();
+  });
+  it("shows the historical author without a profile link when the reservation is unavailable", async () => {
+    const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, status: "unavailable", endedAt: item.lastActivityAt, ownerDisplayName: "Camille", ownerHref: null }] }) });
+    await settle();
+    expect(view.querySelector(".reservation-history-card__context")?.textContent).toContain("Par Camille");
+    expect(view.querySelector('a[href^="/members/"]')).toBeNull();
+  });
+  it("links the author profile on an unavailable reservation", async () => {
+    const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, status: "unavailable", endedAt: item.lastActivityAt, ownerDisplayName: "Camille", ownerHref: "/members/author" }] }) });
+    await settle();
+    expect(view.querySelector('a[href="/members/author"]')?.textContent).toContain("Camille");
+    expect(view.querySelector(".reservation-history-card h2 a")).toBeNull();
+  });
   it("explains unavailable access beside the status with a dismissible disposable tooltip", async () => {
     const { view } = setup({ load: async () => ({ ...page, items: [{ ...item, status: "unavailable", endedAt: item.lastActivityAt }] }) });
     await settle();

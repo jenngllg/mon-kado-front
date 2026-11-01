@@ -64,6 +64,7 @@ export default [
       "tests/wishlistModerationView.test.js",
       "tests/wishlistHistoryView.test.js",
       "tests/adminAccess.test.js",
+      "tests/adminMembersView.test.js",
       "tests/wishlistShareRevokeDialog.test.js",
       "tests/sharedWishlistView.test.js",
       "tests/reservationHistoryView.test.js",

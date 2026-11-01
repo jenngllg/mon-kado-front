@@ -7,13 +7,20 @@ const member = { id: memberId, displayName: "Camille", displayNameTag: "0428", p
 const list = { id: otherId, ownerId: memberId, ownerDisplayName: "Camille", name: "Noël", occasion: /** @type {const} */ ("christmas"), eventDate: null, createdAt: at };
 /** @template T @param {T[]} items @param {boolean} [next] */
 const page = (items, next = false) => ({ items, currentPage: 1, pageSize: 100, totalCount: items.length, totalPages: 1, hasNextPage: next, hasPreviousPage: false });
-function setup() {
+/** @param {string} [currentUserId] */
+function setup(currentUserId) {
   const members = vi.fn(/** @type {ReturnType<typeof import("../src/features/groups/groupsService.js").createGroupsService>["members"]} */ (async () => page([member])));
   const wishlists = vi.fn(/** @type {ReturnType<typeof import("../src/features/groups/groupsService.js").createGroupsService>["wishlists"]} */ (async () => page([list])));
-  const service = createGroupMemberProfileService({ members, wishlists }, { groupId, apiBaseUrl: "https://api.example" });
+  const service = createGroupMemberProfileService({ members, wishlists }, { groupId, apiBaseUrl: "https://api.example", currentUserId });
   return { ...service, members, wishlists, signal: new AbortController().signal };
 }
 describe("group member's shared lists", () => {
+  it("opens only the authenticated owner's lists in management", async () => {
+    const owner = setup(memberId.toUpperCase());
+    expect((await owner.load(memberId, { signal: owner.signal })).wishlists[0].shareHref).toBe(`/lists/${otherId}`);
+    const visitor = setup(otherId);
+    expect((await visitor.load(memberId, { signal: visitor.signal })).wishlists[0].shareHref).toBe(`/groups/${groupId}/wishlists/${otherId}?fromMember=${memberId}`);
+  });
   it("keeps only the selected person's lists shared with this group and propagates the exact signal", async () => {
     const f = setup(); f.wishlists.mockResolvedValueOnce(page([{ ...list, ownerId: otherId }, list]));
     const result = await f.load(memberId, { signal: f.signal });

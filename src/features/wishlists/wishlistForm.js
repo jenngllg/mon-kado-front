@@ -82,7 +82,7 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
   function flushBlur() { const check = deferredBlur; deferredBlur = null; check?.(); }
   function updateSurpriseHint() {
     surpriseHint.textContent = surpriseMode.checked
-      ? "Mode surprise activé : les réservations des autres resteront masquées pour vous."
+      ? "Mode surprise activé : vos réservations restent visibles ; celles des autres sont masquées."
       : "Mode surprise désactivé : les réservations seront visibles pour vous.";
   }
   /** @param {typeof fields[number]} field Field to validate. */

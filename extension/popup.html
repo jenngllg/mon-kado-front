@@ -3,16 +3,21 @@
 <body><main>
   <div class="brand"><img src="icon.png" alt=""> MonKado<span>.</span></div>
   <h1>Ajouter un souhait</h1>
+  <div id="modes" class="destination-modes" aria-label="Destination du souhait" hidden>
+    <button id="own-mode" type="button" aria-pressed="true">Mes souhaits</button>
+    <button id="suggestion-mode" type="button" aria-pressed="false">Idée surprise</button>
+  </div>
   <p id="status" role="status">Chargement…</p>
   <form id="form" hidden>
     <label>Liste *<select id="list" required></select></label>
-    <label>Nom du souhait *<input id="name" maxlength="100" required></label>
-    <label>Prix en euros<input id="price" inputmode="decimal"></label>
+    <label>Nom du souhait *<input id="name" data-field="name" maxlength="100" required></label>
+    <label>Prix en euros<input id="price" data-field="price" inputmode="decimal"></label>
+    <label class="favorite-control"><input type="checkbox" data-field="favorite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg><span>Coup de cœur</span></label>
     <details class="variants">
       <summary>Ajouter une couleur ou une taille</summary>
       <div class="variants-fields">
-        <label>Couleur<input id="color" maxlength="100" placeholder="Ex. : vert sauge"></label>
-        <label>Taille / dimensions<input id="size" maxlength="100" placeholder="Ex. : M, 39, 140 × 200 cm"></label>
+        <label>Couleur<input id="color" data-field="color" maxlength="100" placeholder="Ex. : vert sauge"></label>
+        <label>Taille / dimensions<input id="size" data-field="size" maxlength="100" placeholder="Ex. : M, 39, 140 × 200 cm"></label>
       </div>
     </details>
     <fieldset id="images" hidden><legend>Choisir une image</legend>

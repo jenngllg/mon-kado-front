@@ -40,11 +40,13 @@ async function setup(context, surpriseMode, quantity) {
   });
   await context.route("http://localhost:7000/api/v1/members/current/reservations**", route => {
     if (route.request().method() === "OPTIONS") return route.fallback();
-    return route.fulfill({ status: 200, headers, json: { items: [{ id: listId, wishlistId: listId, wishId, shareLinkId: null,
+    const query=new URL(route.request().url()).searchParams;
+    const items=[{ id: listId, wishlistId: listId, wishId, shareLinkId: null,
       wishlistName: api.wishlist.name, wishName: api.wish.name, quantity: state.reserved || 1,
       status: state.reserved ? "active" : "cancelled", createdAt: "2026-10-09T09:00:00Z", lastActivityAt: "2026-10-09T09:00:00Z",
       endedAt: state.reserved ? null : "2026-10-09T09:00:00Z", shareUrl: null, ownedWishPath: `/lists/${listId}/wishes/${wishId}`, imageUrl: null,
-    }], currentPage: 1, pageSize: 20, totalCount: 1 } });
+    }].filter(item=>!query.has("status") || item.status===query.get("status"));
+    return route.fulfill({ status:200,headers,json:{items,currentPage:1,pageSize:Number(query.get("pageSize")||20),totalCount:items.length} });
   });
   return { ...api, owner: state };
 }
@@ -53,11 +55,10 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     await setup(context, false, 3);
     /** @type {number | undefined} */ let titleSize;
-    for (const path of ["/lists", `/lists/${listId}/wishes/${wishId}`, "/reservations"]) {
+    for (const path of ["/lists", "/reservations"]) {
       await page.goto(path);
       const title = page.locator("main h1");
       await expect(title).toBeVisible();
-      if (path.includes("/wishes/")) await expect(title).toHaveText("Une théière");
       const dimensions = await title.evaluate(element => {
         const rect = element.getBoundingClientRect();
         const main = element.closest("main")?.getBoundingClientRect();
@@ -75,13 +76,22 @@ for (const width of [390, 1440]) {
       await page.goto(`/lists/${listId}/wishes/${wishId}`);
       const panel = page.getByRole("region", { name: "Réservation pour moi" });
       await expect(panel).toBeVisible();
+      const imageBox = await page.locator(".shared-wish-product > .wish-card__media").boundingBox();
+      const infoBox = await page.locator(".wish-detail-information").boundingBox();
+      const reservationBox = await page.locator(".shared-wish-reservation").boundingBox();
+      expect(imageBox && infoBox && reservationBox).toBeTruthy();
+      if (width === 1440 && imageBox && infoBox && reservationBox) {
+        expect(infoBox.x).toBeGreaterThan(imageBox.x + imageBox.width);
+        expect(Math.abs((imageBox.y + imageBox.height) - (reservationBox.y + reservationBox.height))).toBeLessThan(2);
+      }
       expect(api.owner.writes).toBe(0);
       if (surprise) {
-        expect(api.owner.reads).toBe(0);
+        expect(api.owner.reads).toBe(1);
         await expect(page.locator(".shared-wish-quantities")).toHaveCount(0);
-        await expect(panel).not.toContainText("Le mode surprise est activé");
+        await expect(panel).toContainText("Mode surprise : quelqu’un a peut-être déjà réservé ce souhait.");
         await expect(panel.getByRole("spinbutton")).toHaveCount(0);
       } else {
+        await expect(panel).not.toContainText("Mode surprise :");
         await expect(panel.getByRole("spinbutton")).toBeVisible();
         await panel.getByRole("spinbutton").fill("2");
       }
@@ -89,8 +99,7 @@ for (const width of [390, 1440]) {
       await page.screenshot({ path: testInfo.outputPath("owner-reserve.png"), fullPage: true });
       await panel.getByRole("button", { name: surprise ? "Je réserve ce cadeau" : "Réserver ce souhait", exact: true }).click();
       if (surprise) {
-        await expect(panel).toContainText("Retrouve ou gère ta réservation");
-        await expect(panel).not.toContainText(/exemplaire|Quantité enregistrée|Tu as réservé/);
+        await expect(panel).toContainText("Tu as réservé 1 exemplaire");
       } else await expect(panel).toContainText("Tu as réservé 2 exemplaire");
       expect(api.owner.writes).toBe(1);
       await page.goto("/reservations");
@@ -114,19 +123,48 @@ for (const width of [390, 1440]) {
 for (const failure of ["conflict", "uncertain", "duplicate"]) {
   test(`surprise ${failure} does not reveal quantities or replay a write`, async ({ page, context }) => {
     const api = await setup(context, true, 3);
-    api.owner.conflict = failure === "conflict"; api.owner.uncertain = failure === "uncertain"; api.owner.reserved = failure === "duplicate" ? 1 : 0;
+    api.owner.conflict = failure === "conflict"; api.owner.uncertain = failure === "uncertain";
     await page.goto(`/lists/${listId}/wishes/${wishId}`);
     const panel = page.getByRole("region", { name: "Réservation pour moi" });
+    await expect(panel.getByRole("button", { name: "Réserver ce souhait", exact: true })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "Réserver ce souhait", exact: true })).toHaveAccessibleDescription("Mode surprise : quelqu’un a peut-être déjà réservé ce souhait.");
+    if (failure === "duplicate") api.owner.reserved = 1;
     await panel.getByRole("button", { name: "Réserver ce souhait", exact: true }).click();
     await expect(panel.getByRole("alert")).toBeVisible();
     await expect(panel.getByRole("button", { name: "Réserver ce souhait", exact: true })).toBeDisabled();
-    expect(api.owner.writes).toBe(1); expect(api.owner.reads).toBe(0);
+    expect(api.owner.writes).toBe(1); expect(api.owner.reads).toBe(1);
     if (failure === "duplicate") {
       await panel.getByRole("button", { name: "Vérifier ma réservation" }).click();
-      await expect(panel).toContainText("Retrouve ou gère ta réservation");
-      await expect(panel).not.toContainText(/exemplaire|Quantité enregistrée|Tu as réservé/);
+      await expect(panel).toContainText("Tu as réservé 1 exemplaire");
       expect(api.owner.writes).toBe(1);
     }
     expect(api.unexpected).toEqual([]);
   });
 }
+
+
+test("surprise owner sees their full personal reservation after reload", async ({ page, context }) => {
+  const api = await setup(context, true, 2);
+  await page.goto(`/lists/${listId}/wishes/${wishId}`);
+  const panel = page.getByRole("region", { name: "Réservation pour moi" });
+  await expect(panel).toContainText("Mode surprise : quelqu’un a peut-être déjà réservé ce souhait.");
+  await panel.getByRole("spinbutton").fill("2");
+  await panel.getByRole("button", { name: "Réserver ce souhait" }).click();
+  await expect(panel).toContainText("Tu as réservé 2 exemplaires");
+  const manage = panel.getByRole("link", { name: "Gérer ma réservation" });
+  await expect(manage).toHaveAttribute("href", "/reservations");
+  await expect(manage).toHaveCSS("background-color", "rgb(185, 62, 50)");
+  await expect(manage).toHaveCSS("text-decoration-line", "none");
+  await page.reload();
+  await expect(panel).toContainText("Tu as réservé 2 exemplaires");
+  await expect(panel.getByRole("spinbutton")).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "Réserver ce souhait" })).toHaveCount(0);
+  await expect(page.locator(".shared-wish-quantities")).toHaveCount(0);
+  await page.goto(`/lists/${listId}`);
+  const card = page.locator(".wish-card--gallery");
+  await expect(card).toContainText("Tu as réservé 2 exemplaires");
+  await expect(card).not.toContainText("Quantité disponible");
+  await page.reload();
+  await expect(card).toContainText("Tu as réservé 2 exemplaires");
+  expect(api.owner.writes).toBe(1); expect(api.unexpected).toEqual([]);
+});

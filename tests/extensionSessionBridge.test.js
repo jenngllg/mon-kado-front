@@ -6,6 +6,7 @@ vi.mock("../src/features/wishlists/wishlistsService.js", () => ({ createWishlist
 vi.mock("../src/features/wishes/wishesService.js", () => ({ createWishesService: () => ({ create: calls.create, uploadImage: calls.uploadImage }) }));
 import { installExtensionSessionBridge } from "../src/features/extension/extensionSessionBridge.js";
 import { ApiError } from "../src/api/apiError.js";
+import {registerSuggestionDraft,suggestionDraftDestination} from "../src/features/extension/suggestionDraft.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 /** @type {(() => void) | undefined} */ let dispose;
 afterEach(() => { dispose?.(); vi.resetAllMocks(); });
@@ -26,6 +27,15 @@ it("returns only available lists through the authenticated session", async () =>
   expect(await send("lists")).toEqual({ lists: [{ id, name: "Ma liste" }] });
   expect(calls.create).not.toHaveBeenCalled();
 });
+it("offers the open private editor and fills it without creating an owned wish",async()=>{
+  setup();calls.load.mockResolvedValue([]);const apply=vi.fn(()=>true),stop=registerSuggestionDraft({label:"Idée surprise pour Léa",apply});
+  try {
+    const target=suggestionDraftDestination();expect(await send("lists")).toEqual({lists:[target]});
+    expect(await send("create",{listId:target?.id,name:"Livre",price:"12",url:"https://shop.example/product"})).toEqual({success:true,draft:true});
+    expect(apply).toHaveBeenCalledOnce();expect(calls.create).not.toHaveBeenCalled();expect(calls.uploadImage).not.toHaveBeenCalled();
+    stop();expect(await send("create",{listId:target?.id,name:"Livre",price:"12",url:"https://shop.example/product"})).toEqual({error:"invalid"});
+  }finally{stop();}
+});
 it("retrieves only the selected image with the connected session", async () => {
   setup(); calls.request.mockResolvedValue({ status: 200, data: { contentType: "image/webp", contentBase64: "QUJD" } });
   expect(await send("image", { listId: id, url: "https://images.example/product.png" })).toEqual({ image: "data:image/webp;base64,QUJD" });
@@ -33,7 +43,7 @@ it("retrieves only the selected image with the connected session", async () => {
   expect(calls.create).not.toHaveBeenCalled();
 });
 it("reports that the site relay is present without accessing the session", async () => {
-  const ensure = setup(); expect(await send("probe")).toEqual({ ready: true, supportsVariants: true });
+  const ensure = setup(); expect(await send("probe")).toEqual({ ready: true, supportsVariants: true, supportsFavorites: true });
   expect(ensure).not.toHaveBeenCalled(); expect(calls.load).not.toHaveBeenCalled();
 });
 it("accepts serialized messages across browser extension boundaries", async () => {
@@ -42,14 +52,14 @@ it("accepts serialized messages across browser extension boundaries", async () =
     document.addEventListener("monkado-extension-response", event => resolve(JSON.parse(/** @type {CustomEvent<string>} */ (event).detail)), { once: true });
   });
   document.dispatchEvent(new CustomEvent("monkado-extension-request", { detail: JSON.stringify({ id, action: "probe" }) }));
-  expect(await response).toEqual({ id, result: { ready: true, supportsVariants: true } });
+  expect(await response).toEqual({ id, result: { ready: true, supportsVariants: true, supportsFavorites: true } });
 });
 it("creates only on an explicit command using the captured fields", async () => {
   setup(); calls.create.mockResolvedValue({ wish: { id }, etag: '"1"' });
-  const value = { listId: id, name: "Boîte", price: "2,99", color: "Vert sauge", size: "M", url: "https://shop.example/item", image: "" };
+  const value = { listId: id, name: "Boîte", price: "2,99", color: "Vert sauge", size: "M", url: "https://shop.example/item", image: "", isFavorite: true };
   expect(await send("create", value)).toEqual({ success: true });
   expect(calls.create).toHaveBeenCalledOnce();
-  expect(calls.create).toHaveBeenCalledWith(id, expect.objectContaining({ name: "Boîte", price: "2,99", color: "Vert sauge", size: "M", url: value.url }), { signal: expect.anything() });
+  expect(calls.create).toHaveBeenCalledWith(id, expect.objectContaining({ name: "Boîte", price: "2,99", color: "Vert sauge", size: "M", url: value.url, isFavorite: true }), { signal: expect.anything() });
   expect(calls.uploadImage).not.toHaveBeenCalled();
 });
 it("returns a separate result if image upload fails after creation", async () => {
@@ -65,7 +75,7 @@ it("requires a connected MonKado session before loading lists or creating", asyn
 });
 it("rejects malformed creation requests without writing", async () => {
   setup();
-  for (const value of [null, {}, { listId: id, name: "Box", price: "" }, { listId: id, name: "Box", price: "", url: "https://shop.example", color: 12 }]) {
+  for (const value of [null, {}, { listId: id, name: "Box", price: "" }, { listId: id, name: "Box", price: "", url: "https://shop.example", color: 12 }, { listId:id,name:"Box",price:"",url:"https://shop.example",isFavorite:1 }]) {
     expect(await send("create", value)).toEqual({ error: "invalid" });
   }
   expect(calls.create).not.toHaveBeenCalled();

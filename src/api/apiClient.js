@@ -52,6 +52,7 @@ const JsonContentType = "application/json";
  *   signal?: AbortSignal,
  *   timeoutMs?: number,
  *   expectEmptyResponse?: boolean
+ *   impersonationId?: string,
  *   archiveBytes?: number
  * }} ApiRequestOptions
  */
@@ -201,6 +202,7 @@ export class ApiClient {
       shareToken: options.shareToken,
       hasBody: options.body !== undefined,
     });
+    if (options.impersonationId) headers.set("X-MonKado-Impersonation",options.impersonationId);
     let requestBody;
 
     try {

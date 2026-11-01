@@ -26,6 +26,14 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
 describe("wishlist owner detail", () => {
+  it("reports an unavailable personal reservation lookup without asserting availability", async () => {
+    const personalReservation = vi.fn().mockRejectedValue(new Error("unavailable"));
+    const ui = setup({ personalReservation });
+    await vi.waitFor(() => expect(ui.view.textContent).toContain("Certaines de tes réservations n’ont pas pu être vérifiées."));
+    expect(ui.view.querySelector(".wish-gallery__personal-reservation")).toBeNull();
+    expect(ui.view.querySelector(".wish-card")).not.toBeNull();
+  });
+
   it("recovers failed images only after an explicit fresh collection read", async () => {
     // Arrange
     const ui = setup(); await settle();
@@ -39,7 +47,7 @@ describe("wishlist owner detail", () => {
     retry.click(); await settle();
     // Assert
     expect(ui.loadWishes).toHaveBeenCalledTimes(2); expect(ui.loadOne).toHaveBeenCalledOnce();
-    expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("https://api.test/fresh"); expect(retry.hidden).toBe(true);
+    expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("https://api.test/fresh?size=thumbnail"); expect(retry.hidden).toBe(true);
   });
   it.each(["availableFirst"])("retains URL availability sort %s until the visible collection has loaded", async initialSort => {
     // Arrange
@@ -264,17 +272,25 @@ describe("wishlist owner detail", () => {
     expect(ui.view.textContent).not.toMatch(/Réservé|Disponible|participant|controlled|collection|922337/);
     expect(ui.view.querySelector("form,[data-etag]")).toBeNull();
   });
-  it("keeps the backend order and renders all gifts without a page or arbitrary limit", async () => {
+  it("keeps the backend order and initially renders a batch without pagination", async () => {
     const rows = Array.from({ length: 125 }, (_, i) => ({ ...wish, id: String(i), name: "Souhait " + i, position: String(125 - i), imageUrl: null }));
     const ui = setup({ loadWishes: async () => ({ wishes: rows, etag: '"full"' }) }); await settle();
-    expect([...ui.view.querySelectorAll("li h3")].map(heading => heading.textContent)).toEqual(rows.map(row => row.name));
+    expect([...ui.view.querySelectorAll("li h3")].map(heading => heading.textContent)).toEqual(rows.slice(0, 24).map(row => row.name));
     expect(ui.view.textContent).not.toMatch(/Page suivante|Page précédente/);
   });
   it("shows an empty state with the implemented manual creation action", async () => {
     const ui = setup({ loadWishes: async () => ({ wishes: [], etag: '"empty"' }) }); await settle();
-    expect(ui.view.textContent).toContain("Aucun souhait pour le moment"); expect(ui.view.querySelectorAll("li")).toHaveLength(0);
-    expect(ui.view.querySelector(`a[href="/lists/${id}/wishes/new"]`)?.getAttribute("aria-label")).toBe("Ajouter un souhait"); expect(ui.view.textContent).not.toContain("Actualiser les souhaits");
+    const empty = ui.view.querySelector(".wishlist-details-empty");
+    expect(empty?.textContent).toBe("Commence par Créer un souhait et donne des idées à tes proches"); expect(ui.view.querySelectorAll("li")).toHaveLength(0);
+    expect(empty?.querySelector(`a[href="/lists/${id}/wishes/new"]`)?.textContent).toBe("Créer un souhait");
+    expect(ui.view.querySelector('.wishlist-details-actions a[href$="/wishes/new"]')?.hasAttribute("hidden")).toBe(true);
+    expect(ui.view.textContent).not.toContain("Actualiser les souhaits");
     expect(ui.view.querySelector('button[aria-label="Réorganiser les souhaits"]')).toBeNull();
+  });
+  it.each([{ isArchived: true }, { isSuspended: true }])("keeps a protected empty list read-only: %o", async state => {
+    const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, ...state } }), loadWishes: async () => ({ wishes: [], etag: '"empty"' }) }); await settle();
+    expect(ui.view.querySelector(".wishlist-details-empty")?.textContent).toBe("Aucun souhait pour le moment");
+    expect(ui.view.querySelector('a[href$="/wishes/new"]')).toBeNull();
   });
   it.each([["birthday", "Anniversaire"], ["christmas", "Noël"], ["wedding", "Mariage"], ["birth", "Naissance"], ["other", undefined]])("supports occasion %s and optional date/message/price/note/image", async (occasion, label) => {
     const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, occasion: /** @type {typeof list.wishlist.occasion} */ (occasion), eventDate: null, message: null } }),

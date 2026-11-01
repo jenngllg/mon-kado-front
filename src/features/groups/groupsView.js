@@ -21,6 +21,7 @@ export function createGroupsView({ service, signal, navigate, apiBaseUrl = "" })
     openGroupCreateDialog({ parent: frame.element, trigger: create, service, signal: frame.signal, navigate, onClose: () => { void frame.read(); } });
   } });
   const join = createActionLink({ label: "Rejoindre un groupe", href: "/groups/join" });
+  join.classList.add("ui-button", "ui-button--secondary", "group-join-action");
   frame.actions.append(join, create);
   let invitePage = 1;
   frame.onRead(async () => {
@@ -36,7 +37,7 @@ export function createGroupsView({ service, signal, navigate, apiBaseUrl = "" })
       const section = node("section", "", "group-invitations flow"); section.append(node("h2", "On t’invite !"));
       for (const invitation of invitations.items) {
         const row = node("article", "", "group-invitation");
-        const copy = node("div"); copy.append(node("h3", invitation.groupName), node("p", `Organisé par ${invitation.ownerDisplayName}`));
+        const copy = node("div"); copy.append(node("h3", invitation.groupName));
         const actions = node("div", "", "cluster");
         actions.append(createButton({ label: "Accepter", onClick: () => { void frame.run(async () => { await service.accept(invitation.id, { signal: frame.signal }); }); } }),
           createButton({ label: "Refuser", variant: "secondary", onClick: () => { void frame.run(async () => { await service.decline(invitation.id, { signal: frame.signal }); }); } }));
@@ -73,7 +74,6 @@ export function createGroupView({ service, groupId, memberId, apiBaseUrl, signal
   frame.element.prepend(back);
   frame.onRead(async () => {
     const { group, etag } = await service.loadOne(groupId, { signal: frame.signal });
-    const owner = group.ownerId === memberId;
     const [members, invitations] = await Promise.all([
       service.members(groupId, { signal: frame.signal }), service.sentInvitations(groupId, { signal: frame.signal }),
     ]);
@@ -84,12 +84,12 @@ export function createGroupView({ service, groupId, memberId, apiBaseUrl, signal
     frame.title.before(createGroupAvatar(group, apiBaseUrl));
     document.title = `${group.name} · MonKado`;
     const invite = createButton({ label: "Inviter un proche", variant: "secondary", onClick: () => {
-      openGroupShareDialog({ parent: frame.element, trigger: invite, signal: frame.signal, groupId, group, apiBaseUrl, owner, service });
+      openGroupShareDialog({ parent: frame.element, trigger: invite, signal: frame.signal, groupId, group, apiBaseUrl, service });
     } });
     invite.setAttribute("aria-label", "Inviter un proche"); invite.title = "Inviter un proche";
     invite.replaceChildren(); prependShareDialogIcon(invite, "share");
     invite.classList.add("group-invite-action", "icon-action");
-    if (owner) {
+    {
       const edit = createActionLink({ label: "Modifier le groupe", href: `/groups/${groupId}/edit` });
       edit.classList.add("ui-button", "ui-button--secondary");
       applyActionIcon(edit, "edit", "Modifier le groupe");
@@ -98,13 +98,12 @@ export function createGroupView({ service, groupId, memberId, apiBaseUrl, signal
         save: async () => { await service.remove(groupId, { etag, signal: frame.signal }); navigate("/groups"); },
       }) });
       applyActionIcon(remove, "delete", "Supprimer le groupe"); remove.classList.add("icon-action--danger");
-      frame.actions.append(edit, invite, remove);
-    } else {
       const leave = createButton({ label: "Quitter le groupe", variant: "secondary", onClick: () => openDialog(frame, leave, {
-        title: "Quitter ce groupe ?", description: "Tu perdras les accès accordés par ce groupe. Tes listes n’y seront plus partagées.", label: "Quitter", danger: true,
+        title: "Quitter ce groupe ?", description: group.memberCount === 1 ? "Tu es le dernier membre : le groupe sera supprimé. Tes listes et souhaits seront conservés." : "Tu perdras les accès accordés par ce groupe. Tes listes n’y seront plus partagées. Si tu es le dernier membre, le groupe sera supprimé.", label: "Quitter", danger: true,
         save: async () => { await service.leave(groupId, { signal: frame.signal }); navigate("/groups"); },
       }) });
-      frame.actions.append(leave, invite);
+      applyActionIcon(leave, "leave", "Quitter le groupe");
+      frame.actions.append(edit, invite, leave, remove);
     }
     const people = node("section", "", "group-people flow");
     const roster = node("ul", "", "group-members"); roster.setAttribute("role", "list"); roster.setAttribute("aria-label", "Membres du groupe");
@@ -115,9 +114,8 @@ export function createGroupView({ service, groupId, memberId, apiBaseUrl, signal
       profile.setAttribute("aria-label", `Voir les listes de ${person.displayName}`);
       profile.replaceChildren(createMemberAvatar({ memberId: person.id, imageUrl: photo.imageUrl, size: 56 }));
       const text = node("div"); text.append(node("p", person.displayName, "group-member__name"), node("p", `${person.displayName}#${person.displayNameTag}`, "group-member__handle"));
-      if (person.id === group.ownerId) text.append(node("span", "Organisateur", "group-card__badge"));
       profile.append(text); row.append(profile);
-      if (owner && person.id !== memberId) {
+      if (person.id !== memberId) {
         const remove = createButton({ label: `Retirer ${person.displayName}`, variant: "secondary", onClick: () => openDialog(frame, remove, {
           title: `Retirer ${person.displayName} du groupe ?`, label: "Retirer", danger: true,
           description: "Ses listes ne seront plus partagées ici et cette personne perdra les accès accordés par le groupe.",
@@ -136,7 +134,7 @@ export function createGroupView({ service, groupId, memberId, apiBaseUrl, signal
         for (const invitation of invitations.items) {
           const row = node("li", "", "group-invitation");
           row.append(node("span", `${invitation.displayName}#${invitation.displayNameTag}`));
-          if (owner) row.append(createButton({ label: `Retirer l’invitation de ${invitation.displayName}`, variant: "secondary", onClick: () => {
+          row.append(createButton({ label: `Retirer l’invitation de ${invitation.displayName}`, variant: "secondary", onClick: () => {
             void frame.run(async () => { await service.revoke(groupId, invitation.id, { signal: frame.signal }); });
           } })); pending.append(row);
         }

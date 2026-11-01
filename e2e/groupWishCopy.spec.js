@@ -26,6 +26,7 @@ async function groupCopyApi(context, { source = sourceId } = {}) {
       return send(201, { ...api.wish, id: copiedId, wishlistId: listId, position: 2, isFavorite: false, reservedQuantity: 0, availableQuantity: api.wish.quantity });
     }
     if (path.endsWith("/subscriptions/current")) return missing("WISHLIST_SUBSCRIPTION_NOT_FOUND");
+    if (path === `/api/v1${base}/suggestions` && method === "GET") return send(200, []);
     if (path.endsWith("/members")) return send(200, { items: [{ id: ownerId, displayName: "Alex", displayNameTag: "0428", profileImageUrl: null, joinedAt: "2026-10-27T08:00:00Z" }], currentPage: 1, pageSize: 100, totalCount: 1, totalPages: 1, hasPreviousPage: false, hasNextPage: false });
     if (path === `/api/v1${base}`) return send(200, { ...api.wishlist, id: source, ownerId, ownerDisplayName: "Alex", canSubscribe: true, canReserve: true, wishes: [{ ...api.wish, wishlistId: source }] });
     if (path === `/api/v1${base}/wishes/${wishId}`) return send(200, { ...api.wish, wishlistId: source, canReserve: true });
@@ -35,6 +36,28 @@ async function groupCopyApi(context, { source = sourceId } = {}) {
 }
 
 for (const width of [390, 1440]) {
+  test(`copy a private group wish into several lists at ${width}px`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 1000 }); const api = await groupCopyApi(context);
+    const other = "019c52dd-56c1-7cc6-8a95-243f3a032e72";
+    const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"copy"' };
+    const writes = /** @type {string[]} */ ([]);
+    await context.route("http://localhost:7000/api/v1/wishlists", route => route.request().method() === "OPTIONS" ? route.fallback() : route.fulfill({ status: 200, headers, json: [api.wishlist, { ...api.wishlist, id: other, name: "Noël" }] }));
+    await context.route(`http://localhost:7000/api/v1${api.base}/wishes/${wishId}/copies`, async route => {
+      if (route.request().method() === "OPTIONS") return route.fallback();
+      expect(route.request().headers()["x-monkado-share-token"]).toBeUndefined();
+      expect(route.request().headers()["x-csrf-token"]).toBe("csrf-test-only");
+      const destination = route.request().postDataJSON().destinationWishlistId; writes.push(destination);
+      await route.fulfill({ status: 201, headers, json: { ...api.wish, id: destination, wishlistId: destination, isFavorite: false } });
+    });
+    await page.goto(`${api.base}/wishes/${wishId}`); await page.getByRole("button", { name: "Je le veux aussi !", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Je le veux aussi !", exact: true });
+    await dialog.getByRole("checkbox", { name: api.wishlist.name, exact: true }).check();
+    await dialog.getByRole("checkbox", { name: "Noël", exact: true }).check();
+    await dialog.getByRole("button", { name: "Ajouter", exact: true }).click();
+    await expect(dialog).toBeHidden(); expect(writes).toEqual([listId, other]);
+    await expect(page.getByRole("status").filter({ hasText: "Souhait ajouté à 2 listes." })).toBeVisible();
+    expect(api.unexpected).toEqual([]);
+  });
   for (const entry of ["card", "detail"]) {
     test(`copy a group wish from ${entry} into an owned list at ${width}px`, async ({ page, context }, testInfo) => {
       await page.setViewportSize({ width, height: 1000 });
@@ -44,19 +67,19 @@ for (const width of [390, 1440]) {
       await expect(card).toHaveCount(1);
       if (entry === "detail") await card.locator("h3 a").click();
       else await card.hover();
-      const trigger = page.getByRole("button", { name: "Ajouter à mes listes", exact: true });
+      const trigger = page.getByRole("button", { name: "Je le veux aussi !", exact: true });
       await expect(trigger).toBeVisible(); await trigger.focus();
       if (entry === "card") {
         await expect(trigger).toHaveCSS("opacity", "1");
         const target = await trigger.boundingBox(); expect(target?.width).toBe(44); expect(target?.height).toBe(44);
       }
       await trigger.press("Enter");
-      const dialog = page.getByRole("dialog", { name: "Ajouter à mes listes", exact: true });
-      await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(listId);
+      const dialog = page.getByRole("dialog", { name: "Je le veux aussi !", exact: true });
+      await expect(dialog.getByRole("checkbox")).toBeChecked();
       await dialog.getByRole("button", { name: "Annuler", exact: true }).click();
       await expect(trigger).toBeFocused(); expect(api.copy.writes).toBe(0);
       await trigger.press("Enter");
-      await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(listId);
+      await expect(dialog.getByRole("checkbox")).toBeChecked();
       expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath("private-wish-copy.png"), fullPage: true });
       await dialog.getByRole("button", { name: "Ajouter", exact: true }).click();
@@ -73,13 +96,13 @@ for (const failure of ["network", "revoked"]) {
   test(`a ${failure} failure while copying a group wish never replays the write`, async ({ page, context }) => {
     const api = await groupCopyApi(context); api.copy.failure = failure;
     await page.goto(`${api.base}/wishes/${wishId}`);
-    await page.getByRole("button", { name: "Ajouter à mes listes", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "Ajouter à mes listes", exact: true });
+    await page.getByRole("button", { name: "Je le veux aussi !", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Je le veux aussi !", exact: true });
     await dialog.getByRole("button", { name: "Ajouter", exact: true }).click();
     if (failure === "revoked") {
       await expect(dialog).toBeHidden();
       await expect(page.getByRole("heading", { name: "Liste indisponible", exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Ajouter à mes listes", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Je le veux aussi !", exact: true })).toHaveCount(0);
     } else {
       await expect(dialog.getByRole("link", { name: "Consulter ma liste", exact: true })).toHaveAttribute("href", `/lists/${listId}`);
       await expect(dialog.getByRole("button", { name: "Ajouter", exact: true })).toBeHidden();
@@ -95,10 +118,10 @@ for (const condition of ["no-lists", "archived", "suspended", "same-list"]) {
     api.wishlist.isArchived = condition === "archived"; api.wishlist.isSuspended = condition === "suspended";
     await page.goto(api.base);
     await expect(page.locator(".wish-card--reading")).toHaveCount(1);
-    await expect(page.getByRole("button", { name: "Ajouter à mes listes", exact: true })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Je le veux aussi !", exact: true })).toBeHidden();
     await page.locator(".wish-card--reading h3 a").click();
     await expect(page.getByRole("heading", { name: api.wish.name, exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Ajouter à mes listes", exact: true })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Je le veux aussi !", exact: true })).toBeHidden();
     expect(api.copy.writes).toBe(0); expect(api.unexpected).toEqual([]);
   });
 }
@@ -108,10 +131,10 @@ test.describe("private copy on touch screens", () => {
   test("offers a persistent copy action without requiring hover", async ({ page, context }) => {
     const api = await groupCopyApi(context);
     await page.goto(api.base);
-    const trigger = page.getByRole("button", { name: "Ajouter à mes listes", exact: true });
+    const trigger = page.getByRole("button", { name: "Je le veux aussi !", exact: true });
     await expect(trigger).toBeVisible(); await expect(trigger).toHaveCSS("opacity", "1"); await expect(trigger).toHaveCSS("pointer-events", "auto");
     await trigger.tap();
-    await expect(page.getByRole("dialog", { name: "Ajouter à mes listes", exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Je le veux aussi !", exact: true })).toBeVisible();
     expect(api.copy.writes).toBe(0); expect(api.unexpected).toEqual([]);
   });
 });

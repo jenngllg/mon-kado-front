@@ -1,8 +1,12 @@
 # Extension Chrome MonKado
 
-L’extension utilise les comptes et listes du site public `https://www.monkado.fr`. Elle lit les informations disponibles directement dans la page produit au clic sur son icône. Aucun appel d’analyse de lien n’est effectué. Le nom et le prix restent modifiables. Elle propose jusqu’à douze photos détectées ; l’utilisateur peut en choisir une ou continuer sans image.
+L’extension utilise les comptes et listes du site public `https://www.monkado.fr`. Elle lit les informations disponibles directement dans la page produit au clic sur son icône. Aucun appel d’analyse de lien n’est effectué. Le nom et le prix restent modifiables. Elle propose jusqu’à douze photos détectées ; la première est sélectionnée automatiquement et reste remplaçable, avec une option « Sans image ». Le cœur « Coup de cœur » se colore au clic et est enregistré avec chaque souhait personnel.
 
-Les miniatures proviennent des adresses d’images indiquées par la page. Lorsqu’une photo est choisie, l’extension essaie de la lire depuis l’onglet produit, sans cookies ni nouvelle demande d’autorisation, puis la redimensionne avant l’envoi à MonKado. Si cette lecture échoue, MonKado tente de récupérer uniquement l’image choisie avec son transport sécurisé. Certains sites peuvent empêcher sa récupération.
+Avec une seule liste personnelle, le choix utilise une liste déroulante simple. Avec plusieurs listes, la liste déroulante permet de cocher plusieurs destinations. La première liste est cochée initialement. Un clic sur « Ajouter » crée un souhait indépendant dans chaque liste choisie. Les succès sont conservés lors d’un refus partiel : une nouvelle confirmation ne vise que les listes restantes. Un résultat incertain bloque toute nouvelle tentative dans cette fenêtre et demande une vérification dans MonKado. Le préremplissage d’une idée surprise conserve sa destination privée unique et n’ajoute aucun souhait automatiquement.
+
+Le relais du site annonce la prise en charge des coups de cœur. Si le site est plus ancien, l’extension demande de le mettre à jour puis d’actualiser son onglet avant d’envoyer un coup de cœur, pour éviter de perdre ce choix.
+
+Les miniatures proviennent des adresses d’images indiquées par la page. Lorsqu’une photo est choisie, l’extension la lit depuis l’onglet produit, sans cookies ni nouvelle demande d’autorisation, puis la redimensionne avant l’envoi à MonKado. Les restrictions entre domaines peuvent empêcher l’import de certaines images.
 
 La session reste dans MonKado. Un onglet du site public doit être ouvert et connecté : l’extension lui demande les listes et lui transmet l’ajout, sans accéder aux identifiants ni aux jetons. Elle n’ouvre aucune page. Après installation ou mise à jour de l’extension, actualiser cet onglet MonKado pour activer le relais.
 

@@ -48,7 +48,7 @@ export function createSharedWishReservation({ session, apiBaseUrl, sharing, shar
         update: (quantity, etag, updateSignal) => reservations.update(shareLinkId, wish.id, quantity, { etag, signal: updateSignal }),
         verify: readSignal => verify(showLookup, readSignal) }),
       createForm: (busy, showLookup, immediately) => createReservationCreateForm({ available: wish.availableQuantity ?? 0,
-        singleItem: wish.quantity === 1, submitOnReady: immediately, confirmation, onCancel, signal, onSaved, onUnavailable, onBusy: busy,
+        singleItem: wish.quantity === 1, submitOnReady: immediately, confirmation, compact: !confirmation, onCancel, signal, onSaved, onUnavailable, onBusy: busy,
         create: (quantity, createSignal) => reservations.create(shareLinkId, wish.id, quantity, { signal: createSignal }),
         verify: readSignal => verify(showLookup, readSignal) }),
     });

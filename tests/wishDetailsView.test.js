@@ -27,7 +27,7 @@ describe("owner wish detail", () => {
     views.push(view); document.body.append(view);
     await vi.waitFor(() => expect(view.querySelector('.wish-detail__commands button[aria-label="Ajouter à une autre liste"]')?.hasAttribute("hidden")).toBe(false));
     view.querySelector('.wish-detail__commands button[aria-label="Ajouter à une autre liste"]')?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await vi.waitFor(() => expect(view.querySelector("dialog select option")).not.toBeNull());
+    await vi.waitFor(() => expect(view.querySelector('dialog input[type="checkbox"]:checked')).not.toBeNull());
     [...view.querySelectorAll("button")].find(button => button.textContent === "Ajouter")?.click();
     await vi.waitFor(() => expect(copy).toHaveBeenCalledOnce());
     expect(view.textContent).toContain("Produit"); expect(view.querySelector("dialog")).toBeNull();

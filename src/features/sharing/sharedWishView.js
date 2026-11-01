@@ -21,10 +21,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
   const title = element("h1", "Souhait partagé"); title.tabIndex = -1;
   const results = element("div", ""); results.className = "shared-wish-results flow";
   const notice = element("p", ""); notice.setAttribute("role", "status"); notice.hidden = true;
-  const introduction = element("div", ""); introduction.className = "shared-wish-introduction"; introduction.hidden = true;
-  const pageHeading = element("p", "Réserver ce cadeau"); pageHeading.className = "shared-wish-introduction__title";
-  if (createReservation) introduction.append(pageHeading);
-  view.append(back, introduction, title, notice, results);
+  view.append(back, title, notice, results);
   let disposed = false, busy = false, terminal = false, mutationBusy = false, copying = false;
   const lifetime = new AbortController();
   const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, onUnavailable: unavailable, onBusy: value => { copying = value; } }) : null;
@@ -41,7 +38,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
   if (!disposed) refreshOnReturn(view, () => { void read(false); });
   return view;
 
-  function clear() { introduction.hidden = true; if (results.contains(title)) view.insertBefore(title, notice); disposeComponent(results); results.replaceChildren(); }
+  function clear() { if (results.contains(title)) view.insertBefore(title, notice); disposeComponent(results); results.replaceChildren(); }
   function clearNotice() { notice.textContent = ""; notice.hidden = true; }
   function unavailable() {
     if (disposed || terminal) return;
@@ -64,7 +61,6 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
       if (wish.isFavorite) title.append(createWishFavoriteIndicator());
       const layout = element("div", ""); layout.className = "shared-wish-layout";
       const canReserve = !!createReservation && wish.canReserve !== false && wish.reservedQuantity !== null;
-      introduction.hidden = !canReserve;
       const product = element("div", ""); product.className = "shared-wish-product flow";
       const information = createWishDetailInformation(wish, title);
       const reservation = element("aside", ""); reservation.className = "shared-wish-reservation flow";
@@ -81,7 +77,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
         information.querySelector(".wish-detail__merchant")?.append(createWishDetailProductLink(wish.url, wish.name));
       } else if (wish.productUnavailable) information.append(element("p", "Lien produit indisponible"));
       if (actions.childElementCount) information.append(actions);
-      product.append(createWishImage(wish), information); layout.append(product, reservation); results.append(title, layout);
+      product.append(createWishImage(wish), information); layout.append(product, reservation); results.append(layout);
       if (createReservation && canReserve) reservation.append(createReservation(() => {
         if (disposed || terminal) return;
         terminal = true; lifetime.abort(); clear(); clearNotice();

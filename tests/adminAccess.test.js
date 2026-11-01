@@ -7,16 +7,26 @@ import { createApplicationShell } from "../src/app/applicationShell.js";
 import { RouteNames } from "../src/app/routeContracts.js";
 import { barrier } from "./sessionTestHelpers.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
-/** @param {boolean} [isAdmin] Administrator access. @param {string} [member] Account. */
+/** @param {boolean} [isAdmin] Server administrator flag. @param {string} [member] Account. */
 function snapshot(isAdmin = true, member = id) { return /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "authenticated", user: { id: member, displayName: "Camille", email: "fixture@example.test", isAdmin }, logoutPending: false, authenticationPending: false, etag: null, issue: null }); }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("administration presentation boundary", () => {
   it.each([false, true])("uses the authoritative administrator boolean %s", isAdmin => {
-    const state = snapshot(true);
+    const state = snapshot();
     if (!state.user) throw new Error("Missing identity");
     expect(hasAdminAccess({ ...state, user: { ...state.user, isAdmin } })).toBe(isAdmin);
   });
-  it("offers navigation only to stable administrators and updates when roles change", () => {
+  it.each(["Admin", "Administrator"])("ignores legacy role %s without a boolean grant", role => {
+    const shell = createApplicationShell();
+    const state = snapshot(false);
+    if (!state.user) throw new Error("Missing identity");
+    const user = { ...state.user, roles: [role] };
+    shell.setSession({ ...state, user });
+    expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')).toBeNull();
+    expect(hasAdminAccess({ ...state, user })).toBe(false);
+    disposeComponent(shell.element);
+  });
+  it("offers navigation only to stable administrators and updates when the boolean changes", () => {
     const shell = createApplicationShell(); const state = snapshot(); shell.setSession(state); expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')?.textContent).toBe("Modération");
     expect(shell.element.querySelector(".app-navigation__list > li:first-child a")?.getAttribute("href")).toBe("/");
     shell.setSession(snapshot(false)); expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')).toBeNull();
@@ -27,11 +37,11 @@ describe("administration presentation boundary", () => {
     expect(isProtectedRoute(RouteNames.ReportedWishlists)).toBe(true); expect(getSafeReturnTo("/admin/reported-wishlists")).toBe("/lists");
     expect(createSessionGuard(RouteNames.ReportedWishlists, /** @type {Pick<import("../src/auth/sessionManager.js").SessionManager, "ensureSession">} */ (/** @type {unknown} */ ({ ensureSession: async () => ({ status: "anonymous" }) })))).toBeTypeOf("function");
   });
-  it("does not read private data without administrator access", () => {
+  it.each([{ roles: [] }, { roles: ["member"] }, { roles: ["admin"] }])("does not read private data without a boolean grant %j", () => {
     const load = vi.fn(async () => ({ items: [], currentPage: 1, totalPages: 0, totalCount: 0 })), host = createAdminReportedWishlistsView({ getSnapshot: () => snapshot(false), subscribe: () => () => {} }, { load, loadReports: vi.fn() });
     expect(host.querySelector("h1")?.textContent).toBe("Accès administrateur requis"); expect(host.querySelector("h1")?.tabIndex).toBe(-1); expect(host.querySelector("a")?.getAttribute("href")).toBe("/lists"); expect(load).not.toHaveBeenCalled(); expect(hasAdminAccess(snapshot(false))).toBe(false); disposeComponent(host);
   });
-  it("withdraws content on role loss and ignores an old read after account change", async () => {
+  it("withdraws content on administrator flag revocation and ignores an old read after account change", async () => {
     let state = snapshot();
     /** @type {(state: import("../src/auth/sessionManager.js").SessionSnapshot) => void} */
     let notify = () => {};

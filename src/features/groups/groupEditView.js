@@ -5,12 +5,12 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 import { createProfileImageSection } from "../profile/profileImageSection.js";
 import { readGroupPhoto } from "./groupPhoto.js";
 
-/** Keeps the group's name and photo draft on one owner-only editor; writes require an explicit save.
+/** Keeps the group's name and photo draft on one member editor; writes require an explicit save.
  * @param {{service:ReturnType<typeof import("./groupsService.js").createGroupsService>,groupId:string,memberId:string,
  * apiBaseUrl:string,signal:AbortSignal,navigate:(path:string)=>void}} options Authorized operations and view lifetime.
  * @returns {HTMLElement} Routed group editor.
  */
-export function createGroupEditView({ service, groupId, memberId, apiBaseUrl, signal, navigate }) {
+export function createGroupEditView({ service, groupId, apiBaseUrl, signal, navigate }) {
   const view = node("section", "", "group-edit-view flow");
   const back = createBackLink({ label: "Retour au groupe", href: `/groups/${groupId}`, contextual: false });
   const title = node("h1", "Modifier le groupe"); title.tabIndex = -1;
@@ -77,7 +77,6 @@ export function createGroupEditView({ service, groupId, memberId, apiBaseUrl, si
   /** @param {{group:import("./groupsService.js").Group,etag:string}} result */
   function accept(result) {
     if (result.group.id !== groupId) throw new ApiError({ kind: "invalidResponse" });
-    if (result.group.ownerId !== memberId) throw new ApiError({ kind: "http", statusCode: 403, errorCode: "GROUP_ACCESS_DENIED" });
     base = result; photo = readGroupPhoto(result.group.profileImageUrl, groupId, apiBaseUrl);
   }
   /** Fresh reads preserve drafts; they never replay a failed command. @param {boolean} preserve */

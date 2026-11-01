@@ -18,6 +18,13 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it("never reads personal owner reservations for another member's group list", async () => {
+    const personalReservation = vi.fn();
+    const ui = setup({ groupId: id, currentUserId: id, personalReservation, load: async () => ({ ...list, ownerId: "019c52dd-56c1-7cc6-8a95-243f3a032e07" }) });
+    await settle(); expect(ui.view.querySelector(".wish-card")).not.toBeNull();
+    expect(personalReservation).not.toHaveBeenCalled();
+  });
+
   it.each([true, false])("keeps the owner's group list read-only with surprise mode %s", async surprise => {
     const createReservation = vi.fn(), createParticipation = vi.fn();
     const own = { ...list, canReserve: false, wishes: list.wishes.map(wish => ({ ...wish, ...(surprise ? { reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null } : {}) })) };
@@ -157,7 +164,7 @@ describe("shared wishlist presentation", () => {
     retry.click(); retry.click(); await settle();
     // Assert
     expect(ui.load).toHaveBeenCalledTimes(2);
-    expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("https://api.test/image?token=FRESH");
+    expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("https://api.test/image?token=FRESH&size=thumbnail");
     expect(retry.hidden).toBe(true); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
   });
   it("does not revive images or offer recovery after the share context is lost", async () => {

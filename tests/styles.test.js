@@ -24,7 +24,7 @@ describe("graphic foundations", () => {
     const theme = readStyleFile("../src/styles/site-theme.css");
     const card = theme.match(/\.reservation-history-card\s*\{([^}]+)\}/)?.[1];
     const review = theme.match(/\.reservation-history-card__review\s*\{([^}]+)\}/)?.[1];
-    expect(card).toContain("grid-template-columns: 18rem minmax(0, 1fr) 12rem");
+    expect(card).toContain("grid-template-columns: 12rem minmax(0, 1fr) 9.25rem");
     expect(review).toContain("align-self: center");
   });
   it("keeps reservation photographs square and contained", () => {

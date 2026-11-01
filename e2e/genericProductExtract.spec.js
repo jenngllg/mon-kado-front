@@ -53,3 +53,4 @@ test("reads a price when the currency symbol is outside the price element", asyn
   await page.locator("button").evaluate(node => { node.append(" et 42,00 €"); });
   expect((await page.evaluate(extractProduct)).price).toBe("");
 });
+
