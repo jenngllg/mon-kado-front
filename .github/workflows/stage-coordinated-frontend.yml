@@ -58,7 +58,8 @@ jobs:
         run: |
           set -euo pipefail
           main_revision=$(gh api repos/jenngllg/mon-kado/git/ref/heads/main --jq .object.sha)
-          deadline=$((SECONDS + BACKEND_PUBLICATION_WAIT_SECONDS))
+          started=$SECONDS
+          deadline=$((started + BACKEND_PUBLICATION_WAIT_SECONDS))
           while true; do
             test "$(gh api repos/jenngllg/mon-kado/git/ref/heads/main --jq .object.sha)" = "$main_revision" || { echo 'BACKEND_MAIN_CHANGED'; exit 1; }
             gh api repos/jenngllg/mon-kado/releases/tags/backend-production > "$RUNNER_TEMP/backend-release.json"
@@ -72,7 +73,7 @@ jobs:
             done
             [ "$SECONDS" -lt "$deadline" ] || { echo 'BACKEND_PUBLICATION_TIMEOUT'; exit 1; }
             echo 'Waiting for the checked backend main publication.'
-            sleep 10
+            if [ "$((SECONDS - started))" -lt 120 ]; then sleep 10; else sleep 30; fi
           done
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
