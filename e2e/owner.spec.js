@@ -32,7 +32,7 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   api.state.authenticated = true;
   api.state.wishExists = false;
   await page.goto(`/lists/${listId}`);
-  await page.getByRole("link", { name: "Ajouter un souhait", exact: true }).click();
+  await page.getByRole("link", { name: "Créer un souhait", exact: true }).click();
   await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-width", "1px");
   await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-style", "solid");
   await page.getByRole("button", { name: "Continuer sans lien", exact: true }).click();
@@ -66,7 +66,7 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   await dialog.getByRole("button", { name: "Supprimer", exact: true }).click();
   await expect(page).toHaveURL(`/lists/${listId}`);
   await expect(page.getByRole("heading", { name: "Carnet corrigé", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Ajouter un souhait", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Créer un souhait", exact: true })).toBeVisible();
   expect(api.state.wishWrites).toBe(3);
   expect(api.unexpected).toEqual([]);
 });

@@ -92,6 +92,7 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
           const wishHref = item.isArchived ? null : item.wishHref;
           heading.append(wishHref ? wishLink(item.wishName, wishHref) : document.createTextNode(item.wishName));
           description.append(heading);
+          if (item.isSuggestion) description.append(node("p", "Idée surprise proposée"));
           const listHref = wishHref?.replace(/\/wishes\/[^#]+/, "");
           const context = node("div", ""); context.className = "reservation-history-card__context";
           context.append(metadata("", item.wishlistName, listHref));

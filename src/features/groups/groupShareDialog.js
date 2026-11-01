@@ -8,11 +8,11 @@ import { createGroupInvitationPreview } from "./groupInvitationPreview.js";
 import { createGroupShareChannels } from "./groupShareChannels.js";
 
 /** Share admission credentials only after an explicit member action.
- * @param {{parent:HTMLElement,trigger:HTMLButtonElement,signal:AbortSignal,groupId:string,group:import("./groupsService.js").Group,apiBaseUrl:string,owner:boolean,
+ * @param {{parent:HTMLElement,trigger:HTMLButtonElement,signal:AbortSignal,groupId:string,group:import("./groupsService.js").Group,apiBaseUrl:string,owner?:boolean,
  * service:Pick<ReturnType<typeof import("./groupsService.js").createGroupsService>,"joinLink"|"createJoinLink"|"revokeJoinLink">,
  * copy?:(text:string)=>Promise<void>}} options Scoped operations.
  */
-export function openGroupShareDialog({ parent, trigger, signal, groupId, group, apiBaseUrl, owner, service, copy = text => navigator.clipboard.writeText(text) }) {
+export function openGroupShareDialog({ parent, trigger, signal, groupId, group, apiBaseUrl, service, copy = text => navigator.clipboard.writeText(text) }) {
   if (signal.aborted || parent.querySelector(".group-share-dialog")) return;
   const dialog = node("dialog", ""); dialog.className = "group-dialog group-share-dialog flow";
   const title = node("h2", "Partager le groupe"); title.id = `group-share-${crypto.randomUUID()}`; dialog.setAttribute("aria-labelledby", title.id);
@@ -56,7 +56,7 @@ export function openGroupShareDialog({ parent, trigger, signal, groupId, group, 
       const button = createButton({ label: command, variant: "secondary", onClick: () => { void copyValue(value); } }); applyActionIcon(button, "copy", command); field.append(button); content.append(field);
     }
     content.append(createGroupShareChannels({ name: group.name, link: current.link.joinUrl, copy, status: feedback }));
-    if (owner) content.append(createButton({ label: "Désactiver le lien et le code", variant: "secondary", onClick: () => { void mutate(true); } }));
+    content.append(createButton({ label: "Désactiver le lien et le code", variant: "secondary", onClick: () => { void mutate(true); } }));
   }
   /** @param {string} value Copy only on an explicit action, without remote QR providers. */
   async function copyValue(value) {

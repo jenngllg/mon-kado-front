@@ -56,11 +56,11 @@ describe("session identity refresh", () => {
     await expect(session.refreshIdentity()).rejects.toMatchObject({ kind: "invalidResponse" });
     expect(session.getSnapshot()).toBe(before);
   });
-  it.each(["foreign-user", "bad-administrator-flag", "bad-name", "invalid-unicode", "wrong-status"])("rejects invalid identity %s", async scenario => {
+  it.each(["foreign-user", "bad-admin-boolean", "bad-name", "invalid-unicode", "wrong-status"])("rejects invalid identity %s", async scenario => {
     // Arrange
     const { session, state, fetch } = setup(); await session.start(); const before = session.getSnapshot();
     const data = { ...state.user, ...(scenario === "foreign-user" ? { id: "other-user" } : {}),
-      ...(scenario === "bad-administrator-flag" ? { isAdmin: null } : {}), ...(scenario === "bad-name" ? { displayName: "" } : {}),
+      ...(scenario === "bad-admin-boolean" ? { isAdmin: null } : {}), ...(scenario === "bad-name" ? { displayName: "" } : {}),
       ...(scenario === "invalid-unicode" ? { displayName: "a\ud800" } : {}) };
     fetch.mockResolvedValueOnce(Response.json(data, { status: scenario === "wrong-status" ? 202 : 200, headers: { ETag: '"a"' } }));
     // Act / Assert

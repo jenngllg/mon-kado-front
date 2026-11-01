@@ -34,6 +34,18 @@ const unusedSession = {
   request: async () => { throw new Error("Rendering must not call the API."); },
 };
 
+describe("administrative routes use the real account session",()=>{
+  it.each([RouteNames.AdminMembers,RouteNames.Activity])("mounts authorized %s content and binds its lifetime",async name=>{
+    const state=/** @type {import('../src/auth/sessionManager.js').SessionSnapshot} */({...unusedSession.getSnapshot(),status:"authenticated",user:{id:"admin",email:"admin@example.test",displayName:"Admin",isAdmin:true}});
+    const request=vi.fn(async()=>({status:200,data:{items:[],currentPage:1,pageSize:20,totalCount:0,totalPages:0,hasPreviousPage:false,hasNextPage:false},metadata:{etag:null,location:null,correlationId:"fixture",retryAfterSeconds:null}}));
+    const session={...unusedSession,getSnapshot:()=>state,request:/** @type {import('../src/auth/sessionManager.js').SessionManager['request']} */(request)};
+    const route=createApplicationRoutes({session,apiBaseUrl:"http://localhost:7000"}).find(item=>item.name===name);
+    const view=await route?.render(createRouteContext(name===RouteNames.AdminMembers?"/admin/members":"/admin/activity"));
+    if(!view)throw new Error("Missing administration route");document.body.append(view);
+    await vi.waitFor(()=>expect(request).toHaveBeenCalled());expect(view.querySelector("h1")).not.toBeNull();disposeComponent(view);expect(view.textContent).toBe("");
+  });
+});
+
 /** @type {Array<[string, string]>} */
 const ExpectedRoutes = [
   [RouteNames.Home, RoutePaths.Home],
@@ -50,6 +62,8 @@ const ExpectedRoutes = [
   [RouteNames.WishlistModerationHistory, RoutePaths.WishlistModerationHistory],
   [RouteNames.WishlistModeration, RoutePaths.WishlistModeration],
   [RouteNames.WishlistReportReview, RoutePaths.WishlistReportReview],
+  [RouteNames.Activity, RoutePaths.Activity],
+  [RouteNames.AdminMembers, RoutePaths.AdminMembers],
   [RouteNames.ReportedWishlists, RoutePaths.ReportedWishlists],
   [RouteNames.Members, RoutePaths.Members],
   [RouteNames.MemberProfile, RoutePaths.MemberProfile],
@@ -83,13 +97,13 @@ const ExpectedRoutes = [
 describe("application routes", () => {
   it.each([RouteNames.GroupWishlist, RouteNames.GroupWish])("copies explicitly from %s into a different owned list without a public token", async routeName => {
     const f = groupRoutesFixture(true); const view = await f.render(routeName); await f.settle();
-    const trigger = f.button(view, "Ajouter à mes listes");
+    const trigger = f.button(view, "Je le veux aussi !");
     expect(trigger.hidden).toBe(false);
     expect(f.request.mock.calls.every(([, options]) => options.method === "GET")).toBe(true);
     trigger.click(); await f.settle();
-    const destination = view.querySelector("dialog select");
-    expect(destination instanceof HTMLSelectElement && destination.value).toBe(f.ownerId);
-    expect(view.querySelector(`dialog option[value="${f.id}"]`)).toBeNull();
+    const destination = view.querySelector("dialog input");
+    expect(destination instanceof HTMLInputElement && destination.checked && destination.value).toBe(f.ownerId);
+    expect(view.querySelector(`dialog input[value="${f.id}"]`)).toBeNull();
     f.button(view, "Annuler").click(); expect(view.querySelector("dialog")).toBeNull();
     trigger.click(); await f.settle();
     view.querySelector("dialog form")?.dispatchEvent(new Event("submit", { cancelable: true })); await f.settle();
@@ -133,7 +147,7 @@ describe("application routes", () => {
     expect(f.navigate).toHaveBeenCalledWith("/groups"); disposeComponent(detail);
   });
   it("reuses reading cards, owner avatars, sorting and reservation confirmation for a group", async () => {
-    const f = groupRoutesFixture(); const view = await f.render(RouteNames.GroupWishlist); await f.settle();
+    const f = groupRoutesFixture(false, true); const view = await f.render(RouteNames.GroupWishlist); await f.settle();
     expect(view.querySelector(`a[href^="/groups/${f.id}/wishlists/${f.id}/wishes/${f.wishId}"]`)).not.toBeNull();
     expect(view.querySelector('.shared-wishlist-navigation a')?.getAttribute("href")).toBe(`/groups/${f.id}`);
     const sorting = /** @type {HTMLSelectElement} */ (view.querySelector(".wish-sort-control select")); sorting.value = "priceAsc"; sorting.dispatchEvent(new Event("change"));
@@ -155,6 +169,35 @@ describe("application routes", () => {
     f.button(history, "Confirmer l’annulation").click(); await f.settle();
     expect(f.request).toHaveBeenCalledWith(expect.stringContaining(`/groups/${f.id}/wishlists/${f.id}/wishes/${f.wishId}/reservations/current`), expect.objectContaining({ method: "DELETE", authentication: "required" }));
     disposeComponent(history);
+  });
+  it("opens and cancels a private group suggestion from reservation history", async () => {
+    const groupId = "019c52dd-56c1-7cc6-8a95-243f3a032e70", wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", suggestionId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
+    const groupSuggestionPath = `/groups/${groupId}/wishlists/${wishlistId}#suggestion-${suggestionId}`;
+    const base = `/api/v1/groups/${groupId}/wishlists/${wishlistId}/suggestions/${suggestionId}`;
+    const metadata = {etag:'"00000001"',correlationId:"fixture",location:null,retryAfterSeconds:null};
+    const request = vi.fn(async (/** @type {string} */ path, /** @type {import("../src/api/apiClient.js").ApiRequestOptions} */ options = {}) => {
+      if (path.startsWith("/api/v1/members/current/reservations")) return {status:200,metadata,data:{items:[{id:suggestionId,wishlistId,wishId:suggestionId,wishlistName:"Liste",wishName:"Idée",shareLinkId:null,shareUrl:null,ownedWishPath:null,groupWishPath:null,groupId,groupSuggestionPath,quantity:1,status:"active",createdAt:"2026-10-24T12:00:00Z",lastActivityAt:"2026-10-24T12:00:00Z",endedAt:null}],currentPage:1,pageSize:20,totalCount:1}};
+      if (path===base) return {status:200,metadata,data:{id:suggestionId,name:"Idée",note:null,url:null,price:null,quantity:1,reservedQuantity:1,currentParticipantReservedQuantity:1,authorId:groupId,authorDisplayName:"Emma",canEdit:false,hasImage:false,createdAt:"2026-10-24T12:00:00Z",updatedAt:null,entityTag:metadata.etag}};
+      expect(path).toBe(base+"/reservations/current");
+      if (options?.method==="DELETE") {expect(options.ifMatch).toBe(metadata.etag);return {status:204,metadata,data:null};}
+      return {status:200,metadata,data:{id:groupId,wishId:suggestionId,quantity:1}};
+    });
+    const session = {...unusedSession,request:/** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request)};
+    const route=createApplicationRoutes({session,apiBaseUrl:"http://localhost:7000"}).find(candidate=>candidate.name===RouteNames.Reservations);
+    if (!route) throw new Error("Missing reservations route");
+    const navigate=vi.fn(async()=>null);
+    const view=await route.render({...createRouteContext("/reservations"),navigate}); document.body.append(view);
+    try {
+      for (let turn=0;turn<40;turn++) await Promise.resolve();
+      expect(view.textContent).toContain("Idée surprise proposée");
+      view.querySelector("h2 a")?.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true}));
+      expect(navigate).toHaveBeenCalledWith(groupSuggestionPath);
+      const cancel=[...view.querySelectorAll("button")].find(button=>button.textContent==="Annuler"); cancel?.click();
+      for (let turn=0;turn<40;turn++) await Promise.resolve();
+      const confirm=[...view.querySelectorAll("dialog button")].find(button=>button.textContent==="Confirmer l’annulation"); expect(confirm).toBeDefined(); confirm?.dispatchEvent(new MouseEvent("click",{bubbles:true}));
+      for (let turn=0;turn<40;turn++) await Promise.resolve();
+      expect(request).toHaveBeenCalledWith(base+"/reservations/current",expect.objectContaining({method:"DELETE",authentication:"required"}));
+    } finally {disposeComponent(view);view.remove();}
   });
   it("opens and cancels an owned history item through private routes without shared access", async () => {
     const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
@@ -371,7 +414,7 @@ describe("application routes", () => {
   });
 });
 
-function groupRoutesFixture(copyEnabled = false) {
+function groupRoutesFixture(copyEnabled = false, asOther = false) {
   const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", wishId = "019c52dd-56c1-7cc6-8a95-243f3a032e05", ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e06";
   const at = "2026-10-24T12:00:00Z";
   const group = { id, name: "Famille", ownerId, profileImageUrl: null, memberCount: 1, createdAt: at, updatedAt: null };
@@ -395,6 +438,7 @@ function groupRoutesFixture(copyEnabled = false) {
     else if (path.startsWith("/api/v1/groups?")) data = page([group], 100);
     else if (path.startsWith("/api/v1/group-invitations?")) data = page([]);
     else if (path === `/api/v1/groups/${id}/wishlists/${id}`) data = list;
+    else if (path === `/api/v1/groups/${id}/wishlists/${id}/suggestions`) data = [];
     else if (path === `/api/v1/groups/${id}/wishlists/${id}/wishes/${wishId}`) data = wish;
     else if (path === "/api/v1/wishlists") data = copyEnabled ? [
       { id, name: "Source", occasion: "other", eventDate: null, isArchived: false, isSuspended: false },
@@ -410,7 +454,7 @@ function groupRoutesFixture(copyEnabled = false) {
     return { status, data, metadata: { etag: '"00000001"', location: null, correlationId: "group-test", retryAfterSeconds: null } };
   });
   const session = { ...unusedSession, request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request),
-    getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "authenticated", user: { id: ownerId }, etag: null, logoutPending: false, authenticationPending: false, issue: null }) };
+    getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "authenticated", user: { id: asOther ? id : ownerId }, etag: null, logoutPending: false, authenticationPending: false, issue: null }) };
   const routes = createApplicationRoutes({ session, apiBaseUrl: "https://api.example" });
   const navigate = vi.fn(async () => null), replaceSearchParameter = vi.fn();
   return { id, wishId, ownerId, group, request, navigate, replaceSearchParameter,

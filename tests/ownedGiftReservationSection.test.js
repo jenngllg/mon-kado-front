@@ -28,31 +28,33 @@ function submit(view) { view.querySelector("form")?.dispatchEvent(new Event("sub
 describe("owner reservation presentation", () => {
   it.each([1, 3])("keeps surprise state hidden on entry and reserves %s only explicitly", async quantity => {
     const ui = setup(true, quantity);
-    expect(ui.reservations.loadCurrent).not.toHaveBeenCalled(); expect(ui.reservations.create).not.toHaveBeenCalled();
-    expect(ui.view.textContent).not.toContain("Le mode surprise est activé");
+    await vi.waitFor(() => expect(ui.view.querySelector("form")).not.toBeNull());
+    expect(ui.reservations.loadCurrent).toHaveBeenCalledOnce(); expect(ui.reservations.create).not.toHaveBeenCalled();
+    expect(ui.view.textContent).toContain("Mode surprise : quelqu’un a peut-être déjà réservé ce souhait.");
+    const warning = ui.view.querySelector("form p[id]");
+    expect(ui.view.querySelector('button[type="submit"]')?.getAttribute("aria-describedby")).toBe(warning?.id);
     expect(ui.view.querySelector('a[href="/reservations"]')).toBeNull();
     expect(ui.view.querySelector("input") !== null).toBe(quantity > 1);
+    ui.reservations.create.mockImplementation(async () => { ui.reservations.loadCurrent.mockResolvedValue({ state: "reserved", reservation }); return reservation; });
     submit(ui.view);
-    await vi.waitFor(() => expect(ui.view.textContent).toContain("Retrouve ou gère ta réservation"));
-    expect(ui.view.querySelector('a[href="/reservations"]')).toBeNull();
+    await vi.waitFor(() => expect(ui.view.textContent).toContain("Tu as réservé 1 exemplaire"));
+    expect(ui.view.querySelector('a[href="/reservations"]')).not.toBeNull();
     expect(ui.reservations.create).toHaveBeenCalledExactlyOnceWith("list", "wish", "1", { signal: expect.any(AbortSignal) });
-    expect(ui.view.textContent).not.toMatch(/exemplaire|Quantité enregistrée|Tu as réservé/);
     expect(ui.reservations.update).not.toHaveBeenCalled(); expect(ui.onSaved).not.toHaveBeenCalled();
   });
   it("requires explicit verification after a surprise duplicate and directs to history without quantity", async () => {
-    const ui = setup(); ui.reservations.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 428 }));
+    const ui = setup(); await vi.waitFor(() => expect(ui.view.querySelector("form")).not.toBeNull()); ui.reservations.loadCurrent.mockClear(); ui.reservations.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 428 }));
     ui.reservations.loadCurrent.mockResolvedValue({ state: "reserved", reservation });
     submit(ui.view);
     await vi.waitFor(() => expect(ui.view.querySelector('[role="alert"]')).not.toBeNull());
     expect(ui.reservations.loadCurrent).not.toHaveBeenCalled();
     const verify = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Vérifier ma réservation");
     verify?.click();
-    await vi.waitFor(() => expect(ui.view.textContent).toContain("Retrouve ou gère ta réservation"));
-    expect(ui.view.textContent).not.toMatch(/exemplaire|Quantité enregistrée|Tu as réservé/);
+    await vi.waitFor(() => expect(ui.view.textContent).toContain("Tu as réservé 1 exemplaire"));
     expect(ui.reservations.create).toHaveBeenCalledOnce(); expect(ui.reservations.update).not.toHaveBeenCalled();
   });
   it("verifies only after an uncertain write without automatically replaying it", async () => {
-    const ui = setup(); ui.reservations.create.mockRejectedValue(new Error("offline")); submit(ui.view);
+    const ui = setup(); await vi.waitFor(() => expect(ui.view.querySelector("form")).not.toBeNull()); ui.reservations.loadCurrent.mockClear(); ui.reservations.create.mockRejectedValue(new Error("offline")); submit(ui.view);
     await vi.waitFor(() => expect(ui.view.querySelector('[role="alert"]')).not.toBeNull());
     expect(ui.view.querySelector('button[type="submit"]')?.hasAttribute("disabled")).toBe(true);
     [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Vérifier ma réservation")?.click();
@@ -60,11 +62,26 @@ describe("owner reservation presentation", () => {
     await vi.waitFor(() => expect(ui.view.querySelector('button[type="submit"]')?.hasAttribute("disabled")).toBe(false));
     expect(ui.reservations.create).toHaveBeenCalledOnce();
   });
+  it("retrieves only the personal reservation in surprise mode and prevents duplicate creation", async () => {
+    const ui = setup(true, 3, true);
+    await vi.waitFor(() => expect(ui.view.textContent).toContain("Tu as réservé 1 exemplaire"));
+    expect(ui.view.querySelector("form")).toBeNull();
+    expect(ui.view.querySelector('a[href="/reservations"]')).not.toBeNull();
+    expect(ui.reservations.create).not.toHaveBeenCalled(); expect(ui.loadOne).not.toHaveBeenCalled();
+  });
+  it("does not offer a reservation if the personal lookup fails", async () => {
+    const ui = setup(); ui.reservations.loadCurrent.mockRejectedValue(new Error("offline")); disposeComponent(ui.view);
+    const view = createOwnedGiftReservationSection({ wishlistId: "list", wishId: "wish", wish, surpriseMode: true, reservations: ui.reservations, loadOne: ui.loadOne, onSaved: ui.onSaved, onBusy: ui.onBusy, onUnavailable: ui.onUnavailable, signal: ui.lifetime.signal });
+    views.push(view); document.body.append(view);
+    await vi.waitFor(() => expect(view.querySelector('[role="alert"]')).not.toBeNull());
+    expect(view.querySelector("form")).toBeNull(); expect(ui.reservations.create).not.toHaveBeenCalled();
+  });
   it("outside surprise mode shows a personal reservation with versioned editing", async () => {
     const ui = setup(false, 3, true);
     await vi.waitFor(() => expect(ui.view.querySelector("input")).not.toBeNull());
     expect(ui.view.querySelector('a[href="/reservations"]')).toBeNull();
     expect(ui.view.textContent).toContain("Tu as réservé 1 exemplaire");
+    expect(ui.view.textContent).not.toContain("Mode surprise :");
     const input = /** @type {HTMLInputElement} */ (ui.view.querySelector("input")); input.value = "2"; input.dispatchEvent(new Event("input"));
     submit(ui.view);
     await vi.waitFor(() => expect(ui.onSaved).toHaveBeenCalledOnce());
@@ -118,7 +135,7 @@ describe("owner reservation presentation", () => {
     expect(ui.reservations.create).not.toHaveBeenCalled(); expect(ui.reservations.cancel).not.toHaveBeenCalled();
   });
   it.each(["isArchived", "isSuspended"])("offers no reservation on an %s parent", async flag => {
-    const ui = setup(); disposeComponent(ui.view);
+    const ui = setup(); disposeComponent(ui.view); ui.reservations.loadCurrent.mockClear();
     const view = createWishDetailsView({ wishlistId: "list", wishId: "wish", loadOne: ui.loadOne, reservations: ui.reservations,
       loadWishlist: vi.fn().mockResolvedValue({ wishlist: { [flag]: true, surpriseMode: true } }) });
     views.push(view); document.body.append(view);

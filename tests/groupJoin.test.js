@@ -142,7 +142,8 @@ describe("shared group admission", () => {
     expect(copy).not.toHaveBeenCalled(); expect(f.parent.querySelector('svg[role="img"]')?.getAttribute("aria-label")).toBe("QR code pour rejoindre le groupe"); expect(f.parent.querySelectorAll("img")).toHaveLength(6); expect(f.parent.querySelector(".group-invitation-preview")?.textContent).toContain("Famille");
     button(f.parent, "Copier le lien").click(); await settle(); expect(copy).toHaveBeenLastCalledWith(link.joinUrl);
     button(f.parent, "Copier le code").click(); await settle(); expect(copy).toHaveBeenLastCalledWith("ABCD-EFGH-2345-67AB");
-    expect(f.parent.textContent).not.toContain("Désactiver");
+    expect(button(f.parent, "Désactiver le lien et le code").disabled).toBe(false);
+    expect(f.service.revokeJoinLink).not.toHaveBeenCalled();
   });
   it("reports clipboard failure while retaining selectable credentials", async () => {
     const f = sharing({ copy: async () => { throw new Error("denied"); } }); await settle(); button(f.parent, "Copier le lien").click(); await settle();
@@ -152,8 +153,8 @@ describe("shared group admission", () => {
     const f = sharing({ read: async () => { throw new ApiError({ kind: "http", statusCode: 404, errorCode: "GROUP_JOIN_LINK_NOT_FOUND" }); } }); await settle();
     expect(f.service.createJoinLink).not.toHaveBeenCalled(); button(f.parent, "Activer le partage").click(); await settle(); expect(f.service.createJoinLink).toHaveBeenCalledExactlyOnceWith(id, { signal: expect.any(AbortSignal) });
   });
-  it("revokes with the loaded version only for the owner and preserves Escape focus", async () => {
-    const f = sharing({ owner: true }); await settle(); button(f.parent, "Désactiver le lien et le code").click(); await settle();
+  it.each([true, false])("revokes with the loaded version for a group member (creator: %s) and preserves Escape focus", async owner => {
+    const f = sharing({ owner }); await settle(); button(f.parent, "Désactiver le lien et le code").click(); await settle();
     expect(f.service.revokeJoinLink).toHaveBeenCalledExactlyOnceWith(id, { etag: versioned.etag, signal: expect.any(AbortSignal) }); expect(f.parent.querySelectorAll("input")).toHaveLength(0);
     f.parent.querySelector("dialog")?.dispatchEvent(new Event("cancel", { cancelable: true })); expect(document.activeElement).toBe(f.trigger); expect(f.parent.querySelector("dialog")).toBeNull();
   });

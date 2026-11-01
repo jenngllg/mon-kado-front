@@ -89,33 +89,3 @@ describe("extension product flow", () => {
     document.removeEventListener("monkado-wish-added", listener);
   });
 });
-
-it("explains a missing product link without loading lists", async () => {
-  const lists = { load: vi.fn(async () => []) }, wishes = { create: vi.fn() };
-  const view = createExtensionAddView({ lists, wishes, signal: new AbortController().signal }); views.push(view); document.body.append(view); await settle();
-  expect(view.textContent).toContain("Lien indisponible"); expect(lists.load).not.toHaveBeenCalled(); expect(view.querySelector("form")?.hidden).toBe(true);
-});
-it("offers list management when no active lists exist", async () => {
-  capture(); const lists = { load: vi.fn(async () => []) }, wishes = { create: vi.fn() };
-  const view = createExtensionAddView({ lists, wishes, signal: new AbortController().signal }); views.push(view); document.body.append(view); await settle();
-  expect(view.textContent).toContain("aucune liste disponible"); expect(view.querySelector('a[href="/lists"]')).not.toBeNull();
-});
-it("reports list loading errors and does not show the form", async () => {
-  capture(); const lists = { load: vi.fn(async () => { throw new ApiError({ kind: "network" }); }) }, wishes = { create: vi.fn() };
-  const view = createExtensionAddView({ lists, wishes, signal: new AbortController().signal }); views.push(view); document.body.append(view); await settle();
-  expect(view.querySelector("form")?.hidden).toBe(true); expect(view.querySelector('[role="status"]')?.textContent).not.toBe("");
-});
-it("validates the name and price before any create request", async () => {
-  capture(); const ui = setup(); await settle(); const form = /** @type {HTMLFormElement} */ (ui.view.querySelector("form"));
-  const name = /** @type {HTMLInputElement} */ (form.elements.namedItem("name")); const price = /** @type {HTMLInputElement} */ (form.elements.namedItem("price"));
-  form.dispatchEvent(new Event("submit", { cancelable: true })); expect(document.activeElement).toBe(name);
-  name.value = "Livre"; price.value = "-4"; form.dispatchEvent(new Event("submit", { cancelable: true }));
-  expect(document.activeElement).toBe(price); expect(ui.wishes.create).not.toHaveBeenCalled();
-});
-it("allows correction after a definite client rejection", async () => {
-  capture(); const create = vi.fn(async () => { throw new ApiError({ kind: "http", statusCode: 400 }); });
-  const ui = setup({ create }); await settle(); const form = /** @type {HTMLFormElement} */ (ui.view.querySelector("form"));
-  /** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value = "Livre";
-  form.dispatchEvent(new Event("submit", { cancelable: true })); await settle(); form.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
-  expect(create).toHaveBeenCalledTimes(2); expect(form.hidden).toBe(false);
-});

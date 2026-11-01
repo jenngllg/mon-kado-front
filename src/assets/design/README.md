@@ -2,16 +2,15 @@
 
 These are decorative occasion covers, never member photos or private wish previews.
 All assets are bundled and served locally; displaying them contacts no external
-image service. Icons and botanical decorations retain the
-existing user-approved mockup artwork.
+image service. Icons retain the existing user-approved mockup artwork.
 
 ## User-selected photographs
 
 The birth occasion icon is Tabler Icons' existing `baby-carriage` outline, with
 its original paths and MIT notice retained in `birth-icon.svg`. The site's
 thin stroke and sage circular surface are presentation only; no custom face is drawn.
-`botanical-complete.webp` is the optimized complete version of the existing
-approved botanical decoration, used to avoid cropped leaf tips in the overview.
+The botanical, corner-leaf and brand-leaf assets are retained as historical mockup
+sources only. They are no longer used as decoration in the site's interface.
 
 The birthday, Christmas, wedding, birth and eucalyptus (Other) photos are used under the
 [Pexels license](https://www.pexels.com/license/),

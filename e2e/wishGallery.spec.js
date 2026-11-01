@@ -119,9 +119,9 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     await expect(event).toContainText("Anniversaire");
     await expect(event.locator("time")).toHaveText("18 janvier 2027");
     await expect(event).toContainText("103 jours restants");
-    const titleBox = await identity.getByRole("heading", { level: 1 }).boundingBox(); const eventBox = await event.boundingBox();
-    expect(titleBox).not.toBeNull(); expect(eventBox).not.toBeNull();
-    expect(eventBox?.y).toBeGreaterThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0));
+    const identityBox = await identity.getByRole("heading",{level:1}).boundingBox(); const eventBox = await event.boundingBox();
+    expect(identityBox).not.toBeNull(); expect(eventBox).not.toBeNull();
+    expect(eventBox?.y).toBeGreaterThan((identityBox?.y ?? 0) + (identityBox?.height ?? 0));
     await expect(event).toHaveCSS("border-left-width", "0px");
     await expect(event).toHaveCSS("border-top-width", "0px");
     const positions = await tiles.evaluateAll(items => items.map(item => { const box = item.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width }; }));

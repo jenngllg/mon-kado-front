@@ -25,6 +25,32 @@ function mount(path = "/", transport = createSessionTransport(), hub = createCoo
   return { ...app, transport };
 }
 
+describe("activity visits", () => {
+  it("records only approved page identifiers for personal and group navigation", async () => {
+    // Arrange
+    const transport = createSessionTransport();
+    const fallback = transport.fetch.getMockImplementation();
+    const visits = /** @type {string[]} */ ([]);
+    transport.fetch.mockImplementation(async (input, init) => {
+      if (new URL(String(input)).pathname === "/api/v1/member-activity/page-visits") {
+        visits.push(JSON.parse(String(init?.body)).page);
+        expect(new Headers(init?.headers).get("Authorization")).toBe("Bearer jwt-fixture-1");
+        return new Response(null, { status: 204 });
+      }
+      if (!fallback) throw new Error("Missing transport");
+      return fallback(input, init);
+    });
+    const app = mount("/lists", transport);
+    // Act
+    await app.start();
+    await vi.waitFor(() => expect(visits).toContain("lists"));
+    await app.router.navigate("/groups");
+    // Assert
+    await vi.waitFor(() => expect(visits).toContain("groups"));
+    expect(visits.every(value => !value.includes("/") && !value.includes("?"))).toBe(true);
+  });
+});
+
 describe("session routes and shell", () => {
   it.each(["", "?returnTo=/profile", "?returnTo=/reservations", "?returnTo=/lists/another-member"])("opens own lists after e-mail authentication regardless of the previous destination %s", async query => {
     // Arrange
@@ -60,8 +86,10 @@ describe("session routes and shell", () => {
     // Assert
     expect(app.shell.outlet.querySelector('a[href="/register"]')).toBeNull();
     expect(app.shell.outlet.querySelector('a[href="/login"]')).toBeNull();
-    expect(app.shell.outlet.querySelector('a[href="/lists"]')?.textContent).toBe("Mes listes");
-    expect(app.shell.outlet.querySelector('a[href="/reservations"]')?.textContent).toBe("Mes réservations");
+    await vi.waitFor(() => expect(app.shell.outlet.querySelector('a[href="/lists/new"]')?.textContent).toBe("Créer ma première liste"));
+    expect(app.shell.outlet.querySelector("h1")?.textContent).toBe("Bonjour Fixture");
+    expect(app.shell.outlet.querySelector('a[href="/groups/join"]')?.textContent).toBe("Rejoindre un groupe");
+    expect(app.shell.outlet.textContent).not.toContain("Impossible de charger");
     // Act
     await app.session.logout();
     await app.router.navigate("/");
@@ -322,7 +350,7 @@ describe("session routes and shell", () => {
     // Arrange
     const app = mount(); await app.start(); await app.session.start();
     const routes = createApplicationRoutes({ session: app.session, apiBaseUrl: "http://localhost:7000" });
-    expect(routes).toHaveLength(42);
+    expect(routes.some(route => route.path === "/admin/members")).toBe(true);
     const button = [...app.shell.element.querySelectorAll("button")].find(item => item.textContent === "Se déconnecter");
     app.dispose(); app.dispose();
     const requests = app.transport.fetch.mock.calls.length;

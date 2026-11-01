@@ -8,7 +8,8 @@ import { barrier } from "./sessionTestHelpers.js";
 
 afterEach(() => { for (const view of document.body.children) if (view instanceof HTMLElement) disposeComponent(view); document.body.replaceChildren(); });
 
-function mount() {
+/** @param {import('../src/features/google/googleService.js').StartGoogle} [startGoogle] Optional Google sign-in. */
+function mount(startGoogle) {
   /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */
   let state = Object.freeze({ status: "anonymous", user: null, etag: null, logoutPending: false, authenticationPending: false, issue: null });
   /** @type {Set<(state: import("../src/auth/sessionManager.js").SessionSnapshot) => void>} */
@@ -22,7 +23,7 @@ function mount() {
   };
   const login = vi.fn(/** @type {import("../src/features/login/loginService.js").Login} */ (async () => state));
   const controller = new AbortController();
-  const view = createLoginView({ login, session, signal: controller.signal });
+  const view = createLoginView({ login, session, signal: controller.signal, startGoogle });
   document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form"));
   const fields = ["email", "password", "rememberMe"].map(name => /** @type {HTMLInputElement} */ (form.elements.namedItem(name)));
@@ -36,6 +37,15 @@ function mount() {
 }
 
 describe("login form", () => {
+  it("places the remember choice before Google, followed by the email and password fields", () => {
+    const app = mount(vi.fn(async () => {}));
+    const children = [...app.form.children];
+    const google = app.form.querySelector(".google-button");
+    expect(app.form.firstElementChild).toBe(app.fields[2].closest("label"));
+    expect(google).not.toBeNull();
+    expect(children.indexOf(/** @type {Element} */ (google))).toBeLessThan(children.indexOf(/** @type {Element} */ (app.fields[0].closest(".form-field"))));
+    expect(app.fields[0].closest(".form-field")?.nextElementSibling).toBe(app.fields[1].closest(".form-field"));
+  });
   it("replaces credentials once when the session starts a second-factor continuation", () => {
     // Arrange
     const app = mount(); app.fill();

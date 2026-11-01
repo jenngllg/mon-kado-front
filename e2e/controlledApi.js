@@ -44,7 +44,22 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
     /** @param {number} status @param {string | null} code */
     const error = (status, code) => send(status, { statusCode: status, errorCode: code, title: null, message: null, validationErrors: null });
     if (method === "OPTIONS") return route.fulfill({ status: 204, headers: { ...headers, "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,PATCH,OPTIONS", "Access-Control-Allow-Headers": "Content-Type,Authorization,X-CSRF-TOKEN,X-Correlation-ID,X-MonKado-Share-Token,If-Match" } });
+    if (method === "GET" && /\/wishes\/[^/]+\/image(?:\/thumbnail)?$/.test(path) && url.searchParams.has("token")) {
+      expect(request.headers()["x-monkado-share-token"]).toBeUndefined();
+      return route.fulfill({status:200,headers:{...headers,"Content-Type":"image/png"},body:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jSeoAAAAASUVORK5CYII=","base64")});
+    }
     if (path === "/security/csrf-token") return send(200, { token: "csrf-test-only" });
+    if (path === "/api/v1/wishlist-subscriptions" && method === "GET") return send(200, { items: [], currentPage: 1, pageSize: 20, totalCount: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false });
+    if (path === "/api/v1/member-activity/page-visits" && method === "POST") {
+      expect(request.headers().authorization).toBe("Bearer access-test-only");
+      expect(request.headers()["x-csrf-token"]).toBe("csrf-test-only");
+      return send(204,null);
+    }
+    if (path === "/api/v1/groups" && method === "GET") return send(200,{items:[],currentPage:1,pageSize:100,totalCount:0,totalPages:0,hasNextPage:false,hasPreviousPage:false});
+    if (path === "/api/v1/members/current/reservations" && method === "GET") {
+      expect(request.headers().authorization).toBe("Bearer access-test-only");
+      return send(200,{items:[],currentPage:Number(url.searchParams.get("page")||1),pageSize:Number(url.searchParams.get("pageSize")||20),totalCount:0,totalPages:0,hasNextPage:false,hasPreviousPage:false});
+    }
     if (path === "/api/v1/auth/sessions" && method === "POST") {
       state.authenticated = true;
       return send(200, { accessToken: "access-test-only", expiresIn: 900, tokenType: "Bearer" });

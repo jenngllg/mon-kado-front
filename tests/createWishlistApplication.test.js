@@ -11,6 +11,7 @@ function setup() {
   const transport = createSessionTransport(); const original = transport.fetch.getMockImplementation(); const hub = createCoordinatorHub();
   const state = { status: 201, writes: 0, beforeWrite: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
+    if (new URL(String(input)).pathname === "/api/v1/groups") return Response.json({ items: [], currentPage: 1, pageSize: 100, totalCount: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false });
     if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}`) return Response.json(item, { headers: { ETag: '"created"' } });
     if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}/wishes`) return Response.json({ wishes: [] }, { headers: { ETag: '"collection"' } });
     if (new URL(String(input)).pathname === "/api/v1/wishlists") {
@@ -32,7 +33,11 @@ function setup() {
     const form = /** @type {HTMLFormElement} */ (root.querySelector("main form"));
     /** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value = ` ${item.name} `;
     /** @type {HTMLSelectElement} */ (form.elements.namedItem("occasion")).value = "birthday";
-    form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); return form;
+    const observer = new MutationObserver(() => {
+      const submit = /** @type {HTMLButtonElement | null} */ (form.querySelector('[type="submit"]'));
+      if (submit && !submit.disabled && !submit.hidden) { observer.disconnect(); form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); }
+    });
+    observer.observe(form, { childList: true, subtree: true, attributes: true, characterData: true }); cleanups.push(() => observer.disconnect()); return form;
   }
   return { ...app, transport, state, hub, fillAndSend };
 }
@@ -56,7 +61,7 @@ describe("wishlist creation application integration", () => {
     const form = app.fillAndSend();
     await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Liste créée") === true);
     expect(window.location.pathname).toBe("/lists/" + item.id); expect(window.history.length).toBe(length);
-    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Aucun souhait pour le moment") === true);
+    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("et donne des idées à tes proches") === true);
     expect(app.shell.outlet.querySelector("h1")?.textContent).toBe(item.name);
     expect(document.activeElement).toBe(app.shell.outlet); expect(app.state.writes).toBe(1);
     expect(app.shell.notificationRegion.children).toHaveLength(1);

@@ -72,6 +72,14 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     const filter = page.getByLabel("Statut", { exact: true });
     await expect(page.getByRole("button", { name: "Appliquer le filtre" })).toHaveCount(0);
     await expect(card).toBeVisible();
+    const bounds = await card.boundingBox();
+    expect(bounds).not.toBeNull();
+    if (bounds && viewport.width === 1440) {
+      expect(bounds.width).toBeLessThanOrEqual(1024);
+      const main = await page.locator("main").boundingBox();
+      expect(main).not.toBeNull();
+      if (main) expect(Math.abs(bounds.x + bounds.width / 2 - main.x - main.width / 2)).toBeLessThan(2);
+    }
     await filter.selectOption("cancelled");
     await expect(page.getByRole("heading", { name: "Aucune réservation ne correspond à ce statut" })).toBeVisible();
     await expect(filter).toBeFocused();
@@ -83,6 +91,12 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await expect(card).toContainText("Quantité réservée : 1");
     await expect(card).not.toContainText(/08:54|UTC|Dernière quantité|Dernière activité|Terminée le/);
     await expect(card.locator("time").first()).toHaveText("6 oct. 2026");
+    const mediaBounds = await card.locator(".reservation-history-card__media").boundingBox();
+    expect(mediaBounds).not.toBeNull();
+    if (mediaBounds) {
+      expect(mediaBounds.width).toBeLessThanOrEqual(192);
+      expect(Math.abs(mediaBounds.width - mediaBounds.height)).toBeLessThan(2);
+    }
     await expect(card.locator("img")).toBeVisible();
     await expect.poll(() => card.locator("img").evaluate(node => node instanceof globalThis.HTMLImageElement && node.naturalWidth > 0)).toBe(true);
     const photo = card.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true });

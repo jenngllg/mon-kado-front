@@ -19,13 +19,21 @@ function setup(hub = createCoordinatorHub(), transport = createSessionTransport(
 describe("session management", () => {
   it.each([false, true])("retains the server administrator boolean: %s", async isAdmin => {
     const { session, state } = setup();
-    Object.assign(state.user, { isAdmin });
+    Object.assign(state.user, { isAdmin, roles: ["Administrator"] });
     await session.start();
     expect(session.getSnapshot().user?.isAdmin).toBe(isAdmin);
+    expect(session.getSnapshot().user).not.toHaveProperty("roles");
   });
-  it.each(["true", 1, null, undefined])("rejects an invalid administrator boolean: %s", async isAdmin => {
+  it.each([undefined, "true", 1, null])("rejects an invalid administrator boolean: %s", async isAdmin => {
     const { session, state } = setup();
     Object.assign(state.user, { isAdmin });
+    await session.start();
+    expect(session.getSnapshot().status).toBe("unavailable");
+    expect(session.getSnapshot().user).toBeNull();
+  });
+  it.each(["Administrator", "Admin", "Member"])("rejects legacy-only sessions with role %s", async role => {
+    const { session, state } = setup();
+    Object.assign(state.user, { roles: [role], isAdmin: undefined });
     await session.start();
     expect(session.getSnapshot().status).toBe("unavailable");
     expect(session.getSnapshot().user).toBeNull();
@@ -65,7 +73,7 @@ describe("session management", () => {
     // Assert
     expect(state).toMatchObject({ status: "authenticated", user: { displayName: "Fixture" }, etag: '"identity-1"' });
     expect(listener.mock.calls[0][0].status).toBe("initializing");
-    expect(Object.isFrozen(state.user)).toBe(true);
+    expect(state.user).not.toHaveProperty("roles");
     expect(JSON.stringify(listener.mock.calls)).not.toMatch(/jwt-fixture|csrf-fixture|accessToken/);
     expect(fetch.mock.calls.map(call => new URL(String(call[0])).pathname)).toEqual([
       "/security/csrf-token", "/api/v1/auth/sessions/refresh", "/api/v1/auth/sessions/current",

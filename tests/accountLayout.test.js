@@ -7,9 +7,16 @@ import { RoutePaths } from "../src/app/routeContracts.js";
 describe("account layout", () => {
   it.each([false, true])("uses the administrator boolean for authenticator navigation: %s", isAdmin => {
     const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
-      getSnapshot: () => ({ user: { isAdmin } }), subscribe: () => () => {},
+      getSnapshot: () => ({ user: { roles: ["Administrator"], isAdmin } }), subscribe: () => () => {},
     });
     expect(layout.querySelector('a[href="/profile/authenticator"]') !== null).toBe(isAdmin);
+    disposeComponent(layout);
+  });
+  it.each(["Admin", "Administrator"])("ignores legacy role %s without a boolean grant", role => {
+    const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
+      getSnapshot: () => ({ user: { isAdmin: false, roles: [role] } }), subscribe: () => () => {},
+    });
+    expect(layout.querySelector('a[href="/profile/authenticator"]')).toBeNull();
     disposeComponent(layout);
   });
   it("places the category heading above both columns without a redundant account heading", () => {
@@ -53,11 +60,10 @@ describe("account layout", () => {
     expect(layout.querySelector('a[href="/profile/authenticator"]')).not.toBeNull();
     disposeComponent(layout);
   });
-  it("hides authenticator navigation without administrator access", () => {
-    const isAdmin = false;
+  it.each([{ roles: [] }, { roles: ["Member"] }, { roles: ["admin"] }])("hides authenticator navigation without the Admin role: $roles", ({ roles }) => {
     // Arrange / Act
     const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
-      getSnapshot: () => ({ user: { isAdmin } }), subscribe: () => () => {},
+      getSnapshot: () => ({ user: { isAdmin: false, roles } }), subscribe: () => () => {},
     });
     // Assert
     expect(layout.querySelector('a[href="/profile/authenticator"]')).toBeNull();

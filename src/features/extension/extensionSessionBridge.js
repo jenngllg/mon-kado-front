@@ -1,6 +1,7 @@
 import { createWishlistsService } from "../wishlists/wishlistsService.js";
 import { createWishesService } from "../wishes/wishesService.js";
 import { ApiError } from "../../api/apiError.js";
+import { suggestionDraftDestination, fillSuggestionDraft } from "./suggestionDraft.js";
 
 /** Restricts extension operations to this tab's existing authenticated session.
  * @param {import("../../auth/sessionManager.js").SessionManager} session Existing session.
@@ -25,13 +26,14 @@ export function installExtensionSessionBridge(session, apiBaseUrl) {
       const response = { id: request.id, result };
       document.dispatchEvent(new CustomEvent("monkado-extension-response", { detail: serialized ? JSON.stringify(response) : response }));
     };
-    if (request.action === "probe") { reply({ ready: true, supportsVariants: true }); return; }
+    if (request.action === "probe") { reply({ ready: true, supportsVariants: true, supportsFavorites: true }); return; }
     try {
       const state = await session.ensureSession({ signal: lifetime.signal });
       if (state.status !== "authenticated") { reply({ error: "login" }); return; }
       if (request.action === "lists") {
         const items = await lists.load({ signal: lifetime.signal });
-        reply({ lists: items.filter(item => !item.isArchived && !item.isSuspended).map(item => ({ id: item.id, name: item.name })) });
+        const draft=suggestionDraftDestination();
+        reply({ lists: [...(draft ? [draft] : []), ...items.filter(item => !item.isArchived && !item.isSuspended).map(item => ({ id: item.id, name: item.name }))] });
         return;
       }
       const value = request.value;
@@ -44,7 +46,9 @@ export function installExtensionSessionBridge(session, apiBaseUrl) {
       }
       if (!value || typeof value.listId !== "string" || typeof value.name !== "string" || typeof value.price !== "string" || typeof value.url !== "string") { reply({ error: "invalid" }); return; }
       if ((value.color !== undefined && typeof value.color !== "string") || (value.size !== undefined && typeof value.size !== "string")) { reply({ error: "invalid" }); return; }
-      const created = await wishes.create(value.listId, { name: value.name, price: value.price, color: value.color ?? "", size: value.size ?? "", url: value.url, note: "", quantity: "1", isFavorite: false, isSurprise: false, acceptsSecondHand: false }, { signal: lifetime.signal });
+      if (value.isFavorite !== undefined && typeof value.isFavorite !== "boolean") { reply({ error: "invalid" }); return; }
+      if (value.listId.startsWith("suggestion:")) { reply(fillSuggestionDraft(value) ? {success:true,draft:true} : {error:"invalid"}); return; }
+      const created = await wishes.create(value.listId, { name: value.name, price: value.price, color: value.color ?? "", size: value.size ?? "", url: value.url, note: "", quantity: "1", isFavorite: value.isFavorite ?? false, isSurprise: false, acceptsSecondHand: false }, { signal: lifetime.signal });
       if (typeof value.image === "string" && /^data:image\/webp;base64,[A-Za-z0-9+/=]+$/.test(value.image) && value.image.length <= 2800000) {
         try {
           const bytes = Uint8Array.from(atob(value.image.split(",")[1]), char => char.charCodeAt(0));

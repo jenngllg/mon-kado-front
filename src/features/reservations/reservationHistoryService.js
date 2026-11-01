@@ -3,11 +3,11 @@ import { isCalendarDate, isWishlistId } from "../wishlists/wishlistValidation.js
 import { safeHttpUrl } from "../wishes/wishValidation.js";
 
 /** @typedef {"wishDeleted" | "wishlistDeleted" | "notShared" | "suspended" | "archived"} InaccessibilityReason */
-/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GiftReservationHistoryResponse"] & {inaccessibilityReason?: InaccessibilityReason | null,groupId?:string|null,groupWishPath?:string|null}} HistoryResponse */
+/** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GiftReservationHistoryResponse"] & {inaccessibilityReason?: InaccessibilityReason | null,groupId?:string|null,groupWishPath?:string|null,groupSuggestionPath?:string|null,isArchived?:boolean}} HistoryResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["PaginatedResponseOfGiftReservationHistoryResponse"]} PageResponse */
 /** @typedef {Readonly<{id: string, wishlistName: string, wishName: string, quantity: number,
  * status: "active" | "cancelled" | "unavailable", createdAt: string, lastActivityAt: string, endedAt: string | null,
- * ownerDisplayName?: string | null, ownerHref?: string | null, wishHref?: string | null, imageUrl?: string | null, imageUnavailable?: boolean, isArchived?: boolean, inaccessibilityReason?: InaccessibilityReason | null}>} ReservationHistoryItem */
+ * ownerDisplayName?: string | null, ownerHref?: string | null, wishHref?: string | null, imageUrl?: string | null, imageUnavailable?: boolean, isArchived?: boolean, isSuggestion?: boolean, inaccessibilityReason?: InaccessibilityReason | null}>} ReservationHistoryItem */
 /** @typedef {Readonly<{items: ReadonlyArray<ReservationHistoryItem>, currentPage: number, pageSize: number, totalCount: number}>} ReservationHistoryPage */
 /** @typedef {"active" | "cancelled" | "unavailable"} HistoryStatus */
 /** @typedef {(options: {signal: AbortSignal, page?: number, pageSize?: number, status?: HistoryStatus}) => Promise<ReservationHistoryPage>} LoadReservationHistory */
@@ -55,6 +55,11 @@ export function createReservationHistoryService(session, { apiBaseUrl = "http://
       let wishHref = null;
       const ownedPath = item.ownedWishPath;
       const groupPath = item.groupWishPath;
+      const suggestionPath = item.groupSuggestionPath;
+      if (suggestionPath != null) {
+        if (!isWishlistId(item.groupId) || suggestionPath !== `/groups/${item.groupId}/wishlists/${item.wishlistId}#suggestion-${item.wishId}` || groupPath != null || ownedPath != null || item.shareUrl != null || item.shareLinkId != null || item.isArchived) throw invalid();
+        wishHref = suggestionPath;
+      }
       if (groupPath != null) {
         if (!isWishlistId(item.groupId) || groupPath !== `/groups/${item.groupId}/wishlists/${item.wishlistId}/wishes/${item.wishId}` || ownedPath != null || item.shareUrl != null || item.shareLinkId != null || item.isArchived) throw invalid();
         wishHref = groupPath;
@@ -80,7 +85,8 @@ export function createReservationHistoryService(session, { apiBaseUrl = "http://
         ...(item.isArchived !== undefined ? { isArchived: item.isArchived } : {}),
         ...(item.ownerDisplayName !== undefined ? { ownerDisplayName: item.ownerDisplayName } : {}),
         ...(item.ownerId !== undefined ? { ownerHref: item.ownerId ? `/members/${item.ownerId}` : null } : {}),
-        ...(item.shareUrl !== undefined || ownedPath !== undefined || groupPath !== undefined ? { wishHref } : {}),
+        ...(suggestionPath ? { isSuggestion: true } : {}),
+        ...(item.shareUrl !== undefined || ownedPath !== undefined || groupPath !== undefined || suggestionPath !== undefined ? { wishHref } : {}),
         ...(item.imageUrl !== undefined ? { imageUrl: image?.href ?? null, imageUnavailable: item.imageUrl !== null && !image } : {}) });
     });
     return Object.freeze({ items: Object.freeze(items), currentPage: page.currentPage, pageSize: page.pageSize, totalCount: page.totalCount });

@@ -34,7 +34,7 @@ describe("shared gift presentation", () => {
     const ui = setup({ groupId: shareLinkId, loadOne: async () => own, createReservation }); await settle();
     expect(ui.view.querySelector("h1")?.textContent).toBe(wish.name);
     expect(createReservation).not.toHaveBeenCalled();
-    expect(ui.view.querySelector(".shared-wish-introduction")?.hasAttribute("hidden")).toBe(true);
+    expect(ui.view.querySelector(".shared-wish-introduction")).toBeNull();
     expect(ui.view.textContent?.includes("Quantité disponible")).toBe(!surprise);
     expect(ui.view.querySelector('a[href*="/groups/"]')?.getAttribute("href")).toContain(`/groups/${shareLinkId}/wishlists/${shareLinkId}`);
   });

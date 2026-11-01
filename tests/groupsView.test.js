@@ -74,7 +74,7 @@ describe("group overview", () => {
     expect(f.view.querySelector(".group-card__open p")?.textContent).toBe("2 membres");
     expect(f.view.textContent).not.toContain("Groupe privé");
     expect(f.view.querySelector("script")).toBeNull();
-    expect(f.view.textContent).toContain("Organisé par Camille");
+    expect(f.view.textContent).not.toContain("Organisé par Camille");
     expect(f.request.mock.calls.every(call => call[1].method === "GET")).toBe(true);
   });
   it("shows an honest empty state and creates only after explicit confirmation", async () => {
@@ -186,14 +186,23 @@ describe("private group detail", () => {
     expect(f.view.querySelector(".group-members")?.getAttribute("aria-label")).toBe("Membres du groupe");
     expect(f.request.mock.calls.every(call => call[1].method === "GET")).toBe(true);
   });
-  it("does not expose organizer actions to a normal member and keeps member navigation available", async () => {
+  it("offers every group action to a member and keeps member navigation available", async () => {
     const f = setup({ detail: true, owner: false }); await settle();
     expect(f.view.textContent).not.toContain("Renommer"); expect(button(f.view, "Inviter un proche").disabled).toBe(false);
-    expect(f.view.querySelector(`a[href="/groups/${id}/edit"]`)).toBeNull();
+    expect(f.view.querySelector(`a[href="/groups/${id}/edit"]`)).not.toBeNull();
+    expect(button(f.view, "Supprimer le groupe")).not.toBeNull();
+    expect(f.view.textContent).not.toContain("Organisateur");
+    expect(button(f.view, "Retirer Camille")).not.toBeNull();
     expect(f.view.querySelector(`a[href="/groups/${id}/members/${memberId}"]`)).not.toBeNull();
     button(f.view, "Quitter le groupe").click(); await settle();
     expect(f.view.querySelector("dialog")?.textContent).toContain("Tes listes n’y seront plus partagées");
     button(f.view, "Annuler").click(); expect(f.request.mock.calls.filter(call => call[1].method === "DELETE")).toHaveLength(0);
+  });
+  it("allows the former owner to leave without transferring special rights", async () => {
+    const f = setup({ detail: true }); await settle();
+    button(f.view, "Quitter le groupe").click(); button(f.view, "Quitter").click(); await settle();
+    expect(f.request).toHaveBeenCalledWith(`/api/v1/groups/${id}/members/current`, expect.objectContaining({ method: "DELETE" }));
+    expect(f.navigate).toHaveBeenCalledWith("/groups");
   });
   it("requires a confirmation to remove members and preserves the group on cancellation", async () => {
     const f = setup({ detail: true }); await settle();

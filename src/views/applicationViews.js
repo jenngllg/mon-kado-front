@@ -3,6 +3,30 @@ import { createActionLink } from "../components/index.js";
 import { createBackLink } from "../components/backLink.js";
 import { registerComponentCleanup } from "../components/componentLifecycle.js";
 import { wishlistArtwork } from "../features/wishlists/wishlistArtwork.js";
+import { createDashboardView } from "../features/home/dashboardView.js";
+import { disposeComponent } from "../components/componentLifecycle.js";
+
+/** Creates the live session-aware home without retaining private data after logout.
+ * @param {Pick<import('../auth/sessionManager.js').SessionManager, 'getSnapshot'|'subscribe'>} session Live identity.
+ * @param {{service: import('../features/home/dashboardView.js').DashboardService, signal:AbortSignal, apiBaseUrl:string}} options Readers and lifetime.
+ */
+export function createSessionHomeView(session, options) {
+  const root = document.createElement('div');
+  let identity = '';
+  function render() {
+    const state = session.getSnapshot();
+    const next = `${state.status}:${state.user?.id ?? ''}:${state.user?.displayName ?? ''}`;
+    if (next === identity) return;
+    identity = next;
+    for (const child of root.children) if (child instanceof HTMLElement) disposeComponent(child);
+    root.replaceChildren(state.status === 'authenticated'
+      ? createDashboardView({ ...options, displayName: state.user?.displayName ?? '' })
+      : createHomeView(session));
+  }
+  render();
+  registerComponentCleanup(root, session.subscribe(render));
+  return root;
+}
 
 /**
  * Creates the neutral product home page.

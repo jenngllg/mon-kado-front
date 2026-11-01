@@ -23,3 +23,4 @@
 @import "./styles/header-search.css" layer(components);
 @import "./styles/extension-add.css" layer(components);
 @import "./styles/page-titles.css" layer(components);
+@import "./styles/dashboard.css" layer(components);

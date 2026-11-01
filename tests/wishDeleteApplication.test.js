@@ -60,7 +60,7 @@ describe("gift deletion integration", () => {
     // Assert
     expect(app.state.writes).toBe(0);
     app.click("Supprimer");
-    await until(app.shell.element, () => window.location.pathname === detail && app.shell.notificationRegion.textContent.includes("Souhait supprimé") && app.shell.outlet.textContent.includes("Aucun souhait pour le moment"));
+    await until(app.shell.element, () => window.location.pathname === detail && app.shell.notificationRegion.textContent.includes("Souhait supprimé") && app.shell.outlet.textContent.includes("et donne des idées à tes proches"));
     expect(app.state.writes).toBe(1);
     expect(app.shell.outlet.querySelector("dialog")).toBeNull();
     expect(app.shell.notificationRegion.textContent.match(/Souhait supprimé/g)).toHaveLength(1);
@@ -81,14 +81,14 @@ describe("gift deletion integration", () => {
     const app = setup(); app.state.remaining = remaining; await app.start(); app.state.version = 2; await ready(app);
     expect(app.state.reads).toBe(1); expect(app.state.parentReads).toBe(2); expect(app.state.writes).toBe(0); expect(window.location.pathname).toBe(path);
     const replace = vi.spyOn(window.history, "replaceState"); app.click("Supprimer");
-    await until(app.shell.element, () => app.state.collectionReads === 2 && app.shell.outlet.querySelector('.wishlist-details-gifts [aria-busy="false"]') !== null && window.location.pathname === detail && app.shell.notificationRegion.textContent.includes("Souhait supprimé") && (remaining ? app.shell.outlet.textContent.includes("Autre souhait") : app.shell.outlet.textContent.includes("Aucun souhait pour le moment")));
+    await until(app.shell.element, () => app.state.collectionReads === 2 && app.shell.outlet.querySelector('.wishlist-details-gifts [aria-busy="false"]') !== null && window.location.pathname === detail && app.shell.notificationRegion.textContent.includes("Souhait supprimé") && (remaining ? app.shell.outlet.textContent.includes("Autre souhait") : app.shell.outlet.textContent.includes("et donne des idées à tes proches")));
     expect(app.state.writes).toBe(1); expect(app.state.parentReads).toBe(2); expect(app.state.collectionReads).toBe(2); expect(app.shell.outlet.querySelector("dialog")).toBeNull(); expect(document.activeElement?.textContent).toBe("Souhaits");
     expect(replace).not.toHaveBeenCalled(); expect(app.shell.notificationRegion.textContent.match(/Souhait supprimé/g)).toHaveLength(1); expect(app.shell.outlet.textContent).not.toContain("Souhait privé");
   });
   it("preserves confirmed success when collection reloading fails and retries only GET", async () => {
     const app = setup(); await app.start(); await ready(app); app.state.collectionStatus = 503; app.click("Supprimer");
-    await until(app.shell.element, () => window.location.pathname === detail && app.shell.outlet.querySelector('.wishlist-details-gifts [role="alert"]') !== null && app.shell.outlet.querySelector('.wishlist-details-gifts [aria-busy="false"]') !== null && app.shell.notificationRegion.textContent.includes("Souhait supprimé"));
-    app.state.collectionStatus = 200; window.dispatchEvent(new Event("focus")); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Aucun souhait pour le moment")); expect(app.state.writes).toBe(1); expect(app.state.collectionReads).toBe(3);
+    await until(app.shell.element, () => window.location.pathname === detail && app.state.collectionReads === 2 && app.shell.outlet.querySelector('.wishlist-details-gifts > .flow[aria-busy="false"] [role="alert"]') !== null && app.shell.notificationRegion.textContent.includes("Souhait supprimé"));
+    app.state.collectionStatus = 200; window.dispatchEvent(new Event("focus")); await until(app.shell.outlet, () => app.state.collectionReads === 3 && app.shell.outlet.textContent.includes("et donne des idées à tes proches")); expect(app.state.writes).toBe(1); expect(app.state.collectionReads).toBe(3);
   });
   it("deletes on the current list without relying on history navigation", async () => {
     const app = setup(); await app.start(); await ready(app); vi.spyOn(window.history, "replaceState").mockImplementationOnce(() => { throw new Error("history failure"); }); app.click("Supprimer");

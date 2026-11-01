@@ -8,11 +8,11 @@ import { ReservationQuantityMessage, validateReservationQuantity } from "./reser
  * @param {{available: number, create: (quantity: string, signal: AbortSignal) => Promise<unknown>,
  * verify: (signal: AbortSignal) => Promise<{available: number, lookup: import("./giftReservationService.js").ReservationLookup}>,
  * onSaved: () => void, onUnavailable: () => void, onBusy?: (busy: boolean) => void, signal?: AbortSignal, singleItem?: boolean, submitOnReady?: boolean, hideAvailability?: boolean,
- * confirmation?: boolean, onCancel?: () => void,
+ * confirmation?: boolean, onCancel?: () => void, compact?: boolean,
  * editing?: {reservation: import("./giftReservationService.js").CurrentReservation, update: (quantity: string, etag: string, signal: AbortSignal) => Promise<unknown>}}} options Bound operations.
  * @returns {HTMLElement} Disposable creation form.
  */
-export function createReservationCreateForm({ available, create, verify, onSaved, onUnavailable, onBusy, signal, editing, singleItem = false, submitOnReady = false, hideAvailability = false, confirmation = false, onCancel }) {
+export function createReservationCreateForm({ available, create, verify, onSaved, onUnavailable, onBusy, signal, editing, singleItem = false, submitOnReady = false, hideAvailability = false, confirmation = false, onCancel, compact = false }) {
   let reference = editing?.reservation ?? null;
   if (reference) available += reference.quantity;
   const root = document.createElement("section"); root.className = "flow";
@@ -29,6 +29,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
   availability.hidden = hideAvailability;
   field.append(availability);
   const submit = createButton({ label: editing ? "Enregistrer la quantité" : confirmation ? "Confirmer la réservation" : singleItem ? "Je réserve ce cadeau" : "Réserver ce souhait", type: "submit" });
+  if (compact && !editing && !confirmation) { submit.setAttribute("aria-label", submit.textContent ?? "Réserver ce souhait"); submit.textContent = "Réserver"; form.classList.add("reservation-create-form--compact"); }
   const comparison = document.createElement("p"); comparison.hidden = true;
   const reread = createButton({ label: "Vérifier ma réservation", variant: "secondary", onClick: () => { void check(); } }); reread.hidden = true;
   const actions = document.createElement("div"); actions.className = "cluster wishlist-form__actions";
@@ -53,6 +54,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
     decrease.disabled = input.disabled || !Number.isInteger(Number(input.value)) || Number(input.value) <= 1;
     increase.disabled = input.disabled || !Number.isInteger(Number(input.value)) || Number(input.value) >= Number(input.max);
     availability.textContent = `${Math.min(100, available)} maximum disponible${available > 1 ? "s" : ""}`;
+    availability.classList.toggle("reservation-quantity-limit--cap", available > 100);
     root.setAttribute("aria-busy", String(busy));
     // A partial refresh must not bypass the mandatory gift-and-reservation verification.
     onBusy?.(!disposed && (busy || (blocked && !form.hidden)));

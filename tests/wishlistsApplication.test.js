@@ -105,10 +105,11 @@ describe("owned wishlists session integration", () => {
     await app.router.navigate("/"); gate.resolve(); await gate.promise;
     // Assert
     expect(previous.textContent).not.toContain(item.name); expect(previous.querySelector(".wishlists-view__results")?.textContent).toBe("");
-    expect(app.shell.outlet.textContent).toContain("Petites envies, grandes occasions.");
+    await until(app.shell.outlet, () => app.shell.outlet.querySelector(".dashboard .dashboard-row") !== null);
+    expect(app.shell.outlet.querySelector(".dashboard h1")?.textContent).toBe("Bonjour Fixture");
     app.state.beforeRead = async () => {};
     await app.router.navigate("/lists"); await until(app.shell.outlet, () => app.shell.outlet.querySelector("li") !== null);
-    expect(app.state.reads).toBe(2);
+    expect(app.state.reads).toBe(3);
   });
   it.each([false, true])("removes mounted or pending data when another tab logs out (pending=%s)", async pending => {
     // Arrange

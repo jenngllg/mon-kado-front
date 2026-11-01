@@ -72,13 +72,25 @@
   .group-share-field > .form-field__control { grid-column: 1 / -1; grid-row: 2; }
 }
 .group-edit-view { padding-block: var(--space-6) var(--space-8); }
-.group-edit-form { max-width: 42rem; --flow-space: var(--space-6); }
+.group-edit-form { max-width: 42rem; margin-inline: auto; --flow-space: var(--space-6); }
 .group-edit-form .profile-image-section { border: 0; padding: 0; }
 .group-edit-form .profile-image-section__body { align-items: center; }
 .group-edit-form > .cluster { justify-content: flex-end; }
 .groups-header .action-link.ui-button--secondary,
 .group-edit-form .action-link.ui-button--secondary { border-color: var(--color-text); }
+.groups-header .group-join-action.ui-button--secondary { border-color: var(--color-border-strong); }
 .group-edit-comparison { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow-wrap: anywhere; }
+.group-suggestions { margin-block: var(--space-8); }
+.group-suggestions__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.group-suggestions__card { display: grid; grid-template-columns: minmax(7rem, 38%) minmax(0, 1fr); overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.group-suggestions__media { display: grid; place-items: center; min-height: 12rem; padding: var(--space-3); }
+.group-suggestions__media img { width: 100%; height: 100%; max-height: 16rem; object-fit: contain; }
+.group-suggestions__content { min-width: 0; padding: var(--space-4); overflow-wrap: anywhere; }
+.group-suggestions__content h3 { margin: 0; }
+.group-suggestions__author { color: var(--color-text-muted); font-weight: var(--font-weight-semibold); }
+.group-suggestions__dialog { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+@media (max-width: 64rem) { .group-suggestions__grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 32rem) { .group-suggestions__card { grid-template-columns: minmax(0, 1fr); } .group-suggestions__media { min-height: 10rem; } }
 @media (max-width: 64rem) { .groups-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 40rem) {
   .group-member { width: 100%; }

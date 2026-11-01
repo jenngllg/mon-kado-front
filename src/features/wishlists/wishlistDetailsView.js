@@ -19,7 +19,9 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId } from "./wishlistValidation.js";
 import { createWishlistArchiveButton } from "./wishlistArchiveButton.js";
 import { createWishCopyActions } from "../sharing/wishCopyActions.js";
+import { readPersonalReservations } from "../sharing/personalReservations.js";
 import { createWishlistGroupShareDialog } from "../groups/wishlistGroupShareDialog.js";
+import { renderInfiniteWishGallery } from "../wishes/infiniteWishGallery.js";
 
 /** Mounts owner-only list details and independently refreshable gifts.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
@@ -28,13 +30,15 @@ import { createWishlistGroupShareDialog } from "../groups/wishlistGroupShareDial
  * removeWishlist?: import("./wishlistsService.js").RemoveWishlist, onWishlistDeleted?: () => void | Promise<void>,
  * favorite?: {loadOne: import("../wishes/wishesService.js").LoadWish, setFavorite: import("../wishes/wishesService.js").SetWishFavorite},
  * copy?: import("../sharing/wishCopyActions.js").WishCopyOperations,
+ * personalReservation?: import("../sharing/giftReservationService.js").LoadReservation,
+ * loadPersonalReservations?: ReturnType<typeof import("../sharing/personalReservations.js").createPersonalReservationsReader>,
  * loadWishes: import("../wishes/wishesService.js").LoadWishes, reorder?: import("../wishes/wishesService.js").ReorderWishes,
  * deletion?: {loadOne: import("../wishes/wishesService.js").LoadWish, remove: import("../wishes/wishesService.js").RemoveWish}, onDeleted?: () => void | Promise<void>,
  * groups?:ReturnType<typeof import("../groups/groupsService.js").createGroupsService>,
  * share?: {load: import("./wishlistShareService.js").LoadWishlistShare, create: import("./wishlistShareService.js").CreateWishlistShare, renew?: import("./wishlistShareService.js").RenewWishlistShare, revoke?: import("./wishlistShareService.js").RevokeWishlistShare, copyText: (text: string) => Promise<void>, onRevoked?: () => void}, signal?: AbortSignal}} options View dependencies.
  * @returns {HTMLElement} Routed component, with explicit disposal.
  */
-export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArchived, removeWishlist, onWishlistDeleted = () => {}, favorite, copy, loadWishes, reorder, share, deletion, signal, initialSort, onSortChange = () => {}, onDeleted = () => {} }) {
+export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArchived, removeWishlist, onWishlistDeleted = () => {}, favorite, copy, personalReservation, loadPersonalReservations, loadWishes, reorder, share, deletion, signal, initialSort, onSortChange = () => {}, onDeleted = () => {} }) {
   const view = element("section", ""); view.className = "wishlist-details-view wishlist-details-view--owner wishlist-details-view--gallery wishlist-details-view--banner flow";
   const back = createBackLink({ label: "Retour à Mes listes", href: RoutePaths.Lists });
   const layout = element("div", ""); layout.className = "wishlist-details-layout";
@@ -54,6 +58,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   applyActionIcon(organize, "reorder", "Réorganiser les souhaits");
   addComponentEventListener(view, organize, "click", enterReorder);
   const notice = element("div", ""); notice.hidden = true;
+  const personalNotice = element("div", ""); personalNotice.hidden = true;
   const reorderHost = element("div", ""); reorderHost.hidden = true;
   const giftToolbar = element("div", ""); giftToolbar.className = "section-toolbar";
   const giftActions = element("div", ""); giftActions.className = "section-toolbar__actions";
@@ -61,7 +66,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   const retryImages = createButton({ label: "Réessayer les images", variant: "secondary", onClick: () => { void readGifts(true); } });
   retryImages.hidden = true;
   giftActions.append(sorting.element, retryImages); giftToolbar.append(heading, giftActions);
-  gifts.append(giftToolbar, results, reorderHost); layout.append(information, gifts); view.append(header, notice, layout);
+  gifts.append(giftToolbar, personalNotice, results, reorderHost); layout.append(information, gifts); view.append(header, notice, layout);
   const lifetime = new AbortController();
   let copying = false;
   const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, excludeWishlistId: wishlistId,
@@ -72,6 +77,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   /** @type {HTMLDialogElement | null} */ let shareDialog = null;
   let disposed = false; let busy = false; let terminal = false; let listLoaded = false; let reordering = false;
   let favoritePending = 0;
+  /** @type {Map<string, number>} */ let personalReservations = new Map();
   /** @type {import("./wishlistsService.js").CreatedWishlist | null} */ let list = null;
   /** @type {import("../wishes/wishesService.js").WishCollection | null} */ let collection = null;
   registerComponentCleanup(view, () => {
@@ -220,7 +226,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
     giftRead?.abort(); giftRead = null; busy = false;
     list = { ...list, wishlist: Object.freeze({ ...list.wishlist, isSuspended: true }) };
     renderList(); organize.hidden = true;
-    if (collection?.wishes.length) {
+    if (collection) {
       renderGifts();
     } else if (!collection) { clear(results); gifts.hidden = true; }
     results.setAttribute("aria-busy", "false");
@@ -237,6 +243,15 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
     try {
       const loaded = await loadWishes(wishlistId, { signal: AbortSignal.any([lifetime.signal, operation.signal]) });
       if (disposed || terminal || operation.signal.aborted || lifetime.signal.aborted) return;
+      personalReservations = new Map();
+      if ((personalReservation || loadPersonalReservations) && !list?.wishlist.isSuspended && !list?.wishlist.isArchived) {
+        const readSignal = AbortSignal.any([lifetime.signal, operation.signal]);
+        const { quantities, failed } = loadPersonalReservations ? await loadPersonalReservations(wishlistId, loaded.wishes, readSignal) : await readPersonalReservations(wishlistId, loaded.wishes, /** @type {import("../sharing/giftReservationService.js").LoadReservation} */ (personalReservation), readSignal);
+        personalReservations = quantities;
+        if (disposed || terminal || readSignal.aborted) return;
+        clear(personalNotice); personalNotice.hidden = !failed;
+        if (failed) personalNotice.append(createAlert({ title: "Réservations indisponibles", message: "Certaines de tes réservations n’ont pas pu être vérifiées.", variant: "error" }));
+      }
       collection = loaded; updateSorting(); onSortChange(sorting.value()); renderGifts();
       if (explicit) heading.focus();
     } catch (error) {
@@ -256,11 +271,21 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   function renderGifts() {
       if (!collection || disposed) return;
       clear(results);
-      if (collection.wishes.length === 0) { const empty = element("p", "Aucun souhait pour le moment"); empty.className = "wishlist-details-empty"; results.append(empty); }
+      const emptyCollection = collection.wishes.length === 0;
+      actions.querySelector('a[href$="/wishes/new"]')?.toggleAttribute("hidden", emptyCollection);
+      if (emptyCollection) {
+        const empty = element("p", "Aucun souhait pour le moment"); empty.className = "wishlist-details-empty";
+        if (list && !list.wishlist.isSuspended && !list.wishlist.isArchived) {
+          const create = createActionLink({ label: "Créer un souhait", href: RoutePaths.NewWish.replace(":listId", wishlistId) });
+          create.classList.add("ui-button", "ui-button--primary");
+          empty.replaceChildren("Commence par ", create, " et donne des idées à tes proches");
+        }
+        results.append(empty);
+      }
       else {
         const cards = element("ul", ""); cards.className = "wish-grid wish-grid--gallery"; cards.setAttribute("role", "list");
-        for (const item of sortWishes(collection.wishes, sorting.value())) cards.append(createWishGalleryCard(item, list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true, {
-          returnSort: sorting.value(),
+        renderInfiniteWishGallery(results, cards, sortWishes(collection.wishes, sorting.value()), item => createWishGalleryCard(item, list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true, {
+          returnSort: sorting.value(), personalReservedQuantity: personalReservations.get(item.id),
           copyButton: copyActions && !list?.wishlist.isSuspended && !list?.wishlist.isArchived ? copyActions.button(item.id, true) : undefined,
           onImageError: () => { if (!disposed && !terminal && !reordering) retryImages.hidden = false; },
           favoriteButton: favorite && !list?.wishlist.isSuspended && !list?.wishlist.isArchived ? createWishFavoriteButton({ wish: item, ...favorite, signal: lifetime.signal,
@@ -269,7 +294,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
             onError: error => { const translated = toUserFacingError(error); clear(notice); notice.hidden = false; notice.append(createAlert({ ...translated, variant: "error" })); },
           }) : undefined,
           onDelete: deletion ? trigger => deleteWish(item.id, trigger) : undefined,
-        })); results.append(cards);
+        }));
       }
       updateOrganize();
   }

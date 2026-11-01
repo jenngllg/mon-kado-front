@@ -61,6 +61,8 @@
   background: var(--color-surface);
 }
 
+.home-hero__secondary-action.ui-button--secondary { border-color: var(--color-border-strong); }
+
 .home-hero__occasions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -475,6 +477,12 @@
 .wishlist-details-header h1 { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 .wishlist-details-header .wishlist-details-actions { margin-inline-start: auto; flex: 0 0 auto; }
 .wishlist-details-empty { max-width: none; padding-block: var(--space-8); color: var(--color-text-muted); text-align: center; }
+.wishlist-details-empty .ui-button { margin: var(--space-2) var(--space-1); vertical-align: middle; }
+.wish-copy-choices { min-width: 0; margin: 0; padding: 0; border: 0; max-height: 45dvh; overflow-y: auto; }
+.wish-copy-choices legend { margin-bottom: var(--space-3); font-weight: var(--font-weight-semibold); }
+.wish-copy-choice { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-min-size); padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+.wish-copy-choice input { width: 1.25rem; height: 1.25rem; flex: none; accent-color: var(--color-accent); }
+.wish-copy-choice span { min-width: 0; overflow-wrap: anywhere; }
 
 .wishlist-form__actions {
   --cluster-space: var(--space-3);
@@ -957,7 +965,9 @@
   .wishlists-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (min-width: 64rem) {
-  .home-hero__occasions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .home-hero__secondary-action.ui-button--secondary { border-color: var(--color-border-strong); }
+
+.home-hero__occasions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .wish-favorite-indicator.icon-action {
   display: inline-flex;
@@ -1028,3 +1038,9 @@
 @media (min-width: 80rem) {
   .app-navigation__list:has(a[href="/admin/reported-wishlists"]) { gap: var(--space-2); }
 }
+
+.activity-event__label { overflow-wrap: anywhere; }
+.activity-event__details summary { cursor: pointer; min-block-size: 44px; }
+.activity-event__payload { white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 24rem; overflow: auto; padding: var(--space-3); }
+
+.impersonation-banner { padding: var(--space-3) var(--content-gutter); background: var(--color-surface-sage); justify-content: space-between; }

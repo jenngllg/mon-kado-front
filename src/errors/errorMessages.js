@@ -12,9 +12,13 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  ACCOUNT_IMPERSONATION_READ_ONLY: {title:"Action protégée",message:"Cette opération est indisponible pendant la simulation."},
+  ACCOUNT_IMPERSONATION_RESTRICTED: {title:"Action protégée",message:"La sécurité du compte et les fonctions d’administration sont indisponibles pendant la simulation."},
+  ACCOUNT_IMPERSONATION_EXPIRED: {title:"Simulation terminée",message:"Reviens à ton compte pour continuer."},
+  ACCOUNT_IMPERSONATION_DENIED: {title:"Simulation refusée",message:"Ce compte ne peut pas être simulé depuis cette session."},
   GROUP_NOT_FOUND: { title: "Groupe indisponible", message: "Ce groupe n’existe plus ou tu n’en fais pas partie." },
   GROUP_IMAGE_NOT_FOUND: { title: "Photo indisponible", message: "Cette photo a été retirée ou n’est plus accessible." },
-  GROUP_ACCESS_DENIED: { title: "Action réservée à l’organisateur", message: "Seul l’organisateur peut gérer ce groupe et ses invitations." },
+  GROUP_ACCESS_DENIED: { title: "Accès refusé", message: "Tu ne peux pas effectuer cette action dans ce groupe." },
   GROUP_VERSION_CONFLICT: { title: "Groupe modifié ailleurs", message: "Vérifie la version enregistrée du groupe avant de recommencer." },
   GROUP_MEMBER_NOT_FOUND: { title: "Membre indisponible", message: "Ce membre ne peut plus être invité ou ne fait plus partie du groupe." },
   GROUP_MEMBER_ALREADY_EXISTS: { title: "Déjà dans le groupe", message: "Cette personne fait déjà partie du groupe." },
@@ -24,7 +28,7 @@ const CommonMessages = Object.freeze({
   WISHLIST_GROUP_VISIBILITY_VERSION_CONFLICT: { title: "Visibilité modifiée", message: "La visibilité de cette liste a changé. Vérifie les groupes avant d’enregistrer ta sélection." },
   GROUP_JOIN_LINK_ALREADY_EXISTS: { title: "Partage déjà actif", message: "Un lien est déjà disponible pour ce groupe." },
   GROUP_JOIN_LINK_VERSION_CONFLICT: { title: "Partage modifié", message: "Le lien a changé. Ferme cette fenêtre puis rouvre le partage." },
-  GROUP_OWNER_CANNOT_LEAVE: { title: "Tu organises ce groupe", message: "Supprime le groupe pour le quitter. Les listes seront conservées." },
+  GROUP_OWNER_CANNOT_LEAVE: { title: "Départ impossible", message: "Le groupe ne peut pas être quitté pour le moment." },
   GROUP_LIMIT_REACHED: { title: "Limite de groupes atteinte", message: "Un membre peut rejoindre 50 groupes. Un groupe peut accueillir 100 membres, invitations en attente comprises." },
   GROUP_WISHLIST_ALREADY_EXISTS: { title: "Liste déjà partagée", message: "Cette liste est déjà accessible dans le groupe." },
   GROUP_WISHLIST_NOT_FOUND: { title: "Liste indisponible", message: "Cette liste n’est plus accessible dans ce groupe." },

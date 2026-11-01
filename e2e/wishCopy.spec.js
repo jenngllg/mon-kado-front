@@ -6,18 +6,43 @@ test.describe("touch copy action", () => {
   test("stays visible without hover and opens without writing", async ({ page, context }) => {
     const api = await controlledApi(context, { sharedWishlistId: "019c52dd-56c1-7cc6-8a95-243f3a032e08" }); api.state.authenticated = true;
     await page.goto(`${sharedPath}#${secret}`);
-    const trigger = page.getByRole("button", { name: "Ajouter à mes listes", exact: true });
+    const trigger = page.getByRole("button", { name: "Je le veux aussi !", exact: true });
     await expect(trigger).toBeVisible(); await expect(trigger).toHaveCSS("opacity", "1");
     await expect(trigger).toHaveCSS("pointer-events", "auto");
     await trigger.tap();
-    const dialog = page.getByRole("dialog", { name: "Ajouter à mes listes" });
-    await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(listId);
+    const dialog = page.getByRole("dialog", { name: "Je le veux aussi !" });
+    await expect(dialog.getByRole("checkbox")).toBeChecked();
     await dialog.getByRole("button", { name: "Annuler" }).tap();
     expect(api.state.wishWrites).toBe(0); expect(api.unexpected).toEqual([]);
   });
 });
 
 for (const width of [390, 1440]) {
+  test(`copy a shared wish into several lists at ${width}px`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const api = await controlledApi(context, { sharedWishlistId: "019c52dd-56c1-7cc6-8a95-243f3a032e08" }); api.state.authenticated = true;
+    const other = "019c52dd-56c1-7cc6-8a95-243f3a032e72";
+    const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"copy"' };
+    const writes = /** @type {string[]} */ ([]);
+    await context.route("http://localhost:7000/api/v1/wishlists", route => route.request().method() === "OPTIONS" ? route.fallback() : route.fulfill({ status: 200, headers, json: [api.wishlist, { ...api.wishlist, id: other, name: "Noël" }] }));
+    await context.route("http://localhost:7000/api/v1/wishlists/*/wishes/copies", async route => {
+      if (route.request().method() === "OPTIONS") return route.fallback();
+      const destination = new URL(route.request().url()).pathname.split("/")[4];
+      expect(route.request().method()).toBe("POST"); expect(route.request().headers()["x-csrf-token"]).toBe("csrf-test-only");
+      expect(route.request().postDataJSON()).toEqual({ sourceShareLinkId: shareId, sourceWishId: wishId }); writes.push(destination);
+      await route.fulfill({ status: 201, headers, json: { ...api.wish, id: destination, wishlistId: destination, isFavorite: false } });
+    });
+    await page.goto(`${sharedPath}#${secret}`);
+    await page.locator(".wish-card--gallery h3 a").click();
+    await page.getByRole("button", { name: "Je le veux aussi !", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Je le veux aussi !", exact: true });
+    await dialog.getByRole("checkbox", { name: api.wishlist.name, exact: true }).check();
+    await dialog.getByRole("checkbox", { name: "Noël", exact: true }).check();
+    await dialog.getByRole("button", { name: "Ajouter", exact: true }).click();
+    await expect(dialog).toBeHidden(); expect(writes).toEqual([listId, other]);
+    await expect(page.getByRole("status").filter({ hasText: "Souhait ajouté à 2 listes." })).toBeVisible();
+    expect(api.unexpected).toEqual([]);
+  });
   for (const failure of ["network", "revoked", "archived"]) {
     test(`copy ${failure} is safe at ${width}px`, async ({ page, context }) => {
       await page.setViewportSize({ width, height: 1000 });
@@ -35,13 +60,13 @@ for (const width of [390, 1440]) {
       });
       await page.goto(`${sharedPath}#${secret}`);
       const card = page.locator(".wish-card--gallery").first(); await expect(card).toBeVisible(); await card.hover();
-      const trigger = page.getByRole("button", { name: "Ajouter à mes listes", exact: true });
+      const trigger = page.getByRole("button", { name: "Je le veux aussi !", exact: true });
       await trigger.focus(); await page.keyboard.press("Enter");
-      const dialog = page.getByRole("dialog", { name: "Ajouter à mes listes" });
-      await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(listId);
+      const dialog = page.getByRole("dialog", { name: "Je le veux aussi !" });
+      await expect(dialog.getByRole("checkbox")).toBeChecked();
       await page.keyboard.press("Escape"); await expect(dialog).toBeHidden(); await expect(trigger).toBeFocused(); expect(writes).toBe(0);
       await page.keyboard.press("Enter");
-      await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(listId);
+      await expect(dialog.getByRole("checkbox")).toBeChecked();
       await dialog.getByRole("button", { name: "Ajouter", exact: true }).click();
       if (failure === "revoked") {
         await expect(dialog).toBeHidden(); await expect(trigger).toHaveCount(0);
@@ -74,7 +99,7 @@ for (const width of [390, 1440]) {
       const card = page.locator(".wish-card--gallery").first();
       await expect(card).toBeVisible();
       if (entry === "detail") await card.locator("h3 a").click();
-      const button = page.getByRole("button", { name: "Ajouter à mes listes", exact: true });
+      const button = page.getByRole("button", { name: "Je le veux aussi !", exact: true });
       await expect(button).toBeVisible();
       if (entry === "card") {
         await card.hover();
@@ -82,8 +107,8 @@ for (const width of [390, 1440]) {
         const box = await button.boundingBox(); expect(box?.width).toBeGreaterThanOrEqual(44); expect(box?.height).toBeGreaterThanOrEqual(44);
       }
       await button.click();
-      const dialog = page.getByRole("dialog", { name: "Ajouter à mes listes" });
-      await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(listId);
+      const dialog = page.getByRole("dialog", { name: "Je le veux aussi !" });
+      await expect(dialog.getByRole("checkbox")).toBeChecked();
       expect(writes).toBe(0);
       expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath("wish-copy-modal.png"), fullPage: true });
@@ -104,10 +129,10 @@ for (const width of [390, 1440]) {
       api.wishlist.isSuspended = condition === "suspended";
       await page.goto(`${sharedPath}#${secret}`);
       await expect(page.locator(".wish-card--gallery")).toHaveCount(1);
-      await expect(page.getByRole("button", { name: "Ajouter à mes listes", exact: true })).toBeHidden();
+      await expect(page.getByRole("button", { name: "Je le veux aussi !", exact: true })).toBeHidden();
       await page.locator(".wish-card--gallery h3 a").click();
       await expect(page.getByRole("heading", { name: "Une théière", exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Ajouter à mes listes", exact: true })).toBeHidden();
+      await expect(page.getByRole("button", { name: "Je le veux aussi !", exact: true })).toBeHidden();
       expect(api.state.wishWrites).toBe(0); expect(api.unexpected).toEqual([]);
     });
   }

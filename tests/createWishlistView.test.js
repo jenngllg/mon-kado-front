@@ -34,7 +34,7 @@ describe("create wishlist form", () => {
     const mode = /** @type {HTMLInputElement} */ (ui.form.querySelector('[role="switch"]'));
     expect(hint.hidden).toBe(false);
     expect(mode.getAttribute("aria-describedby")).toBe(hint.id);
-    expect(hint.textContent).toBe("Mode surprise activé : les réservations des autres resteront masquées pour vous.");
+    expect(hint.textContent).toBe("Mode surprise activé : vos réservations restent visibles ; celles des autres sont masquées.");
     mode.click();
     expect(hint.textContent).toBe("Mode surprise désactivé : les réservations seront visibles pour vous.");
     mode.click();

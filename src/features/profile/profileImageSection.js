@@ -59,10 +59,11 @@ export function createProfileImageSection({ onChange, onRemove, saveAction, deco
     if (value !== photo || memberId !== identity) {
       photo = value; identity = memberId; disposeComponent(current); current.replaceChildren();
       if (value && !disposed) {
-        const fallback = node("p", value.imageUnavailable ? "Photo indisponible" : "Sans photo"); current.append(fallback);
+        const fallback = node("p", value.imageUnavailable ? "Photo indisponible" : "Sans photo");
+        fallback.classList.toggle("visually-hidden", !value.imageUnavailable); current.append(fallback);
         fallback.hidden = !!value.imageUrl;
         current.prepend(createMemberAvatar({ memberId, imageUrl: value.imageUrl, size: 256,
-          onError: () => { fallback.textContent = "Photo indisponible"; fallback.hidden = false; } }));
+          onError: () => { fallback.textContent = "Photo indisponible"; fallback.classList.remove("visually-hidden"); fallback.hidden = false; } }));
       }
     }
     element.hidden = !photo || disposed; sync();

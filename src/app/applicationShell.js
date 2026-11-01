@@ -208,7 +208,7 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
     navigationLinks.clear();
     for (const item of NavigationItems) {
       if (item.routeName === RouteNames.Members) continue;
-      if (item.routeName === RouteNames.ReportedWishlists && !hasAdminAccess(state)) continue;
+      if ((item.routeName === RouteNames.ReportedWishlists || item.routeName === RouteNames.Activity || item.routeName === RouteNames.AdminMembers) && !hasAdminAccess(state)) continue;
       const isAccountAction = item.routeName === RouteNames.Login || item.routeName === RouteNames.Register;
       if (item.routeName !== RouteNames.Home &&
         (mode === "pending" || (mode === "member" ? isAccountAction : !isAccountAction))) continue;

@@ -68,7 +68,7 @@ describe("manual gift creation integration", () => {
   });
   it("offers creation from empty and populated details but not suspended lists", async () => {
     const app = setup(); await app.start(); await app.router.navigate(detail);
-    await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Aucun souhait pour le moment"));
+    await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("et donne des idées à tes proches"));
     expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.getAttribute("aria-label")).toBe("Ajouter un souhait");
     expect(app.shell.outlet.querySelector(`a[href="${path}?mode=url"]`)).toBeNull();
     expect(app.shell.outlet.querySelector(`a[href="${path}"]`)?.closest("details")).toBeNull();

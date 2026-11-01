@@ -86,7 +86,7 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
       if (editable) {
         if (copyActions) {
           const copyButton = copyActions.button(wishId);
-          applyActionIcon(copyButton, "copy", "Ajouter à une autre liste"); actions.append(copyButton);
+          applyActionIcon(copyButton, "copy", "Je le veux aussi !"); actions.append(copyButton);
           copyActions.setBlocked(false);
         }
         const edit = createActionLink({ label: "Modifier", href: withWishSort(RoutePaths.EditWish.replace(":listId", wishlistId).replace(":wishId", wishId), returnSort) });
@@ -122,7 +122,7 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
       const product = document.createElement("div"); product.className = "shared-wish-product flow";
       product.append(createWishImage(wish), information);
       layout.append(product, reservation);
-      content.append(title, layout);
+      content.append(layout);
       if (editable && reservations) {
         reservationPanel = createOwnedGiftReservationSection({ wishlistId, wishId, wish, loadOne, reservations,
           surpriseMode: parent.wishlist.surpriseMode !== false,

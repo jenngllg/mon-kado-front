@@ -2,12 +2,14 @@ import { test, expect } from "@playwright/test";
 import { controlledApi, sharedPath, secret } from "./controlledApi.js";
 
 test("single-item wishes reserve in one click without quantity selection", async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const api = await controlledApi(context);
   api.state.authenticated = true; api.wish.quantity = 1;
   await page.goto(`${sharedPath}#${secret}`);
   await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   const reserve = page.getByRole("button", { name: "Je réserve ce cadeau", exact: true });
   await expect(reserve).toBeVisible();
+  await expect(page.getByText("Réserver ce cadeau", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("spinbutton")).toHaveCount(0);
   expect(api.state.reservations).toBe(0);
   await reserve.click();
@@ -24,6 +26,7 @@ test("reserve, preserve a draft after conflict, then explicitly cancel in the na
   await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   const quantity = page.getByRole("spinbutton", { name: /Quantité à réserver/ });
   await quantity.fill("2");
+  await expect(page.getByText("Réserver ce cadeau", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Réserver ce souhait", exact: true }).click();
   await expect(page.getByRole("button", { name: "Enregistrer la quantité", exact: true })).toBeVisible();
   expect(api.state.reservations).toBe(1);

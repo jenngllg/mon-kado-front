@@ -112,7 +112,7 @@
 .member-search-result { max-width: none; min-width: 0; }
 .member-search-result > a { padding: 1rem 1.5rem; border-radius: var(--radius-md); }
 .member-search-result__name { min-width: 0; overflow-wrap: anywhere; }
-.reservation-history-view { container-type: inline-size; }
+.reservation-history-view { container-type: inline-size; max-width: 64rem; }
 .reservation-history-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-5); }
 .reservation-history-header h1 { margin: 0; }
 .reservation-history-filters { gap: var(--space-3); }
@@ -123,7 +123,7 @@
 .reservation-cancel-dialog .wishlist-form__actions { justify-content: flex-start; }
 .reservation-history-card {
   display: grid;
-  grid-template-columns: 18rem minmax(0, 1fr) 12rem;
+  grid-template-columns: 12rem minmax(0, 1fr) 9.25rem;
   align-items: center;
   gap: var(--space-6);
   padding: var(--space-4);
@@ -167,7 +167,7 @@
 }
 .reservation-history-card__status[data-status="active"] { background: var(--color-surface-sage); }
 .reservation-history-card__status[data-status="cancelled"] { background: var(--color-accent-soft); color: var(--color-accent-text); }
-.reservation-history-card__status[data-status="unavailable"] { background: var(--color-warning-soft); }
+.reservation-history-card__status[data-status="unavailable"] { background: var(--color-warning-soft); padding-inline: var(--space-3); }
 
 .shared-wishlist-view .wishlist-details-layout {
   grid-template-columns: minmax(16rem, 0.8fr) minmax(0, 2fr);
@@ -178,7 +178,7 @@
   padding: 4rem 2rem;
   min-height: 42rem;
   text-align: center;
-  background: var(--color-surface-sage) url("../assets/design/corner-leaf-isolated.webp") left top / 9rem auto no-repeat;
+  background: var(--color-surface-sage);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
 }
@@ -248,7 +248,7 @@
   .shared-wishlist-view .wishlist-details-layout { grid-template-columns: 15rem minmax(0, 1fr); gap: 1.5rem; }
   .shared-wishlist-view .wish-grid { grid-template-columns: minmax(0, 1fr); }
   .shared-wishlist-view .wishlist-details-info { padding: 3rem 1.25rem; }
-  .reservation-history-card { grid-template-columns: 11rem minmax(0, 1fr) 12rem; gap: var(--space-5); }
+  .reservation-history-card { grid-template-columns: 10rem minmax(0, 1fr) 9.25rem; gap: var(--space-5); }
 }
 @media (max-width: 48rem) {
   .app-main { padding-block: 1.75rem 3rem; }
@@ -259,7 +259,7 @@
   .shared-wish-results:has(> .shared-wish-layout) { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
   .shared-wishlist-view .wishlist-details-info { min-height: 0; padding-block: 2.5rem; }
   .shared-wishlist-view .wish-card { grid-template-columns: 40% minmax(0, 1fr); }
-  .reservation-history-card { grid-template-columns: 9rem minmax(0, 1fr); gap: var(--space-4); }
+  .reservation-history-card { grid-template-columns: 8rem minmax(0, 1fr); gap: var(--space-4); }
   .reservation-history-card__media { grid-row: 1 / span 2; align-self: start; }
   .reservation-history-card__description { grid-column: 2; }
   .reservation-history-card__review { grid-column: 2 / -1; grid-row: 2; }
@@ -272,7 +272,7 @@
 }
 @container (max-width: 30rem) {
   .reservation-history-card { grid-template-columns: minmax(0, 1fr); }
-  .reservation-history-card__media { grid-column: 1 / -1; grid-row: 1; }
+  .reservation-history-card__media { grid-column: 1 / -1; grid-row: 1; width: min(100%, 12rem); justify-self: center; }
   .reservation-history-card__description { grid-column: 1 / -1; grid-row: 2; padding-inline-end: 0; }
   .reservation-history-card__review { grid-column: 1 / -1; grid-row: 3; }
 }

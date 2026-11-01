@@ -16,7 +16,7 @@ test.describe("owned copy on touch devices", () => {
     await expect(trigger).toBeVisible(); await expect(trigger).toHaveCSS("opacity", "1");
     await trigger.tap();
     const dialog = page.getByRole("dialog", { name: "Ajouter à une autre liste" });
-    await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(destinationId);
+    await expect(dialog.getByRole("checkbox", { name: "Autre liste" })).toBeChecked();
     await dialog.getByRole("button", { name: "Annuler", exact: true }).tap();
     await expect(dialog).toBeHidden(); await expect(trigger).toBeFocused();
     expect(api.state.wishWrites).toBe(0); expect(api.state.wishExists).toBe(true); expect(api.unexpected).toEqual([]);
@@ -56,11 +56,11 @@ for (const width of [390, 1440]) {
       }
       await trigger.click();
       const dialog = page.getByRole("dialog", { name: "Ajouter à une autre liste" });
-      await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(destinationId);
-      await expect(dialog.getByRole("option", { name: api.wishlist.name })).toHaveCount(0);
+      await expect(dialog.getByRole("checkbox", { name: "Autre liste" })).toBeChecked();
+      await expect(dialog.getByRole("checkbox", { name: api.wishlist.name })).toHaveCount(0);
       expect(writes).toBe(0);
       await page.keyboard.press("Escape"); await expect(dialog).toBeHidden(); await expect(trigger).toBeFocused();
-      await trigger.click(); await expect(dialog.getByRole("combobox", { name: "Liste" })).toHaveValue(destinationId);
+      await trigger.click(); await expect(dialog.getByRole("checkbox", { name: "Autre liste" })).toBeChecked();
       await page.screenshot({ path: testInfo.outputPath("owned-copy.png"), fullPage: true });
       await dialog.getByRole("button", { name: "Ajouter", exact: true }).click();
       await expect(dialog).toBeHidden(); await expect(page.getByRole("status").filter({ hasText: "Souhait ajouté." })).toBeVisible();

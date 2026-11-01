@@ -21,6 +21,7 @@ async function groupFollowingApi(context) {
     const missing = (/** @type {string} */ code) => send(404, { statusCode: 404, title: "Not found", message: "Not found", errorCode: code, validationErrors: [] });
     const page = (/** @type {unknown[]} */ items, size = 20) => ({ items, currentPage: 1, pageSize: size, totalCount: items.length, totalPages: items.length ? 1 : 0, hasPreviousPage: false, hasNextPage: false });
     if (!state.available) state.followed = false;
+    if (path === apiPath + "/suggestions" && method === "GET") return send(200, []);
     if (path === "/api/v1/wishlist-subscriptions") return send(200, page(state.followed ? [summary] : []));
     if (path === `/api/v1/wishlist-subscriptions/${subscriptionId}` && method === "DELETE") {
       state.writes++; state.followed = false; return send(204, null);

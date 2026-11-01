@@ -13,6 +13,33 @@ function setup(data = page, status = 200) {
   return { ...service, request, signal: new AbortController().signal };
 }
 describe("member reservation history contract", () => {
+  it("routes a suggestion reservation only to its original group list", async () => {
+    const groupSuggestionPath = `/groups/${id}/wishlists/${id}#suggestion-${id}`;
+    const service = setup({ ...page, items: [{ ...item, groupId:id, groupSuggestionPath, groupWishPath:null, shareLinkId:null, shareUrl:null, ownedWishPath:null, imageUrl:null }] });
+    expect((await service.load({signal:service.signal})).items[0]).toMatchObject({wishHref:groupSuggestionPath,isSuggestion:true});
+  });
+  it("rejects suggestion history routes that cross group scope", async () => {
+    const service = setup({ ...page, items: [{ ...item, groupId:id, groupSuggestionPath:`/groups/${id}/wishlists/${id}#suggestion-other`, shareLinkId:null }] });
+    await expect(service.load({signal:service.signal})).rejects.toMatchObject({kind:"invalidResponse"});
+  });
+  it.each([
+    {groupId:null},
+    {groupWishPath:`/groups/${id}/wishlists/${id}/wishes/${id}`},
+    {ownedWishPath:`/lists/${id}/wishes/${id}`},
+    {shareUrl:`http://localhost/shared-wishlists/${id}#${"A".repeat(43)}`},
+    {shareLinkId:id},
+    {isArchived:true},
+  ])("rejects a suggestion history entry with ambiguous or absent group access: %j",async extra=>{
+    const groupSuggestionPath=`/groups/${id}/wishlists/${id}#suggestion-${id}`;
+    const service=setup({...page,items:[{...item,groupId:id,groupSuggestionPath,groupWishPath:null,ownedWishPath:null,shareUrl:null,shareLinkId:null,...extra}]});
+    await expect(service.load({signal:service.signal})).rejects.toMatchObject({kind:"invalidResponse"});
+  });
+  it("does not accept a public image grant for a private group suggestion",async()=>{
+    const groupSuggestionPath=`/groups/${id}/wishlists/${id}#suggestion-${id}`;
+    const imageUrl=`http://localhost/api/v1/shared-wishlists/${id}/wishes/${id}/image?token=secret`;
+    const service=setup({...page,items:[{...item,groupId:id,groupSuggestionPath,shareLinkId:null,shareUrl:null,imageUrl}]});
+    expect((await service.load({signal:service.signal})).items[0]).toMatchObject({wishHref:groupSuggestionPath,imageUrl:null,imageUnavailable:true});
+  });
   it("uses current private group navigation and image grants without sharing secrets", async () => {
     const groupWishPath = `/groups/${id}/wishlists/${id}/wishes/${id}`;
     const imageUrl = `http://localhost/api/v1/groups/${id}/wishlists/${id}/wishes/${id}/image?token=group-test`;
@@ -64,6 +91,14 @@ describe("member reservation history contract", () => {
   it("keeps revoked links and absent owner or media null", async () => {
     const service = setup({ ...page, items: [{ ...item, shareLinkId: null, ownerId: null, ownerDisplayName: null, shareUrl: null, imageUrl: null }] });
     expect((await service.load({ signal: service.signal })).items[0]).toMatchObject({ ownerHref: null, ownerDisplayName: null, wishHref: null, imageUrl: null, imageUnavailable: false });
+  });
+  it("keeps the historical author as text without restoring access to an unavailable source", async () => {
+    const service = setup({ ...page, items: [{ ...item, status: "unavailable", endedAt: item.lastActivityAt, shareLinkId: null, ownerId: null, ownerDisplayName: "Camille", shareUrl: null, imageUrl: null }] });
+    expect((await service.load({ signal: service.signal })).items[0]).toMatchObject({ ownerHref: null, ownerDisplayName: "Camille", wishHref: null, imageUrl: null });
+  });
+  it("links to an available author profile without restoring access to an unavailable wish", async () => {
+    const service = setup({ ...page, items: [{ ...item, status: "unavailable", endedAt: item.lastActivityAt, shareLinkId: null, ownerId: id, ownerDisplayName: "Camille", shareUrl: null, imageUrl: null }] });
+    expect((await service.load({ signal: service.signal })).items[0]).toMatchObject({ ownerHref: `/members/${id}`, ownerDisplayName: "Camille", wishHref: null, imageUrl: null });
   });
   it("sends the selected page, size and filter without sorting or extra requests", async () => {
     const service = setup({ ...page, currentPage: 2, pageSize: 1, totalCount: 3, totalPages: 3, hasPreviousPage: true, hasNextPage: true });

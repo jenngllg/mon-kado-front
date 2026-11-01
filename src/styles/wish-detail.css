@@ -1,6 +1,4 @@
 .shared-wish-view { width: 100%; }
-.shared-wish-introduction { margin-block: var(--space-5) var(--space-6); }
-.shared-wish-introduction__title { margin: 0; font-size: clamp(2.25rem, 4vw, 3.75rem); line-height: 1.1; font-weight: var(--font-weight-bold); letter-spacing: -.045em; }
 .wish-detail__toolbar { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); }
 .wish-detail__commands { margin-inline-start: auto; }
 .wish-detail__commands:empty { display: none; }
@@ -10,7 +8,8 @@
 .shared-wish-view .shared-wish-product { display: grid; gap: var(--space-5); }
 .shared-wish-view .shared-wish-product > * { min-width: 0; margin: 0; }
 .shared-wish-view .shared-wish-product > .wish-card__media { aspect-ratio: 1.71; width: 100%; min-height: 0; max-height: 27rem; border-radius: var(--radius-md); }
-.shared-wish-view .wish-card__media img { width: 100%; height: 100%; object-fit: contain; }
+.shared-wish-view .wish-card__media:has(> img) { background: var(--color-surface); }
+.shared-wish-view .wish-card__media img { width: 90%; height: 90%; object-fit: contain; }
 .shared-wish-view .wish-detail-information { display: grid; gap: var(--space-4); padding: 0; border: 0; background: transparent; }
 .shared-wish-view .wish-detail-information > * { min-width: 0; margin: 0; }
 .shared-wish-view .wish-detail-information h1 { font-size: clamp(1.75rem, 2.5vw, 2.25rem); line-height: 1.25; margin: 0; text-wrap: pretty; }
@@ -63,3 +62,48 @@
   .wish-detail__toolbar { flex-wrap: wrap; }
   .shared-wish-view .shared-wish-product > .wish-card__media { aspect-ratio: 4 / 3; }
 }
+
+/* The detail and reservation share the right column; the image spans both rows. */
+@media (min-width: 60.001rem) {
+  .shared-wish-view .shared-wish-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: stretch; }
+  .shared-wish-view .shared-wish-product { display: contents; }
+  .shared-wish-view .shared-wish-product > .wish-card__media { grid-column: 1; grid-row: 1 / 3; height: 100%; max-height: none; min-height: 30rem; aspect-ratio: auto; }
+  .shared-wish-view .wish-detail-information { grid-column: 2; grid-row: 1; align-content: start; }
+  .shared-wish-view .shared-wish-reservation { grid-column: 2; grid-row: 2; align-self: end; }
+}
+.shared-wish-view .wish-detail__metadata { display: grid; justify-content: start; gap: var(--space-2); }
+.shared-wish-view .wish-detail__product { width: 44px; height: 44px; flex-basis: 44px; border: 0; background: transparent; }
+.shared-wish-view .wish-detail__variants { display: flex; flex-wrap: wrap; padding: 0; border: 0; }
+.shared-wish-view .wish-detail__variants > div { display: block; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-sage); }
+.shared-wish-view .wish-detail__variants dt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.shared-wish-view .shared-wish-reservation { width: 100%; border: 0; }
+.shared-wish-view .wish-detail__reservation-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); }
+.shared-wish-view .shared-wish-reservation > .wish-detail__reservation-summary:not(:last-child) { padding: 0; border: 0; }
+.shared-wish-view .wish-detail__desired { font-size: var(--font-size-base); }
+.shared-wish-view .shared-wish-quantities > p { flex-direction: row; gap: var(--space-1); }
+.shared-wish-view .shared-wish-quantities strong { font-size: inherit; }
+.shared-wish-view .shared-wish-reservation .reservation-panel form:has(.reservation-quantity-stepper) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: var(--space-3); }
+.shared-wish-view .shared-wish-reservation .reservation-panel form:has(.reservation-quantity-stepper) > * { min-width: 0; margin: 0; }
+.shared-wish-view .shared-wish-reservation .reservation-panel .wishlist-form__actions > .ui-button--primary { width: 100%; background: var(--color-accent); color: var(--color-text-on-accent); }
+.shared-wish-view .shared-wish-reservation .reservation-panel .wishlist-form__actions > .ui-button--primary:not(:disabled):hover { background: var(--color-accent-hover); }
+@media (max-width: 40rem) {
+  .shared-wish-view .shared-wish-reservation .reservation-panel form:has(.reservation-quantity-stepper) { grid-template-columns: minmax(0, 1fr); }
+}
+
+#app .app-main .wish-detail-information h1 { text-align: left; background: none; padding-block-end: 0; }
+#app .app-main .wish-detail-information h1:has(.wish-favorite-indicator) { justify-content: start; }
+
+/* Keep labels available to assistive technology while matching the compact reservation band. */
+.shared-wish-view .reservation-create-form--compact .form-field__label,
+.shared-wish-view .reservation-create-form--compact .reservation-quantity-limit:not([hidden]):not(.reservation-quantity-limit--cap) {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.shared-wish-view .reservation-create-form--compact .reservation-quantity-stepper { width: 100%; }
+.shared-wish-view .reservation-create-form--compact .wishlist-form__actions { align-self: start; }
+.shared-wish-view .shared-wish-reservation .reservation-create-form--compact .wishlist-form__actions > .ui-button--primary { min-height: 3.5rem; }
+
+.shared-wish-view .shared-wish-quantities > p.shared-wish-quantities__zero-reserved { display: none; }
+.shared-wish-view .wish-detail__reservation-summary > .shared-wish-quantities { margin: 0; }
+.shared-wish-view .shared-wish-reservation .reservation-create-form--compact .wishlist-form__actions > .ui-button--primary { min-height: 4rem; }
+
+.shared-wish-view .reservation-manage-link { width: fit-content; color: var(--color-text-on-accent); text-decoration: none; }

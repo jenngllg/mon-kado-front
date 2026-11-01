@@ -14,8 +14,20 @@ for (const width of [390, 1440]) {
         { ...api.wish, id: wishId, name: "Théière", note: "Pour le thé", quantity: 3, reservedQuantity: surprise ? null : 1, availableQuantity: surprise ? null : 2, currentParticipantReservedQuantity: null, canReserve: false },
         { ...api.wish, id: organizerId, name: "Livres", note: null, quantity: 2, reservedQuantity: surprise ? null : 2, availableQuantity: surprise ? null : 0, currentParticipantReservedQuantity: null, canReserve: false },
       ];
-      let reservationReads = 0, writes = 0;
+      let reservationReads = 0, personalReads = 0, writes = 0;
       /** @type {string[]} */ const unexpected = [];
+      await context.route(`http://localhost:7000/api/v1/wishlists/${listId}/wishes/*/reservations/current`, async route => {
+        expect(route.request().method()).toBe("GET");
+        const selectedWish = new URL(route.request().url()).pathname.split("/").at(-3);
+        const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"reservation-1"' };
+        if (selectedWish === wishId) return route.fulfill({ status: 200, headers, json: { id: organizerId, wishId, quantity: 1 } });
+        return route.fulfill({ status: 404, headers, json: { statusCode: 404, title: "Not found", message: "Not found", errorCode: "GIFT_RESERVATION_NOT_FOUND", validationErrors: [] } });
+      });
+      await context.route(/http:\/\/localhost:7000\/api\/v1\/members\/current\/reservations(?:\?.*)?$/, route => {
+        expect(route.request().method()).toBe("GET"); personalReads++;
+        const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true" };
+        return route.fulfill({ status: 200, headers, json: { items:[{wishlistId:listId,wishId,status:"active",quantity:1}],currentPage:1,pageSize:100,totalCount:1,totalPages:1,hasNextPage:false,hasPreviousPage:false } });
+      });
       await context.route("http://localhost:7000/api/v1/groups/**", async route => {
         const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
         if (method === "OPTIONS") return route.fallback();
@@ -39,7 +51,8 @@ for (const width of [390, 1440]) {
       await page.goto(base);
       await page.getByRole("link", { name: "Voir les listes de Camille test", exact: true }).click();
       await expect(page).toHaveURL(`${base}/members/${memberId}`);
-      await page.getByRole("link", { name: "Mes idées", exact: true }).click();
+      await expect(page.getByRole("link", { name: "Mes idées", exact: true })).toHaveAttribute("href", `/lists/${listId}`);
+      await page.goto(`${base}/wishlists/${listId}?fromMember=${memberId}`);
       await expect(page.getByRole("heading", { name: "Mes idées", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: /Réserver/ })).toHaveCount(0);
       await expect(page.getByRole("link", { name: "Modifier", exact: true })).toHaveCount(0);
@@ -53,18 +66,20 @@ for (const width of [390, 1440]) {
         await expect(page.locator(".wish-gallery__reservation--full")).toHaveCount(1);
         await expect(page.locator(".wish-gallery__reservation--partial")).toHaveCount(1);
       }
+      await expect(page.locator(".wish-card--reading").filter({ hasText: "Théière" })).toContainText("Tu as réservé 1 exemplaire");
+      await expect(page.locator(".wish-card--reading").filter({ hasText: "Livres" })).not.toContainText("Tu as réservé");
       await page.screenshot({ path: testInfo.outputPath(`owner-group-list-${width}-${surprise}.png`), fullPage: true });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await page.getByRole("link", { name: "Théière", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Théière", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: /Réserver|Enregistrer|Annuler/ })).toHaveCount(0);
-      await expect(page.locator(".shared-wish-introduction")).toBeHidden();
+      await expect(page.locator(".shared-wish-introduction")).toHaveCount(0);
       if (surprise) await expect(page.locator(".shared-wish-quantities p, .wish-detail__reservation")).toHaveCount(0);
       else await expect(page.getByText("Quantité disponible : 2", { exact: true })).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`owner-group-wish-${width}-${surprise}.png`), fullPage: true });
       await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
       await expect(page.getByRole("heading", { name: "Mes idées", exact: true })).toBeVisible();
-      expect(reservationReads).toBe(0); expect(writes).toBe(0); expect(unexpected).toEqual([]); expect(api.unexpected).toEqual([]);
+      expect(reservationReads).toBe(0); expect(personalReads).toBeGreaterThan(0); expect(writes).toBe(0); expect(unexpected).toEqual([]); expect(api.unexpected).toEqual([]);
     });
   }
 }

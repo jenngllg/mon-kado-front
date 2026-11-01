@@ -1,7 +1,7 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createActionLink, createAlert, createButton, createFormField, createLoadingState, disposeComponent, setButtonLoading } from "../../components/index.js";
+import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 
 /** @typedef {{loadLists: import("../wishlists/wishlistsService.js").LoadWishlists,
@@ -10,7 +10,7 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
 /** Owns one eligible-list read per screen and the common explicit-copy dialog.
  * @param {WishCopyOperations & {signal: AbortSignal, onUnavailable: () => void, onBusy?: (busy: boolean) => void, excludeWishlistId?: string, actionLabel?: string}} options Private operations.
  */
-export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, onBusy = () => {}, excludeWishlistId, actionLabel = "Ajouter à mes listes" }) {
+export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, onBusy = () => {}, excludeWishlistId, actionLabel = "Je le veux aussi !" }) {
   const host = document.createElement("div");
   const notice = document.createElement("p"); notice.setAttribute("role", "status"); notice.hidden = true; host.append(notice);
   const lifetime = new AbortController();
@@ -40,7 +40,7 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
   /** @param {string} wishId Source. @param {boolean} [compact] Gallery icon. @returns {HTMLButtonElement} Initially hidden action. */
   function button(wishId, compact = false) {
     const control = createButton({ label: actionLabel, variant: "secondary", onClick: () => open(wishId, control) });
-    if (compact) { applyActionIcon(control, "copy", actionLabel); control.classList.add("wish-gallery__copy"); }
+    if (compact) { applyActionIcon(control, "copy", "Je le veux aussi !"); control.classList.add("wish-gallery__copy"); }
     buttons.add(control);
     registerComponentCleanup(control, () => buttons.delete(control));
     sync();
@@ -56,8 +56,8 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
     title.id = `wish-copy-${crypto.randomUUID()}`; modal.setAttribute("aria-labelledby", title.id);
     const content = document.createElement("div"); content.className = "flow";
     const feedback = document.createElement("div"); feedback.setAttribute("role", "status");
-    const select = document.createElement("select"); select.required = true;
-    const field = createFormField({ label: "Liste", control: select, required: true }); field.hidden = true;
+    const field = document.createElement("fieldset"); field.className = "wish-copy-choices flow"; field.hidden = true;
+    const legend = document.createElement("legend"); legend.textContent = "Dans quelles listes ?"; field.append(legend);
     const form = document.createElement("form"); form.className = "flow";
     const actions = document.createElement("div"); actions.className = "cluster";
     const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: finish });
@@ -65,7 +65,7 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
     actions.append(cancel, submit); form.append(field, feedback, actions); content.append(title, form); modal.append(content);
     const request = new AbortController();
     const requestSignal = AbortSignal.any([lifetime.signal, request.signal]);
-    let saving = false, uncertain = false, closed = false;
+    let saving = false, uncertain = false, closed = false, failed = false;
     /** @type {ReadonlyArray<import("../wishlists/wishlistsService.js").Wishlist>} */ let targets = [];
     registerComponentCleanup(modal, () => {
       closed = true; request.abort(); targets = []; if (modal.open) modal.close(); modal.remove();
@@ -73,7 +73,7 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
     });
     addComponentEventListener(modal, modal, "cancel", event => { event.preventDefault(); finish(); });
     addComponentEventListener(modal, modal, "close", finish);
-    addComponentEventListener(modal, select, "change", () => { submit.disabled = saving || uncertain || !select.value; });
+    addComponentEventListener(modal, field, "change", () => { submit.disabled = saving || failed || !field.querySelector("input:checked"); });
     addComponentEventListener(modal, form, "submit", event => { event.preventDefault(); void save(); });
     host.append(modal); modal.showModal(); title.focus(); void read();
 
@@ -90,42 +90,63 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
         if (disposed || closed || requestSignal.aborted) return;
         clearFeedback(); eligible = targets.length > 0; sync();
         if (!eligible) { feedback.textContent = "Aucune liste disponible."; cancel.textContent = "Fermer"; submit.hidden = true; return; }
-        const placeholder = document.createElement("option"); placeholder.textContent = "Choisir une liste"; placeholder.value = ""; select.append(placeholder);
         for (const target of targets) {
-          const option = document.createElement("option"); option.textContent = target.name; option.value = target.id; select.append(option);
+          const label = document.createElement("label"); label.className = "wish-copy-choice";
+          const input = document.createElement("input"); input.type = "checkbox"; input.name = "lists"; input.value = target.id; input.checked = targets.length === 1;
+          const name = document.createElement("span"); name.textContent = target.name;
+          label.append(input, name); field.append(label);
         }
-        if (targets.length === 1) select.value = targets[0].id;
-        field.hidden = false; submit.disabled = !select.value;
+        field.hidden = false; submit.disabled = !field.querySelector("input:checked");
       } catch (error) {
         if (disposed || closed || isAbortError(error)) return;
         clearFeedback(); feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" }));
       }
     }
     async function save() {
-      const selected = targets.find(item => item.id === select.value);
-      if (disposed || closed || saving || uncertain || !selected) return;
-      saving = true; select.disabled = true; cancel.disabled = true; submit.disabled = true;
+      const checked = new Set([...field.querySelectorAll("input")].filter(input => input.checked).map(input => input.value));
+      const selected = targets.filter(item => checked.has(item.id));
+      if (disposed || closed || saving || failed || !selected.length) return;
+      saving = true; field.disabled = true; cancel.disabled = true; submit.disabled = true;
       modal.setAttribute("aria-busy", "true"); setButtonLoading(submit, true); clearFeedback();
+      /** @type {typeof targets[number][]} */ const completed = [];
+      let current = selected[0];
       try {
-        await copy(selected.id, wishId, { signal: requestSignal });
-        if (disposed || closed || requestSignal.aborted) return;
-        notice.append(document.createTextNode("Souhait ajouté. "), createActionLink({ label: "Voir ma liste", href: `/lists/${selected.id}` }));
+        for (const target of selected) {
+          if (disposed || closed || requestSignal.aborted) return;
+          current = target;
+          await copy(target.id, wishId, { signal: requestSignal });
+          if (disposed || closed || requestSignal.aborted) return;
+          completed.push(target);
+        }
+        notice.append(document.createTextNode(completed.length === 1 ? "Souhait ajouté. " : `Souhait ajouté à ${completed.length} listes. `));
+        for (const target of completed) notice.append(createActionLink({ label: completed.length === 1 ? "Voir ma liste" : target.name, href: `/lists/${target.id}` }), document.createTextNode(" "));
         notice.hidden = false;
         saving = false; finish();
       } catch (error) {
         if (disposed || closed || isAbortError(error)) return;
+        failed = true;
         uncertain = !(error instanceof ApiError) || error.kind !== "http" || error.statusCode === null || error.statusCode >= 500;
         clearFeedback();
+        if (completed.length) {
+          const message = `Ajout confirmé dans : ${completed.map(item => item.name).join(", ")}.`;
+          notice.textContent = message; notice.hidden = false;
+          const confirmed = document.createElement("p"); confirmed.textContent = message; feedback.append(confirmed);
+        }
         if (error instanceof ApiError && (error.errorCode === "SHARED_WISH_NOT_FOUND" || error.errorCode === "SHARED_WISHLIST_NOT_FOUND" || error.errorCode === "GROUP_WISHLIST_NOT_FOUND")) {
           saving = false; finish(); onUnavailable(); return;
         }
         feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" }));
         if (uncertain) {
-          const warning = document.createElement("p"); warning.textContent = "L’ajout ne peut pas être confirmé. Consulte ta liste avant de réessayer.";
-          feedback.append(warning, createActionLink({ label: "Consulter ma liste", href: `/lists/${selected.id}` }));
+          const warning = document.createElement("p"); warning.textContent = `L’ajout ne peut pas être confirmé dans « ${current.name} ». Consulte ta liste avant de réessayer.`;
+          feedback.append(warning, createActionLink({ label: "Consulter ma liste", href: `/lists/${current.id}` }));
+        } else {
+          const failure = document.createElement("p"); failure.textContent = `Le souhait n’a pas été ajouté à « ${current.name} ».`; feedback.append(failure);
         }
-        // A failed destination may have been archived, deleted or suspended since opening.
-        targets = targets.filter(item => item.id !== selected.id);
+        const remaining = selected.slice(completed.length + 1);
+        if (remaining.length) {
+          const pending = document.createElement("p"); pending.textContent = `Listes non traitées : ${remaining.map(item => item.name).join(", ")}.`; feedback.append(pending);
+        }
+        // Never replay successful or uncertain writes after a partial batch failure.
         submit.disabled = true; submit.hidden = true; cancel.textContent = "Fermer";
       } finally {
         if (!disposed && !closed) {
