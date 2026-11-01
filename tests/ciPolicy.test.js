@@ -30,8 +30,8 @@ describe("frontend CI contract", () => {
     expect(workflow).toContain("needs: [quality, contract, browser]");
     expect(workflow).toContain('test "$QUALITY_RESULT" = success && test "$CONTRACT_RESULT" = success && test "$BROWSER_RESULT" = success');
     expect(workflow).toContain("fail-fast: false");
-    expect(workflow).toContain("shard: [1, 2]");
-    expect(workflow).toContain("pnpm test:e2e --shard=${{ matrix.shard }}/2");
+    expect(workflow).toContain("shard: [1, 2, 3, 4]");
+    expect(workflow).toContain("pnpm test:e2e --shard=${{ matrix.shard }}/4");
     expect(workflow).toContain("BROWSER_RESULT: ${{ needs.browser.result }}");
   });
 

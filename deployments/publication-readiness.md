@@ -39,9 +39,9 @@ timer. This technical automation does not change the legal approval flag.
 
 The complete quality gate runs lint, types, unit coverage, production packaging,
 Caddy validation, native backend contract verification and every Chromium test.
-Unit coverage/build, native compatibility and two browser shards run in parallel
+Unit coverage/build, native compatibility and four browser shards run in parallel
 on standard public Ubuntu runners, without a paid runner or new service. Each
-browser shard keeps two workers and zero retries; both must succeed. A failed,
+browser shard keeps two workers and zero retries; every shard must succeed. A failed,
 cancelled or skipped dependency blocks publication. Production still uses the
 exact qualified build and requires its fresh verified encrypted offsite backup
 before the existing online switch; no backup or availability check is removed.
