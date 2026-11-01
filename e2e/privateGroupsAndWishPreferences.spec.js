@@ -116,7 +116,10 @@ for (const width of [390, 1440]) {
     await page.goto(`/groups/${groupId}`);
     await page.getByRole("button", { name: "Inviter un proche", exact: true }).click();
     await expect(page.getByRole("searchbox")).toHaveCount(0);
-    await page.getByRole("button", { name: "Activer le partage", exact: true }).click();
+    const activateSharing = page.getByRole("button", { name: "Activer le partage", exact: true });
+    await activateSharing.hover();
+    await expect(activateSharing).toHaveCSS("transform", "none");
+    await activateSharing.click();
     await expect(page.locator(".group-share-qr")).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("private-group-qr.png"), fullPage: true });
     await page.getByRole("button", { name: "Fermer", exact: true }).click();
