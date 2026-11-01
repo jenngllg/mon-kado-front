@@ -2263,3 +2263,14 @@ sans navigation automatique. Les refus administrateur et ressources introuvables
 retirent les données ; une sortie ou un changement de compte annule les lectures
 et empêche les réponses tardives de réafficher le contenu. Aucun historique n’est
 mis en cache ou conservé dans un stockage du navigateur.
+# Production CI/CD
+
+Production follows `main`, after the complete quality gate and the existing
+`production` environment approval. `develop` never publishes to the VPS. The
+`Deploy frontend main to VPS` workflow reuses the exact verified build and native
+backend contract proof, publishes immutable assets, then requests the VPS switch
+through a dedicated forced-command SSH key. It retains reachable assets from the
+last three releases for already-open tabs. Previous bootstrap/manual publishing
+workflows are retained under `deployments/history` and are no longer executable
+GitHub Actions workflows. Operational details and recovery commands are in the
+backend's [main-to-VPS runbook](https://github.com/jenngllg/mon-kado/blob/main/deployments/main-vps.md).
