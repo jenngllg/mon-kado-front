@@ -6,6 +6,7 @@ import { waitForSession } from "./sessionAsync.js";
 import { isStrongEntityTag } from "../api/entityTag.js";
 import { validateDisplayName } from "./displayNameValidation.js";
 import { isDisplayNameTag } from "./memberHandle.js";
+import { hasAdministratorRole } from "./roles.js";
 import { readTwoFactorProof, readTwoFactorSetup, readRecoveryCodes } from "./twoFactorContract.js";
 
 const SessionPath = "/api/v1/auth/sessions";
@@ -14,7 +15,7 @@ const RenewalMargin = 60_000;
 /** @typedef {import("../api/generated/openapi.js").components["schemas"]["AccessTokenResponse"]} AccessTokenResponse */
 /** @typedef {import("../api/generated/openapi.js").components["schemas"]["CurrentSessionResponse"]} ServerCurrentSessionResponse */
 /** The browser projection supports older servers during a rolling release; the generated server schema stays exact.
- * @typedef {Omit<ServerCurrentSessionResponse, "displayNameTag" | "isGoogleLinked" | "isVisibleInMemberSearch" | "profileImageUrl"> & Partial<Pick<ServerCurrentSessionResponse, "displayNameTag" | "isGoogleLinked" | "isVisibleInMemberSearch" | "profileImageUrl">>} CurrentSessionResponse */
+ * @typedef {Omit<ServerCurrentSessionResponse, "displayNameTag" | "isGoogleLinked" | "isVisibleInMemberSearch" | "profileImageUrl" | "isAdmin"> & Partial<Pick<ServerCurrentSessionResponse, "displayNameTag" | "isGoogleLinked" | "isVisibleInMemberSearch" | "profileImageUrl">> & {isAdmin?: boolean}} CurrentSessionResponse */
 /** @typedef {import("./sessionCoordinator.js").SessionMetadata} SessionMetadata */
 /** @typedef {import("../api/apiClient.js").ApiRequestOptions} ApiRequestOptions */
 /** @typedef {import("../api/apiClient.js").ApiClient["request"]} Request */
@@ -913,9 +914,11 @@ function readUser(response) {
   if (!isRecord(value) || ![value.id, value.email, value.displayName].every(item => typeof item === "string" && item.trim().length > 0) ||
     !Array.isArray(value.roles) || !value.roles.every(role => typeof role === "string" && role.trim().length > 0)) throw invalidResponse(response);
   if (value.isGoogleLinked !== undefined && typeof value.isGoogleLinked !== "boolean") throw invalidResponse(response);
+  if (value.isAdmin !== undefined && typeof value.isAdmin !== "boolean") throw invalidResponse(response);
   if (value.isVisibleInMemberSearch !== undefined && typeof value.isVisibleInMemberSearch !== "boolean") throw invalidResponse(response);
   if (value.displayNameTag !== undefined && !isDisplayNameTag(value.displayNameTag)) throw invalidResponse(response);
   return Object.freeze({ id: String(value.id), email: String(value.email), displayName: String(value.displayName), roles: Object.freeze([...value.roles]),
+    isAdmin: typeof value.isAdmin === "boolean" ? value.isAdmin : hasAdministratorRole(value.roles),
     ...(typeof value.displayNameTag === "string" ? { displayNameTag: value.displayNameTag } : {}),
     ...(typeof value.isGoogleLinked === "boolean" ? { isGoogleLinked: value.isGoogleLinked } : {}),
     ...(typeof value.isVisibleInMemberSearch === "boolean" ? { isVisibleInMemberSearch: value.isVisibleInMemberSearch } : {}),

@@ -17,6 +17,25 @@ function setup(hub = createCoordinatorHub(), transport = createSessionTransport(
 }
 
 describe("session management", () => {
+  it.each([false, true])("retains the server administrator boolean: %s", async isAdmin => {
+    const { session, state } = setup();
+    Object.assign(state.user, { isAdmin, roles: ["Administrator"] });
+    await session.start();
+    expect(session.getSnapshot().user?.isAdmin).toBe(isAdmin);
+  });
+  it.each(["true", 1, null])("rejects an invalid administrator boolean: %s", async isAdmin => {
+    const { session, state } = setup();
+    Object.assign(state.user, { isAdmin });
+    await session.start();
+    expect(session.getSnapshot().status).toBe("unavailable");
+    expect(session.getSnapshot().user).toBeNull();
+  });
+  it.each([["Administrator", true], ["Admin", true], ["Member", false]])("adapts older sessions with role %s", async (role, expected) => {
+    const { session, state } = setup();
+    state.user.roles = [role];
+    await session.start();
+    expect(session.getSnapshot().user?.isAdmin).toBe(expected);
+  });
   it.each([false, true])("retains the trusted Google association after session restoration: %s", async isGoogleLinked => {
     // Arrange
     const { session, state } = setup();

@@ -96,7 +96,7 @@ jobs:
         with:
           repository: jenngllg/mon-kado
           # This migration follow-up validates its companion reviewed schema before the backend merge.
-          ref: ${{ github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || 'develop' }}
+          ref: ${{ github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || github.head_ref == 'codex/admin-bool-session' && '6e8bed08f02b1509c3414777d2a58523cf18cdb0' || 'develop' }}
           path: .backend
           persist-credentials: false
       - name: Set up native Go

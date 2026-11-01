@@ -5,6 +5,13 @@ import { disposeComponent, registerComponentCleanup } from "../src/components/co
 import { RoutePaths } from "../src/app/routeContracts.js";
 
 describe("account layout", () => {
+  it.each([false, true])("uses the administrator boolean for authenticator navigation: %s", isAdmin => {
+    const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
+      getSnapshot: () => ({ user: { roles: ["Administrator"], isAdmin } }), subscribe: () => () => {},
+    });
+    expect(layout.querySelector('a[href="/profile/authenticator"]') !== null).toBe(isAdmin);
+    disposeComponent(layout);
+  });
   it.each(["Admin", "Administrator"])("shows authenticator settings for server role %s", role => {
     const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
       getSnapshot: () => ({ user: { roles: [role] } }), subscribe: () => () => {},
