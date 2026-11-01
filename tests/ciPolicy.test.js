@@ -4,6 +4,18 @@ import { describe, expect, it } from "vitest";
 const workflow = readFileSync(new URL("../.github/workflows/quality.yml", import.meta.url), "utf8");
 
 describe("frontend CI contract", () => {
+  it("publishes its checked pointer before waiting outside the VPS deployment lock", () => {
+    const publication = readFileSync(new URL("../.github/workflows/stage-coordinated-frontend.yml", import.meta.url), "utf8");
+    const publish = publication.indexOf("      - name: Publish immutable build before changing the production pointer");
+    const wait = publication.indexOf("      - name: Wait for both checked main publications");
+    const deploy = publication.indexOf("      - name: Deploy the approved main revision to the VPS");
+    expect(publish).toBeGreaterThan(0);
+    expect(wait).toBeGreaterThan(publish);
+    expect(deploy).toBeGreaterThan(wait);
+    expect(publication).toContain('python3 .backend/scripts/wait_paired_publication.py frontend "$RELEASE_REVISION"');
+    expect(publication).toContain('test "$(jq -er .backendRevision "$RUNNER_TEMP/verified-contract/proof.json")" = "$BACKEND_REVISION"');
+  });
+
   it.each([
     ["brace-expansion@^2.0.0", "brace-expansion", "2.1.7", "2.1.4"],
     ["brace-expansion@^5.0.0", "brace-expansion", "5.0.12", "5.0.9"],

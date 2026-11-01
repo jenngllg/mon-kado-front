@@ -152,6 +152,10 @@ jobs:
             gh release create frontend-production --repo "$GITHUB_REPOSITORY" --target "$RELEASE_REVISION" \
               --title 'Approved frontend production build' --notes-file "$RUNNER_TEMP/frontend-package/manifest.json" --latest=false
           fi
+      - name: Wait for both checked main publications
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .backend/scripts/wait_paired_publication.py frontend "$RELEASE_REVISION"
       - name: Deploy the approved main revision to the VPS
         env:
           VPS_DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_SSH_KEY }}
