@@ -31,6 +31,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm typecheck
+      - name: Verify assets retained for already-open tabs
+        run: python3 -m unittest discover -s tools/publication -p 'test_retain_assets.py'
       - run: pnpm test:coverage
       - run: pnpm build
       - name: Check the reviewed production archive contract
@@ -61,6 +63,13 @@ jobs:
           caddy validate --config /etc/caddy/Caddyfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+      - name: Retain the verified production build for publication
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontend-production-build
+          path: dist/
+          retention-days: 1
+          if-no-files-found: error
       - name: Keep synthetic browser diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -96,7 +105,7 @@ jobs:
         with:
           repository: jenngllg/mon-kado
           # Validate paired releases before their backend merge; develop checks its current backend contract.
-          ref: ${{ github.head_ref == 'codex/complete-production-20261101' && '52aa836576681118262b723987cdcbf4773b13a2' || github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || github.head_ref == 'codex/admin-bool-session' && '6e8bed08f02b1509c3414777d2a58523cf18cdb0' || github.head_ref == 'codex/admin-boolean-only' && 'd6b4b6c913769cccfb5e9d8ce0a890c35faa5817' || 'develop' }}
+          ref: ${{ github.head_ref == 'codex/complete-production-20261101' && '52aa836576681118262b723987cdcbf4773b13a2' || github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || github.head_ref == 'codex/admin-bool-session' && '6e8bed08f02b1509c3414777d2a58523cf18cdb0' || github.head_ref == 'codex/admin-boolean-only' && 'd6b4b6c913769cccfb5e9d8ce0a890c35faa5817' || ((github.base_ref == 'main' || github.ref == 'refs/heads/main') && 'main' || 'develop') }}
           path: .backend
           persist-credentials: false
       - name: Set up native Go
@@ -137,6 +146,19 @@ jobs:
           curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 --max-time 5 \
             "$MONKADO_OPENAPI_URL" --output "$RUNNER_TEMP/contract.json"
           pnpm api:types:check
+          cmp "$RUNNER_TEMP/contract.json" .backend/internal/httpapi/specification.json
+          mkdir -p "$RUNNER_TEMP/frontend-backend-proof"
+          backend_revision=$(git -C .backend rev-parse HEAD)
+          contract_hash=$(sha256sum "$RUNNER_TEMP/contract.json" | cut -d' ' -f1)
+          jq -n --arg backend "$backend_revision" --arg contract "$contract_hash" \
+            '{backendRevision: $backend, openapiSha256: $contract}' > "$RUNNER_TEMP/frontend-backend-proof/proof.json"
+      - name: Retain the exact native backend contract proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontend-backend-proof
+          path: ${{ runner.temp }}/frontend-backend-proof/
+          retention-days: 1
+          if-no-files-found: error
       - name: Remove disposable native PostgreSQL cluster
         if: always()
         run: |

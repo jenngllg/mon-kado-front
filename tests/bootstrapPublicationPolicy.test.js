@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const workflow = readFileSync(new URL("../.github/workflows/publish-bootstrap-frontend.yml", import.meta.url), "utf8");
+const workflow = readFileSync(new URL("../deployments/history/publish-bootstrap-frontend.yml", import.meta.url), "utf8");
 
 describe("temporary registration frontend publication", () => {
   it("requires explicit protected approval and immutable matching revisions", () => {

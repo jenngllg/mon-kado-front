@@ -2,12 +2,16 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const workflow = readFileSync(new URL("../.github/workflows/stage-coordinated-frontend.yml", import.meta.url), "utf8");
+const quality = readFileSync(new URL("../.github/workflows/quality.yml", import.meta.url), "utf8");
 
 describe("coordinated frontend publication policy", () => {
   it("requires protected production approval and the successful exact frontend quality run", () => {
     expect(workflow).toContain("environment: production");
     expect(workflow).toContain("required_reviewers");
-    expect(workflow).toContain("quality.yml/runs?head_sha=$GITHUB_SHA&branch=develop");
+    expect(workflow).toContain("quality.yml/runs?head_sha=$RELEASE_REVISION&branch=main");
+    expect(workflow).toContain("workflow_run:");
+    expect(workflow).toContain("VPS_DEPLOY_SSH_KEY");
+    expect(workflow).not.toContain("refs/heads/develop");
     expect(workflow).not.toContain("pull_request_target");
     expect(workflow).not.toContain("continue-on-error");
     for (const action of workflow.matchAll(/uses: ([^\s]+)/g)) expect(action[1]).toMatch(/@[a-f0-9]{40}$/);
@@ -16,9 +20,13 @@ describe("coordinated frontend publication policy", () => {
   it("binds the protected backend, tested OpenAPI bytes and immutable proof to the frontend", () => {
     expect(workflow).toContain("repos/jenngllg/mon-kado/releases/tags/backend-production");
     expect(workflow).toContain("ref: ${{ steps.backend.outputs.revision }}");
-    expect(workflow).toContain("cmp \"$RUNNER_TEMP/coordinated-contract.json\" .backend/internal/httpapi/specification.json");
-    expect(workflow).toContain("pnpm api:types:check");
-    expect(workflow).toContain("sha256sum \"$RUNNER_TEMP/coordinated-contract.json\"");
+    expect(quality).toContain("cmp \"$RUNNER_TEMP/contract.json\" .backend/internal/httpapi/specification.json");
+    expect(quality).toContain("pnpm api:types:check");
+    expect(workflow).toContain("--name frontend-production-build");
+    expect(workflow).toContain("--name frontend-backend-proof");
+    expect(workflow).toContain(".backend/internal/httpapi/specification.json");
+    expect(workflow).toContain("retain_assets.py");
+    expect(workflow).not.toContain("run: pnpm build");
     for (const field of ["frontendRevision", "backendRevision", "configurationHash", "openapiSha256"])
       expect(workflow).toContain(field);
     expect(workflow).toContain("coordinated-proof.json");

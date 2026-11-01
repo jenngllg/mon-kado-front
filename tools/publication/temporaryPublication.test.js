@@ -53,7 +53,7 @@ describe("explicit temporary publication", () => {
   });
 
   it("keeps the exception opt-in and all technical publication gates", () => {
-    const workflow = readFileSync(new URL("../../.github/workflows/publish-frontend.yml", import.meta.url), "utf8");
+    const workflow = readFileSync(new URL("../../deployments/history/publish-frontend.yml", import.meta.url), "utf8");
     expect(workflow).toContain("temporary_test:");
     expect(workflow).toContain("default: false");
     expect(workflow).toContain("environment: production");

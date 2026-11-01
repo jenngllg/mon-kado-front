@@ -1,12 +1,16 @@
-name: Stage approved coordinated frontend
+name: Deploy frontend main to VPS
 
 on:
+  workflow_run:
+    workflows: [Frontend quality]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       temporary_test:
-        description: 'Explicit temporary production test with unapproved draft documents; take the site offline after testing'
+        description: 'Authorized publication with draft legal documents; keep the site online'
         required: true
-        default: false
+        default: true
         type: boolean
 
 permissions:
@@ -18,7 +22,9 @@ concurrency:
 
 jobs:
   publish:
-    if: github.ref == 'refs/heads/develop'
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.conclusion == 'success'
+    env:
+      RELEASE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: production
@@ -28,6 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           persist-credentials: false
       - name: Require approval protection and green checks for this revision
         env:
@@ -35,9 +42,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = 'jenngllg/mon-kado-front'
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)" = "$RELEASE_REVISION"
           gh api "repos/$GITHUB_REPOSITORY/environments/production" \
             --jq '.protection_rules | any(.type == "required_reviewers" and (.reviewers | length > 0))' | grep -x true
-          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/quality.yml/runs?head_sha=$GITHUB_SHA&branch=develop&per_page=100" \
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/quality.yml/runs?head_sha=$RELEASE_REVISION&branch=main&per_page=100" \
             --jq '[.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch")] | sort_by(.run_number) | last | .conclusion' \
             | grep -x success
       - name: Resolve the explicitly published backend
@@ -48,6 +56,7 @@ jobs:
           set -euo pipefail
           gh api repos/jenngllg/mon-kado/releases/tags/backend-production > "$RUNNER_TEMP/backend-release.json"
           revision=$(jq -er '.body | fromjson | .revision | select(type == "string" and length == 40 and test("^[0-9a-f]{40}$"))' "$RUNNER_TEMP/backend-release.json")
+          test "$(gh api repos/jenngllg/mon-kado/git/ref/heads/main --jq .object.sha)" = "$revision"
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -61,63 +70,33 @@ jobs:
         with:
           node-version: '24.19.0'
           package-manager-cache: false
-      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
-      - run: pnpm install --frozen-lockfile
-      - name: Set up native Go for the approved backend
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-        with:
-          go-version-file: .backend/go.mod
-          cache-dependency-path: .backend/go.sum
-      - name: Initialize isolated native PostgreSQL
-        run: bash .backend/scripts/Initialize-CIPostgres.sh
-      - name: Generate disposable application keys
-        shell: bash
-        run: |
-          set -euo pipefail
-          for name in JWT_SIGNING_KEY DATA_ENCRYPTION_KEY; do
-            key=$(openssl rand -base64 32)
-            echo "::add-mask::$key"
-            echo "$name=$key" >> "$GITHUB_ENV"
-          done
-      - name: Build the approved native API and migration tool
-        working-directory: .backend
-        run: |
-          go build -o "$RUNNER_TEMP/coordinated-api" ./cmd/api
-          go build -o "$RUNNER_TEMP/coordinated-migrate" ./cmd/migrate
-      - name: Verify exact approved backend contract in isolation
-        shell: bash
+      - name: Reuse the successful quality run's build and native contract proof
         env:
-          DATABASE_URL: ${{ env.MONKADO_TEST_DATABASE_URL }}
-          HTTP_ADDRESS: '127.0.0.1:7000'
-          FRONTEND_ORIGIN: http://localhost:5173
-          ALLOWED_HOSTS: localhost,127.0.0.1
-          GOOGLE_ENABLED: 'false'
-          IMAGE_PATH: ${{ runner.temp }}/coordinated-images
-          EXPORT_PATH: ${{ runner.temp }}/coordinated-exports
-          MONKADO_OPENAPI_URL: http://localhost:7000/openapi/v1.json
+          GH_TOKEN: ${{ github.token }}
+          BACKEND_REVISION: ${{ steps.backend.outputs.revision }}
         run: |
           set -euo pipefail
-          "$RUNNER_TEMP/coordinated-migrate"
-          "$RUNNER_TEMP/coordinated-api" > "$RUNNER_TEMP/coordinated-api.log" 2>&1 &
-          api_pid=$!
-          trap 'kill "$api_pid" 2>/dev/null || true; wait "$api_pid" 2>/dev/null || true' EXIT
-          curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 --max-time 5 \
-            "$MONKADO_OPENAPI_URL" --output "$RUNNER_TEMP/coordinated-contract.json"
-          cmp "$RUNNER_TEMP/coordinated-contract.json" .backend/internal/httpapi/specification.json
-          pnpm api:types:check
-      - name: Build the approved public configuration
-        run: pnpm build
+          ci_run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/quality.yml/runs?head_sha=$RELEASE_REVISION&branch=main&per_page=100" --jq '[.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch")] | sort_by(.run_number) | last | .id')
+          gh run download "$ci_run" --repo "$GITHUB_REPOSITORY" --name frontend-production-build --dir dist
+          gh run download "$ci_run" --repo "$GITHUB_REPOSITORY" --name frontend-backend-proof --dir "$RUNNER_TEMP/verified-contract"
+          test "$(jq -er .backendRevision "$RUNNER_TEMP/verified-contract/proof.json")" = "$BACKEND_REVISION"
+          contract_hash=$(sha256sum .backend/internal/httpapi/specification.json | cut -d' ' -f1)
+          test "$(jq -er .openapiSha256 "$RUNNER_TEMP/verified-contract/proof.json")" = "$contract_hash"
       - name: Require approved legal documents and revision-bound Google setting
         id: publication
         env:
-          TEMPORARY_TEST: ${{ inputs.temporary_test }}
+          TEMPORARY_TEST: ${{ github.event_name == 'workflow_run' || inputs.temporary_test }}
         run: |
           if [ "$TEMPORARY_TEST" = true ]; then
             node tools/publication/checkPublication.js --temporary-test >> "$GITHUB_OUTPUT"
-            echo 'Temporary test explicitly authorized: legal documents remain unapproved drafts. Take the site offline after testing.' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Publication with draft legal documents authorized by Jenn; keep the site online. This is not legal approval.' >> "$GITHUB_STEP_SUMMARY"
           else
             node tools/publication/checkPublication.js >> "$GITHUB_OUTPUT"
           fi
+      - name: Keep recent approved assets available to already-open tabs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/publication/retain_assets.py .backend dist "$RELEASE_REVISION"
       - name: Package only static build files
         env:
           BACKEND_REVISION: ${{ steps.backend.outputs.revision }}
@@ -126,11 +105,11 @@ jobs:
           set -euo pipefail
           configuration_hash=$(python3 .backend/deployments/production/release_manifest.py hash)
           python3 .backend/src/Operations.Frontend/frontend_cli.py package \
-            --dist dist --output "$RUNNER_TEMP/frontend-package" --revision "$GITHUB_SHA" \
+            --dist dist --output "$RUNNER_TEMP/frontend-package" --revision "$RELEASE_REVISION" \
             --backend-revision "$BACKEND_REVISION" --configuration-hash "$configuration_hash" \
             --google-enabled "$GOOGLE_ENABLED"
-          contract_hash=$(sha256sum "$RUNNER_TEMP/coordinated-contract.json" | cut -d' ' -f1)
-          jq -n --arg frontend "$GITHUB_SHA" --arg backend "$BACKEND_REVISION" \
+          contract_hash=$(jq -er .openapiSha256 "$RUNNER_TEMP/verified-contract/proof.json")
+          jq -n --arg frontend "$RELEASE_REVISION" --arg backend "$BACKEND_REVISION" \
             --arg config "$configuration_hash" --arg contract "$contract_hash" \
             '{schemaVersion: 1, frontendRevision: $frontend, backendRevision: $backend, configurationHash: $config, openapiSha256: $contract}' \
             > "$RUNNER_TEMP/frontend-package/coordinated-proof.json"
@@ -140,16 +119,16 @@ jobs:
         run: |
           set -euo pipefail
           # Existing immutable versions are never overwritten; rollback selects their manifest.
-          if gh release view "frontend-$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release download "frontend-$GITHUB_SHA" --repo "$GITHUB_REPOSITORY" \
+          if gh release view "frontend-$RELEASE_REVISION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release download "frontend-$RELEASE_REVISION" --repo "$GITHUB_REPOSITORY" \
               --pattern frontend.tar.gz --pattern manifest.json --pattern coordinated-proof.json --dir "$RUNNER_TEMP/existing-frontend"
             cmp "$RUNNER_TEMP/existing-frontend/manifest.json" "$RUNNER_TEMP/frontend-package/manifest.json"
             cmp "$RUNNER_TEMP/existing-frontend/frontend.tar.gz" "$RUNNER_TEMP/frontend-package/frontend.tar.gz"
             cmp "$RUNNER_TEMP/existing-frontend/coordinated-proof.json" "$RUNNER_TEMP/frontend-package/coordinated-proof.json"
           else
-            gh release create "frontend-$GITHUB_SHA" "$RUNNER_TEMP/frontend-package/frontend.tar.gz" \
+            gh release create "frontend-$RELEASE_REVISION" "$RUNNER_TEMP/frontend-package/frontend.tar.gz" \
               "$RUNNER_TEMP/frontend-package/manifest.json" "$RUNNER_TEMP/frontend-package/coordinated-proof.json" --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" --title "Frontend $GITHUB_SHA" --notes 'Approved static frontend build.' --latest=false
+              --target "$RELEASE_REVISION" --title "Frontend $RELEASE_REVISION" --notes 'Approved static frontend build.' --latest=false
           fi
           gh api repos/jenngllg/mon-kado/releases/tags/backend-production > "$RUNNER_TEMP/backend-recheck.json"
           jq -S .body "$RUNNER_TEMP/backend-release.json" > "$RUNNER_TEMP/backend-before.json"
@@ -159,12 +138,13 @@ jobs:
             gh release edit frontend-production --repo "$GITHUB_REPOSITORY" \
               --notes-file "$RUNNER_TEMP/frontend-package/manifest.json" --latest=false
           else
-            gh release create frontend-production --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            gh release create frontend-production --repo "$GITHUB_REPOSITORY" --target "$RELEASE_REVISION" \
               --title 'Approved frontend production build' --notes-file "$RUNNER_TEMP/frontend-package/manifest.json" --latest=false
           fi
-      - name: Remove disposable native PostgreSQL cluster
-        if: always()
-        run: |
-          if pg_lsclusters --no-header | grep -q '^18[[:space:]]\+monkado[[:space:]]'; then
-            sudo pg_dropcluster --stop 18 monkado
-          fi
+      - name: Deploy the approved main revision to the VPS
+        env:
+          VPS_DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_SSH_KEY }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER }}
+          VPS_KNOWN_HOSTS: ${{ vars.VPS_SSH_KNOWN_HOSTS }}
+        run: bash scripts/Deploy-MainVPS.sh "$RELEASE_REVISION"
