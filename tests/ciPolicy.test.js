@@ -14,6 +14,9 @@ describe("frontend CI contract", () => {
     expect(deploy).toBeGreaterThan(wait);
     expect(publication).toContain('python3 .backend/scripts/wait_paired_publication.py frontend "$RELEASE_REVISION"');
     expect(publication).toContain('test "$(jq -er .backendRevision "$RUNNER_TEMP/verified-contract/proof.json")" = "$BACKEND_REVISION"');
+    expect(publication).toContain("timeout-minutes: 60");
+    expect(publication).toContain("BACKEND_PUBLICATION_WAIT_SECONDS: '2400'");
+    expect(publication).toContain("failure|cancelled|timed_out|action_required|stale|skipped) echo 'BACKEND_CHECKS_FAILED'; exit 1");
   });
 
   it.each([
