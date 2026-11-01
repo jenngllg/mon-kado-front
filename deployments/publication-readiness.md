@@ -31,10 +31,11 @@ does not modify `legalApproved`, dates or draft markers and never enables Google
 implicitly. It returns the boolean explicitly recorded in the reviewed
 `publication.json`; backend OAuth configuration and its normal security checks
 remain mandatory. The operator separately authorized Google sign-in for this test.
-The default workflow still refuses draft documents; quality, API compatibility,
-environment approval, artifact validation and installed configuration checks remain
-mandatory. The operator must take the public site offline after the test through
-the server console; this input does not schedule or guarantee automatic removal.
+The current main workflow uses Jenn's standing authorization to keep the site online
+with these drafts. It deploys automatically after quality and API compatibility
+checks, immutable artifact validation and a fresh verified encrypted offsite backup.
+Production is restricted to main and has no manual environment approval or wait
+timer. This technical automation does not change the legal approval flag.
 
 The three French documents are substantive **drafts**, not a compliance
 certification or published terms. The public contact approved for this work is

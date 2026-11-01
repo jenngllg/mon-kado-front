@@ -5,9 +5,11 @@ const workflow = readFileSync(new URL("../.github/workflows/stage-coordinated-fr
 const quality = readFileSync(new URL("../.github/workflows/quality.yml", import.meta.url), "utf8");
 
 describe("coordinated frontend publication policy", () => {
-  it("requires protected production approval and the successful exact frontend quality run", () => {
+  it("requires automatic main-only production and the successful exact frontend quality run", () => {
     expect(workflow).toContain("environment: production");
-    expect(workflow).toContain("required_reviewers");
+    expect(workflow).not.toContain("required_reviewers");
+    expect(workflow).toContain('select(.type != "branch_policy")');
+    expect(workflow).toContain('[{"name":"main","type":"branch"}]');
     expect(workflow).toContain("quality.yml/runs?head_sha=$RELEASE_REVISION&branch=main");
     expect(workflow).toContain("workflow_run:");
     expect(workflow).toContain("VPS_DEPLOY_SSH_KEY");

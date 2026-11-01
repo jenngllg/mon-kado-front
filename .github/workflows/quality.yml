@@ -32,7 +32,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - name: Verify assets retained for already-open tabs
-        run: python3 -m unittest discover -s tools/publication -p 'test_retain_assets.py'
+        run: python3 -m unittest discover -s tools/publication -p 'test_*.py'
       - run: pnpm test:coverage
       - run: pnpm build
       - name: Check the reviewed production archive contract
