@@ -5,6 +5,13 @@ import { disposeComponent, registerComponentCleanup } from "../src/components/co
 import { RoutePaths } from "../src/app/routeContracts.js";
 
 describe("account layout", () => {
+  it.each(["Admin", "Administrator"])("shows authenticator settings for server role %s", role => {
+    const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
+      getSnapshot: () => ({ user: { roles: [role] } }), subscribe: () => () => {},
+    });
+    expect(layout.querySelector('a[href="/profile/authenticator"]')).not.toBeNull();
+    disposeComponent(layout);
+  });
   it("places the category heading above both columns without a redundant account heading", () => {
     const content = document.createElement("section");
     const title = document.createElement("h1"); title.textContent = "Mes données personnelles";

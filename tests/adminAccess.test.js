@@ -11,6 +11,13 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 function snapshot(roles = ["Admin"], member = id) { return /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "authenticated", user: { id: member, displayName: "Camille", email: "fixture@example.test", roles }, logoutPending: false, authenticationPending: false, etag: null, issue: null }); }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("administration presentation boundary", () => {
+  it.each(["Admin", "Administrator"])("shows moderation for server role %s", role => {
+    const shell = createApplicationShell();
+    shell.setSession(snapshot([role]));
+    expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')).not.toBeNull();
+    expect(hasAdminAccess(snapshot([role]))).toBe(true);
+    disposeComponent(shell.element);
+  });
   it("offers navigation only to stable administrators and updates when roles change", () => {
     const shell = createApplicationShell(); const state = snapshot(); shell.setSession(state); expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')?.textContent).toBe("Modération");
     expect(shell.element.querySelector(".app-navigation__list > li:first-child a")?.getAttribute("href")).toBe("/");
