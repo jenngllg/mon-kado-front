@@ -1,10 +1,10 @@
-import { hasAdministratorRole } from "../../auth/roles.js";
+import { isAdministrator } from "../../auth/roles.js";
 
 /** Presentation eligibility only: every API request checks current administrator access server-side.
  * @param {import("../../auth/sessionManager.js").SessionSnapshot} state Safe session snapshot.
  * @returns {boolean} Stable administrator identity.
  */
-export function hasAdminAccess(state) { return state.status === "authenticated" && !state.authenticationPending && !state.logoutPending && hasAdministratorRole(state.user?.roles); }
+export function hasAdminAccess(state) { return state.status === "authenticated" && !state.authenticationPending && !state.logoutPending && isAdministrator(state.user); }
 import { addComponentEventListener, disposeComponent, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createReportedWishlistsView } from "./reportedWishlistsView.js";
 import { createLoadingState } from "../../components/index.js";

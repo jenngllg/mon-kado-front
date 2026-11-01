@@ -11,6 +11,11 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 function snapshot(roles = ["Admin"], member = id) { return /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ ({ status: "authenticated", user: { id: member, displayName: "Camille", email: "fixture@example.test", roles }, logoutPending: false, authenticationPending: false, etag: null, issue: null }); }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("administration presentation boundary", () => {
+  it.each([false, true])("uses the authoritative administrator boolean %s", isAdmin => {
+    const state = snapshot(["Administrator"]);
+    if (!state.user) throw new Error("Missing identity");
+    expect(hasAdminAccess({ ...state, user: { ...state.user, isAdmin } })).toBe(isAdmin);
+  });
   it.each(["Admin", "Administrator"])("shows moderation for server role %s", role => {
     const shell = createApplicationShell();
     shell.setSession(snapshot([role]));
