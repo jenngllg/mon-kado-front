@@ -46,6 +46,18 @@ cancelled or skipped dependency blocks publication. Production still uses the
 exact qualified build and requires its fresh verified encrypted offsite backup
 before the existing online switch; no backup or availability check is removed.
 
+Both publication workflows publish their checked immutable assets, then wait for
+the two pinned main pointers before requesting the VPS. The first serialized
+request deploys the complete ready pair using one fresh coherent encrypted offsite
+snapshot verified before either switch; the second request is a no-op. Standalone
+frontend/backend updates still use one fresh snapshot. Any changed main revision,
+missing native contract proof or unavailable peer blocks the group before serving
+changes. No snapshot is reused for a later deployment. Merge backend then frontend
+immediately afterward so frontend CI verifies the intended backend revision.
+The publication budget allows forty minutes for complete backend verification
+inside a sixty-minute job; failed or cancelled exact-revision quality checks stop
+the wait promptly. This avoids the former ten-minute timeout when full Go tests run.
+
 The three French documents are substantive **drafts**, not a compliance
 certification or published terms. The public contact approved for this work is
 `monkado.app@gmail.com`. Do not derive the operator's civil name or address from

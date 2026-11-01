@@ -26,7 +26,7 @@ jobs:
     env:
       RELEASE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     environment: production
     permissions:
       actions: read
@@ -54,19 +54,26 @@ jobs:
         id: backend
         env:
           GH_TOKEN: ${{ github.token }}
-          BACKEND_PUBLICATION_WAIT_SECONDS: '600'
+          BACKEND_PUBLICATION_WAIT_SECONDS: '2400'
         run: |
           set -euo pipefail
           main_revision=$(gh api repos/jenngllg/mon-kado/git/ref/heads/main --jq .object.sha)
-          deadline=$((SECONDS + BACKEND_PUBLICATION_WAIT_SECONDS))
+          started=$SECONDS
+          deadline=$((started + BACKEND_PUBLICATION_WAIT_SECONDS))
           while true; do
             test "$(gh api repos/jenngllg/mon-kado/git/ref/heads/main --jq .object.sha)" = "$main_revision" || { echo 'BACKEND_MAIN_CHANGED'; exit 1; }
             gh api repos/jenngllg/mon-kado/releases/tags/backend-production > "$RUNNER_TEMP/backend-release.json"
             revision=$(jq -er '.body | fromjson | .revision | select(type == "string" and length == 40 and test("^[0-9a-f]{40}$"))' "$RUNNER_TEMP/backend-release.json")
             [ "$revision" != "$main_revision" ] || break
+            for workflow in ci.yml codeql.yml; do
+              conclusion=$(gh api "repos/jenngllg/mon-kado/actions/workflows/$workflow/runs?head_sha=$main_revision&branch=main&per_page=10" --jq '[.workflow_runs[] | select(.event == "push" or .event == "workflow_dispatch")] | sort_by(.run_number) | last | .conclusion')
+              case "$conclusion" in
+                failure|cancelled|timed_out|action_required|stale|skipped) echo 'BACKEND_CHECKS_FAILED'; exit 1 ;;
+              esac
+            done
             [ "$SECONDS" -lt "$deadline" ] || { echo 'BACKEND_PUBLICATION_TIMEOUT'; exit 1; }
             echo 'Waiting for the checked backend main publication.'
-            sleep 10
+            if [ "$((SECONDS - started))" -lt 120 ]; then sleep 10; else sleep 30; fi
           done
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -152,6 +159,10 @@ jobs:
             gh release create frontend-production --repo "$GITHUB_REPOSITORY" --target "$RELEASE_REVISION" \
               --title 'Approved frontend production build' --notes-file "$RUNNER_TEMP/frontend-package/manifest.json" --latest=false
           fi
+      - name: Wait for both checked main publications
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .backend/scripts/wait_paired_publication.py frontend "$RELEASE_REVISION"
       - name: Deploy the approved main revision to the VPS
         env:
           VPS_DEPLOY_KEY: ${{ secrets.VPS_DEPLOY_SSH_KEY }}

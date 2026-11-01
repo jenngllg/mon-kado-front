@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import publication from "./publication.json" with { type: "json" };
+import { deployedPolicy } from "./e2e/deployedPolicy.js";
 
 export default defineConfig(({ command, mode }) => ({
   define: command === "build" ? {
@@ -20,6 +21,7 @@ export default defineConfig(({ command, mode }) => ({
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
+    headers: process.env.MONKADO_E2E_CSP === "true" ? { "Content-Security-Policy": deployedPolicy } : {},
   },
   test: {
     include: ["tests/**/*.test.js", "tools/**/*.test.js"],
