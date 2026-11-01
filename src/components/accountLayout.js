@@ -2,6 +2,7 @@ import { createActionLink } from "./index.js";
 import { RoutePaths } from "../app/routeContracts.js";
 import { disposeComponent, registerComponentCleanup } from "./componentLifecycle.js";
 import { createAccountIcon } from "./accountIcon.js";
+import { hasAdministratorRole } from "../auth/roles.js";
 
 /** @type {ReadonlyArray<{label: string, href: string, icon: Parameters<typeof createAccountIcon>[0]}>} */
 const Categories = [
@@ -28,7 +29,7 @@ export function createAccountLayout(content, currentPath, session) {
   const navigation = document.createElement("nav");
   navigation.setAttribute("aria-label", "Paramètres du compte");
   function updateNavigation() {
-    const isAdmin = session?.getSnapshot().user?.roles.includes("Admin") === true;
+    const isAdmin = hasAdministratorRole(session?.getSnapshot().user?.roles);
     const isGoogleLinked = session?.getSnapshot().user?.isGoogleLinked === true;
     disposeComponent(navigation);
     navigation.replaceChildren();
