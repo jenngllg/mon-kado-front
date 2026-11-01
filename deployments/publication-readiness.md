@@ -54,6 +54,9 @@ frontend/backend updates still use one fresh snapshot. Any changed main revision
 missing native contract proof or unavailable peer blocks the group before serving
 changes. No snapshot is reused for a later deployment. Merge backend then frontend
 immediately afterward so frontend CI verifies the intended backend revision.
+The publication budget allows forty minutes for complete backend verification
+inside a sixty-minute job; failed or cancelled exact-revision quality checks stop
+the wait promptly. This avoids the former ten-minute timeout when full Go tests run.
 
 The three French documents are substantive **drafts**, not a compliance
 certification or published terms. The public contact approved for this work is
