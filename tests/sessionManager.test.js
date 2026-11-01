@@ -19,22 +19,16 @@ function setup(hub = createCoordinatorHub(), transport = createSessionTransport(
 describe("session management", () => {
   it.each([false, true])("retains the server administrator boolean: %s", async isAdmin => {
     const { session, state } = setup();
-    Object.assign(state.user, { isAdmin, roles: ["Administrator"] });
+    Object.assign(state.user, { isAdmin });
     await session.start();
     expect(session.getSnapshot().user?.isAdmin).toBe(isAdmin);
   });
-  it.each(["true", 1, null])("rejects an invalid administrator boolean: %s", async isAdmin => {
+  it.each(["true", 1, null, undefined])("rejects an invalid administrator boolean: %s", async isAdmin => {
     const { session, state } = setup();
     Object.assign(state.user, { isAdmin });
     await session.start();
     expect(session.getSnapshot().status).toBe("unavailable");
     expect(session.getSnapshot().user).toBeNull();
-  });
-  it.each([["Administrator", true], ["Admin", true], ["Member", false]])("adapts older sessions with role %s", async (role, expected) => {
-    const { session, state } = setup();
-    state.user.roles = [role];
-    await session.start();
-    expect(session.getSnapshot().user?.isAdmin).toBe(expected);
   });
   it.each([false, true])("retains the trusted Google association after session restoration: %s", async isGoogleLinked => {
     // Arrange
@@ -71,7 +65,7 @@ describe("session management", () => {
     // Assert
     expect(state).toMatchObject({ status: "authenticated", user: { displayName: "Fixture" }, etag: '"identity-1"' });
     expect(listener.mock.calls[0][0].status).toBe("initializing");
-    expect(Object.isFrozen(state.user?.roles)).toBe(true);
+    expect(Object.isFrozen(state.user)).toBe(true);
     expect(JSON.stringify(listener.mock.calls)).not.toMatch(/jwt-fixture|csrf-fixture|accessToken/);
     expect(fetch.mock.calls.map(call => new URL(String(call[0])).pathname)).toEqual([
       "/security/csrf-token", "/api/v1/auth/sessions/refresh", "/api/v1/auth/sessions/current",
@@ -272,7 +266,7 @@ describe("session management", () => {
     expect((await session.start()).status).toBe("authenticated");
   });
 
-  it.each([{ tokenType: "Basic" }, { accessToken: "" }, { accessToken: "secret\r\nheader" }, { roles: [1] }, { email: null }, { displayName: "" }])("rejects invalid session contract %j", async invalid => {
+  it.each([{ tokenType: "Basic" }, { accessToken: "" }, { accessToken: "secret\r\nheader" }, { isAdmin: 1 }, { email: null }, { displayName: "" }])("rejects invalid session contract %j", async invalid => {
     // Arrange
     const { session, fetch, state } = setup();
     fetch.mockResolvedValueOnce(Response.json({ token: "csrf" }))

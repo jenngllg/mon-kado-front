@@ -5,7 +5,7 @@ for (const width of [320, 360, 768, 1440]) {
   test(`profile visibility can be enabled and disabled at ${width}px`, async ({ page, context }, testInfo) => {
     const api = await controlledApi(context); api.state.authenticated = true;
     let visible = false, version = 1, writes = 0;
-    const member = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", displayName: "Camille test", email: "test@example.test", roles: ["member"], isGoogleLinked: false, profileImageUrl: null };
+    const member = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", displayName: "Camille test", email: "test@example.test", isAdmin: false, isGoogleLinked: false, profileImageUrl: null };
     const headers = { "Access-Control-Allow-Origin": "http://localhost:" + (process.env.MONKADO_E2E_PORT || "5173"),
       "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag" };
     await context.route("**/api/v1/auth/sessions/current", route => route.fulfill({ status: 200,

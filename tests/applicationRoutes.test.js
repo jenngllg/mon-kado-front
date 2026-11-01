@@ -193,7 +193,7 @@ describe("application routes", () => {
     const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", reportId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
     const report = name === RouteNames.WishlistReportHistory;
     let reads = 0;
-    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false })),
+    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, isAdmin: true }, authenticationPending: false, logoutPending: false })),
       request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (async (path, options) => {
         reads++; expect(path).toBe(report ? `/api/v1/admin/reported-wishlists/${wishlistId}/reports/${reportId}/events?page=1&pageSize=20` : `/api/v1/admin/wishlists/${wishlistId}/moderation/events?page=1&pageSize=20`); expect(options?.authentication).toBe("required");
         return { status: 200, data: { items: [], currentPage: 1, pageSize: 20, totalPages: 0, totalCount: 0, hasNextPage: false, hasPreviousPage: false }, metadata: { etag: null, correlationId: wishlistId, location: null, retryAfterSeconds: null } };
@@ -210,7 +210,7 @@ describe("application routes", () => {
   it("reads moderation freshly through the guarded administrator route", async () => {
     const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
     let reads = 0;
-    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false })),
+    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, isAdmin: true }, authenticationPending: false, logoutPending: false })),
       request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (async (path, options) => { reads++; expect(path).toBe(`/api/v1/admin/wishlists/${wishlistId}/moderation`); expect(options?.authentication).toBe("required"); return { status: 200, data: { wishlistId, isSuspended: false, suspensionReason: null, suspendedAt: null }, metadata: { etag: '"list-1"', correlationId: wishlistId, location: null, retryAfterSeconds: null } }; }) };
     const route = createApplicationRoutes({ session, apiBaseUrl: "http://localhost:7000" }).find(route => route.name === RouteNames.WishlistModeration);
     if (!route) throw new Error("Missing moderation route");
@@ -221,7 +221,7 @@ describe("application routes", () => {
   it("freshly reads the individual report for an admin, and removes it when leaving", async () => {
     const wishlistId = "019c52dd-56c1-7cc6-8a95-243f3a032e04", reportId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
     let reads = 0;
-    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, roles: ["Admin"] }, authenticationPending: false, logoutPending: false })),
+    const session = { ...unusedSession, getSnapshot: () => /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, isAdmin: true }, authenticationPending: false, logoutPending: false })),
       request: /** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (async (path, options) => {
         reads++; expect(path).toBe(`/api/v1/admin/reported-wishlists/${wishlistId}/reports/${reportId}`); expect(options?.method).toBe("GET");
         return { status: 200, data: { id: reportId, reason: "other", details: "Original", createdAt: "2026-10-07T12:00:00Z", status: "pending", reviewNote: "Private note", reviewedAt: null }, metadata: { etag: '"report-1"', correlationId: reportId, location: null, retryAfterSeconds: null } };

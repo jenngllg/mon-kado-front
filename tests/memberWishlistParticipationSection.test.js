@@ -87,10 +87,10 @@ describe("member participation", () => {
   });
   it("switches sections by account and waits through ambiguous session states", async () => {
     /** @type {(state: import("../src/auth/sessionManager.js").SessionSnapshot) => void} */ let notify = () => {};
-    /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ const state = { status: "authenticated", user: { id, displayName: "Compte A", email: "test@example.test", roles: [] }, etag: '"1"', issue: null, logoutPending: false };
+    /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ const state = { status: "authenticated", user: { id, displayName: "Compte A", email: "test@example.test", isAdmin: false }, etag: '"1"', issue: null, logoutPending: false };
     const loadCurrentMember = vi.fn(async () => null), loadCurrent = vi.fn(async () => null), joinMember = vi.fn(async () => ({ ...participant, created: true }));
     const host = createGuestParticipationHost({ getSnapshot: () => state, subscribe: listener => { notify = listener; return () => {}; } }, { shareLinkId: id, loadCurrentMember, loadCurrent, joinMember, joinGuest: async () => ({ ...participant, created: true }), onUnavailable: () => {} }); views.push(host); document.body.append(host); await settle();
-    const old = host.firstElementChild; notify({ ...state, user: { ...state.user, id: "other", displayName: "Compte B", email: "b@example.test", roles: [] } }); await settle(); expect(old?.textContent).not.toContain("Compte A"); expect(host.textContent).toContain("Compte B"); expect(loadCurrentMember).toHaveBeenCalledTimes(2);
+    const old = host.firstElementChild; notify({ ...state, user: { ...state.user, id: "other", displayName: "Compte B", email: "b@example.test", isAdmin: false } }); await settle(); expect(old?.textContent).not.toContain("Compte A"); expect(host.textContent).toContain("Compte B"); expect(loadCurrentMember).toHaveBeenCalledTimes(2);
     notify({ ...state, authenticationPending: true }); expect(host.hidden).toBe(true); notify({ ...state, status: "anonymous", user: null }); await settle(); expect(host.querySelector("input")).not.toBeNull(); expect(loadCurrent).toHaveBeenCalledOnce(); expect(joinMember).not.toHaveBeenCalled();
   });
 });

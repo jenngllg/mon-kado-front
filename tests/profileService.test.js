@@ -7,7 +7,7 @@ import { isStrongEntityTag } from "../src/api/entityTag.js";
 
 const signal = new AbortController().signal;
 const snapshot = Object.freeze({ status: /** @type {const} */ ("authenticated"),
-  user: { id: "member", displayName: "Jenn", email: "jenn@example.test", roles: ["member"], isVisibleInMemberSearch: false },
+  user: { id: "member", displayName: "Jenn", email: "jenn@example.test", isAdmin: false, isVisibleInMemberSearch: false },
   etag: '"0000002a"', issue: null, logoutPending: false });
 /** @param {unknown} [data] Response data.
  * @param {number} [status] HTTP status.

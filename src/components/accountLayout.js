@@ -2,7 +2,6 @@ import { createActionLink } from "./index.js";
 import { RoutePaths } from "../app/routeContracts.js";
 import { disposeComponent, registerComponentCleanup } from "./componentLifecycle.js";
 import { createAccountIcon } from "./accountIcon.js";
-import { isAdministrator } from "../auth/roles.js";
 
 /** @type {ReadonlyArray<{label: string, href: string, icon: Parameters<typeof createAccountIcon>[0]}>} */
 const Categories = [
@@ -16,7 +15,7 @@ const Categories = [
 /** Wraps an account category in the shared navigation layout.
  * @param {HTMLElement} content Disposable category view.
  * @param {string} currentPath Active category path.
- * @param {{getSnapshot: () => {user: {roles: readonly string[], isAdmin?: boolean, isGoogleLinked?: boolean} | null}, subscribe: (listener: () => void) => () => void}} [session] Trusted application session.
+ * @param {{getSnapshot: () => {user: {isAdmin: boolean, isGoogleLinked?: boolean} | null}, subscribe: (listener: () => void) => () => void}} [session] Trusted application session.
  * @returns {HTMLElement} Account layout.
  */
 export function createAccountLayout(content, currentPath, session) {
@@ -29,7 +28,7 @@ export function createAccountLayout(content, currentPath, session) {
   const navigation = document.createElement("nav");
   navigation.setAttribute("aria-label", "Paramètres du compte");
   function updateNavigation() {
-    const isAdmin = isAdministrator(session?.getSnapshot().user);
+    const isAdmin = session?.getSnapshot().user?.isAdmin === true;
     const isGoogleLinked = session?.getSnapshot().user?.isGoogleLinked === true;
     disposeComponent(navigation);
     navigation.replaceChildren();

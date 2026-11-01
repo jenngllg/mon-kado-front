@@ -7,16 +7,9 @@ import { RoutePaths } from "../src/app/routeContracts.js";
 describe("account layout", () => {
   it.each([false, true])("uses the administrator boolean for authenticator navigation: %s", isAdmin => {
     const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
-      getSnapshot: () => ({ user: { roles: ["Administrator"], isAdmin } }), subscribe: () => () => {},
+      getSnapshot: () => ({ user: { isAdmin } }), subscribe: () => () => {},
     });
     expect(layout.querySelector('a[href="/profile/authenticator"]') !== null).toBe(isAdmin);
-    disposeComponent(layout);
-  });
-  it.each(["Admin", "Administrator"])("shows authenticator settings for server role %s", role => {
-    const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
-      getSnapshot: () => ({ user: { roles: [role] } }), subscribe: () => () => {},
-    });
-    expect(layout.querySelector('a[href="/profile/authenticator"]')).not.toBeNull();
     disposeComponent(layout);
   });
   it("places the category heading above both columns without a redundant account heading", () => {
@@ -36,7 +29,7 @@ describe("account layout", () => {
   it.each([false, true])("shows local credentials only without a Google association: %s", isGoogleLinked => {
     // Arrange / Act
     const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
-      getSnapshot: () => ({ user: { roles: ["Member"], isGoogleLinked } }), subscribe: () => () => {},
+      getSnapshot: () => ({ user: { isAdmin: false, isGoogleLinked } }), subscribe: () => () => {},
     });
     // Assert
     expect(layout.querySelector('a[href="/profile/email"]') !== null).toBe(!isGoogleLinked);
@@ -49,7 +42,7 @@ describe("account layout", () => {
     // Arrange
     let isGoogleLinked = false, notify = () => {};
     const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
-      getSnapshot: () => ({ user: { roles: ["Admin"], isGoogleLinked } }),
+      getSnapshot: () => ({ user: { isAdmin: true, isGoogleLinked } }),
       subscribe: listener => { notify = listener; return () => {}; },
     });
     // Act
@@ -60,10 +53,11 @@ describe("account layout", () => {
     expect(layout.querySelector('a[href="/profile/authenticator"]')).not.toBeNull();
     disposeComponent(layout);
   });
-  it.each([{ roles: [] }, { roles: ["Member"] }, { roles: ["admin"] }])("hides authenticator navigation without the Admin role: $roles", ({ roles }) => {
+  it("hides authenticator navigation without administrator access", () => {
+    const isAdmin = false;
     // Arrange / Act
     const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
-      getSnapshot: () => ({ user: { roles } }), subscribe: () => () => {},
+      getSnapshot: () => ({ user: { isAdmin } }), subscribe: () => () => {},
     });
     // Assert
     expect(layout.querySelector('a[href="/profile/authenticator"]')).toBeNull();
@@ -71,15 +65,15 @@ describe("account layout", () => {
   });
   it("updates visibility when the session changes and unsubscribes on disposal", () => {
     // Arrange
-    let roles = ["Admin"];
+    let isAdmin = true;
     let notify = () => {};
     const unsubscribe = vi.fn();
     const layout = createAccountLayout(document.createElement("section"), RoutePaths.Profile, {
-      getSnapshot: () => ({ user: { roles } }), subscribe: listener => { notify = listener; return unsubscribe; },
+      getSnapshot: () => ({ user: { isAdmin } }), subscribe: listener => { notify = listener; return unsubscribe; },
     });
     expect(layout.querySelector('a[href="/profile/authenticator"]')).not.toBeNull();
     // Act
-    roles = ["Member"];
+    isAdmin = false;
     notify();
     // Assert
     expect(layout.querySelector('a[href="/profile/authenticator"]')).toBeNull();
@@ -92,7 +86,7 @@ describe("account layout", () => {
     const content = document.createElement("section");
     // Act
     const layout = createAccountLayout(content, path, {
-      getSnapshot: () => ({ user: { roles: ["Admin"] } }), subscribe: () => () => {},
+      getSnapshot: () => ({ user: { isAdmin: true } }), subscribe: () => () => {},
     });
     // Assert
     expect(layout.firstElementChild?.tagName).toBe("ASIDE");
