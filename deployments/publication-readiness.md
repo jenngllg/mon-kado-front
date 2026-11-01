@@ -37,6 +37,15 @@ checks, immutable artifact validation and a fresh verified encrypted offsite bac
 Production is restricted to main and has no manual environment approval or wait
 timer. This technical automation does not change the legal approval flag.
 
+The complete quality gate runs lint, types, unit coverage, production packaging,
+Caddy validation, native backend contract verification and every Chromium test.
+Unit coverage/build, native compatibility and four browser shards run in parallel
+on standard public Ubuntu runners, without a paid runner or new service. Each
+browser shard keeps two workers and zero retries; every shard must succeed. A failed,
+cancelled or skipped dependency blocks publication. Production still uses the
+exact qualified build and requires its fresh verified encrypted offsite backup
+before the existing online switch; no backup or availability check is removed.
+
 The three French documents are substantive **drafts**, not a compliance
 certification or published terms. The public contact approved for this work is
 `monkado.app@gmail.com`. Do not derive the operator's civil name or address from
