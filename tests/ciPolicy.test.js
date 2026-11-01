@@ -27,8 +27,12 @@ describe("frontend CI contract", () => {
     for (const action of workflow.matchAll(/uses: ([^\s]+)/g)) expect(action[1]).toMatch(/@[a-f0-9]{40}$/);
     for (const command of ["pnpm install --frozen-lockfile", "pnpm lint", "pnpm typecheck", "pnpm test:coverage", "pnpm build", "pnpm test:e2e", "pnpm api:types:check"])
       expect(workflow).toContain(command);
-    expect(workflow).toContain("needs: [quality, contract]");
-    expect(workflow).toContain('test "$QUALITY_RESULT" = success && test "$CONTRACT_RESULT" = success');
+    expect(workflow).toContain("needs: [quality, contract, browser]");
+    expect(workflow).toContain('test "$QUALITY_RESULT" = success && test "$CONTRACT_RESULT" = success && test "$BROWSER_RESULT" = success');
+    expect(workflow).toContain("fail-fast: false");
+    expect(workflow).toContain("shard: [1, 2, 3, 4]");
+    expect(workflow).toContain("pnpm test:e2e --shard=${{ matrix.shard }}/4");
+    expect(workflow).toContain("BROWSER_RESULT: ${{ needs.browser.result }}");
   });
 
   it("checks a clean backend revision with disposable resources and no worker", () => {
