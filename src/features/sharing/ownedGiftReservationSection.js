@@ -14,9 +14,9 @@ import { createReservationCancelDialog } from "./reservationCancelDialog.js";
  */
 export function createOwnedGiftReservationSection({ wishlistId, wishId, wish, surpriseMode, reservations, loadOne, onSaved, onBusy, onUnavailable, onDraft, signal }) {
   const root = document.createElement("section"); root.className = "reservation-panel flow"; root.setAttribute("aria-label", "Réservation pour moi");
-  let draft = false, disposed = false;
+  let disposed = false;
   function clear() { for (const child of root.children) if (child instanceof HTMLElement) disposeComponent(child); root.replaceChildren(); }
-  addComponentEventListener(root, root, "input", () => { draft = true; onDraft?.(); });
+  addComponentEventListener(root, root, "input", () => { onDraft?.(); });
   /** @param {import("./giftReservationService.js").CurrentReservation} [reservation] Optional editing state.
    * @param {(busy: boolean) => void} [setBusy] Parent mutation fence. */
   function form(reservation, setBusy = onBusy) {
@@ -48,7 +48,6 @@ export function createOwnedGiftReservationSection({ wishlistId, wishId, wish, su
     root.className = "flow";
     root.append(createGiftReservationSection({ shareLinkId: wishlistId, wishId, loadCurrent: reservations.loadCurrent,
       signal, onBusy, onUnavailable, onCancelled: onSaved, hideAbsentMessage: true,
-      canRefresh: () => !draft,
       createForm: setBusy => form(undefined, setBusy),
       ...(wish.quantity > 1 ? { editForm: (/** @type {import("./giftReservationService.js").CurrentReservation} */ reservation, /** @type {(busy: boolean) => void} */ setBusy) => form(reservation, setBusy) } : {}),
       createCancel: (onInvalidate, onClose) => createReservationCancelDialog({ signal, onInvalidate, onClose, onUnavailable,

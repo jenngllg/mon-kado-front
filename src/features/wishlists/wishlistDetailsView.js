@@ -1,4 +1,3 @@
-import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { createWishGalleryCard } from "../wishes/wishGalleryCard.js";
 import { reorderWishGallery } from "../wishes/wishGalleryOrdering.js";
 import { createWishSortControl } from "../wishes/wishSortControl.js";
@@ -93,7 +92,6 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
     if (signal.aborted) disposeComponent(view);
   }
   if (!disposed) void readList(false);
-  if (!disposed) refreshOnReturn(view, () => { if (!deletionDialog && !shareDialog && !copying) { void readGifts(false); if (audience && !audience.element.hidden) void audience.refresh(); } });
   return view;
 
   function closeShare() {
@@ -332,6 +330,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
     listContent.append(createAlert({ title: "Liste introuvable", message: "Cette liste n’est pas disponible. Tu peux revenir à Mes listes.", variant: "error" }));
   }
 }
+
 
 /** @param {HTMLElement} container Owned subtree. */
 function clear(container) { disposeComponent(container); container.replaceChildren(); }

@@ -1,4 +1,3 @@
-import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { withWishSort } from "../wishes/wishSorting.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { memberOriginQuery } from "../members/memberNavigation.js";
@@ -35,7 +34,6 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
   }
   if (accessSignal && !disposed) { addComponentEventListener(view, accessSignal, "abort", unavailable, { once: true }); if (accessSignal.aborted) unavailable(); }
   if (!disposed) void read(false);
-  if (!disposed) refreshOnReturn(view, () => { void read(false); });
   return view;
 
   function clear() { if (results.contains(title)) view.insertBefore(title, notice); disposeComponent(results); results.replaceChildren(); }
@@ -51,7 +49,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
 
   /** @param {boolean} explicit User-initiated reread. */
   async function read(explicit) {
-    if (disposed || busy || terminal || view.querySelector(".wish-image-dialog[open]") || mutationBusy || copying) return;
+    if (disposed || busy || terminal || view.querySelector("dialog[open]") || mutationBusy || copying) return;
     busy = true; clear(); title.textContent = "Souhait partagé";
     results.setAttribute("aria-busy", "true"); results.append(createLoadingState({ label: "Chargement du souhait…" }));
     try {

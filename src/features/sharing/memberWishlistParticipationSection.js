@@ -1,4 +1,3 @@
-import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createAlert, createButton, disposeComponent } from "../../components/index.js";
@@ -35,7 +34,6 @@ export function createMemberWishlistParticipationSection({ displayName, shareLin
   registerComponentCleanup(section, () => { disposed = true; lifetime.abort(); displayName = ""; identity.textContent = ""; status.textContent = ""; clearFeedback(); join.disabled = true; refresh.disabled = true; });
   if (signal) { addComponentEventListener(section, signal, "abort", () => disposeComponent(section), { once: true }); if (signal.aborted) disposeComponent(section); }
   if (!disposed) void run(false);
-  if (!disposed) refreshOnReturn(section, () => { void run(false); });
   return section;
 
   /** @param {boolean} mutation Explicit join, never inferred from a read.
@@ -61,6 +59,7 @@ export function createMemberWishlistParticipationSection({ displayName, shareLin
       if (mutation || explicit) title.focus();
     } catch (error) {
       if (disposed || isAbortError(error)) return;
+      if (!mutation) { mustRead = true; joined = false; identity.textContent = displayName; title.textContent = onRecognized ? "Pour réserver ce souhait" : "Participer"; }
       const api = error instanceof ApiError ? error : null;
       if (api?.statusCode === 404) { onUnavailable(); return; }
       let message = null;

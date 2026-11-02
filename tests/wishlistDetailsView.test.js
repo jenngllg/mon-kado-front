@@ -18,10 +18,11 @@ afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.repla
 /** @param {Partial<Parameters<typeof createWishlistDetailsView>[0]>} [options] Injectable reads. */
 function setup(options = {}) {
   const loadOne = vi.fn(async () => list); const loadWishes = vi.fn(async () => collection);
-  const view = createWishlistDetailsView({ wishlistId: id, loadOne, loadWishes, ...options }); document.body.append(view); views.push(view);
+  let view = createWishlistDetailsView({ wishlistId: id, loadOne, loadWishes, ...options }); document.body.append(view); views.push(view);
   /** @param {string} text Label. */
   function click(text) { const button = [...(view.querySelector("dialog") ?? view).querySelectorAll("button")].find(button => (button.getAttribute("aria-label") || button.textContent) === text); expect(button).toBeDefined(); button?.click(); }
-  return { view, loadOne, loadWishes, click };
+  function reload() { disposeComponent(view); view.remove(); view = createWishlistDetailsView({ wishlistId: id, loadOne, loadWishes, ...options }); views.push(view); document.body.append(view); }
+  return { get view() { return view; }, reload, loadOne, loadWishes, click };
 }
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
@@ -245,7 +246,7 @@ describe("wishlist owner detail", () => {
     expect(share.load).not.toHaveBeenCalled(); expect(suspended.view.textContent).toContain("Partage indisponible");
     const ui = setup({ share, loadWishes: async () => ({ wishes: [], etag: '"empty"' }) }); await settle(); ui.click("Partager"); await settle();
     const input = ui.view.querySelector("textarea"); share.load.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" }));
-    window.dispatchEvent(new Event("focus")); await settle(); expect(input?.value).toBe(""); expect(ui.view.querySelector("textarea")).toBeNull();
+    ui.reload(); await settle(); ui.click("Partager"); await settle(); expect(input?.value).toBe(""); expect(ui.view.querySelector("textarea")).toBeNull();
     expect(ui.view.textContent).toContain("Aucun souhait pour le moment"); expect(ui.view.querySelector('a[href$="/wishes/new"]')).toBeNull();
   });
   it.each([false, true])("never republishes gifts after share reports inaccessible, rejected=%s", async rejected => {
@@ -327,19 +328,47 @@ describe("wishlist owner detail", () => {
     const ui = setup(); await settle(); const image = /** @type {HTMLImageElement} */ (ui.view.querySelector("img"));
     expect(image.alt).toBe(""); expect(image.width).toBe(400); expect(image.height).toBe(300); expect(image.loading).toBe("lazy"); expect(image.referrerPolicy).toBe("no-referrer");
     image.dispatchEvent(new Event("error")); expect(image.hasAttribute("src")).toBe(false); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Image indisponible");
-    expect(ui.loadWishes).toHaveBeenCalledOnce(); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("img")).not.toBeNull();
+    expect(ui.loadWishes).toHaveBeenCalledOnce(); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("img")).toBeNull();
+    ui.click("Réessayer les images"); await settle(); expect(ui.view.querySelector("img")).not.toBeNull();
   });
   it("does not create elements for discarded unsafe product/image URLs", async () => {
     const ui = setup({ loadWishes: async () => ({ ...collection, wishes: [{ ...wish, url: null, imageUrl: null, productUnavailable: true, imageUnavailable: true }] }) }); await settle();
     expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.querySelector('a[target="_blank"]')).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Image indisponible");
   });
-  it("refreshes only gifts, replaces stale cards and grants, blocks duplicate reads without stealing focus", async () => {
-    const ui = setup(); await settle(); const oldImage = /** @type {HTMLImageElement} */ (ui.view.querySelector("img")); const gate = barrier();
-    ui.loadWishes.mockImplementation(async () => { await gate.promise; return { wishes: [{ ...wish, name: "Version actualisée", quantity: 3, entityTag: '"new-wish"' }], etag: '"new-collection"' }; });
-    window.dispatchEvent(new Event("focus")); window.dispatchEvent(new Event("focus")); expect(ui.loadWishes).toHaveBeenCalledTimes(2); expect(oldImage.hasAttribute("src")).toBe(false);
-    expect(ui.view.querySelector('[aria-busy="true"]')).not.toBeNull(); gate.resolve(); await settle();
-    expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.view.textContent).toContain("Version actualisée"); expect(ui.view.textContent).not.toContain("Quantité souhaitée");
-    expect(document.activeElement).toBe(document.body);
+  it("loads fresh metadata and wishes on page re-entry and preserves the page on window return", async () => {
+    const ui = setup(); await settle(); const oldImage = /** @type {HTMLImageElement} */ (ui.view.querySelector("img"));
+    window.dispatchEvent(new Event("focus")); expect(ui.loadWishes).toHaveBeenCalledOnce(); expect(oldImage.hasAttribute("src")).toBe(true);
+    ui.loadWishes.mockResolvedValue({ wishes: [{ ...wish, name: "Version actualisée", quantity: 3, entityTag: '"new-wish"' }], etag: '"new-collection"' });
+    ui.reload(); await settle();
+    expect(ui.loadOne).toHaveBeenCalledTimes(2); expect(ui.loadWishes).toHaveBeenCalledTimes(2); expect(ui.view.textContent).toContain("Version actualisée"); expect(oldImage.hasAttribute("src")).toBe(false);
+  });
+  it("preserves cards, loaded images and keyboard focus when only image grants change on return", async () => {
+    const ui = setup(); await settle();
+    const card = ui.view.querySelector(".wish-card"); const image = ui.view.querySelector("img");
+    const link = /** @type {HTMLAnchorElement} */ (ui.view.querySelector(".wish-card h3 a")); link.focus();
+    const source = image?.getAttribute("src");
+    ui.loadWishes.mockResolvedValue({ ...collection, wishes: [{ ...wish, imageUrl: wish.imageUrl?.replace("controlled", "renewed") ?? null }] });
+    window.dispatchEvent(new Event("focus")); await settle();
+    expect(ui.view.querySelector(".wish-card")).toBe(card); expect(ui.view.querySelector("img")).toBe(image);
+    expect(image?.getAttribute("src")).toBe(source); expect(document.activeElement).toBe(link);
+  });
+  it("keeps an empty list unchanged on window return and discovers additions on re-entry", async () => {
+    const loadWishes = vi.fn().mockResolvedValueOnce({ ...collection, wishes: [] }).mockResolvedValue(collection);
+    const ui = setup({ loadWishes }); await settle(); window.dispatchEvent(new Event("focus")); await settle();
+    expect(ui.view.textContent).toContain("Commence par"); expect(loadWishes).toHaveBeenCalledOnce();
+    ui.reload(); await settle(); expect(ui.view.querySelector(".wish-card")).not.toBeNull(); expect(loadWishes).toHaveBeenCalledTimes(2);
+  });
+  it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "http", statusCode: 503 })])("only encounters read failures on explicit re-entry and recovers through retry", async error => {
+    const ui = setup(); await settle(); const card = ui.view.querySelector(".wish-card"); ui.loadWishes.mockRejectedValueOnce(error);
+    window.dispatchEvent(new Event("focus")); await settle(); expect(ui.loadWishes).toHaveBeenCalledOnce(); expect(ui.view.querySelector(".wish-card")).toBe(card);
+    ui.reload(); await settle(); expect(ui.view.querySelector('[role="alert"]')).not.toBeNull();
+    ui.click("Réessayer"); await settle(); expect(ui.view.querySelector(".wish-card")).not.toBeNull(); expect(ui.view.querySelector('[role="alert"]')).toBeNull();
+  });
+  it("updates personal reservation quantities even when the wishes are unchanged", async () => {
+    const loadPersonalReservations = vi.fn().mockResolvedValueOnce({ quantities: new Map(), failed: false }).mockResolvedValueOnce({ quantities: new Map([[wish.id, 1]]), failed: false });
+    const ui = setup({ loadPersonalReservations }); await settle(); const card = ui.view.querySelector(".wish-card");
+    ui.reload(); await settle();
+    expect(ui.view.querySelector(".wish-card")).not.toBe(card); expect(ui.view.textContent).toContain("Tu as réservé");
   });
   it("retries initial metadata failures before any gift request", async () => {
     const read = vi.fn(/** @type {import("../src/features/wishlists/wishlistsService.js").LoadWishlist} */ (async () => { throw new ApiError({ kind: "network" }); })); const ui = setup({ loadOne: read }); await settle();
@@ -355,7 +384,7 @@ describe("wishlist owner detail", () => {
   });
   it.each(["list", "gifts", "refresh"])("removes metadata, versions and images on %s 404", async phase => {
     const missing = new ApiError({ kind: "http", statusCode: 404 }); const ui = setup({ ...(phase === "list" ? { loadOne: async () => { throw missing; } } : {}), ...(phase === "gifts" ? { loadWishes: async () => { throw missing; } } : {}) }); await settle();
-    if (phase === "refresh") { ui.loadWishes.mockRejectedValue(missing); window.dispatchEvent(new Event("focus")); await settle(); }
+    if (phase === "refresh") { ui.loadWishes.mockRejectedValue(missing); ui.reload(); await settle(); }
     expect(ui.view.querySelector("h1")?.textContent).toBe("Liste introuvable"); expect(ui.view.textContent).not.toContain(list.wishlist.name); expect(ui.view.querySelector("img")).toBeNull();
     expect(ui.view.querySelector(`a[href$="/edit"]`)).toBeNull(); expect(ui.view.querySelector(`a[href="/lists"]`)).not.toBeNull();
   });

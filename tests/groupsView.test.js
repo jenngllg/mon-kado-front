@@ -5,6 +5,7 @@ import { createGroupsService } from "../src/features/groups/groupsService.js";
 import { disposeComponent } from "../src/components/index.js";
 import { ApiError } from "../src/api/apiError.js";
 import { barrier } from "./sessionTestHelpers.js";
+const { window } = globalThis;
 
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", memberId = "019c52dd-56c1-7cc6-8a95-243f3a032e05", otherId = "019c52dd-56c1-7cc6-8a95-243f3a032e06";
 const at = "2026-10-24T12:00:00Z";
@@ -44,6 +45,12 @@ function setup({ detail = false, owner = true, empty = false, pending = false } 
 function button(view, label) { const found = [...view.querySelectorAll("button")].find(button => (button.getAttribute("aria-label") ?? button.textContent) === label); if (!found) throw new Error(`Missing button: ${label}`); return found; }
 
 describe("group overview", () => {
+  it.each([false, true])("does not reread groups on return (detail=%s)", async detail => {
+    const ui = setup({ detail }); await settle(); const content = ui.view.querySelector(".groups-content")?.firstElementChild;
+    const reads = ui.request.mock.calls.length;
+    window.dispatchEvent(new Event("focus")); globalThis.document.dispatchEvent(new Event("visibilitychange")); await settle();
+    expect(ui.request).toHaveBeenCalledTimes(reads); expect(ui.view.querySelector(".groups-content")?.firstElementChild).toBe(content);
+  });
   it("keeps a pending creation modal open on Escape and validates a blank name locally", async () => {
     const f = setup({ empty: true }); await settle(); button(f.view, "Créer un groupe").click();
     const input = /** @type {HTMLInputElement} */ (f.view.querySelector("dialog input"));

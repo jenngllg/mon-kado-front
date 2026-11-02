@@ -15,6 +15,20 @@ async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); 
 /** @param {HTMLElement} view Current history view. */
 function changeFilter(view) { view.querySelector("select")?.dispatchEvent(new Event("change")); }
 describe("reservation history presentation", () => {
+  it("loads a selected status only after the explicit filter change", async () => {
+    const ui = setup(); await settle();
+    window.dispatchEvent(new Event("focus")); expect(ui.load).toHaveBeenCalledOnce();
+    ui.load.mockResolvedValue({ ...page, items: [], totalCount: 0 });
+    const filter = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select")); filter.value = "cancelled"; changeFilter(ui.view); await settle();
+    expect(ui.load).toHaveBeenCalledTimes(2); expect(ui.load).toHaveBeenLastCalledWith(expect.objectContaining({ status: "cancelled", page: 1 }));
+    expect(ui.view.textContent).toContain("Aucune réservation ne correspond à ce statut"); expect(document.activeElement).toBe(filter);
+  });
+  it("does not reread history on window return or change keyboard focus", async () => {
+    const ui = setup(); await settle();
+    const card = ui.view.querySelector(".reservation-history-card"), filter = /** @type {HTMLSelectElement} */ (ui.view.querySelector("select")); filter.focus();
+    window.dispatchEvent(new Event("focus")); document.dispatchEvent(new Event("visibilitychange")); await settle();
+    expect(ui.load).toHaveBeenCalledOnce(); expect(ui.view.querySelector(".reservation-history-card")).toBe(card); expect(document.activeElement).toBe(filter);
+  });
   it("identifies a surprise idea and links to its original group",async()=>{
     const wishHref="/groups/example/wishlists/list#suggestion-idea";
     const {view}=setup({load:async()=>({...page,items:[{...item,isSuggestion:true,wishHref}]})});await settle();

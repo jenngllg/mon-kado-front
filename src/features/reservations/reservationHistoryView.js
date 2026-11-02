@@ -1,4 +1,3 @@
-import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createActionLink, createAlert, createButton, createEmptyState, createLoadingState, disposeComponent } from "../../components/index.js";
@@ -40,7 +39,6 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
   registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); clear(); filter.disabled = true; selectedStatus = undefined; filter.value = ""; statusMessage.textContent = ""; });
   if (signal) { addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true }); if (signal.aborted) disposeComponent(view); }
   if (!disposed) void read(false);
-  if (!disposed) refreshOnReturn(view, () => { void read(false); });
   return view;
 
   function clear() { disposeComponent(results); results.replaceChildren(); }
@@ -182,7 +180,10 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
       const alert = createAlert({ ...translated, detail: extra.join(" ") || null, variant: "error" }); alert.tabIndex = -1;
       results.append(alert, createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }));
       if (explicit) alert.focus();
-    } finally { busy = false; if (!disposed) { results.setAttribute("aria-busy", "false"); filter.disabled = false; if (explicit && !focusHeading) filter.focus(); } }
+    } finally {
+      busy = false;
+      if (!disposed) { results.setAttribute("aria-busy", "false"); filter.disabled = false; if (explicit && !focusHeading) filter.focus(); }
+    }
   }
   /** @param {number} target Explicit target page. */
   function go(target) { if (busy || disposed || dialogOpen) return; requestedPage = target; void read(true); }

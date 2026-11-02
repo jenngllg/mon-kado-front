@@ -14,11 +14,11 @@ afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.repla
 function setup(options = {}) {
   const load = vi.fn(/** @type {import("../src/features/wishlists/wishlistShareService.js").LoadWishlistShare} */ (async () => null));
   const create = vi.fn(async () => link), copyText = vi.fn(async () => {}), onUnavailable = vi.fn(), onRevoked = vi.fn();
-  const view = createWishlistShareSection({ wishlistId: id, load, create, copyText, onUnavailable, onRevoked, ...options }); document.body.append(view); views.push(view);
-  const input = /** @type {HTMLTextAreaElement} */ (view.querySelector("textarea"));
+  let view = createWishlistShareSection({ wishlistId: id, load, create, copyText, onUnavailable, onRevoked, ...options }); document.body.append(view); views.push(view);
   /** @param {string} label Button text. */
   function button(label) { const found = [...view.querySelectorAll("button")].find(button => button.textContent === label); if (!found) throw Error(label); return found; }
-  return { view, input, load, create, copyText, onUnavailable, onRevoked, button };
+  function reload() { disposeComponent(view); view.remove(); view = createWishlistShareSection({ wishlistId: id, load, create, copyText, onUnavailable, onRevoked, ...options }); views.push(view); document.body.append(view); }
+  return { get view() { return view; }, reload, get input() { return /** @type {HTMLTextAreaElement} */ (view.querySelector("textarea")); }, load, create, copyText, onUnavailable, onRevoked, button };
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
@@ -54,7 +54,7 @@ describe("owner share section", () => {
     const controller = new AbortController(), load = vi.fn(/** @type {import("../src/features/wishlists/wishlistShareService.js").LoadWishlistShare} */ (async () => link));
     const ui = setup({ load, signal: controller.signal }); await settle(); expectQr(ui.view, link.shareUrl);
     const gate = barrier(); load.mockImplementationOnce(async () => { await gate.promise; return link; });
-    window.dispatchEvent(new Event("focus")); expect(ui.view.querySelector('.wishlist-share__qr svg')).toBeNull();
+    window.dispatchEvent(new Event("focus")); expectQr(ui.view, link.shareUrl);
     controller.abort(); gate.resolve(); await settle(); expect(ui.view.querySelector('.wishlist-share__qr svg')).toBeNull();
   });
   it("names the list safely, shares modal exclusion, and allows creation only after confirmed deactivation", async () => {
@@ -76,8 +76,8 @@ describe("owner share section", () => {
     const ui = setup({ load, revoke, wishlistName: "Ma liste" }); await settle(); ui.button("Désactiver le partage").click();
     /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Désactiver le partage")).click(); await settle(); ui.button("Annuler").click();
     ui.button("Créer le lien de partage").click(); ui.button("Désactiver le partage").click(); expect(ui.create).not.toHaveBeenCalled(); expect(revoke).toHaveBeenCalledOnce();
-    load.mockRejectedValueOnce(new ApiError({ kind: "network" })); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.button("Créer le lien de partage").hidden).toBe(true);
-    load.mockResolvedValue(null); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.textContent).toContain("Aucun lien de partage actif"); expect(ui.view.textContent).not.toContain("Partage désactivé"); expect(ui.button("Créer le lien de partage").hidden).toBe(false);
+    load.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.reload(); await settle(); expect(ui.button("Créer le lien de partage").hidden).toBe(true);
+    load.mockResolvedValue(null); ui.reload(); await settle(); expect(ui.view.textContent).toContain("Aucun lien de partage créé"); expect(ui.view.textContent).not.toContain("Partage désactivé"); expect(ui.button("Créer le lien de partage").hidden).toBe(false);
     expect(ui.onRevoked).not.toHaveBeenCalled();
   });
   it("owns one renewal dialog, preserves the link on cancel and adopts only confirmed renewal", async () => {
@@ -97,8 +97,8 @@ describe("owner share section", () => {
     /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Renouveler le lien")).click(); await settle();
     ui.button("Annuler").click(); expect(ui.button("Renouveler le lien").hidden).toBe(true); expect(ui.input.value).toBe("");
     ui.button("Créer le lien de partage").click(); expect(ui.create).not.toHaveBeenCalled(); ui.button("Renouveler le lien").click(); expect(ui.view.querySelector("dialog")).toBeNull();
-    load.mockRejectedValueOnce(new ApiError({ kind: "network" })); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.button("Renouveler le lien").hidden).toBe(true);
-    window.dispatchEvent(new Event("focus")); await settle(); expect(ui.input.value).toBe(link.shareUrl); expect(renew).toHaveBeenCalledOnce();
+    load.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.reload(); await settle(); expect(ui.button("Renouveler le lien").hidden).toBe(true);
+    ui.reload(); await settle(); expect(ui.input.value).toBe(link.shareUrl); expect(renew).toHaveBeenCalledOnce();
   });
   it("loads without creating or changing initial focus, then creates only once and exposes a labelled readonly link", async () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Chargement du lien"); expect(ui.create).not.toHaveBeenCalled(); await settle();
@@ -121,21 +121,21 @@ describe("owner share section", () => {
     ui.button("Copier le lien").click(); await settle(); expect(document.activeElement).toBe(ui.input); expect(ui.input.selectionStart).toBe(0); expect(ui.input.selectionEnd).toBe(link.shareUrl.length);
     expect(ui.view.textContent).toContain("copie automatique est indisponible"); expect(ui.view.textContent).not.toContain(link.shareUrl);
   });
-  it("removes the old link before refresh and keeps creation blocked over a failed read", async () => {
-    const ui = setup(); ui.load.mockResolvedValue(link); await settle(); window.dispatchEvent(new Event("focus")); await settle();
-    expect(ui.input.value).toBe(link.shareUrl); ui.load.mockRejectedValue(new ApiError({ kind: "network" })); window.dispatchEvent(new Event("focus")); expect(ui.input.value).toBe(""); await settle();
+  it("keeps the link during a return read and removes it after a failure without enabling creation", async () => {
+    const ui = setup(); ui.load.mockResolvedValue(link); await settle(); ui.reload(); await settle();
+    expect(ui.input.value).toBe(link.shareUrl); ui.load.mockRejectedValue(new ApiError({ kind: "network" })); ui.reload(); expect(ui.input.value).toBe(""); await settle(); expect(ui.input.value).toBe("");
     expect(ui.button("Créer le lien de partage").hidden).toBe(true); expect(ui.view.querySelector('[role="alert"]')).not.toBeNull(); expect(document.activeElement).toBe(document.body);
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("requires a successful reread after uncertain creation", async error => {
     const ui = setup(); await settle(); ui.create.mockRejectedValue(error); ui.button("Créer le lien de partage").click(); await settle();
     expect(ui.view.textContent).toContain("La création du lien ne peut pas être confirmée"); expect(ui.button("Créer le lien de partage").hidden).toBe(true);
-    ui.load.mockRejectedValueOnce(new ApiError({ kind: "timeout" })); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.button("Créer le lien de partage").hidden).toBe(true);
-    window.dispatchEvent(new Event("focus")); await settle(); expect(ui.button("Créer le lien de partage").hidden).toBe(false); expect(ui.create).toHaveBeenCalledOnce();
+    ui.load.mockRejectedValueOnce(new ApiError({ kind: "timeout" })); ui.reload(); await settle(); expect(ui.button("Créer le lien de partage").hidden).toBe(true);
+    ui.reload(); await settle(); expect(ui.button("Créer le lien de partage").hidden).toBe(false); expect(ui.create).toHaveBeenCalledOnce();
   });
   it("loads the existing link on return after a concurrent creation", async () => {
     const ui = setup(); await settle(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SHARE_LINK_ALREADY_EXISTS" }));
     ui.button("Créer le lien de partage").click(); await settle(); expect(ui.view.textContent).toContain("Un lien de partage existe déjà."); expect(ui.button("Créer le lien de partage").hidden).toBe(true);
-    ui.load.mockResolvedValue(link); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.input.value).toBe(link.shareUrl); expect(ui.create).toHaveBeenCalledOnce();
+    ui.load.mockResolvedValue(link); ui.reload(); await settle(); expect(ui.input.value).toBe(link.shareUrl); expect(ui.create).toHaveBeenCalledOnce();
   });
   it.each([401, 403, 429])("presents safe HTTP %s feedback without altering the session", async statusCode => {
     const ui = setup({ load: async () => { throw new ApiError({ kind: "http", statusCode, correlationId: "support", retryAfterSeconds: 9 }); } }); await settle();

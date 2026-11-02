@@ -14,10 +14,18 @@ function mount(loadOne, signal, visible = false) {
   const view = createWishDetailsView({ wishlistId: "list", wishId: "wish", loadOne, signal,
     loadWishlist: visible ? async () => ({ wishlist: { id: "list", name: "Liste", message: null, occasion: "other", eventDate: null, isSuspended: false, isArchived: false, surpriseMode: false }, etag: '"list"' }) : undefined });
   views.push(view);
+  document.body.append(view);
   return view;
 }
 
 describe("owner wish detail", () => {
+  it("does not reread the detail on focus or visibility changes", async () => {
+    const load = vi.fn(/** @type {import("../src/features/wishes/wishesService.js").LoadWish} */ (async () => result)); const view = mount(load);
+    await vi.waitFor(() => expect(view.querySelector("h1")).not.toBeNull());
+    const layout = view.querySelector(".shared-wish-layout"), firstSignal = load.mock.calls[0][2].signal;
+    window.dispatchEvent(new Event("focus")); document.dispatchEvent(new Event("visibilitychange"));
+    expect(load).toHaveBeenCalledOnce(); expect(view.querySelector(".shared-wish-layout")).toBe(layout); expect(firstSignal.aborted).toBe(false);
+  });
   it("copies from an authorized owner detail without changing the source or navigating", async () => {
     const destination = "019c52dd-56c1-7cc6-8a95-243f3a032e09";
     const copy = vi.fn(async () => result);
@@ -124,14 +132,15 @@ describe("owner wish detail", () => {
     expect(view.querySelector('a[target="_blank"]')?.getAttribute("rel")).toBe("noopener noreferrer");
     expect(load).toHaveBeenCalledWith("list", "wish", { signal: expect.any(AbortSignal) });
   });
-  it("clears previous quantities immediately on focus and accepts hidden quantities", async () => {
+  it("keeps quantities on window return and reads hidden quantities on explicit re-entry", async () => {
     const load = vi.fn().mockResolvedValueOnce(result).mockResolvedValueOnce({ ...result, wish: { ...wish, reservedQuantity: null, availableQuantity: null, note: null, price: null, url: null } });
-    const view = mount(load, undefined, true);
+    let view = mount(load, undefined, true);
     await vi.waitFor(() => expect(view.textContent).toContain("Quantité réservée"));
     window.dispatchEvent(new Event("focus"));
-    expect(view.textContent).not.toContain("Quantité réservée");
+    expect(view.textContent).toContain("Quantité réservée");
+    expect(load).toHaveBeenCalledOnce(); disposeComponent(view); view.remove(); view = mount(load, undefined, true);
     await vi.waitFor(() => expect(view.querySelector("h1")?.textContent).toBe("Produit"));
-    expect(view.textContent).not.toMatch(/réservée|disponible/);
+    await vi.waitFor(() => expect(view.textContent).not.toMatch(/réservée|disponible/));
   });
   it("aborts requests and ignores late responses after disposal", async () => {
     const load = vi.fn().mockResolvedValue(result);

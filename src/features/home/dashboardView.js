@@ -1,6 +1,5 @@
 import { createActionLink, createButton, createLoadingState, disposeComponent } from '../../components/index.js';
 import { registerComponentCleanup } from '../../components/componentLifecycle.js';
-import { refreshOnReturn } from '../../components/refreshOnReturn.js';
 import { createGroupAvatar } from '../groups/groupPhoto.js';
 import { wishlistArtwork } from '../wishlists/wishlistArtwork.js';
 
@@ -39,7 +38,6 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
   columns.append(lists.section, groups.section);
   root.append(title, shortcuts, occasions, columns);
   let busy = false;
-  refreshOnReturn(root, () => { void load(); });
   void load();
   return root;
 
@@ -55,6 +53,12 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
       service.lists({ signal: readSignal }), service.groups({ signal: readSignal }),
     ]);
     if (readSignal.aborted) return;
+    const occasionResult = listResult.status === 'fulfilled' && groupResult.status === 'fulfilled'
+      ? await service.occasions(groupResult.value, { signal: readSignal }).then(value => ({ value, error: null })).catch(error => ({ value: [], error })) : null;
+    if (readSignal.aborted) return;
+    const today = now();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    listIntroduction.hidden = true; groupIntroduction.hidden = true;
     clear(lists.content); clear(groups.content);
     create.remove(); join.remove();
     if (listResult.status === 'fulfilled') {
@@ -91,11 +95,10 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
       failure(occasions, 'Impossible de charger les prochaines occasions.');
     } else {
       try {
-        const shared = await service.occasions(groupResult.value, { signal: readSignal });
+        if (occasionResult?.error) throw occasionResult.error;
+        const shared = occasionResult?.value ?? [];
         if (readSignal.aborted) return;
         const own = listResult.value.filter(list => !list.isSuspended).map(list => ({ ...list, href: `/lists/${list.id}` }));
-        const today = now();
-        const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
         const unique = new Map([...shared, ...own].map(list => [list.id.toLowerCase(), list]));
         const upcoming = [...unique.values()].filter(list => list.eventDate && list.eventDate >= todayKey)
           .sort((a, b) => (a.eventDate ?? '').localeCompare(b.eventDate ?? '') || a.name.localeCompare(b.name, 'fr')).slice(0, 3);

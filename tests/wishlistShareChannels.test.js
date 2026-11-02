@@ -11,14 +11,15 @@ const link = Object.freeze({ id, shareUrl: `https://monkado.test/shared-wishlist
 afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 /** @param {Partial<Parameters<typeof createWishlistShareSection>[0]>} [options] Dependencies. */
 function setup(options = {}) {
-  const load = vi.fn(async () => link), create = vi.fn(async () => link), copyText = vi.fn(async () => {});
+  const load = vi.fn(/** @type {import("../src/features/wishlists/wishlistShareService.js").LoadWishlistShare} */ (async () => link)), create = vi.fn(async () => link), copyText = vi.fn(async () => {});
   const navigate = vi.fn(), close = vi.fn(), openShareWindow = vi.fn(() => ({ navigate, close })), openMailComposer = vi.fn(), openMessengerComposer = vi.fn();
-  const view = createWishlistShareSection({ wishlistId: id, wishlistName: "Été & Noël", load, create, copyText, openShareWindow, openMailComposer, openMessengerComposer, onUnavailable: vi.fn(), ...options });
+  let view = createWishlistShareSection({ wishlistId: id, wishlistName: "Été & Noël", load, create, copyText, openShareWindow, openMailComposer, openMessengerComposer, onUnavailable: vi.fn(), ...options });
   views.push(view); document.body.append(view);
   /** @param {string} name Accessible channel name. */
   function click(name) { /** @type {HTMLButtonElement} */ (view.querySelector(`[aria-label="Partager par ${name}"]`)).click(); }
   const input = /** @type {HTMLTextAreaElement} */ (view.querySelector("textarea"));
-  return { view, load, create, copyText, navigate, close, openShareWindow, openMailComposer, openMessengerComposer, click, input };
+  function reload() { disposeComponent(view); view.remove(); view = createWishlistShareSection({ wishlistId: id, wishlistName: "Été & Noël", load, create, copyText, openShareWindow, openMailComposer, openMessengerComposer, onUnavailable: vi.fn(), ...options }); views.push(view); document.body.append(view); }
+  return { get view() { return view; }, reload, load, create, copyText, navigate, close, openShareWindow, openMailComposer, openMessengerComposer, click, input };
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 
@@ -197,12 +198,14 @@ describe("owner channel actions", () => {
     gate.resolve(); await settle(); expect(ui.navigate).toHaveBeenCalledOnce(); expect(ui.close).not.toHaveBeenCalled();
     expect(ui.view.textContent).toContain(`Message copié, colle-le dans ${name}`);
   });
-  it.each(["Facebook", "Messenger"])("offers a safe explicit link when the %s popup is blocked and clears it on refresh", async name => {
+  it.each(["Facebook", "Messenger"])("offers a safe explicit link when the %s popup is blocked and removes it when sharing changes", async name => {
     const ui = setup({ openShareWindow: () => null }); await settle(); ui.click(name); await settle();
     const fallback = /** @type {HTMLAnchorElement} */ (ui.view.querySelector("a"));
     expect(fallback.textContent).toBe(`Ouvrir ${name}`); expect(fallback.rel).toBe("noopener noreferrer"); expect(fallback.referrerPolicy).toBe("no-referrer");
     expect(new URL(fallback.href).searchParams.get(name === "Facebook" ? "u" : "link")).toBe(link.shareUrl);
-    window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("a")).toBeNull();
+    window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("a")).toBe(fallback);
+    ui.load.mockResolvedValue(null); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("a")).toBe(fallback);
+    ui.reload(); await settle(); expect(ui.view.querySelector("a")).toBeNull();
   });
   it.each(["Facebook"])("still opens %s and selects the link when copying fails", async name => {
     const ui = setup({ copyText: async () => { throw Error(link.shareUrl); } }); await settle(); ui.click(name); await settle();
@@ -217,7 +220,7 @@ describe("owner channel actions", () => {
     expect(/** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-share__channels")).hidden).toBe(true);
   });
   it("hides channels for private lists and after failed refresh", async () => {
-    const ui = setup(); await settle(); ui.load.mockRejectedValueOnce(Error("No read")); window.dispatchEvent(new Event("focus")); await settle();
+    const ui = setup(); await settle(); ui.load.mockRejectedValueOnce(Error("No read")); ui.reload(); await settle();
     expect(/** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-share__channels")).hidden).toBe(true);
     const privateUi = setup({ load: async () => null }); await settle(); privateUi.click("Facebook");
     expect(privateUi.openShareWindow).not.toHaveBeenCalled(); expect(privateUi.create).not.toHaveBeenCalled();
