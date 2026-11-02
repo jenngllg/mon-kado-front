@@ -35,8 +35,9 @@ button:disabled { opacity: .5; cursor: default; }
 .favorite-control svg { width: 28px; height: 28px; fill: none; stroke: #b93e32; stroke-width: 1.8; pointer-events: none; }
 .favorite-control input:checked + svg { fill: #b93e32; }
 .favorite-control:has(input:focus-visible) { outline: 3px solid #123f2b; outline-offset: 2px; border-radius: 8px; }
-.list-picker summary { min-height: 44px; box-sizing: border-box; padding: 10px 8px; border: 1px solid #788772; border-radius: 8px; background: #fffefa; cursor: pointer; overflow-wrap: anywhere; }
+.list-picker summary { min-height: 44px; box-sizing: border-box; padding: 10px 0; cursor: pointer; font-weight: 700; }
 .list-picker fieldset { max-height: 180px; overflow: auto; border: 1px solid #788772; border-radius: 8px; padding: 6px; margin-top: 5px; }
 .list-picker legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .list-picker label { display: flex; align-items: center; min-height: 44px; gap: 8px; font-weight: 400; overflow-wrap: anywhere; }
 .list-picker input { width: 18px; height: 18px; min-height: 0; flex: none; accent-color: #b93e32; }
+.suggestion-privacy { margin: 0; font-size: 12px; color: #466253; }

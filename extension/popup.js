@@ -1,6 +1,7 @@
 /* global chrome, browser, document */
 import { extractProduct } from "./extract.js";
 import { createImageSelection } from "./imageSelection.js";
+import { createSuggestionFlow } from "./suggestionFlow.js";
 
 const api = typeof browser !== "undefined" ? browser : chrome;
 const status=document.querySelector("#status"), ownForm=document.querySelector("#form"), heading=document.querySelector("h1");
@@ -12,18 +13,17 @@ function createDestinationPicker(form,destinations,multiple,onChange){
   const select=form.querySelector("select");
   for(const item of destinations){const option=document.createElement("option");option.value=item.id;option.textContent=item.name;select.append(option);}
   if(!multiple||destinations.length<2)return {values:()=>select.value?[select.value]:[],first:()=>select.value||destinations[0]?.id,disable:value=>{select.disabled=value;}};
-  const dropdown=document.createElement("details");dropdown.className="list-picker";
-  const summary=document.createElement("summary"),choices=document.createElement("fieldset"),legend=document.createElement("legend");legend.textContent="Listes *";choices.append(legend);
+  const dropdown=document.createElement("details");dropdown.className="list-picker";dropdown.open=true;
+  const summary=document.createElement("summary"),choices=document.createElement("fieldset"),legend=document.createElement("legend");summary.textContent="Listes *";legend.textContent="Listes *";choices.append(legend);
   const inputs=[];
   function values(){return inputs.filter(input=>input.checked).map(input=>input.value);}
-  function update(){const names=destinations.filter(item=>values().includes(item.id)).map(item=>item.name);summary.textContent=`Listes * : ${names.join(", ")||"Choisir…"}`;onChange();}
+  function update(){onChange();}
   for(const [index,item] of destinations.entries()){
     const label=document.createElement("label"),input=document.createElement("input");input.type="checkbox";input.value=item.id;input.checked=index===0;label.append(input,document.createTextNode(item.name));inputs.push(input);choices.append(label);input.addEventListener("change",update);
   }
   let disabled=false;
   summary.addEventListener("click",event=>{if(disabled)event.preventDefault();});
   dropdown.addEventListener("keydown",event=>{if(event.key==="Escape"&&dropdown.open){event.preventDefault();dropdown.open=false;summary.focus();}});
-  document.addEventListener("click",event=>{if(!dropdown.contains(event.target))dropdown.open=false;});
   dropdown.append(summary,choices);select.closest("label").replaceWith(dropdown);
   update();
   return {values,first:()=>values()[0]||destinations[0]?.id,disable:value=>{disabled=value;summary.setAttribute("aria-disabled",String(value));inputs.forEach(input=>{input.disabled=value;});if(value)dropdown.open=false;}};
@@ -94,27 +94,26 @@ async function initialize(){
       try{
         const probe=await api.tabs.sendMessage(candidate.id,{action:"probe"});if(!probe?.ready){updateRequired=true;continue;}
         const response=await api.tabs.sendMessage(candidate.id,{action:"lists"});if(!Array.isArray(response?.lists))continue;
-        const context={id:candidate.id,lists:response.lists,supportsVariants:probe.supportsVariants===true,supportsFavorites:probe.supportsFavorites===true};
+        const context={id:candidate.id,lists:response.lists,supportsVariants:probe.supportsVariants===true,supportsFavorites:probe.supportsFavorites===true,supportsGroupSuggestions:probe.supportsGroupSuggestions===true};
         if(!selected)selected=context;
-        if(response.lists.some(item=>item.isDraft)){selected=context;break;}
+        if(context.supportsGroupSuggestions){selected=context;break;}
       }catch{/* A tab may need to be reloaded after extension installation. */}
     }
     if(!selected){status.textContent=updateRequired?"Le site MonKado doit être mis à jour avant d’utiliser l’extension.":"Connecte-toi sur le site MonKado, actualise l’onglet, puis rouvre l’extension.";return;}
-    const personal=selected.lists.filter(item=>!item.isDraft),drafts=selected.lists.filter(item=>item.isDraft);
-    if(!personal.length&&!drafts.length){status.textContent="Aucune liste disponible dans MonKado.";return;}
+    const personal=selected.lists.filter(item=>!item.isDraft);
     const proposal=ownForm.cloneNode(true);proposal.id="suggestion-form";proposal.hidden=true;
     for(const control of proposal.querySelectorAll("[id]"))control.id=`suggestion-${control.id}`;
-    proposal.querySelector("label").firstChild.textContent="Brouillon privé *";
-    const privacy=document.createElement("p");privacy.textContent="Visible uniquement par les membres du groupe, sauf le destinataire. Vérifie puis confirme la proposition dans MonKado.";proposal.prepend(privacy);ownForm.after(proposal);
     const own=createFlow(ownForm,personal,product,selected.id,tab.id,selected.supportsVariants,selected.supportsFavorites,false);
-    const suggestion=createFlow(proposal,drafts,product,selected.id,tab.id,selected.supportsVariants,selected.supportsFavorites,true);
+    const suggestion=createSuggestionFlow({api,form:proposal,product,siteTab:selected.id,productTab:tab.id,
+      onMessage:text=>{if(activeFlow===proposal)status.textContent=text;},onBusy:value=>{ownMode.disabled=suggestionMode.disabled=value;}});
     function show(draft){
       ownForm.remove();proposal.remove();ownMode.setAttribute("aria-pressed",String(!draft));suggestionMode.setAttribute("aria-pressed",String(draft));
-      if(draft&&!drafts.length){activeFlow=null;heading.textContent="Proposer une idée surprise";status.textContent="Ouvre une liste dans un groupe et clique sur « Proposer une idée », puis rouvre l’extension.";return;}
+      if(draft&&!selected.supportsGroupSuggestions){activeFlow=null;heading.textContent="Proposer une idée surprise";status.textContent="Actualise l’onglet MonKado pour choisir une personne et ses listes, puis rouvre l’extension.";return;}
       if(!draft&&!personal.length){activeFlow=null;heading.textContent="Ajouter un souhait";status.textContent="Aucune liste personnelle disponible.";return;}
+      if(draft){activeFlow=proposal;heading.textContent="Proposer une idée surprise";}
       status.after(draft?proposal:ownForm);(draft?suggestion:own).show();
     }
-    ownMode.addEventListener("click",()=>show(false));suggestionMode.addEventListener("click",()=>show(true));modes.hidden=false;show(!personal.length&&drafts.length>0);
+    ownMode.addEventListener("click",()=>show(false));suggestionMode.addEventListener("click",()=>show(true));modes.hidden=false;show(!personal.length);
   }catch{status.textContent="Cette page ne peut pas être lue. Ouvre une page produit et réessaie.";}
 }
 void initialize();
