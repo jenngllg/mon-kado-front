@@ -127,7 +127,7 @@ describe("shared group admission", () => {
   });
   it("validates a bad code locally and permits an explicit correction", async () => {
     const f = joining(); await settle(); const input = /** @type {HTMLInputElement} */ (f.view.querySelector("input")); input.value = "bad"; f.submit();
-    expect(f.join).not.toHaveBeenCalled(); expect(f.view.textContent).toContain("Vérifie le code"); input.value = code; f.submit(); await settle(); f.submit(); await settle(); expect(f.join).toHaveBeenCalledOnce();
+    expect(f.join).not.toHaveBeenCalled(); expect(f.view.textContent).toContain("Code du groupe invalide."); input.value = code; f.submit(); await settle(); f.submit(); await settle(); expect(f.join).toHaveBeenCalledOnce();
   });
   it("ignores a late result after logout and removes the previous account's input", async () => {
     const gate = barrier(); const f = joining({ join: vi.fn(async () => { await gate.promise; return group; }) }); await settle(); f.submit(); f.identity(""); gate.resolve(); await settle();

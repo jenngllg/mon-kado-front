@@ -38,6 +38,7 @@ for (const width of [390, 1440]) {
     });
     await page.goto(`/lists/${listId}`);
     await page.getByRole("button", { name: "Partager", exact: true }).click();
+    await page.getByRole("tab", { name: "Lien public", exact: true }).click();
     const group = page.getByRole("group", { name: "Partager la liste sur un canal" });
     await expect(group).toBeVisible(); await expect(group.getByRole("button")).toHaveCount(6);
     await expect(page.getByRole("button", { name: "Partager par Discord", exact: true })).toBeVisible();
@@ -129,6 +130,7 @@ test("Messenger opens its recipient dialog without clipboard access", async ({ p
   });
   await page.goto(`/lists/${listId}`);
   await page.getByRole("button", { name: "Partager", exact: true }).click();
+    await page.getByRole("tab", { name: "Lien public", exact: true }).click();
   const popupPromise = page.waitForEvent("popup");
   await page.getByRole("button", { name: "Partager par Messenger", exact: true }).focus();
   await page.keyboard.press("Enter");
@@ -163,6 +165,7 @@ for (const platform of ["Android", "iPhone"]) {
     }, platform);
     await page.goto(`/lists/${listId}`);
     await page.getByRole("button", { name: "Partager", exact: true }).click();
+    await page.getByRole("tab", { name: "Lien public", exact: true }).click();
     await page.getByRole("button", { name: "Partager par Messenger", exact: true }).click();
     const destinations = await page.evaluate(() => Reflect.get(globalThis, "nativeMessengerDestinations"));
     expect(destinations).toHaveLength(1);

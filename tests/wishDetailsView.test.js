@@ -82,19 +82,21 @@ describe("owner wish detail", () => {
     await vi.waitFor(() => expect(view.querySelector("h1")).not.toBeNull());
     // Act / Assert
     expect(view.querySelector(`a[href="/lists/${listId}/wishes/${wishId}/edit?sort=priceAsc"]`)?.getAttribute("aria-label")).toBe("Modifier");
-    expect(view.querySelectorAll('.wish-owner-detail__actions svg[aria-hidden="true"]')).toHaveLength(2);
-    expect(view.querySelector(".wish-owner-detail__actions")?.textContent).toBe("");
+    expect(view.querySelector('.wish-owner-detail__actions a[aria-label="Modifier"]')?.textContent).toBe("Modifier");
+    const options = /** @type {HTMLDetailsElement} */ (view.querySelector(".workflow-options"));
+    const optionsTrigger = /** @type {HTMLElement} */ (options.querySelector("summary"));
+    expect(optionsTrigger.getAttribute("aria-label")).toBe("Options du souhait");
     expect(view.querySelector('a[target="_blank"]')?.getAttribute("title")).toContain("nouvel onglet");
     expect(view.querySelector('a[target="_blank"]')?.getAttribute("rel")).toBe("noopener noreferrer");
     const trigger = /** @type {HTMLButtonElement} */ (view.querySelector("button"));
-    trigger.click();
+    options.open = true; trigger.click();
     await vi.waitFor(() => expect(view.querySelector("dialog")?.textContent).toContain("Supprimer définitivement « Produit »"));
     expect(remove).not.toHaveBeenCalled();
     const calls = loadOne.mock.calls.length;
     window.dispatchEvent(new Event("focus")); expect(loadOne.mock.calls.length).toBe(calls);
     const cancel = [...view.querySelectorAll("dialog button")].find(button => button.textContent === "Annuler");
-    /** @type {HTMLButtonElement} */ (cancel).click(); expect(document.activeElement).toBe(trigger);
-    trigger.click();
+    /** @type {HTMLButtonElement} */ (cancel).click(); expect(document.activeElement).toBe(optionsTrigger);
+    options.open = true; trigger.click();
     await vi.waitFor(() => expect(view.querySelector("dialog")?.textContent).toContain("Supprimer définitivement « Produit »"));
     const confirm = [...view.querySelectorAll("dialog button")].find(button => button.textContent === "Supprimer");
     /** @type {HTMLButtonElement} */ (confirm).click();

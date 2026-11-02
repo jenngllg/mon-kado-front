@@ -16,16 +16,47 @@ const suggestion = {id,name:"Une idée",note:"Une note",url:"https://shop.test/g
 async function settle() { for (let i=0;i<40;i++) await Promise.resolve(); }
 /** @param {HTMLElement} root @param {string} label */
 function button(root,label) { const match=[...root.querySelectorAll("button")].find(element=>element.textContent===label); if (!match) throw Error(label); return match; }
-/** @param {Partial<ReturnType<typeof import("../src/features/groups/groupSuggestionsService.js").createGroupSuggestionsService>>} [overrides] */
-function setup(overrides={}) {
+/** @param {Partial<ReturnType<typeof import("../src/features/groups/groupSuggestionsService.js").createGroupSuggestionsService>>} [overrides]
+ * @param {Partial<Parameters<typeof createGroupSuggestionsView>[0]>} [options] */
+function setup(overrides={}, options={}) {
   const service = {list:vi.fn(async()=>[suggestion]),get:vi.fn(async()=>suggestion),create:vi.fn(async()=>suggestion),update:vi.fn(async()=>suggestion),remove:vi.fn(async()=>{}),uploadImage:vi.fn(async()=>suggestion),removeImage:vi.fn(async()=>suggestion.entityTag),image:vi.fn(async()=>new Blob()),reservation:vi.fn(async()=>null),reserve:vi.fn(async()=>({id,wishId:id,quantity:1,etag:'"00000002"'})),cancel:vi.fn(async()=>{}),...overrides};
   const controller=new AbortController();
-  const view=createGroupSuggestionsView({service,ownerName:"Léa",signal:controller.signal}); document.body.append(view);
+  const view=createGroupSuggestionsView({service,ownerName:"Léa",signal:controller.signal,...options}); document.body.append(view);
   return {view,service,controller};
 }
 afterEach(() => { for (const child of [...document.body.children]) if (child instanceof HTMLElement) disposeComponent(child); document.body.replaceChildren(); vi.restoreAllMocks(); });
 
 describe("private group ideas", () => {
+  it("keeps creation-only reads scoped to selected lists and creates once per destination", async () => {
+    /** @type {import("../src/features/groups/groupSuggestionBatch.js").SuggestionDestination[]} */ const targets = [];
+    const ui = setup({}, { creationOnly: true, loadDestinations: async () => targets });
+    const second = { create: vi.fn(async () => suggestion), uploadImage: vi.fn(async () => suggestion) };
+    targets.push({ id, name: "Anniversaire", groupName: "Famille", href: "/group/first", service: ui.service }, { id: other, name: "Noël", groupName: "Famille", href: "/group/second", service: second });
+    expect(ui.service.list).not.toHaveBeenCalled(); button(ui.view, "Proposer une idée").click(); await settle();
+    const modal = /** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
+    /** @type {HTMLInputElement} */ (modal.querySelector(`input[name="destinations"][value="${other}"]`)).click();
+    /** @type {HTMLInputElement} */ (modal.querySelector('[name="name"]')).value = "Mon idée";
+    button(modal, "Proposer").click(); await settle();
+    expect(ui.service.create).toHaveBeenCalledOnce(); expect(second.create).toHaveBeenCalledOnce(); expect(modal.isConnected).toBe(false);
+    expect(ui.view.textContent).toContain("Idée proposée dans les listes sélectionnées.");
+  });
+  it("opens the collapsed precisions and focuses an invalid quantity before any write", async () => {
+    const ui = setup(); await settle(); button(ui.view, "Proposer une idée").click();
+    const modal = /** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
+    const details = /** @type {HTMLDetailsElement} */ (modal.querySelector(".suggestion-details"));
+    expect(details.open).toBe(false);
+    /** @type {HTMLInputElement} */ (modal.querySelector('[name="name"]')).value = "Une idée";
+    const quantity = /** @type {HTMLInputElement} */ (modal.querySelector('[name="quantity"]')); quantity.value = "101";
+    button(modal, "Proposer").click(); expect(details.open).toBe(true); expect(document.activeElement).toBe(quantity); expect(ui.service.create).not.toHaveBeenCalled();
+  });
+  it("recovers an unavailable destination read without clearing the typed idea", async () => {
+    const loadDestinations = vi.fn().mockRejectedValueOnce(new ApiError({kind:"network"})).mockResolvedValueOnce([]);
+    const ui = setup({}, { creationOnly: true, loadDestinations }); button(ui.view, "Proposer une idée").click(); await settle();
+    const modal = /** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
+    const name = /** @type {HTMLInputElement} */ (modal.querySelector('[name="name"]')); name.value = "Brouillon conservé";
+    button(modal, "Réessayer").click(); await settle();
+    expect(name.value).toBe("Brouillon conservé"); expect(modal.textContent).toContain("n’a plus de liste accessible"); expect(button(modal, "Proposer").disabled).toBe(true); expect(ui.service.create).not.toHaveBeenCalled();
+  });
   it("uses shared wish controls and accepts extension data only while its private editor is open",async()=>{
     const ui=setup();await settle();button(ui.view,"Proposer une idée").click();const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     expect(modal.querySelector(".wish-form")).not.toBeNull();expect(modal.querySelector(".wish-quantity-stepper")).not.toBeNull();

@@ -218,7 +218,7 @@ test("gallery reveals favorite on keyboard focus and keeps empty, readonly and n
 });
 
 for (const selector of [".wish-gallery__photo", "h3 a"]) {
-  test(`gallery ${selector} opens owner details with round named actions and confirmed deletion`, async ({ page, context }) => {
+  test(`gallery ${selector} opens owner details with labelled actions and confirmed deletion`, async ({ page, context }) => {
     // Arrange
     const api = await galleryApi(context);
     await page.goto(`/lists/${listId}`);
@@ -232,11 +232,13 @@ for (const selector of [".wish-gallery__photo", "h3 a"]) {
     await expect(product).toHaveAttribute("target", "_blank");
     await expect(actions.getByRole("link", { name: /Voir le produit/ })).toHaveCount(0);
     await expect(actions.getByRole("button", { name: /coup de cœur/ })).toBeVisible();
-    await expect(actions.locator(".icon-action:visible")).toHaveCount(3);
+    await expect(actions.getByRole("link", { name: "Modifier", exact: true })).toHaveText("Modifier");
     await expect(actions.getByRole("button", { name: "Ajouter à une autre liste", exact: true })).toBeHidden();
     const remove = actions.getByRole("button", { name: "Supprimer", exact: true });
-    await expect(remove).toHaveCSS("border-radius", "50%");
-    await expect(remove).toHaveCSS("width", "44px");
+    await expect(remove).toBeHidden();
+    const options = actions.getByRole("button", { name: "Options du souhait", exact: true });
+    await expect(options).toHaveCSS("width", "44px"); await options.click();
+    await expect(remove).toHaveCSS("color", "rgb(180, 35, 24)");
     await remove.click();
     await expect(page.getByRole("dialog")).toBeVisible(); expect(api.state.wishWrites).toBe(0);
     await page.getByRole("dialog").getByRole("button", { name: "Supprimer", exact: true }).click();

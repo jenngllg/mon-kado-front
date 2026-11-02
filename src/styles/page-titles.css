@@ -10,6 +10,12 @@
 }
 
 .app-main h1:has(.wish-favorite-indicator) { justify-content: center; }
+#app .app-main .shared-wishlist-view .wishlist-details-info h1 {
+  font-size: clamp(1.75rem, 2.25vw, 2rem);
+  overflow-wrap: break-word;
+  word-break: normal;
+  text-wrap: balance;
+}
 .shared-wish-view .shared-wish-results > h1 { width: 100%; }
 .shared-wish-view h1:has(.wish-favorite-indicator) { display: flex; align-items: start; gap: var(--space-3); }
 .shared-wish-view h1 .wish-favorite-indicator { flex: 0 0 1em; width: 1em; height: 1em; margin: .125em 0 0; padding: 0; }

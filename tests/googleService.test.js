@@ -56,7 +56,7 @@ describe("departure and temporary context", () => {
     // Arrange / Act
     const f = setup(); await f.google.start({ ...StartOptions, returnTo });
     // Assert
-    expect(f.google.consumeReturn(`#flow=${Flow}`).attempt.returnTo).toBe("/lists");
+    expect(f.google.consumeReturn(`#flow=${Flow}`).attempt.returnTo).toBe("/");
   });
   it.each([300_000, 300_001, -1])("rejects an expired or future context", async time => {
     // Arrange / Act

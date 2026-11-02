@@ -191,7 +191,7 @@ export function createRegistrationView({ register, signal, startGoogle }) {
     clearFeedback();
     clearInputs();
     setLoading(false);
-    try { await startGoogle({ rememberMe: false, returnTo: RoutePaths.Lists, signal: lifetime.signal }); }
+    try { await startGoogle({ rememberMe: false, returnTo: RoutePaths.Home, signal: lifetime.signal }); }
     catch (error) {
       if (disposed) return;
       googleBusy = false;

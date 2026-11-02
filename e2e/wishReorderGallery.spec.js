@@ -1,3 +1,4 @@
+import { openListOptions } from "./ownerActions.js";
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { controlledApi, frontendOrigin, listId, wishId } from "./controlledApi.js";
@@ -39,7 +40,7 @@ for (const width of [240, 390, 768, 1487, 1920, 3440]) {
     const tiles = page.locator(".wish-card--gallery"); await expect(tiles).toHaveCount(6);
     const before = await tiles.first().boundingBox();
     // Act
-    await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
+    await openListOptions(page); await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
     const editor = page.locator(".wish-reorder-view"); const handles = editor.locator("[data-reorder-handle]"); await expect(handles).toHaveCount(6);
     const after = await tiles.first().boundingBox(); expect(after?.width).toBeCloseTo(before?.width ?? 0, 0);
     await expect(editor.locator("a,input,.wish-gallery__favorite,.wish-gallery__delete")).toHaveCount(0);
@@ -76,7 +77,7 @@ test("one centred insertion marker stays fixed across neighbouring cards and the
   // Arrange
   await page.setViewportSize({ width: 1487, height: 1058 });
   const api = await reorderApi(context); await page.goto(`/lists/${listId}`);
-  await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
+  await openListOptions(page); await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
   const editor = page.locator(".wish-reorder-view"); const cards = editor.locator("li");
   const source = await cards.nth(2).locator("[data-reorder-handle]").boundingBox();
   const left = await cards.first().boundingBox(); const right = await cards.nth(1).boundingBox();
@@ -106,7 +107,7 @@ test("one centred insertion marker stays fixed across neighbouring cards and the
 test("pointer drop, pointer cancellation and explicit conflict recovery", async ({ page, context }) => {
   // Arrange
   await page.setViewportSize({ width: 1487, height: 1058 }); const api = await reorderApi(context); await page.goto(`/lists/${listId}`);
-  await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
+  await openListOptions(page); await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
   const editor = page.locator(".wish-reorder-view"); const handles = editor.locator("[data-reorder-handle]"); await expect(handles).toHaveCount(6);
   const source = await handles.nth(2).boundingBox(); const target = await editor.locator("li").first().boundingBox();
   if (!source || !target) throw new Error("Missing reorder geometry");
@@ -133,7 +134,7 @@ test("touch dragging intercepts only a grip and keeps moves local until save", a
   const context = await browser.newContext({ viewport: { width: 390, height: 1058 }, hasTouch: true, serviceWorkers: "block" });
   try {
     const api = await reorderApi(context); const page = await context.newPage(); await page.goto(`${frontendOrigin}/lists/${listId}`);
-    await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
+    await openListOptions(page); await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
     const editor = page.locator(".wish-reorder-view"); const cards = editor.locator("li"); await expect(cards).toHaveCount(6);
     await cards.first().evaluate(card => card.scrollIntoView({ block: "start" }));
     const source = await cards.nth(1).locator("[data-reorder-handle]").boundingBox(); const target = await cards.first().boundingBox();

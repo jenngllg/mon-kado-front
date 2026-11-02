@@ -77,27 +77,23 @@ export function createHomeView(session) {
   if (session) registerComponentCleanup(section, session.subscribe(updateActions));
   content.append(heading, description, actions);
 
+  const illustration = document.createElement("figure");
+  illustration.className = "home-hero__illustration";
   const occasions = document.createElement("div");
   occasions.className = "home-hero__occasions";
-  for (const [occasion, label] of [
-    ["birthday", "Anniversaire"],
-    ["christmas", "Noël"],
-    ["wedding", "Mariage"],
-    ["birth", "Naissance"],
-  ]) {
-    const figure = document.createElement("figure");
-    figure.className = "home-hero__occasion";
+  for (const occasion of ["birthday", "christmas", "wedding", "birth"]) {
     const image = document.createElement("img");
     image.src = wishlistArtwork(occasion);
     image.alt = "";
     image.width = 800;
     image.height = 1000;
-    const caption = document.createElement("figcaption");
-    caption.textContent = label;
-    figure.append(image, caption);
-    occasions.append(figure);
+    image.draggable = false;
+    occasions.append(image);
   }
-  section.append(content, occasions);
+  const caption = document.createElement("figcaption");
+  caption.textContent = "Anniversaire, Noël, mariage, naissance… une liste pour chaque occasion.";
+  illustration.append(occasions, caption);
+  section.append(content, illustration);
 
   return section;
 }

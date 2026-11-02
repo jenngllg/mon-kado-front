@@ -79,7 +79,11 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
         results.append(createEmptyState({ title: "Cette page n’est plus disponible", message: "L’historique a changé. Reviens à une page disponible pour poursuivre." }),
           createButton({ label: "Revenir à une page disponible", variant: "secondary", onClick: () => go(Math.max(1, totalPages)) }));
       }
-      else if (page.totalCount === 0) results.append(createEmptyState({ title: selectedStatus ? "Aucune réservation ne correspond à ce statut" : "Tu n’as pas encore de réservation dans ton historique", message: selectedStatus ? "Choisis un autre statut pour consulter ton historique." : "Les réservations liées à ton compte apparaîtront ici." }));
+      else if (page.totalCount === 0) {
+        const action = selectedStatus ? null : createActionLink({ label: "Voir mes groupes", href: "/groups" });
+        action?.classList.add("ui-button", "ui-button--secondary");
+        results.append(createEmptyState({ title: selectedStatus ? "Aucune réservation ne correspond à ce statut" : "Tu n’as pas encore de réservation dans ton historique", message: selectedStatus ? "Choisis un autre statut pour consulter ton historique." : "Retrouve les listes de tes proches pour choisir un souhait à réserver.", action }));
+      }
       else {
         const summary = `${page.items.length} réservation${page.items.length > 1 ? "s" : ""} affichée${page.items.length > 1 ? "s" : ""} sur ${page.totalCount}. Page ${requestedPage} sur ${totalPages}.`;
         if (explicit) statusMessage.textContent = summary;

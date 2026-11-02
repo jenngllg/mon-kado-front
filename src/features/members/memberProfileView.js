@@ -11,9 +11,9 @@ import { wishlistArtwork } from "../wishlists/wishlistArtwork.js";
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** Displays the public profile without account-management capabilities.
- * @param {{memberId: string, load: import("./memberProfileService.js").LoadMemberProfile, signal?: AbortSignal, backHref?:string, backLabel?:string}} options Read dependencies.
+ * @param {{memberId: string, load: import("./memberProfileService.js").LoadMemberProfile, signal?: AbortSignal, backHref?:string, backLabel?:string,createActions?:(profile:import("./memberProfileService.js").MemberProfile,signal:AbortSignal)=>HTMLElement|null}} options Read dependencies.
  */
-export function createMemberProfileView({ memberId, load, signal, backHref = "/members", backLabel = "Retour à la recherche" }) {
+export function createMemberProfileView({ memberId, load, signal, backHref = "/members", backLabel = "Retour à la recherche", createActions }) {
   const view = node("section", ""); view.className = "member-profile-view flow";
   const title = node("h1", "Profil du membre"); title.tabIndex = -1;
   const header = node("header", ""); header.className = "member-profile-header"; header.append(title);
@@ -40,6 +40,7 @@ export function createMemberProfileView({ memberId, load, signal, backHref = "/m
       if (disposed) return;
       disposeComponent(results); results.replaceChildren(); title.textContent = formatMemberHandle(profile.displayName, profile.displayNameTag);
       header.prepend(createMemberAvatar({ memberId: profile.id, imageUrl: profile.photo.imageUrl, size: 56 }));
+      const actions = createActions?.(profile, lifetime.signal); if (actions) { actions.classList.add("member-profile-actions"); header.append(actions); }
       results.append(node("h2", "Listes partagées"));
       if (!profile.wishlists.length) results.append(node("p", "Aucune liste partagée"));
       else {

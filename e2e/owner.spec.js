@@ -1,3 +1,4 @@
+import { openListOptions } from "./ownerActions.js";
 import { test, expect } from "@playwright/test";
 import { controlledApi, listId } from "./controlledApi.js";
 
@@ -8,6 +9,8 @@ test("create then delete a list with an explicit confirmation and individual ver
   await page.getByRole("textbox", { name: /Adresse e-mail/ }).fill("test@example.test");
   await page.getByLabel(/^Mot de passe/).fill("Fixture-only-password-930!");
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
+  await expect(page).toHaveURL("/");
+  await page.goto("/lists");
   await expect(page.getByText("Tu n’as pas encore de liste", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Créer une liste", exact: true }).click();
   await page.getByRole("textbox", { name: /Nom de la liste/ }).fill("Liste créée par le test");
@@ -17,7 +20,7 @@ test("create then delete a list with an explicit confirmation and individual ver
   await expect(page).toHaveURL(`/lists/${listId}`);
   await expect(page.getByRole("heading", { name: "Liste créée par le test", exact: true })).toBeVisible();
   expect(api.state.listWrites).toBe(1);
-  await page.getByRole("button", { name: "Supprimer cette liste", exact: true }).click();
+  await openListOptions(page); await page.getByRole("button", { name: "Supprimer cette liste", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Supprimer définitivement « Liste créée par le test » ?", exact: true })).toBeVisible();
   expect(api.state.listWrites).toBe(1);
   await page.getByRole("button", { name: "Supprimer", exact: true }).click();
@@ -33,13 +36,12 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   api.state.wishExists = false;
   await page.goto(`/lists/${listId}`);
   await page.getByRole("link", { name: "Créer un souhait", exact: true }).click();
-  await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-width", "1px");
-  await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-style", "solid");
-  await page.getByRole("button", { name: "Continuer sans lien", exact: true }).click();
+  await page.getByRole("button", { name: "Continuer", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Ajouter une image", exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: /Nom du souhait/ }).fill("Carnet test");
   await page.getByRole("textbox", { name: /Prix en euros/ }).fill("19,90");
   await page.getByRole("button", { name: "Continuer", exact: true }).click();
-  await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+  await page.getByRole("button", { name: "Ajouter le souhait", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Carnet test", exact: true })).toBeVisible();
   expect(api.state.wishWrites).toBe(1);
   await page.getByRole("link", { name: "Carnet test", exact: true }).click();

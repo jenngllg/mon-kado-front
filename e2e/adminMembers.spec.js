@@ -25,7 +25,7 @@ async function setup(context,{admin=true,deny=false,uncertain=false}={}){
     }
     state.reads++;if(state.hold)await state.hold;if(state.fail)return error(503);
     if(url.pathname.endsWith(targetId))return state.deleted?error(404):route.fulfill({status:200,headers,json:target});
-    const items=state.empty?[]:[{id:currentId,displayName:"Jenn",displayNameTag:"1234"},...(state.deleted?[]:[target])];
+    const items=state.empty?[]:[...(state.deleted?[]:[target]),{id:currentId,displayName:"Jenn",displayNameTag:"1234"}];
     return route.fulfill({status:200,headers,json:{items,currentPage:1,pageSize:20,totalCount:items.length,totalPages:items.length?1:0,hasPreviousPage:false,hasNextPage:false}});
   });
   return {api,state};
@@ -38,7 +38,17 @@ for(const width of [390,1440]){
     await expect(page.getByRole('heading',{name:'Comptes',exact:true})).toBeVisible();
     await expect(page.getByRole('button',{name:'Supprimer le compte de Jenn #1234'})).toHaveCount(0);
     const trigger=page.getByRole('button',{name:'Supprimer le compte de Nathalie et Christian #5696'});
-    await expect(trigger).toBeVisible();await page.screenshot({path:testInfo.outputPath('accounts-overview.png'),fullPage:true});
+    await expect(trigger).toBeVisible();
+    await expect(page.locator('article h2')).toHaveText(['Nathalie et Christian #5696','Jenn #1234']);
+    const search=page.getByLabel('Pseudo ou tag'),submitSearch=page.getByRole('button',{name:'Rechercher',exact:true});
+    await search.focus();await page.keyboard.press('Tab');await expect(submitSearch).toBeFocused();
+    if(width>=768){
+      const inputBox=await search.boundingBox(),buttonBox=await submitSearch.boundingBox();
+      expect(inputBox).not.toBeNull();expect(buttonBox).not.toBeNull();
+      expect(Math.abs((inputBox?.y??0)-(buttonBox?.y??0))).toBeLessThan(1);
+      expect(Math.abs((inputBox?.height??0)-(buttonBox?.height??0))).toBeLessThan(1);
+    }
+    await page.screenshot({path:testInfo.outputPath('accounts-overview.png'),fullPage:true});
     await trigger.click();let dialog=page.getByRole('dialog');
     await expect(dialog.getByRole('heading')).toBeFocused();
     await expect(dialog.getByLabel(/Référence de la demande/)).toBeEnabled();

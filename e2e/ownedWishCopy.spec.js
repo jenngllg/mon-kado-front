@@ -43,6 +43,8 @@ for (const width of [390, 1440]) {
         await route.fulfill({ status: 201, headers, json: { ...api.wish, id: destinationId, wishlistId: destinationId, isFavorite: false } });
       });
       await page.goto(entry === "card" ? `/lists/${listId}` : `/lists/${listId}/wishes/${wishId}`);
+      const options = page.getByRole("button", { name: "Options du souhait", exact: true });
+      if (entry === "detail") await options.click();
       const trigger = page.getByRole("button", { name: "Ajouter à une autre liste", exact: true });
       await expect(trigger).toBeVisible(); await trigger.focus();
       if (entry === "card") {
@@ -59,7 +61,8 @@ for (const width of [390, 1440]) {
       await expect(dialog.getByRole("checkbox", { name: "Autre liste" })).toBeChecked();
       await expect(dialog.getByRole("checkbox", { name: api.wishlist.name })).toHaveCount(0);
       expect(writes).toBe(0);
-      await page.keyboard.press("Escape"); await expect(dialog).toBeHidden(); await expect(trigger).toBeFocused();
+      await page.keyboard.press("Escape"); await expect(dialog).toBeHidden(); await expect(entry === "detail" ? options : trigger).toBeFocused();
+      if (entry === "detail") await options.click();
       await trigger.click(); await expect(dialog.getByRole("checkbox", { name: "Autre liste" })).toBeChecked();
       await page.screenshot({ path: testInfo.outputPath("owned-copy.png"), fullPage: true });
       await dialog.getByRole("button", { name: "Ajouter", exact: true }).click();

@@ -30,7 +30,7 @@ export function createSessionGuard(name, session) {
       return { redirectTo: createLoginTarget(url.pathname), replace: true };
     }
     if (AnonymousRoutes.has(name) && state.status === "authenticated") {
-      return { redirectTo: RoutePaths.Lists, replace: true };
+      return { redirectTo: RoutePaths.Home, replace: true };
     }
     if (state.user?.isGoogleLinked === true && (name === RouteNames.EmailChange || name === RouteNames.PasswordChange)) {
       return { redirectTo: RoutePaths.Profile, replace: true };
@@ -39,15 +39,15 @@ export function createSessionGuard(name, session) {
 }
 
 /** @param {string} target Untrusted destination.
- * @returns {string} Protected pathname only, never query, fragment or origin.
+ * @returns {string} Approved pathname only, never query, fragment or origin.
  */
 export function getSafeReturnTo(target) {
-  if (!target.startsWith("/") || target.startsWith("//") || hasUnsafeCharacters(target)) return RoutePaths.Lists;
+  if (!target.startsWith("/") || target.startsWith("//") || hasUnsafeCharacters(target)) return RoutePaths.Home;
   try {
     const url = new URL(target, "https://monkado.invalid");
     const path = url.pathname.replace(/\/+$/, "") || "/";
     const decoded = decodeURIComponent(path);
-    if (url.origin !== "https://monkado.invalid" || hasUnsafeCharacters(decoded) || /[?#]/.test(decoded)) return RoutePaths.Lists;
+    if (url.origin !== "https://monkado.invalid" || hasUnsafeCharacters(decoded) || /[?#]/.test(decoded)) return RoutePaths.Home;
     if (path === RoutePaths.Groups || /^\/groups\/[0-9a-f-]+(?:\/wishlists\/[0-9a-f-]+(?:\/wishes\/[0-9a-f-]+)?)?$/i.test(path) && path.split("/").filter((_, index) => [2, 4, 6].includes(index)).every(isWishlistId)) return path;
     const groupEdit = /^\/groups\/([^/]+)\/edit$/.exec(path);
     if (groupEdit && isWishlistId(groupEdit[1])) return path;
@@ -61,10 +61,10 @@ export function getSafeReturnTo(target) {
     if (detailWish && isWishlistId(detailWish[1]) && isWishlistId(detailWish[2])) return path;
     const editWish = /^\/lists\/([^/]+)\/wishes\/([^/]+)\/edit$/.exec(path);
     if (editWish && isWishlistId(editWish[1]) && isWishlistId(editWish[2])) return path;
-    if (path === RoutePaths.ExtensionAdd || path === RoutePaths.Authenticator || path === RoutePaths.PersonalData || path === RoutePaths.Profile || path === RoutePaths.PasswordChange || path === RoutePaths.EmailChange || path === RoutePaths.Lists || path === RoutePaths.Reservations || path === RoutePaths.FollowedLists ||
+    if (path === RoutePaths.Home || path === RoutePaths.ExtensionAdd || path === RoutePaths.Authenticator || path === RoutePaths.PersonalData || path === RoutePaths.Profile || path === RoutePaths.PasswordChange || path === RoutePaths.EmailChange || path === RoutePaths.Lists || path === RoutePaths.Reservations || path === RoutePaths.FollowedLists ||
       (/^\/lists\/[^/]+$/.test(path) && /^\/lists\/[^/]+$/.test(decoded))) return path;
   } catch { /* Malformed destinations are never reflected. */ }
-  return RoutePaths.Lists;
+  return RoutePaths.Home;
 }
 
 /** @param {string} path Protected destination.
@@ -75,11 +75,11 @@ export function createLoginTarget(path) {
 }
 
 /** @param {URLSearchParams} searchParams Untrusted login parameters.
- * @returns {string} A single validated protected destination.
+ * @returns {string} A single validated destination, defaulting to the dashboard.
  */
 export function getLoginDestination(searchParams) {
   const values = searchParams.getAll("returnTo");
-  return values.length === 1 ? getSafeReturnTo(values[0]) : RoutePaths.Lists;
+  return values.length === 1 ? getSafeReturnTo(values[0]) : RoutePaths.Home;
 }
 
 /** @param {string | null | undefined} name Route name.

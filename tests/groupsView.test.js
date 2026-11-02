@@ -137,7 +137,8 @@ describe("private group detail", () => {
     const f = setup({ detail: true }); await settle();
     const edit = f.view.querySelector(`a[href="/groups/${id}/edit"]`);
     expect(edit?.getAttribute("aria-label")).toBe("Modifier le groupe");
-    expect(edit?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(edit?.textContent).toBe("Modifier le groupe");
+    expect(edit?.closest("details")?.querySelector("summary")?.getAttribute("aria-label")).toBe("Options du groupe");
     expect(f.view.textContent).not.toContain("Photo du groupe");
     expect(f.view.textContent).not.toContain("Renommer");
     expect(f.view.querySelector("dialog")).toBeNull();

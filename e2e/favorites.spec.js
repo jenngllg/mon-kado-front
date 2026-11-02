@@ -1,3 +1,4 @@
+import { openListOptions } from "./ownerActions.js";
 import { test, expect } from "@playwright/test";
 import { controlledApi, listId, wishId, sharedPath, secret } from "./controlledApi.js";
 
@@ -41,19 +42,19 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("button", { name: "Enregistrer", exact: true })).toBeDisabled();
     expect(api.wish.isFavorite).toBe(false);
     await page.goto(`/lists/${listId}/wishes/new`);
-    await page.getByRole("button", { name: "Continuer sans lien", exact: true }).click();
+    await page.getByRole("button", { name: "Continuer", exact: true }).click();
     await page.getByLabel("Nom du souhait", { exact: false }).fill("Coup de cœur créé");
     await page.getByRole("button", { name: "Continuer", exact: true }).click();
     await expect(choice).not.toBeChecked(); await choice.check();
     await page.screenshot({ path: testInfo.outputPath("favorite-create.png"), fullPage: true });
-    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+    await page.getByRole("button", { name: "Ajouter le souhait", exact: true }).click();
     await expect(page).toHaveURL(`/lists/${listId}`);
     expect(api.wish.isFavorite).toBe(true);
-    await page.getByRole("button", { name: "Archiver", exact: true }).click();
+    await openListOptions(page); await page.getByRole("button", { name: "Archiver", exact: true }).click();
     await expect(page.getByText("Liste archivée", { exact: true })).toBeVisible();
     await expect(page.locator(".wish-favorite-button")).toHaveCount(0);
     await expect(page.getByRole("img", { name: "Coup de cœur", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Désarchiver", exact: true }).click();
+    await openListOptions(page); await page.getByRole("button", { name: "Désarchiver", exact: true }).click();
     await expect(page.locator(".wish-favorite-button")).toHaveAttribute("aria-pressed", "true");
     expect(api.wish.isFavorite).toBe(true);
     await page.goto(`${sharedPath}#${secret}`);

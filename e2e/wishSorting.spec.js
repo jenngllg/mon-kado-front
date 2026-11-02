@@ -1,3 +1,4 @@
+import { openListOptions } from "./ownerActions.js";
 import { test, expect } from "@playwright/test";
 import { controlledApi, frontendOrigin, listId, sharedPath, wishId, secret } from "./controlledApi.js";
 
@@ -53,7 +54,7 @@ for (const width of [390, 1440]) {
     await expect(page).toHaveURL(`/lists/${listId}/wishes/${wishId}?sort=merchantDesc`);
     await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
     await expect(select).toHaveValue("merchantDesc");
-    await page.getByRole("button", { name: "Archiver", exact: true }).click();
+    await openListOptions(page); await page.getByRole("button", { name: "Archiver", exact: true }).click();
     await expect(page.getByText("Liste archivée", { exact: true })).toBeVisible();
     await expect(select).toHaveValue("merchantDesc");
     await select.selectOption("nameAsc"); await expect(page.locator(".wish-card h3")).toHaveText([names[1], names[0], names[2]]);

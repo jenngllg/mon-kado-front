@@ -48,7 +48,7 @@ function until(root, predicate) {
 /** @param {ReturnType<typeof setup>} app App. */
 function ready(app) { return until(app.shell.outlet, () => app.shell.outlet.querySelector("form")?.hidden === false); }
 describe("gift editing integration", () => {
-  it.each([[path, path], [path + "?private=x#secret", path], [path + "/", path], ["https://evil.test" + path, "/lists"], [path.replace(originalWish.id, "bad"), "/lists"], [path.replace(list.id, "bad"), "/lists"], [path + "/extra", "/lists"]])("validates returnTo %s", (target, expected) => expect(getSafeReturnTo(target)).toBe(expected));
+  it.each([[path, path], [path + "?private=x#secret", path], [path + "/", path], ["https://evil.test" + path, "/"], [path.replace(originalWish.id, "bad"), "/"], [path.replace(list.id, "bad"), "/"], [path + "/extra", "/"]])("validates returnTo %s", (target, expected) => expect(getSafeReturnTo(target)).toBe(expected));
   it("redirects anonymous access without private reads", async () => {
     const app = setup(); app.transport.state.refreshStatus = 401; await app.start(); expect(window.location.pathname).toBe("/login"); expect(new URLSearchParams(window.location.search).get("returnTo")).toBe(path); expect(app.state.parentReads).toBe(0);
   });

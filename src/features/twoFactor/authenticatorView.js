@@ -58,9 +58,11 @@ export function createAuthenticatorView({ service, session, signal, onFinished }
       if (!status?.isEnabled) { content.append(text("p", "Aucun authentificateur n’est activé pour ce compte. S’il devient obligatoire, sa configuration sera demandée à la connexion.")); return; }
       content.append(text("p", `Authentificateur activé. Codes de récupération restants : ${status.remainingRecoveryCodes}.`),
         text("p", "Le remplacement de l’authentificateur ou des codes fermera toutes tes sessions. Les anciennes clés ou anciens codes remplacés ne fonctionneront plus."));
+      const actions = document.createElement("div"); actions.className = "cluster";
       for (const [value, label] of [["replaceAuthenticator", "Remplacer mon authentificateur"], ["regenerateRecoveryCodes", "Régénérer mes codes de récupération"]]) {
-        content.append(createButton({ label, onClick: () => { purpose = /** @type {typeof purpose} */ (value); recovery = false; phase = "verify"; render(); } }));
+        actions.append(createButton({ label, onClick: () => { purpose = /** @type {typeof purpose} */ (value); recovery = false; phase = "verify"; render(); } }));
       }
+      content.append(actions);
       return;
     }
     if (phase === "regenerate") {
@@ -68,14 +70,16 @@ export function createAuthenticatorView({ service, session, signal, onFinished }
         createButton({ label: "Remplacer les codes et fermer mes sessions", onClick: () => { void complete(undefined); } })); return;
     }
     content.append(text("p", "Saisis un nouveau code de ton authentificateur actuel. Un code déjà utilisé peut être refusé."), codeForm(false));
-    if (purpose === "replaceAuthenticator") content.append(createButton({ label: recovery ? "Utiliser l’authentificateur" : "Utiliser un code de récupération",
+    const actions = document.createElement("div"); actions.className = "cluster";
+    if (purpose === "replaceAuthenticator") actions.append(createButton({ label: recovery ? "Utiliser l’authentificateur" : "Utiliser un code de récupération",
       variant: "secondary", onClick: () => {
         if (busy) return;
         recovery = !recovery;
         disposeComponent(feedback); feedback.replaceChildren();
         render(); content.querySelector("input")?.focus();
       } }));
-    content.append(createButton({ label: "Annuler", variant: "secondary", onClick: () => { service.cancel(); phase = "choice"; render(); } }));
+    actions.append(createButton({ label: "Annuler", variant: "secondary", onClick: () => { service.cancel(); phase = "choice"; render(); } }));
+    content.append(actions);
   }
   /** @param {boolean} setup Whether to verify the replacement authenticator. */
   function codeForm(setup) {

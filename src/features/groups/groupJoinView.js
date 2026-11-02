@@ -87,7 +87,7 @@ export function createGroupJoinView({ session, service, apiBaseUrl, groupId, cod
   async function join() {
     if (pending || disposed) return;
     const normalized = normalizeGroupCode(input.value);
-    if (!normalized) { setFormFieldValidation(field, "Vérifie le code du groupe."); input.focus(); return; }
+    if (!normalized) { setFormFieldValidation(field, input.value.trim() ? "Code du groupe invalide." : "Code du groupe obligatoire."); input.focus(); return; }
     if (normalized !== verifiedCode) { await loadPreview(); return; }
     if (!actor) return;
     const requestSignal = AbortSignal.any([signal, lifetime.signal, identity.signal]);

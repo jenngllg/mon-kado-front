@@ -93,7 +93,7 @@ test("profile rereads active lists and deep links never bypass the share token",
   expect(api.unexpected).toEqual([]);
 });
 
-test("signing in from a discovered list opens the member's own lists", async ({ page, context }) => {
+test("signing in from a discovered list opens the authenticated dashboard", async ({ page, context }) => {
   const api = await membersApi(context);
   await page.goto(profilePath);
   await page.getByRole("link", { name: /Anniversaire — test navigateur/ }).click();
@@ -102,7 +102,8 @@ test("signing in from a discovered list opens the member's own lists", async ({ 
   await page.getByRole("textbox", { name: "Adresse e-mail" }).fill("test@example.test");
   await page.getByLabel(/^Mot de passe/).fill("Fixture-only-password-930!");
   await page.getByRole("button", { name: "Se connecter", exact: true }).click();
-  await expect(page).toHaveURL(/\/lists$/);
+  await expect(page).toHaveURL("/");
+  await expect(page.getByRole("heading", { name: "Bonjour Camille test", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Mes listes", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Se déconnecter", exact: true })).toBeVisible();
   expect(api.state.joins).toBe(0);

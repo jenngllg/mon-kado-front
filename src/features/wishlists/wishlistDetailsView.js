@@ -7,7 +7,7 @@ import { createWishFavoriteButton } from "../wishes/wishFavoriteButton.js";
 import { createWishDeleteDialog } from "../wishes/wishDeleteDialog.js";
 import { createWishlistShareDialog } from "./wishlistShareDialog.js";
 import { createWishlistDeleteDialog } from "./wishlistDeleteDialog.js";
-import { populateWishlistSummary } from "./wishlistSummary.js";
+import { populateOwnedWishlistSummary } from "./wishlistSummary.js";
 import { prependShareDialogIcon } from "../../components/shareDialogIcons.js";
 import { createWishesReorderView } from "../wishes/wishesReorderView.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
@@ -15,13 +15,15 @@ import { RoutePaths } from "../../app/routeContracts.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createBackLink, createActionLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
+import { createActionDisclosure } from "../../components/actionDisclosure.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId } from "./wishlistValidation.js";
 import { createWishlistArchiveButton } from "./wishlistArchiveButton.js";
 import { createWishCopyActions } from "../sharing/wishCopyActions.js";
 import { readPersonalReservations } from "../sharing/personalReservations.js";
-import { createWishlistGroupShareDialog } from "../groups/wishlistGroupShareDialog.js";
+import { createWishlistAudience } from "./wishlistAudience.js";
 import { renderInfiniteWishGallery } from "../wishes/infiniteWishGallery.js";
+import { createWishlistGroupShareDialog } from "../groups/wishlistGroupShareDialog.js";
 
 /** Mounts owner-only list details and independently refreshable gifts.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
@@ -47,27 +49,28 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   const header = element("div", ""); header.className = "wishlist-details-header";
   const actions = element("div", ""); actions.className = "wishlist-details-actions";
   actions.setAttribute("role", "group"); actions.setAttribute("aria-label", "Actions de la liste");
-  header.append(back, actions);
-  const summary = element("div", ""); summary.className = "shared-wishlist-summary"; summary.append(title);
+  header.append(back);
+  const summary = element("div", ""); summary.className = "wishlist-owner-summary";
   const listContent = element("div", ""); listContent.className = "flow";
   information.append(summary, listContent);
   const gifts = element("section", ""); gifts.className = "wishlist-details-gifts flow"; gifts.hidden = true;
   const heading = element("h2", "Souhaits"); heading.tabIndex = -1; heading.className = "visually-hidden";
   const results = element("div", ""); results.className = "flow";
-  const organize = createButton({ label: "Réorganiser les souhaits", variant: "secondary" }); organize.hidden = true;
-  applyActionIcon(organize, "reorder", "Réorganiser les souhaits");
-  addComponentEventListener(view, organize, "click", enterReorder);
+  const organize = createButton({ label: "Réorganiser les souhaits", variant: "ghost" }); organize.hidden = true;
+  addComponentEventListener(view, organize, "click", () => { closeOptions(); enterReorder(); });
   const notice = element("div", ""); notice.hidden = true;
   const personalNotice = element("div", ""); personalNotice.hidden = true;
   const reorderHost = element("div", ""); reorderHost.hidden = true;
-  const giftToolbar = element("div", ""); giftToolbar.className = "section-toolbar";
+  const giftToolbar = element("div", ""); giftToolbar.className = "section-toolbar wishlist-details-toolbar";
   const giftActions = element("div", ""); giftActions.className = "section-toolbar__actions";
   const sorting = createWishSortControl({ initialSort, onChange: value => { onSortChange(value); sortRenderedGifts(); } });
   const retryImages = createButton({ label: "Réessayer les images", variant: "secondary", onClick: () => { void readGifts(true); } });
   retryImages.hidden = true;
-  giftActions.append(sorting.element, retryImages); giftToolbar.append(heading, giftActions);
-  gifts.append(giftToolbar, personalNotice, results, reorderHost); layout.append(information, gifts); view.append(header, notice, layout);
+  giftActions.append(sorting.element, retryImages); giftToolbar.append(heading, giftActions, actions);
+  gifts.append(giftToolbar, personalNotice, results, reorderHost); layout.append(information, gifts); view.append(header, title, notice, layout);
   const lifetime = new AbortController();
+  const audience = groups?.wishlistVisibility ? createWishlistAudience({ load: groups.wishlistVisibility.bind(groups, wishlistId), signal: lifetime.signal }) : null;
+  if (audience) { audience.element.hidden = true; view.insertBefore(audience.element, notice); }
   let copying = false;
   const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, excludeWishlistId: wishlistId,
     actionLabel: "Ajouter à une autre liste", onUnavailable: notFound, onBusy: value => { copying = value; updateSorting(); } }) : null;
@@ -75,6 +78,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   /** @type {AbortController | null} */ let giftRead = null;
   /** @type {HTMLDialogElement | null} */ let deletionDialog = null;
   /** @type {HTMLDialogElement | null} */ let shareDialog = null;
+  /** @type {HTMLDetailsElement | null} */ let optionsMenu = null;
   let disposed = false; let busy = false; let terminal = false; let listLoaded = false; let reordering = false;
   let favoritePending = 0;
   /** @type {Map<string, number>} */ let personalReservations = new Map();
@@ -89,14 +93,21 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
     if (signal.aborted) disposeComponent(view);
   }
   if (!disposed) void readList(false);
-  if (!disposed) refreshOnReturn(view, () => { if (!deletionDialog && !shareDialog && !copying) void readGifts(false); });
+  if (!disposed) refreshOnReturn(view, () => { if (!deletionDialog && !shareDialog && !copying) { void readGifts(false); if (audience && !audience.element.hidden) void audience.refresh(); } });
   return view;
 
   function closeShare() {
     if (shareDialog) disposeComponent(shareDialog);
     shareDialog = null;
   }
-  /** @param {HTMLButtonElement} trigger Focus return target. */
+  /** Closes secondary actions and provides a visible focus return target. */
+  function closeOptions() {
+    const trigger = optionsMenu?.querySelector("summary") ?? null;
+    if (optionsMenu) optionsMenu.open = false;
+    trigger?.focus();
+    return trigger;
+  }
+  /** @param {HTMLElement} trigger Focus return target. */
   function deleteList(trigger) {
     if (!removeWishlist || !list || deletionDialog || shareDialog || disposed || busy || favoritePending || terminal || reordering || copying || list.wishlist.isSuspended) return;
     const modal = createWishlistDeleteDialog({ wishlistId, loadOne, remove: removeWishlist, onDeleted: onWishlistDeleted, signal: lifetime.signal });
@@ -109,10 +120,11 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   }
   /** @param {HTMLButtonElement} trigger Explicit owner command. */
   function openShare(trigger) {
-    if (!share || !list || shareDialog || deletionDialog || disposed || terminal || reordering || copying || favoritePending || list.wishlist.isSuspended || list.wishlist.isArchived) return;
-    shareDialog = createWishlistShareDialog({ ...share, wishlistId, wishlistName: list.wishlist.name, signal: lifetime.signal, onUnavailable: shareUnavailable,
-      onClose: () => { shareDialog = null; if (!disposed && trigger.isConnected) trigger.focus(); },
-    });
+    if ((!share && !groups) || !list || shareDialog || deletionDialog || disposed || terminal || reordering || copying || favoritePending || list.wishlist.isSuspended || list.wishlist.isArchived) return;
+    const onClose = () => { shareDialog = null; if (!disposed) { void audience?.refresh(); if (trigger.isConnected) trigger.focus(); } };
+    if (share) shareDialog = createWishlistShareDialog({ ...share, groups, wishlistId, wishlistName: list.wishlist.name, signal: lifetime.signal, onUnavailable: shareUnavailable, onClose });
+    else if (groups) shareDialog = createWishlistGroupShareDialog({ service: groups, wishlistId, signal: lifetime.signal, onClose });
+    if (!shareDialog) return;
     view.append(shareDialog); shareDialog.showModal();
   }
 
@@ -161,12 +173,13 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   async function readList(explicit) {
     if (disposed || busy || favoritePending || terminal || reordering || copying) return;
     if (!isWishlistId(wishlistId)) { notFound(); return; }
-    busy = true; sorting.select.disabled = true; information.setAttribute("aria-busy", "true"); clear(actions); clear(listContent);
+    busy = true; sorting.select.disabled = true; information.hidden = false; information.setAttribute("aria-busy", "true"); clear(actions); clear(listContent);
     listContent.append(createLoadingState({ label: "Chargement de ta liste…" }));
     try {
       const loaded = await loadOne(wishlistId, { signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
       list = loaded; renderList(); listLoaded = true;
+      if (audience && !audience.element.hidden) void audience.refresh();
       if (explicit) title.focus();
     } catch (error) {
       if (disposed || isAbortError(error)) return;
@@ -177,8 +190,9 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   }
   function renderList() {
     if (!list) return;
-    closeShare(); clear(actions); clear(listContent); clear(summary); const item = list.wishlist;
-    populateWishlistSummary(summary, title, item, null);
+    closeShare(); clear(actions); optionsMenu = null; clear(listContent); clear(summary); const item = list.wishlist;
+    populateOwnedWishlistSummary(summary, title, item);
+    if (audience) audience.element.hidden = item.isArchived === true || item.isSuspended;
     back.href = item.isArchived ? `${RoutePaths.Lists}?isArchived=true` : RoutePaths.Lists;
     if (item.isArchived) listContent.append(element("p", "Liste archivée"));
     if (item.isSuspended) {
@@ -187,36 +201,40 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
       listContent.append(createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void readList(true); } }));
     }
     else if (!reordering) {
-      const add = createActionLink({ label: "Ajouter un souhait", href: RoutePaths.NewWish.replace(":listId", wishlistId) });
-      applyActionIcon(add, "add", "Ajouter un souhait");
-      if (!item.isArchived) actions.append(add);
+      /** @type {HTMLElement[]} */ const secondary = [];
       if (!item.isArchived) {
         const edit = createActionLink({ label: "Modifier les informations", href: RoutePaths.EditList.replace(":listId", wishlistId) });
-        applyActionIcon(edit, "edit", "Modifier les informations"); actions.append(edit);
-        if (reorder) actions.append(organize);
+        addComponentEventListener(edit, edit, "click", closeOptions); secondary.push(edit);
+        if (reorder) secondary.push(organize);
       }
-      const remove = createButton({ label: "Supprimer cette liste", variant: "secondary", onClick: () => deleteList(remove) });
-      applyActionIcon(remove, "delete", "Supprimer cette liste"); remove.classList.add("icon-action--danger"); actions.append(remove);
       if (setArchived) {
         const archive = createWishlistArchiveButton({ wishlist: item, loadOne, setArchived, signal: lifetime.signal,
         onUpdated: async () => { await readList(true); },
         onError: error => { clear(notice); notice.hidden = false; notice.append(createAlert({ ...toUserFacingError(error), variant: "error" })); },
         });
-        applyActionIcon(archive, "archive", item.isArchived ? "Désarchiver" : "Archiver"); actions.append(archive);
+        addComponentEventListener(archive, archive, "click", closeOptions); secondary.push(archive);
       }
-      if (share && !item.isArchived) {
-        const trigger = createButton({ label: "Partager", onClick: () => openShare(trigger) });
-        trigger.classList.add("wishlist-details-share", "page-primary-action"); prependShareDialogIcon(trigger, "share"); actions.append(trigger);
+      const remove = createButton({ label: "Supprimer cette liste", variant: "ghost", onClick: () => deleteList(closeOptions() ?? remove) });
+      remove.classList.add("wishlist-details-menu-danger"); secondary.push(remove);
+      for (const control of secondary) {
+        const label = control.textContent?.trim() ?? "";
+        control.setAttribute("aria-label", label); control.title = label;
       }
-      if (groups && !item.isArchived) {
-        const trigger = createButton({ label: "Visibilité dans mes groupes", variant: "secondary", onClick: () => {
-          if (shareDialog || deletionDialog || copying || reordering || busy || favoritePending) return;
-          shareDialog = createWishlistGroupShareDialog({ service: groups, wishlistId, signal: lifetime.signal,
-            onClose: () => { shareDialog = null; if (trigger.isConnected) trigger.focus(); } });
-          view.append(shareDialog); shareDialog.showModal();
-        } }); actions.append(trigger);
+      if ((share || groups) && !item.isArchived) {
+        const trigger = createButton({ label: "Partager", variant: "secondary", onClick: () => openShare(trigger) });
+        trigger.classList.add("wishlist-details-share"); prependShareDialogIcon(trigger, "share"); actions.append(trigger);
+      }
+      optionsMenu = createActionDisclosure("⋯", "Options de la liste", secondary);
+      optionsMenu.querySelector("summary")?.setAttribute("role", "button");
+      optionsMenu.classList.add("wishlist-details-options"); actions.append(optionsMenu);
+      if (!item.isArchived) {
+        const add = createActionLink({ label: "Ajouter un souhait", href: RoutePaths.NewWish.replace(":listId", wishlistId) });
+        applyActionIcon(add, "add", "Ajouter un souhait"); add.classList.remove("icon-action");
+        add.append(element("span", "Ajouter un souhait"));
+        add.classList.add("ui-button", "ui-button--primary", "page-primary-action", "wishlist-details-add"); actions.append(add);
       }
     }
+    information.hidden = !summary.hasChildNodes() && !listContent.hasChildNodes();
   }
   /** @param {"wishlistMissing" | "suspended"} state Safe share access failure. */
   function shareUnavailable(state) {
@@ -308,8 +326,9 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   }
   function notFound() {
     terminal = true; lifetime.abort(); giftRead?.abort(); giftRead = null; list = null; collection = null; listLoaded = false; retryImages.hidden = true;
+    if (audience) audience.element.hidden = true;
     closeShare(); clear(reorderHost); clear(notice); clear(actions); organize.hidden = true;
-    clear(summary); summary.append(title); title.textContent = "Liste introuvable"; clear(listContent); clear(results); gifts.hidden = true;
+    clear(summary); title.textContent = "Liste introuvable"; clear(listContent); clear(results); gifts.hidden = true; information.hidden = false;
     listContent.append(createAlert({ title: "Liste introuvable", message: "Cette liste n’est pas disponible. Tu peux revenir à Mes listes.", variant: "error" }));
   }
 }

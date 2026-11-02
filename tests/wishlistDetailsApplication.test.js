@@ -61,6 +61,8 @@ describe("wishlist details application integration", () => {
     });
     await app.start(); await loaded(app);
     app.shell.outlet.querySelector('.wishlist-details-share')?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll('[role="tab"]')].some(tab => tab.textContent === "Lien public"));
+    /** @type {HTMLButtonElement | undefined} */ ([...app.shell.outlet.querySelectorAll('[role="tab"]')].find(tab => tab.textContent === "Lien public"))?.click();
     await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("button")].some(button => button.textContent === "Désactiver le partage" && !button.hidden));
     const revoke = [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Désactiver le partage");
     revoke?.click();

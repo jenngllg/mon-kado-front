@@ -16,6 +16,9 @@ export default defineConfig(({ command, mode }) => ({
     host: "127.0.0.1",
     port: 5173,
     strictPort: true,
+    watch: {
+      ignored: ["**/.local/**", "**/.e2e-dist/**", "**/.e2e-results/**", "**/playwright-report/**", "**/coverage/**"],
+    },
   },
   preview: {
     host: "127.0.0.1",

@@ -8,8 +8,8 @@ for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 1000 });
     const api = await controlledApi(context); api.state.authenticated = true;
     await page.goto(`/lists/${listId}/wishes/new`);
-    const mode = page.getByRole("switch", { name: "Surprends-moi", exact: true });
-    await expect(mode).toBeVisible(); await expect(page.getByLabel("Lien du produit", { exact: true })).toBeVisible();
+    const mode = page.getByRole("radio", { name: "Surprends-moi", exact: true });
+    await expect(mode).toBeVisible(); await expect(page.getByLabel("Lien du produit", { exact: true })).toBeHidden();
     await mode.check(); await expect(page.getByLabel("Lien du produit", { exact: true })).toBeHidden();
     await page.getByRole("button", { name: "Continuer", exact: true }).click();
     await page.getByRole("textbox", { name: /Nom du souhait/ }).fill("Un moment de détente");
@@ -19,7 +19,7 @@ for (const width of [390, 1440]) {
     await page.screenshot({ path: testInfo.outputPath("surprise-wish.png"), fullPage: true });
     await page.getByRole("button", { name: "Continuer", exact: true }).click();
     await page.getByRole("switch", { name: "Seconde main bienvenue", exact: true }).check();
-    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+    await page.getByRole("button", { name: "Ajouter le souhait", exact: true }).click();
     await expect(page).toHaveURL(`/lists/${listId}`);
     expect(api.wish).toMatchObject({ name: "Un moment de détente", price: 40.25, url: null, isSurprise: true, acceptsSecondHand: true });
     await page.getByRole("link", { name: "Un moment de détente", exact: true }).click();
@@ -103,12 +103,13 @@ for (const width of [390, 1440]) {
     await page.goto(`/groups/${groupId}`);
     await expect(page.getByRole("button", { name: "Partager une liste", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Inviter un proche", exact: true })).toHaveCSS("background-color", "rgb(223, 229, 215)");
+    await page.getByRole("button", { name: "Options du groupe", exact: true }).click();
     await expect(page.getByRole("button", { name: "Supprimer le groupe", exact: true })).toHaveCSS("color", "rgb(180, 35, 24)");
     await page.getByRole("heading", { name: group.name, exact: true }).click();
     await page.screenshot({ path: testInfo.outputPath("group-members.png"), fullPage: true });
     await page.goto(`/lists/${listId}`);
-    const visibility = page.getByRole("button", { name: "Visibilité dans mes groupes", exact: true });
-    await expect(visibility).toHaveCSS("border-top-color", joinBorder);
+    const visibility = page.getByRole("button", { name: "Partager", exact: true });
+    await expect(visibility).toBeVisible();
     await visibility.click();
     await page.getByRole("checkbox", { name: group.name, exact: true }).check();
     await page.getByRole("dialog").getByRole("button", { name: "Enregistrer", exact: true }).click();
@@ -165,13 +166,13 @@ for (const width of [390, 1440]) {
     }
     if (width === 1440 && mediaBox && detailBox && bandBox) {
       expect(detailBox.x).toBeGreaterThan(mediaBox.x + mediaBox.width);
-      expect(Math.abs(mediaBox.y + mediaBox.height - bandBox.y - bandBox.height)).toBeLessThan(2);
+      expect(mediaBox.width).toBeLessThanOrEqual(416); expect(mediaBox.height).toBeLessThanOrEqual(312);
+      expect(bandBox.x).toBeGreaterThan(mediaBox.x + mediaBox.width);
     }
     await page.screenshot({ path: testInfo.outputPath("group-wish-detail.png"), fullPage: true });
     await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
-    await page.locator(".wish-card--reading").hover();
-    await page.getByRole("button", { name: `Réserver le souhait « ${api.wish.name} »`, exact: true }).click();
-    await page.getByRole("button", { name: "Confirmer la réservation", exact: true }).click();
+    await page.getByRole("link", { name: api.wish.name, exact: true }).click();
+    await page.getByRole("button", { name: "Réserver ce souhait", exact: true }).click();
     await expect(page.getByText("Réservation enregistrée", { exact: true })).toBeVisible(); expect(quantity).toBe(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(api.unexpected).toEqual([]);

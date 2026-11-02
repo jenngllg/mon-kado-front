@@ -155,7 +155,7 @@
 .wishlist-details-view--split.shared-wishlist-view .wishlist-details-info h1 { line-height: 1.15; overflow-wrap: anywhere; }
 .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-owner { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--space-2); }
 .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-owner .wishlist-context-portrait { width: 2.5rem; height: 2.5rem; flex: none; margin: 0; align-self: center; box-shadow: none; }
-.wishlist-details-view--split.shared-wishlist-view .shared-wishlist-identity .wishlist-details-note { order: 2; max-width: 40rem; padding: 0; color: var(--color-accent); font-size: var(--font-size-md); }
+.wishlist-details-view--split.shared-wishlist-view .shared-wishlist-identity .wishlist-details-note { order: 2; max-width: 40rem; padding: 0; color: var(--color-text); font-size: var(--font-size-md); }
 .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-metadata { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); margin: 0; padding: 0; border: 0; }
 .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-metadata > * { margin: 0; }
 .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-metadata time { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); }
@@ -193,14 +193,16 @@
   .wishlist-details-view--split.shared-wishlist-view:not(.shared-wishlist-view--empty) .wishlist-details-info > * { flex-shrink: 0; }
 }
 @media (max-width: 80rem) {
+  .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-summary { gap: var(--space-3); }
+  .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-metadata { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: var(--space-1) var(--space-3); }
   .wishlist-details-view--split.shared-wishlist-view .wishlist-context-stats:not(:empty) { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: var(--space-2) var(--space-5); }
   .wishlist-details-view--split.shared-wishlist-view .wishlist-context-progress { padding-inline-start: var(--space-5); border-inline-start: 1px solid var(--color-border-strong); }
 }
 @media (max-width: 40rem) {
-  .wishlist-details-view--split.shared-wishlist-view .wishlist-details-info { padding: var(--space-5) var(--space-4); }
+  .wishlist-details-view--split.shared-wishlist-view .wishlist-details-info { padding: var(--space-4); gap: var(--space-3); }
   .wishlist-details-view--split.shared-wishlist-view .wishlist-details-info h1 { font-size: 1.75rem; }
-  .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-summary { gap: var(--space-5); }
-  .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-metadata { padding-block-start: var(--space-5); border: 0; }
+  .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-summary { gap: var(--space-3); }
+  .wishlist-details-view--split.shared-wishlist-view .shared-wishlist-metadata { padding-block-start: 0; border: 0; }
   .wishlist-details-view--split.shared-wishlist-view .wishlist-context-stats:not(:empty) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; gap: 0; }
   .wishlist-details-view--split.shared-wishlist-view .wishlist-context-stats:not(:has(.wishlist-context-progress)) { grid-template-columns: minmax(0, 1fr); }
   .wishlist-details-view--split.shared-wishlist-view .wishlist-context-count { grid-column: 1; grid-row: 1; padding-inline-end: var(--space-3); }

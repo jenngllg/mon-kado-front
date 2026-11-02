@@ -61,7 +61,7 @@ describe("combined group editor", () => {
   it("protects direct entry and accepts only the valid local edit return path", () => {
     expect(createSessionGuard(RouteNames.GroupEdit, { ensureSession: vi.fn() })).toBeTypeOf("function");
     expect(getSafeReturnTo(`/groups/${id}/edit?unsafe=true#secret`)).toBe(`/groups/${id}/edit`);
-    expect(getSafeReturnTo("/groups/not-an-id/edit")).toBe("/lists");
+    expect(getSafeReturnTo("/groups/not-an-id/edit")).toBe("/");
   });
   it("allows any member to use the group editor", async () => {
     const f = setup({ memberId: id }); await settle();

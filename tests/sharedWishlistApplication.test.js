@@ -243,13 +243,13 @@ describe("public shared wishlist integration", () => {
     await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null);
     expect(app.shell.element.querySelectorAll('[role="alert"]')).toHaveLength(1);
   });
-  it.each([false, true])("opens own lists after dedicated sign-in without joining, existing=%s", async existing => {
+  it.each([false, true])("opens the dashboard after dedicated sign-in without joining, existing=%s", async existing => {
     const { app, state, transport } = setup(); transport.state.refreshStatus = 401; state.memberRecognized = false; state.reserved = existing; await app.start(); await observe(() => app.shell.outlet.querySelector(".wish-card") !== null); await app.router.navigate(detailPath); await observe(() => [...app.shell.outlet.querySelectorAll("a")].some(link => link.textContent === "Se connecter pour poursuivre avec mon compte" && !link.hidden));
     [...app.shell.outlet.querySelectorAll("a")].find(link => link.textContent === "Se connecter pour poursuivre avec mon compte")?.click(); await observe(() => app.shell.outlet.textContent?.includes("Retour à la liste sans se connecter") === true);
     expect(window.location.pathname).toBe("/login"); expect(window.location.search).toBe(""); expect(app.shell.outlet.innerHTML).not.toContain(secret);
     state.joined = existing;
     await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } }));
-    await observe(() => window.location.pathname === "/lists");
+    await observe(() => window.location.pathname === "/");
     expect(state.reads).toBe(2); expect(state.joins).toBe(0); expect(state.reservationWrites).toBe(0);
   });
   it.each(["/", "/forgot-password", "/register"])("cancels dedicated return after leaving for %s", async target => {
@@ -259,7 +259,7 @@ describe("public shared wishlist integration", () => {
   });
   it("keeps ordinary sign-in separate from the preserved context", async () => {
     const { app, transport } = setup(); transport.state.refreshStatus = 401; await app.start(); await untilSession(app.session, value => value.status === "anonymous"); await app.router.navigate("/login"); expect(app.shell.outlet.textContent).not.toContain("Après connexion, tu retrouveras");
-    await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); await observe(() => window.location.pathname === "/lists");
+    await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } })); await observe(() => window.location.pathname === "/");
   });
   it("reserves a single item after explicit account identification using JWT and CSRF", async () => {
     const { app, state } = setup(); state.memberRecognized = false; state.reserved = false;

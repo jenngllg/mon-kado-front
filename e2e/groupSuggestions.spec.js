@@ -68,6 +68,7 @@ for (const width of [390, 1440]) {
     expect(imported).toEqual({success:true,draft:true});expect(created).toBe(false);
     await expect(dialog.getByLabel("Nom du souhait")).toHaveValue("Un beau livre");
     await expect(dialog.getByText("Cette idée sera visible par les membres de ce groupe, sauf Léa.")).toBeVisible();
+    await dialog.locator(".suggestion-details > summary").click();
     await dialog.getByLabel("Description").fill("Pour son anniversaire");
     await dialog.getByRole("spinbutton",{name:/^Quantité souhaitée/}).fill("2");
     await dialog.getByLabel("Image",{exact:true}).setInputFiles(imagePath);

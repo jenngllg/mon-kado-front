@@ -11,10 +11,10 @@ const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "lo
 
 /** Creates an editor whose draft and version are owned only by this mounted view.
  * @param {{wishlistId: string, loadOne: import("./wishlistsService.js").LoadWishlist,
- * update: import("./wishlistsService.js").UpdateWishlist, signal?: AbortSignal, now?: () => Date}} options Operations and lifetime.
+ * update: import("./wishlistsService.js").UpdateWishlist, onSaved?: (saved: import("./wishlistsService.js").CreatedWishlist) => void | Promise<void>, signal?: AbortSignal, now?: () => Date}} options Operations and lifetime.
  * @returns {HTMLElement} Protected routed editor.
  */
-export function createWishlistEditView({ wishlistId, loadOne, update, signal, now = () => new Date() }) {
+export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = () => {}, signal, now = () => new Date() }) {
   const view = textElement("section", ""); view.className = "wishlist-edit-view flow";
   const title = textElement("h1", "Modifier ma liste"); title.tabIndex = -1;
   const feedback = textElement("div", ""); feedback.hidden = true;
@@ -152,6 +152,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, signal, no
       if (!isStrongEntityTag(saved.etag)) throw new ApiError({ kind: "invalidResponse" });
       base = saved; editor.reset(saved.wishlist); decision = false; blocked = saved.wishlist.isSuspended; clearComparison();
       show({ title: "Modifications enregistrées", message: saved.wishlist.isSuspended ? "Liste suspendue — Consultation uniquement" : "Les informations de ta liste sont à jour.", variant: "success" });
+      await onSaved(saved);
     } catch (error) {
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) presentFailure(error);
     } finally {

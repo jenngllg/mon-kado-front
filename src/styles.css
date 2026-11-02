@@ -24,3 +24,5 @@
 @import "./styles/extension-add.css" layer(components);
 @import "./styles/page-titles.css" layer(components);
 @import "./styles/dashboard.css" layer(components);
+@import "./styles/activity.css" layer(components);
+@import "./styles/workflow-refinements.css" layer(components);

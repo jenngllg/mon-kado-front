@@ -34,12 +34,12 @@ describe("create wishlist form", () => {
     const mode = /** @type {HTMLInputElement} */ (ui.form.querySelector('[role="switch"]'));
     expect(hint.hidden).toBe(false);
     expect(mode.getAttribute("aria-describedby")).toBe(hint.id);
-    expect(hint.textContent).toBe("Mode surprise activé : vos réservations restent visibles ; celles des autres sont masquées.");
+    expect(hint.textContent).toBe("Tu ne verras pas ce que tes proches réservent sur ta liste.");
     mode.click();
     expect(hint.textContent).toBe("Mode surprise désactivé : les réservations seront visibles pour vous.");
     mode.click();
     expect(mode.checked).toBe(true);
-    expect(hint.textContent).toContain("Mode surprise activé");
+    expect(hint.textContent).toBe("Tu ne verras pas ce que tes proches réservent sur ta liste.");
     expect(ui.form.querySelector('[role="tooltip"]')).toBeNull();
     expect(ui.create).not.toHaveBeenCalled();
   });

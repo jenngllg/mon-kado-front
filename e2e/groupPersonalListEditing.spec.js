@@ -1,3 +1,4 @@
+import { openListOptions } from "./ownerActions.js";
 import { test, expect } from "@playwright/test";
 import { controlledApi, frontendOrigin, listId, wishId } from "./controlledApi.js";
 
@@ -37,13 +38,17 @@ for (const width of [390, 1440]) {
     await page.getByRole("link", { name: "Voir les listes de Camille test" }).click();
     await page.getByRole("link", { name: ownList.name, exact: true }).click();
     await expect(page).toHaveURL(`/lists/${listId}`);
-    await page.getByRole("link", { name: "Modifier les informations" }).click();
+    await expect(page.locator(".wishlist-details-info h1")).toHaveCount(0);
+    await expect(page.locator(".wishlist-details-toolbar")).toBeVisible();
+    await openListOptions(page); await page.getByRole("link", { name: "Modifier les informations" }).click();
     await page.getByRole("textbox", { name: /Nom de la liste/ }).fill("Ma liste modifiée");
     await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Modifications enregistrées" })).toBeVisible();
-    await page.getByRole("link", { name: "Retour à la liste" }).click();
     await expect(page).toHaveURL(`/lists/${listId}`);
     await expect(page.getByRole("heading", { name: "Ma liste modifiée" })).toBeVisible();
+    await openListOptions(page); await expect(page.getByRole("link", { name: "Modifier les informations" })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Ma liste modifiée" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Ajouter un souhait", exact: true })).toBeVisible();
     expect(api.state.listWrites).toBe(1);
 
     await page.getByRole("link", { name: api.wish.name, exact: true }).click();

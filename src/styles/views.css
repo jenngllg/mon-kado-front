@@ -63,25 +63,41 @@
 
 .home-hero__secondary-action.ui-button--secondary { border-color: var(--color-border-strong); }
 
+.home-hero__illustration { width: 100%; max-width: 64rem; margin-inline: auto; }
 .home-hero__occasions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-5);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  width: 100%;
+  max-width: 52rem;
+  aspect-ratio: 2.1;
+  margin-inline: auto;
+  isolation: isolate;
+  cursor: default;
 }
 
-.home-hero__occasion { min-width: 0; text-align: center; }
-.home-hero__occasion img {
+.home-hero__occasions img {
   display: block;
-  width: 100%;
+  grid-area: 1 / 1;
+  width: 30%;
   height: auto;
+  margin: 3% auto 0;
   aspect-ratio: 4 / 5;
   object-fit: cover;
+  border: clamp(2px, .25vw, 4px) solid var(--color-surface);
   border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transform-origin: center bottom;
+  transform: translateX(var(--fan-offset)) translateY(var(--fan-lift)) rotate(var(--fan-angle));
 }
-.home-hero__occasion figcaption {
-  margin-block-start: var(--space-3);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
+.home-hero__occasions img:nth-child(1) { --fan-offset: -76%; --fan-lift: 5%; --fan-angle: -18deg; z-index: 1; }
+.home-hero__occasions img:nth-child(2) { --fan-offset: -25%; --fan-lift: -4%; --fan-angle: -6deg; z-index: 2; }
+.home-hero__occasions img:nth-child(3) { --fan-offset: 25%; --fan-lift: -4%; --fan-angle: 6deg; z-index: 3; }
+.home-hero__occasions img:nth-child(4) { --fan-offset: 76%; --fan-lift: 5%; --fan-angle: 18deg; z-index: 4; }
+.home-hero__illustration figcaption {
+  margin-block-start: var(--space-5);
+  color: var(--color-text-muted);
+  text-align: center;
 }
 
 .placeholder-view__description {
@@ -454,6 +470,14 @@
 .wishlist-card__actions { position: absolute; top: var(--space-3); right: var(--space-3); z-index: 1; display: flex; gap: var(--space-2); }
 .wishlist-card__actions .icon-action { background: var(--color-surface); }
 .wishlist-card__actions .icon-action--danger { color: var(--color-danger); }
+@media (max-width: 35.999rem) {
+  .wishlists-grid { gap: var(--space-5); }
+  .wishlist-card { display: grid; grid-template-columns: 5.5rem minmax(0, 1fr); align-items: start; gap: var(--space-2) var(--space-4); }
+  .wishlist-card__cover { grid-column: 1; grid-row: 1 / span 2; width: 5.5rem; height: 6.875rem; }
+  .wishlist-card__content { grid-column: 2; grid-row: 1; gap: var(--space-1); }
+  .wishlist-card h2 { font-size: var(--font-size-lg); }
+  .wishlist-card__actions { position: relative; inset: auto; grid-column: 2; grid-row: 2; justify-self: end; }
+}
 @media (hover: hover) and (pointer: fine) {
   .wishlist-card__actions { opacity: 0; pointer-events: none; }
   .wishlist-card:hover .wishlist-card__actions,
@@ -967,7 +991,6 @@
 @media (min-width: 64rem) {
   .home-hero__secondary-action.ui-button--secondary { border-color: var(--color-border-strong); }
 
-.home-hero__occasions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 .wish-favorite-indicator.icon-action {
   display: inline-flex;
@@ -1012,7 +1035,9 @@
   overflow-wrap: anywhere;
   min-inline-size: 0;
 }
+.reported-wishlists-filters { align-items: flex-end; }
 .reported-wishlists-filters > .form-field { flex: 1 1 12rem; min-inline-size: 0; }
+.reported-wishlists-filters > .ui-button { line-height: var(--line-height-body); }
 .reported-wishlist-reports { border-block-start: 1px solid var(--color-border); padding-block-start: var(--space-4); }
 .reported-wishlists-view h2 { font-size: var(--font-size-xl); }
 .report-review-view { max-inline-size: var(--content-narrow); }
@@ -1039,8 +1064,5 @@
   .app-navigation__list:has(a[href="/admin/reported-wishlists"]) { gap: var(--space-2); }
 }
 
-.activity-event__label { overflow-wrap: anywhere; }
-.activity-event__details summary { cursor: pointer; min-block-size: 44px; }
-.activity-event__payload { white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 24rem; overflow: auto; padding: var(--space-3); }
 
 .impersonation-banner { padding: var(--space-3) var(--content-gutter); background: var(--color-surface-sage); justify-content: space-between; }

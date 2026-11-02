@@ -2,7 +2,6 @@ import { ApiError, isAbortError } from "../../api/apiError.js";
 import { withWishSort } from "./wishSorting.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { createWishDeleteDialog } from "./wishDeleteDialog.js";
-import { applyActionIcon } from "../../components/actionIcon.js";
 import { createBackLink } from "../../components/backLink.js";
 import { createActionLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
@@ -14,6 +13,7 @@ import { createWishFavoriteButton } from "./wishFavoriteButton.js";
 import { createWishDetailInformation, createWishDetailProductLink, createWishDetailReservationStatus } from "./wishDetailPresentation.js";
 import { createWishCopyActions } from "../sharing/wishCopyActions.js";
 import { createOwnedGiftReservationSection } from "../sharing/ownedGiftReservationSection.js";
+import { createActionDisclosure } from "../../components/actionDisclosure.js";
 
 /** Owner detail with independently confirmed actions. Quantities remain projected by the API.
  * @param {{wishlistId: string, wishId: string, loadOne: import("./wishesService.js").LoadWish,
@@ -35,7 +35,9 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
   let request = new AbortController();
   const lifetime = new AbortController();
   let copying = false;
+  /** @type {HTMLDetailsElement|null} */ let optionsMenu = null;
   const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, excludeWishlistId: wishlistId,
+    returnFocus: () => optionsMenu?.querySelector("summary") ?? null,
     actionLabel: "Ajouter à une autre liste", onUnavailable: () => { void read(); }, onBusy: value => { copying = value; } }) : null;
   if (copyActions) view.append(copyActions.element);
   /** @type {HTMLDialogElement | null} */ let deletionDialog = null;
@@ -52,11 +54,11 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
   return view;
 
   async function read() {
-    if (disposed || deletionDialog || mutationBusy || copying || reservationDraft || reservationPanel?.contains(document.activeElement)) return;
+    if (disposed || deletionDialog || optionsMenu?.open || view.querySelector(".wish-image-dialog[open]") || mutationBusy || copying || reservationDraft || reservationPanel?.contains(document.activeElement)) return;
     reservationPanel = null;
     request.abort(); request = new AbortController();
     const active = request;
-    disposeComponent(commandHost); commandHost.replaceChildren();
+    disposeComponent(commandHost); commandHost.replaceChildren(); optionsMenu = null;
     disposeComponent(content); content.replaceChildren(createLoadingState({ label: "Chargement du souhait…" }));
     try {
       const parent = loadWishlist ? await loadWishlist(wishlistId, { signal: active.signal }) : null;
@@ -84,13 +86,17 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
         information.querySelector(".wish-detail__merchant")?.append(createWishDetailProductLink(wish.url, wish.name));
       }
       if (editable) {
+        /** @type {HTMLElement[]} */ const secondary = [];
         if (copyActions) {
           const copyButton = copyActions.button(wishId);
-          applyActionIcon(copyButton, "copy", "Je le veux aussi !"); actions.append(copyButton);
+          copyButton.setAttribute("aria-label", "Ajouter à une autre liste");
+          addComponentEventListener(copyButton, copyButton, "click", () => { if (optionsMenu) optionsMenu.open = false; }, { capture: true });
+          secondary.push(copyButton);
           copyActions.setBlocked(false);
         }
         const edit = createActionLink({ label: "Modifier", href: withWishSort(RoutePaths.EditWish.replace(":listId", wishlistId).replace(":wishId", wishId), returnSort) });
-        applyActionIcon(edit, "edit", "Modifier ce souhait");
+        edit.classList.add("ui-button", "ui-button--primary");
+        edit.setAttribute("aria-label", "Modifier");
         addComponentEventListener(edit, edit, "click", event => { if (mutationBusy) event.preventDefault(); });
         if (setFavorite && loadWishlist) actions.append(createWishFavoriteButton({ wish, loadOne: async (listId, id, options) => {
           const currentParent = await loadWishlist(wishlistId, options);
@@ -109,18 +115,23 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
           if (error instanceof ApiError && (error.statusCode === 404 || error.errorCode === "WISHLIST_SUSPENDED" || error.errorCode === "WISHLIST_ARCHIVED")) { mutationBusy = false; void read(); return; }
           const translated = toUserFacingError(error); information.append(createAlert({ ...translated, variant: "error" }));
         } } }));
-        actions.append(edit);
         if (remove && loadWishlist) {
-          const removeButton = createButton({ label: "Supprimer", variant: "secondary", onClick: () => openDelete(removeButton) });
-          removeButton.classList.add("icon-action--danger");
-          applyActionIcon(removeButton, "delete", "Supprimer ce souhait");
-          actions.append(removeButton);
+          const removeButton = createButton({ label: "Supprimer", variant: "secondary", onClick: () => {
+            if (optionsMenu) optionsMenu.open = false;
+            openDelete(optionsMenu?.querySelector("summary") ?? removeButton);
+          } });
+          removeButton.classList.add("workflow-menu-danger"); secondary.push(removeButton);
         }
+        if (secondary.length) {
+          optionsMenu = createActionDisclosure("⋯", "Options du souhait", secondary);
+          optionsMenu.classList.add("workflow-options"); optionsMenu.querySelector("summary")?.setAttribute("role", "button"); actions.append(optionsMenu);
+        }
+        actions.append(edit);
       }
       commandHost.append(actions);
       const layout = document.createElement("div"); layout.className = "shared-wish-layout";
       const product = document.createElement("div"); product.className = "shared-wish-product flow";
-      product.append(createWishImage(wish), information);
+      product.append(createWishImage(wish, { enlargeName: wish.name }), information);
       layout.append(product, reservation);
       content.append(layout);
       if (editable && reservations) {
@@ -144,7 +155,7 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
     }
   }
 
-  /** @param {HTMLButtonElement} trigger Return focus target. */
+  /** @param {HTMLElement} trigger Return focus target. */
   function openDelete(trigger) {
     if (disposed || deletionDialog || mutationBusy || copying || !loadWishlist || !remove) return;
     const modal = createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadOne, remove, signal: lifetime.signal,

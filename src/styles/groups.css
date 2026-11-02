@@ -27,7 +27,7 @@
 .group-invitations { padding: var(--space-5); background: var(--color-accent-soft); border-radius: var(--radius-lg); }
 .group-invitation { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; padding-block: var(--space-3); }
 .group-invitation > :first-child { overflow-wrap: anywhere; min-width: 0; }
-.group-members { display: flex; gap: var(--space-5); flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+.group-members { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-5); list-style: none; margin: 0; padding: 0; }
 .group-member { position: relative; display: flex; align-items: center; min-width: 0; max-width: 100%; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); flex-wrap: wrap; }
 .group-member__open { display: flex; align-items: center; justify-content: flex-start; gap: var(--space-3); min-width: 0; flex: 1; padding: var(--space-4); font: inherit; text-align: left; color: var(--color-text); text-decoration: none; border-radius: inherit; }
 .group-member__open > div { min-width: 0; overflow-wrap: anywhere; }
@@ -94,7 +94,9 @@
 @media (max-width: 64rem) { .group-suggestions__grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 32rem) { .group-suggestions__card { grid-template-columns: minmax(0, 1fr); } .group-suggestions__media { min-height: 10rem; } }
 @media (max-width: 64rem) { .groups-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 64rem) { .group-members { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 40rem) {
+  .group-members { grid-template-columns: minmax(0, 1fr); }
   .group-member { width: 100%; }
   .group-member__open { flex-basis: 100%; }
   .group-member > button { margin-inline-start: auto; }

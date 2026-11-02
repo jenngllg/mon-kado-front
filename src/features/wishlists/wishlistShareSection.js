@@ -19,7 +19,7 @@ import { shareWishlistWithSystem, openWishlistMailComposer, openWishlistMessenge
 export function createWishlistShareSection({ wishlistId, wishlistName, load, create, renew, revoke, copyText, onUnavailable, onRevoked, onBusy = () => {}, signal, openShareWindow = openWishlistShareWindow, openMailComposer = openWishlistMailComposer, openMessengerComposer = openWishlistMessengerComposer, shareWithSystem = shareWishlistWithSystem }) {
   const section = document.createElement("section"); section.className = "wishlist-share flow";
   const title = document.createElement("h2"); title.textContent = "Partager ma liste"; title.tabIndex = -1;
-  const help = document.createElement("p"); help.textContent = "Une liste partagée est visible sur ton profil et accessible à tous.";
+  const help = document.createElement("p"); help.textContent = "Un lien public rend ta liste visible sur ton profil et accessible à tous. Le partage dans tes groupes se règle séparément.";
   const feedback = document.createElement("div");
   const status = document.createElement("p"); status.setAttribute("role", "status");
   const empty = document.createElement("p"); empty.textContent = "Aucun lien de partage créé";
