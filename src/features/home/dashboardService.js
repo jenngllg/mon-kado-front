@@ -1,4 +1,4 @@
-/** @typedef {{id:string,name:string,eventDate:string|null,href:string}} DashboardOccasion */
+/** @typedef {{id:string,name:string,ownerDisplayName:string,eventDate:string|null,href:string}} DashboardOccasion */
 
 /** Loads only lists already authorized by the owner, group and subscription APIs.
  * @param {{wishlists: Pick<ReturnType<typeof import('../wishlists/wishlistsService.js').createWishlistsService>, 'load'>, groups: Pick<ReturnType<typeof import('../groups/groupsService.js').createGroupsService>, 'load'|'wishlists'>, subscriptions: Pick<ReturnType<typeof import('../subscriptions/wishlistSubscriptionsService.js').createWishlistSubscriptionsService>, 'load'>}} services Existing readers.
@@ -35,7 +35,7 @@ export function createDashboardService({ wishlists, groups, subscriptions }) {
     let page = 1;
     while (!signal.aborted) {
       const response = await subscriptions.load({ signal, page });
-      result.push(...response.items.map(list => ({ id: list.wishlistId, name: list.name, eventDate: list.eventDate, href: list.shareHref })));
+      result.push(...response.items.map(list => ({ id: list.wishlistId, name: list.name, ownerDisplayName: list.ownerDisplayName, eventDate: list.eventDate, href: list.shareHref })));
       if (response.currentPage * response.pageSize >= response.totalCount) break;
       page++;
     }

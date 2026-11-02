@@ -26,12 +26,13 @@
 .member-profile-header { flex-wrap: wrap; }
 .member-profile-header > h1 { order: -1; width: 100%; }
 .groups-header .group-identity { flex: 1 1 100%; justify-content: center; }
-.wishlist-details-view .shared-wishlist-summary:has(> .shared-wishlist-identity > h1) > .shared-wishlist-identity { display: contents; }
-.wishlist-details-view .shared-wishlist-summary > .shared-wishlist-identity > h1 { grid-column: 1 / -1; }
-.wishlist-details-view .shared-wishlist-summary > .shared-wishlist-identity > :not(h1) { grid-column: 1; }
-.wishlist-details-view .shared-wishlist-summary > .shared-wishlist-metadata { grid-column: 2; grid-row: 2 / span 2; }
+/* Split reading banners keep their own centered identity group at every breakpoint. */
+.wishlist-details-view:not(.wishlist-details-view--split) .shared-wishlist-summary:has(> .shared-wishlist-identity > h1) > .shared-wishlist-identity { display: contents; }
+.wishlist-details-view:not(.wishlist-details-view--split) .shared-wishlist-summary > .shared-wishlist-identity > h1 { grid-column: 1 / -1; }
+.wishlist-details-view:not(.wishlist-details-view--split) .shared-wishlist-summary > .shared-wishlist-identity > :not(h1) { grid-column: 1; }
+.wishlist-details-view:not(.wishlist-details-view--split) .shared-wishlist-summary > .shared-wishlist-metadata { grid-column: 2; grid-row: 2 / span 2; }
 @media (max-width: 48rem) {
-  .wishlist-details-view .shared-wishlist-summary > .shared-wishlist-metadata { grid-column: 1; grid-row: auto; }
+  .wishlist-details-view:not(.wishlist-details-view--split) .shared-wishlist-summary > .shared-wishlist-metadata { grid-column: 1; grid-row: auto; }
 }
 .app-main :is(.reservation-history-header, .wishlist-details-header, .groups-header, .member-profile-header) > h1 {
   flex-basis: 100%;

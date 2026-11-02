@@ -98,14 +98,17 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
         if (occasionResult?.error) throw occasionResult.error;
         const shared = occasionResult?.value ?? [];
         if (readSignal.aborted) return;
-        const own = listResult.value.filter(list => !list.isSuspended).map(list => ({ ...list, href: `/lists/${list.id}` }));
+        const own = listResult.value.filter(list => !list.isSuspended).map(list => ({ ...list, ownerDisplayName: displayName, href: `/lists/${list.id}` }));
         const unique = new Map([...shared, ...own].map(list => [list.id.toLowerCase(), list]));
         const upcoming = [...unique.values()].filter(list => list.eventDate && list.eventDate >= todayKey)
           .sort((a, b) => (a.eventDate ?? '').localeCompare(b.eventDate ?? '') || a.name.localeCompare(b.name, 'fr')).slice(0, 3);
         if (!upcoming.length) occasions.append(node('p', 'Aucune occasion à venir pour le moment.'));
         for (const list of upcoming) {
+          const occasion = node('div', '', 'dashboard-occasion');
           const link = rowLink(list.name, list.href, formatDate(list.eventDate ?? ''));
-          link.classList.add('dashboard-occasion'); occasions.append(link);
+          link.classList.add('dashboard-occasion__link');
+          occasion.append(link, node('span', `Par ${list.ownerDisplayName}`, 'dashboard-occasion__author'));
+          occasions.append(occasion);
         }
       } catch {
         if (!readSignal.aborted) failure(occasions, 'Impossible de charger les prochaines occasions.');

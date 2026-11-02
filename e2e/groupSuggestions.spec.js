@@ -78,12 +78,20 @@ for (const width of [390, 1440]) {
     await expect(page.locator(".group-suggestions__media img")).toBeVisible();
     await page.screenshot({path:testInfo.outputPath(`group-suggestions-${width}.png`),fullPage:true});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+    await page.getByRole("link",{name:"Voir l’idée « Un beau livre »",exact:true}).last().click();
+    await expect(page.getByRole("heading",{name:"Un beau livre",exact:true})).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator(".wish-detail__toolbar").getByRole("button",{name:"Modifier",exact:true})).toBeVisible();
+    await page.getByRole("link",{name:"Retour à la liste",exact:true}).click();
+    await page.locator(".group-suggestions__card").hover();
+    await expect(page.getByRole("button",{name:"Réserver",exact:true})).toHaveCSS("opacity","1");
     await page.getByRole("button",{name:"Réserver",exact:true}).click();
     await expect(dialog.getByLabel("Quantité à réserver")).toBeVisible();
     await dialog.getByLabel("Quantité à réserver").fill("2");
     await dialog.getByRole("button",{name:"Confirmer la réservation"}).click();
     await expect(page.getByText("Tu as réservé 2 exemplaires.")).toBeVisible();
-    await expect(page.getByRole("button",{name:"Modifier",exact:true})).toBeDisabled();
+    await expect(page.getByRole("button",{name:"Modifier",exact:true})).toHaveCount(0);
+    await expect(page.getByRole("button",{name:"Supprimer",exact:true})).toBeDisabled();
     expect(api.unexpected).toEqual([]);
   });
 

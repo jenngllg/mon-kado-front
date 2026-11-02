@@ -21,6 +21,14 @@ function setup(load) {
 }
 
 describe("wishlist audience", () => {
+  it("keeps the known audience visible during a new read", async () => {
+    const gate = barrier(); const load = vi.fn().mockResolvedValueOnce(response(true, [true])).mockImplementation(() => gate.promise.then(() => response(false, [])));
+    const audience = setup(load); await audience.refresh();
+    const reading = audience.refresh();
+    expect(audience.element.textContent).toContain("Partagée avec 1 groupe");
+    expect(audience.element.textContent).not.toContain("Vérification de la visibilité");
+    gate.resolve(); await reading; expect(audience.element.textContent).toContain("Seulement moi");
+  });
   it.each([
     [false, [], "Seulement moi", "Lien public inactif"],
     [false, [true, false], "Partagée avec 1 groupe", "Lien public inactif"],

@@ -83,16 +83,20 @@
 .groups-header .group-join-action.ui-button--secondary { border-color: var(--color-border-strong); }
 .group-edit-comparison { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow-wrap: anywhere; }
 .group-suggestions { margin-block: var(--space-8); }
-.group-suggestions__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
-.group-suggestions__card { display: grid; grid-template-columns: minmax(7rem, 38%) minmax(0, 1fr); overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
-.group-suggestions__media { display: grid; place-items: center; min-height: 12rem; padding: var(--space-3); }
-.group-suggestions__media img { width: 100%; height: 100%; max-height: 16rem; object-fit: contain; }
-.group-suggestions__content { min-width: 0; padding: var(--space-4); overflow-wrap: anywhere; }
+.group-suggestions > .section-toolbar > .group-suggestions__add { margin-inline-start: auto; }
+.group-suggestions__open { display: block; flex: 1; min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: start; overflow-wrap: anywhere; cursor: pointer; }
+.group-suggestions__card:has(.group-suggestions__open:focus-visible) { outline: 2px solid var(--color-text); outline-offset: 2px; }
+.group-suggestions__open:focus-visible { outline: none; }
+.group-suggestions__content { min-width: 0; overflow-wrap: anywhere; }
 .group-suggestions__content h3 { margin: 0; }
-.group-suggestions__author { color: var(--color-text-muted); font-weight: var(--font-weight-semibold); }
+.group-suggestions__author { color: var(--color-text-muted); font-size: var(--font-size-sm); line-height: 1.5; font-weight: var(--font-weight-semibold); }
+.group-suggestions__card:has(> .group-suggestions__delete) h3 { padding-inline-end: 3rem; }
+.group-suggestions__delete.icon-action { position: absolute; inset-block-start: var(--space-2); inset-inline-end: var(--space-2); z-index: 3; width: 44px; height: 44px; padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-full); background: var(--color-surface); color: var(--color-danger); }
+@media (hover: hover) and (pointer: fine) {
+  .group-suggestions__delete { opacity: 0; pointer-events: none; }
+  .group-suggestions__card:is(:hover, :focus-within) > .group-suggestions__delete { opacity: 1; pointer-events: auto; }
+}
 .group-suggestions__dialog { max-height: calc(100dvh - 2rem); overflow-y: auto; }
-@media (max-width: 64rem) { .group-suggestions__grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 32rem) { .group-suggestions__card { grid-template-columns: minmax(0, 1fr); } .group-suggestions__media { min-height: 10rem; } }
 @media (max-width: 64rem) { .groups-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 64rem) { .group-members { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 40rem) {

@@ -8,14 +8,12 @@
 .wishlist-share-dialog .wishlist-group-visibility__groups legend { position: sticky; top: 0; z-index: 1; background: var(--color-surface); padding-block: var(--space-2); }
 .wishlist-share-dialog :is([role="status"], [role="alert"]):empty { display: none; }
 .group-suggestions.group-suggestions--action { margin: 0; }
-.member-profile-header .member-profile-actions { margin-inline-start: auto; margin-block: 0; max-width: 100%; }
-.member-profile-actions > [role="status"]:empty { display: none; }
 .suggestion-destinations { margin: 0; padding: 0; border: 0; min-width: 0; }
 .suggestion-destinations legend { font-weight: var(--font-weight-semibold); margin-block-end: var(--space-3); }
 .suggestion-destinations__choices { max-height: 15rem; overflow-y: auto; padding: var(--space-1); }
 .workflow-options > summary { width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); font-size: var(--font-size-xl); }
 .workflow-options .action-disclosure__panel { min-width: min(17rem, calc(100vw - 3rem)); z-index: 5; }
-.workflow-options .action-disclosure__panel > :is(a,button) { width: 100%; justify-content: flex-start; text-align: start; border: 0; box-shadow: none; background: transparent; }
+.workflow-options .action-disclosure__panel > :is(a,button) { width: 100%; padding-inline: var(--space-3); justify-content: flex-start; text-align: start; border: 0; box-shadow: none; background: transparent; }
 .workflow-options .workflow-menu-danger { color: var(--color-danger); }
 .group-invite-action > svg { width: 1.25rem; height: 1.25rem; }
 .wish-owner-detail .wish-detail__commands { max-width: 100%; }
@@ -30,6 +28,10 @@
 .group-suggestions__dialog .group-suggestions__actions { justify-content: space-between; margin: 0; }
 .group-suggestions__actions .ui-button { min-width: 0; }
 @media (max-width: 40rem) {
+  .wish-detail__toolbar { position: relative; }
+  .wish-detail__toolbar .workflow-options { position: static; }
+  .groups-header > .cluster:has(.workflow-options) { position: relative; }
+  .groups-header .workflow-options { position: static; }
   .group-suggestions__dialog .group-suggestions__actions { position: sticky; inset-block-end: calc(-1 * var(--space-6)); z-index: 2; padding-block: var(--space-3) max(var(--space-3), env(safe-area-inset-bottom)); background: var(--color-surface); border-block-start: 1px solid var(--color-border); }
   .group-suggestions__dialog form:has(:is(input:not([type="checkbox"], [type="file"]), textarea):focus) .group-suggestions__actions { position: static; }
   .group-suggestions__dialog :is(input,textarea,button) { scroll-margin-block: 5rem; }

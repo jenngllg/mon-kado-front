@@ -460,7 +460,7 @@ describe("safe return destinations", () => {
     // Arrange / Act / Assert
     expect(getSafeReturnTo(target)).toBe("/");
   });
-  it.each(["/", "/profile", "/profile/password", "/profile/email", "/reservations", "/lists", "/lists/new", "/lists/list-123"])("retains only the approved pathname of %s", path => {
+  it.each(["/", "/profile", "/profile/password", "/profile/email", "/reservations", "/lists", "/lists/new", "/lists/list-123", "/groups/019c52dd-56c1-7cc6-8a95-243f3a032e04/wishlists/019c52dd-56c1-7cc6-8a95-243f3a032e04/suggestions/019c52dd-56c1-7cc6-8a95-243f3a032e05"])("retains only the approved pathname of %s", path => {
     // Arrange / Act / Assert
     expect(getSafeReturnTo(path + "/?token=private#secret")).toBe(path);
     expect(createLoginTarget(path + "?token=private#secret")).not.toMatch(/private|secret/);

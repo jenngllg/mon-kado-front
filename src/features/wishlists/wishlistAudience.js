@@ -21,7 +21,8 @@ export function createWishlistAudience({ load, signal }) {
     const current = ++generation;
     const readSignal = AbortSignal.any([signal, lifetime.signal]);
     if (readSignal.aborted) return;
-    status.textContent = "Vérification de la visibilité…"; retry.hidden = true;
+    if (!status.hasChildNodes()) status.textContent = "Vérification de la visibilité…";
+    retry.hidden = true;
     try {
       const { visibility } = await load({ signal: readSignal });
       if (readSignal.aborted || current !== generation) return;
