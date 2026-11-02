@@ -35,7 +35,7 @@ for (const width of [240, 390, 768, 1024, 1716]) {
     await message.blur();
     await expect(view.getByRole("alert")).toHaveCount(0);
     const surprise = form.getByRole("switch", { name: "Mode surprise" });
-    await expect(form.locator(".wishlist-surprise-hint")).toHaveText("Vous ne verrez pas ce que les gens réservent sur votre liste.");
+    await expect(form.locator(".wishlist-surprise-hint")).toHaveText("Tu ne verras pas ce que tes proches réservent sur ta liste.");
     await expect(surprise).toBeChecked();
     await surprise.uncheck();
     await expect(form.locator(".wishlist-surprise-hint")).toContainText("Mode surprise désactivé");

@@ -50,8 +50,13 @@ for (const width of [240, 390, 768, 1215, 1565, 3440]) {
     for (const card of await cards.all()) {
       const photo = await card.locator("img").boundingBox(); const title = await card.locator("h2").boundingBox();
       expect(photo?.height).toBeCloseTo((photo?.width ?? 0) * 1.25, 0);
-      expect(title?.x).toBeCloseTo(photo?.x ?? 0, 0);
-      expect(title?.y).toBeGreaterThan((photo?.y ?? 0) + (photo?.height ?? 0));
+      if (width < 576) {
+        expect(title?.x).toBeGreaterThan((photo?.x ?? 0) + (photo?.width ?? 0));
+        expect(title?.y).toBeLessThan((photo?.y ?? 0) + (photo?.height ?? 0));
+      } else {
+        expect(title?.x).toBeCloseTo(photo?.x ?? 0, 0);
+        expect(title?.y).toBeGreaterThan((photo?.y ?? 0) + (photo?.height ?? 0));
+      }
     }
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("overview-page.png"), fullPage: true });

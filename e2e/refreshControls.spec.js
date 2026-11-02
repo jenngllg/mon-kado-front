@@ -22,6 +22,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     api.state.authenticated = true;
     await page.goto(`/lists/${listId}`);
     await page.getByRole("button", { name: "Partager", exact: true }).click();
+    await page.getByRole("tab", { name: "Lien public", exact: true }).click();
     await expect(page.getByRole("button", { name: "Créer le lien de partage" })).toBeVisible();
     await page.getByRole("button", { name: "Fermer le partage", exact: true }).click();
     await expect(page.getByRole("button", { name: /Actualiser/ })).toHaveCount(0);

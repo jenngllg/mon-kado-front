@@ -29,7 +29,7 @@ for (const width of [390, 1440]) {
     await expect(mode).toBeChecked();
     const hint = page.locator(".wishlist-surprise-hint");
     await expect(hint).toBeVisible();
-    await expect(hint).toHaveText("Vous ne verrez pas ce que les gens réservent sur votre liste.");
+    await expect(hint).toHaveText("Tu ne verras pas ce que tes proches réservent sur ta liste.");
     await expect(mode).toHaveCSS("background-color", "rgb(185, 62, 50)");
     await expect(mode).toHaveAttribute("aria-describedby", await hint.getAttribute("id") ?? "");
     await page.screenshot({ path: testInfo.outputPath("surprise-enabled.png"), fullPage: true });

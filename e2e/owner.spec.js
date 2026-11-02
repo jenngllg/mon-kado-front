@@ -36,9 +36,8 @@ test("add, edit and delete the last gift with a native confirmation", async ({ p
   api.state.wishExists = false;
   await page.goto(`/lists/${listId}`);
   await page.getByRole("link", { name: "Créer un souhait", exact: true }).click();
-  await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-width", "1px");
-  await expect(page.locator(".wish-image-section__media--empty")).toHaveCSS("border-top-style", "solid");
   await page.getByRole("button", { name: "Continuer", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Ajouter une image", exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: /Nom du souhait/ }).fill("Carnet test");
   await page.getByRole("textbox", { name: /Prix en euros/ }).fill("19,90");
   await page.getByRole("button", { name: "Continuer", exact: true }).click();

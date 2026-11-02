@@ -112,6 +112,7 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
     }
     if (path === `/api/v1/wishlists/${listId}/wishes/${wishId}/reservations/current` && method === "GET") return error(404, "GIFT_RESERVATION_NOT_FOUND");
     if (path === `/api/v1/wishlists/${listId}/share-link` && method === "GET") return error(404, "WISHLIST_SHARE_LINK_NOT_FOUND");
+    if (path === `/api/v1/wishlists/${listId}/group-visibility` && method === "GET") return send(200, { wishlistId: listId, isPublic: false, groups: [] }, '"visibility-1"');
     if (path.startsWith(`/api/v1/shared-wishlists/${shareId}`)) {
       expect(request.headers()["x-monkado-share-token"]).toBe(secret);
       expect(request.url()).not.toContain(secret);

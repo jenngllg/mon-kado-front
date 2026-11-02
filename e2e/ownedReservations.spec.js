@@ -82,7 +82,8 @@ for (const width of [390, 1440]) {
       expect(imageBox && infoBox && reservationBox).toBeTruthy();
       if (width === 1440 && imageBox && infoBox && reservationBox) {
         expect(infoBox.x).toBeGreaterThan(imageBox.x + imageBox.width);
-        expect(Math.abs((imageBox.y + imageBox.height) - (reservationBox.y + reservationBox.height))).toBeLessThan(2);
+        expect(imageBox.height).toBeLessThanOrEqual(312);
+        expect(reservationBox.y).toBeGreaterThan(infoBox.y);
       }
       expect(api.owner.writes).toBe(0);
       if (surprise) {

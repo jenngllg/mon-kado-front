@@ -24,6 +24,15 @@ function setup(options = {}) {
 }
 
 describe("wishlist share modal", () => {
+  it("supports directional, Home and End tab navigation without changing sharing permissions", async () => {
+    const visibility = { visibility: { wishlistId, isPublic: false, groups: [] }, etag: '"groups"' };
+    const save = vi.fn(); const ui = setup({ groups: { wishlistVisibility: async () => visibility, setWishlistVisibility: save } }); await settle();
+    for (const [from, key, selected] of [["Mes groupes", "ArrowRight", "Lien public"], ["Lien public", "ArrowRight", "Mes groupes"], ["Mes groupes", "ArrowLeft", "Lien public"], ["Lien public", "Home", "Mes groupes"], ["Mes groupes", "End", "Lien public"], ["Lien public", "Tab", "Lien public"]]) {
+      ui.button(from).dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })); await settle();
+      expect(ui.button(selected).getAttribute("aria-selected")).toBe("true");
+    }
+    expect(ui.create).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+  });
   it("keeps group sharing independent, preserves its draft across tabs and closes after saving", async () => {
     const result = { visibility: { wishlistId, isPublic: false, groups: [{ groupId: wishlistId, name: "Famille", isVisible: false }] }, etag: '"groups"' };
     const groups = { wishlistVisibility: vi.fn(async () => result), setWishlistVisibility: vi.fn(async () => result) };
