@@ -52,6 +52,7 @@ describe("wishlist share modal", () => {
     /** @type {HTMLInputElement} */ (ui.dialog.querySelector('input[name="groups"]')).click(); ui.button("Enregistrer").click();
     ui.button("Lien public").click(); ui.dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
     expect(ui.dialog.open).toBe(true); expect(ui.load).not.toHaveBeenCalled(); expect(ui.button("Fermer le partage").disabled).toBe(true);
+    expect(ui.button("Mes groupes").getAttribute("aria-disabled")).toBe("true");
     gate.resolve(); await settle(); expect(ui.onClose).toHaveBeenCalledOnce(); expect(save).toHaveBeenCalledOnce();
   });
   it("clears the bearer on Escape and reports close exactly once", async () => {

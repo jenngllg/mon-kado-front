@@ -49,7 +49,7 @@ export function createWishlistShareDialog({ onClose, groups, ...options }) {
   return dialog;
 
   /** @param {boolean} pending A mutation or protected share operation is running. */
-  function busy(pending) { blocked = pending; close.disabled = pending; for (const control of controls) control.disabled = pending; }
+  function busy(pending) { blocked = pending; close.disabled = pending; for (const control of controls) control.setAttribute("aria-disabled", String(pending)); }
   /** @param {number} index Explicit view selection; reads never publish or alter permissions. */
   function select(index) {
     if (blocked || disposed) return;
