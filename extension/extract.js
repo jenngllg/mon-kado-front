@@ -37,7 +37,7 @@ export function extractProduct() {
   const specs = offers?.priceSpecification;
   if (!price && specs) {
     const candidates = (Array.isArray(specs) ? specs : [specs]).slice(0, 20).flatMap(spec => {
-      if (!spec || typeof spec !== "object" || spec.priceType || spec.referenceQuantity || spec.unitCode || spec.unitText || spec.eligibleQuantity || spec.eligibleCustomerType) return [];
+      if (!spec || typeof spec !== "object" || spec.priceType || spec.billingDuration || spec.billingIncrement || spec.referenceQuantity || spec.unitCode || spec.unitText || spec.eligibleQuantity || spec.eligibleCustomerType) return [];
       const start = boundary(spec.validFrom, false), end = boundary(spec.validThrough, true), now = Date.now();
       if (!(start <= now && now <= end)) return [];
       const value = euroPrice(spec.price, spec.priceCurrency || offers?.priceCurrency);
@@ -47,7 +47,9 @@ export function extractProduct() {
     if (distinct.length === 1) price = distinct[0];
   }
   if (!price && !specs) price = euroPrice(meta("product:price:amount"), meta("product:price:currency"));
-  const heading = [...document.querySelectorAll("h1")].find(node => node.getClientRects().length > 0);
+  const amazon = /(^|\.)amazon\.(?:[a-z]{2,3}|co\.[a-z]{2}|com\.[a-z]{2})$/i.test(location.hostname);
+  const productHeading = amazon ? document.querySelector("h1#title, h1:has(#productTitle)") : null;
+  const heading = productHeading || [...document.querySelectorAll("h1")].find(node => node.getClientRects().length > 0);
   const headingRect = heading?.getBoundingClientRect();
   /** @param {Element} node Whether an element or an ancestor suppresses this content. */
   const suppressed = node => {
@@ -59,6 +61,44 @@ export function extractProduct() {
     }
     return false;
   };
+  /** @param {Element} node Exclude financing amounts without rejecting an adjacent full price. */
+  const installment = node => {
+    /** @type {Element | null} */ let current = node;
+    for (let depth = 0; current && depth < 8; current = current.parentElement, depth++) {
+      if (/installment|instalment|monthly|financing|payment[-_]?plan|mensual/i.test(`${current.id} ${current.className}`)) return true;
+      const text = (current.getAttribute("aria-label") || current.textContent || "").replace(/\s+/g, " ");
+      if (text.length > 300 || [...text.matchAll(/\d[\d.,]*\s*€/g)].length > 1) break;
+      if (/mensualit[ée]|par mois|\/\s*mois|per month|\/\s*month|paiements?\s+en\s+\d+\s+fois|\d+\s*(?:fois|[x×])\s*(?:de\s*)?\d|pay\s+in\s+\d|\d+\s+(?:monthly\s+)?(?:paiements|payments|instalments|installments)/i.test(text)) return true;
+    }
+    return false;
+  };
+  /** @param {string} text A complete euro amount, not a payment schedule. */
+  const displayedPrice = text => {
+    const match = /^(\d{1,8}(?:[.,]\d{1,2})?)€$/.exec(text.replace(/\s/g, ""));
+    return match ? euroPrice(match[1], "EUR") : "";
+  };
+  if (amazon) {
+    // Amazon repeats amounts for accessibility and shows financing near the title.
+    // Only the selected offer's price-to-pay blocks may override product metadata.
+    const nodes = document.querySelectorAll([
+      "#corePrice_feature_div .apex-pricetopay-value",
+      "#corePriceDisplay_desktop_feature_div .apex-pricetopay-value",
+      "#corePriceDisplay_mobile_feature_div .apex-pricetopay-value",
+      "#priceblock_ourprice", "#priceblock_dealprice",
+    ].join(","));
+    const values = [...nodes].slice(0, 20).flatMap(node => {
+      if (suppressed(node) || installment(node)) return [];
+      const accessible = node.querySelector(".a-offscreen");
+      const whole = node.querySelector(".a-price-whole"), fraction = node.querySelector(".a-price-fraction");
+      const symbol = node.querySelector(".a-price-symbol");
+      const split = whole && fraction && symbol ? `${(whole.textContent || "").replace(/[\s.,]/g, "")},${fraction.textContent}${symbol.textContent}` : "";
+      const value = displayedPrice(accessible?.textContent || "") || displayedPrice(split) || displayedPrice(node.textContent || "");
+      return value ? [value] : [];
+    });
+    const distinct = [...new Set(values)];
+    // Do not fall back to a nearby installment, accessory or recommendation.
+    price = distinct.length === 1 ? distinct[0] : distinct.length > 1 ? "" : price;
+  }
   /** @param {Element} node Approximate distance from the main product title. */
   const distance = node => {
     if (!headingRect) return Infinity;
@@ -68,11 +108,11 @@ export function extractProduct() {
     const horizontal = Math.max(0, headingRect.left - rect.right, rect.left - headingRect.right);
     return Math.abs(rect.top - headingRect.bottom) + horizontal * 0.5;
   };
-  if (!price && !specs && heading && headingRect) {
+  if (!amazon && !price && !specs && heading && headingRect) {
     const scope = heading.closest("main, [role='main']") || document.body;
     const nodes = scope.querySelectorAll("[itemprop='price'], [id*='price' i], [id*='price' i] span, [class*='price' i], [class*='price' i] span, [aria-label*='€']");
     const candidates = [...nodes].slice(0, 2000).flatMap(node => {
-      if (suppressed(node)) return [];
+      if (suppressed(node) || installment(node)) return [];
       const text = (node.getAttribute("aria-label") || node.getAttribute("content") || node.textContent || "").replace(/\s/g, "");
       const match = /^(\d{1,8}(?:[.,]\d{1,2})?)€$/.exec(text);
       let amount = match?.[1] || "";

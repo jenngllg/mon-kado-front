@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 /* global document */
 import { afterEach, expect, it, vi } from "vitest";
-const calls = vi.hoisted(() => ({ load: vi.fn(), create: vi.fn(), uploadImage: vi.fn(), request: vi.fn() }));
+const calls = vi.hoisted(() => ({ load: vi.fn(), create: vi.fn(), uploadImage: vi.fn(), request: vi.fn(), snapshot: vi.fn(), recipients: vi.fn(), suggestionLists: vi.fn(), createSuggestion: vi.fn(), suggestionImage: vi.fn() }));
 vi.mock("../src/features/wishlists/wishlistsService.js", () => ({ createWishlistsService: () => ({ load: calls.load }) }));
 vi.mock("../src/features/wishes/wishesService.js", () => ({ createWishesService: () => ({ create: calls.create, uploadImage: calls.uploadImage }) }));
+vi.mock("../src/features/extension/extensionSuggestions.js", () => ({ createExtensionSuggestions: () => ({ recipients: calls.recipients, lists: calls.suggestionLists, create: calls.createSuggestion, image: calls.suggestionImage }) }));
 import { installExtensionSessionBridge } from "../src/features/extension/extensionSessionBridge.js";
 import { ApiError } from "../src/api/apiError.js";
 import {registerSuggestionDraft,suggestionDraftDestination} from "../src/features/extension/suggestionDraft.js";
@@ -18,8 +19,11 @@ function send(action, value) {
   });
 }
 function setup() {
-  const ensureSession = vi.fn(async () => ({ status: "authenticated" }));
-  dispose = installExtensionSessionBridge(/** @type {import("../src/auth/sessionManager.js").SessionManager} */ (/** @type {unknown} */ ({ ensureSession, request: calls.request })), "http://localhost:7000");
+  /** @type {{status:string,user?:{id:string}}} */
+  const identity = { status: "authenticated", user: { id } };
+  const ensureSession = vi.fn(async () => identity);
+  calls.snapshot.mockReturnValue(identity);
+  dispose = installExtensionSessionBridge(/** @type {import("../src/auth/sessionManager.js").SessionManager} */ (/** @type {unknown} */ ({ ensureSession, getSnapshot: calls.snapshot, request: calls.request })), "http://localhost:7000");
   return ensureSession;
 }
 it("returns only available lists through the authenticated session", async () => {
@@ -43,7 +47,7 @@ it("retrieves only the selected image with the connected session", async () => {
   expect(calls.create).not.toHaveBeenCalled();
 });
 it("reports that the site relay is present without accessing the session", async () => {
-  const ensure = setup(); expect(await send("probe")).toEqual({ ready: true, supportsVariants: true, supportsFavorites: true });
+  const ensure = setup(); expect(await send("probe")).toEqual({ ready: true, supportsVariants: true, supportsFavorites: true, supportsGroupSuggestions: true });
   expect(ensure).not.toHaveBeenCalled(); expect(calls.load).not.toHaveBeenCalled();
 });
 it("accepts serialized messages across browser extension boundaries", async () => {
@@ -52,7 +56,7 @@ it("accepts serialized messages across browser extension boundaries", async () =
     document.addEventListener("monkado-extension-response", event => resolve(JSON.parse(/** @type {CustomEvent<string>} */ (event).detail)), { once: true });
   });
   document.dispatchEvent(new CustomEvent("monkado-extension-request", { detail: JSON.stringify({ id, action: "probe" }) }));
-  expect(await response).toEqual({ id, result: { ready: true, supportsVariants: true, supportsFavorites: true } });
+  expect(await response).toEqual({ id, result: { ready: true, supportsVariants: true, supportsFavorites: true, supportsGroupSuggestions: true } });
 });
 it("creates only on an explicit command using the captured fields", async () => {
   setup(); calls.create.mockResolvedValue({ wish: { id }, etag: '"1"' });
@@ -92,4 +96,40 @@ it("distinguishes a rejected write from an uncertain network failure", async () 
   expect(await send("create", value)).toEqual({ error: "rejected" });
   expect(await send("create", value)).toEqual({ error: "uncertain" });
   expect(calls.create).toHaveBeenCalledTimes(2);
+});
+
+it("routes group discovery and explicit suggestion commands through the current identity", async () => {
+  setup();
+  calls.recipients.mockResolvedValue([{ id: "person", name: "Léa#1234" }]);
+  calls.suggestionLists.mockResolvedValue([{ id: "destination", name: "Noël", groupName: "Famille" }]);
+  calls.createSuggestion.mockResolvedValue({ success: true, imageSaved: true });
+  calls.suggestionImage.mockResolvedValue({ image: "data:image/webp;base64,QUJD" });
+  expect(await send("suggestionRecipients")).toEqual({ recipients: [{ id: "person", name: "Léa#1234" }] });
+  expect(await send("suggestionLists", { recipientId: "person" })).toEqual({ lists: [{ id: "destination", name: "Noël", groupName: "Famille" }] });
+  const value = { listId: "destination", name: "Livre", price: "12", url: "https://shop.example/item" };
+  expect(await send("createSuggestion", value)).toEqual({ success: true, imageSaved: true });
+  expect(await send("suggestionImage", value)).toEqual({ image: "data:image/webp;base64,QUJD" });
+  expect(calls.recipients).toHaveBeenCalledWith(id, expect.any(AbortSignal));
+  expect(calls.suggestionLists).toHaveBeenCalledWith(id, "person", expect.any(AbortSignal));
+  expect(calls.createSuggestion).toHaveBeenCalledWith(id, value, expect.any(AbortSignal));
+  expect(calls.suggestionImage).toHaveBeenCalledWith(id, value, expect.any(AbortSignal));
+  expect(calls.create).not.toHaveBeenCalled();
+});
+
+it.each([null, undefined, "invalid"])("rejects malformed suggestion commands before transport: %s", async value => {
+  setup();
+  for (const action of ["createSuggestion", "suggestionImage"]) expect(await send(action, value)).toEqual({ error: "invalid" });
+  expect(calls.createSuggestion).not.toHaveBeenCalled(); expect(calls.suggestionImage).not.toHaveBeenCalled();
+});
+
+it.each([{ status: "anonymous" }, { status: "authenticated", user: { id: "another-member" } }])("withholds group results when the signed-in identity changes", async current => {
+  setup(); calls.recipients.mockResolvedValue([{ id: "private-person", name: "Private" }]);
+  calls.snapshot.mockReturnValue(current);
+  expect(await send("suggestionRecipients")).toEqual({ error: "login" });
+});
+
+it("forwards an absent recipient only to the validating suggestion client", async () => {
+  setup(); calls.suggestionLists.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
+  expect(await send("suggestionLists")).toEqual({ error: "rejected" });
+  expect(calls.suggestionLists).toHaveBeenCalledWith(id, undefined, expect.any(AbortSignal));
 });

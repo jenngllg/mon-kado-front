@@ -1048,6 +1048,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/suggestion-images/resolve": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly get?: never;
+        readonly put?: never;
+        /**
+         * Resolve a selected image for a group suggestion
+         * @description Authenticated current group members except the list beneficiary may retrieve a bounded normalized image while the list remains actively shared with that group. No suggestion or file is persisted. Requires CSRF; foreign, withdrawn, archived and suspended scopes return 404.
+         */
+        readonly post: operations["GroupSuggestionImages_Resolve"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/suggestions": {
         readonly parameters: {
             readonly query?: never;
@@ -9899,6 +9919,98 @@ export interface operations {
             };
             /** @description Error */
             readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly GroupSuggestionImages_Resolve: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly groupId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["ResolveWishImageRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Normalized image selected by the member. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishImportImage"];
+                };
+            };
+            /** @description Invalid JSON or image URL. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Origin or CSRF check failed. */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The private list is unavailable. */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The selected image could not be retrieved or decoded. */
+            readonly 422: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limit exceeded. */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected error. */
+            readonly 500: {
                 headers: {
                     readonly [name: string]: unknown;
                 };

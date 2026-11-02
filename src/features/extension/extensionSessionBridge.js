@@ -2,6 +2,7 @@ import { createWishlistsService } from "../wishlists/wishlistsService.js";
 import { createWishesService } from "../wishes/wishesService.js";
 import { ApiError } from "../../api/apiError.js";
 import { suggestionDraftDestination, fillSuggestionDraft } from "./suggestionDraft.js";
+import { createExtensionSuggestions } from "./extensionSuggestions.js";
 
 /** Restricts extension operations to this tab's existing authenticated session.
  * @param {import("../../auth/sessionManager.js").SessionManager} session Existing session.
@@ -11,6 +12,7 @@ import { suggestionDraftDestination, fillSuggestionDraft } from "./suggestionDra
 export function installExtensionSessionBridge(session, apiBaseUrl) {
   const lists = createWishlistsService(session);
   const wishes = createWishesService(session, { apiBaseUrl });
+  const suggestions = createExtensionSuggestions(session);
   const lifetime = new AbortController();
   /** @param {Event} event Request relayed by the extension. */
   async function receive(event) {
@@ -21,15 +23,30 @@ export function installExtensionSessionBridge(session, apiBaseUrl) {
       if (request.length > 3000000) return;
       try { request = JSON.parse(request); } catch { return; }
     }
-    if (!request || typeof request.id !== "string" || !/^[a-f0-9-]{36}$/i.test(request.id) || !["probe", "lists", "image", "create"].includes(request.action)) return;
+    if (!request || typeof request.id !== "string" || !/^[a-f0-9-]{36}$/i.test(request.id) || !["probe", "lists", "image", "create", "suggestionRecipients", "suggestionLists", "createSuggestion", "suggestionImage"].includes(request.action)) return;
     const reply = (/** @type {unknown} */ result) => {
       const response = { id: request.id, result };
       document.dispatchEvent(new CustomEvent("monkado-extension-response", { detail: serialized ? JSON.stringify(response) : response }));
     };
-    if (request.action === "probe") { reply({ ready: true, supportsVariants: true, supportsFavorites: true }); return; }
+    if (request.action === "probe") { reply({ ready: true, supportsVariants: true, supportsFavorites: true, supportsGroupSuggestions: true }); return; }
     try {
       const state = await session.ensureSession({ signal: lifetime.signal });
       if (state.status !== "authenticated") { reply({ error: "login" }); return; }
+      const replySuggestion = (/** @type {unknown} */ result) => {
+        const current = session.getSnapshot();
+        reply(current.status === "authenticated" && current.user?.id === state.user?.id ? result : { error: "login" });
+      };
+      if (request.action === "suggestionRecipients") {
+        replySuggestion({ recipients: await suggestions.recipients(/** @type {NonNullable<typeof state.user>} */ (state.user).id, lifetime.signal) }); return;
+      }
+      if (request.action === "suggestionLists") {
+        replySuggestion({ lists: await suggestions.lists(/** @type {NonNullable<typeof state.user>} */ (state.user).id, request.value?.recipientId, lifetime.signal) }); return;
+      }
+      if (request.action === "createSuggestion" || request.action === "suggestionImage") {
+        if (!request.value || typeof request.value !== "object") { reply({ error: "invalid" }); return; }
+        const memberId = /** @type {NonNullable<typeof state.user>} */ (state.user).id;
+        replySuggestion(await (request.action === "createSuggestion" ? suggestions.create(memberId, request.value, lifetime.signal) : suggestions.image(memberId, request.value, lifetime.signal))); return;
+      }
       if (request.action === "lists") {
         const items = await lists.load({ signal: lifetime.signal });
         const draft=suggestionDraftDestination();
