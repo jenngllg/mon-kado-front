@@ -47,6 +47,8 @@ for (const width of [390, 1440]) {
     await page.screenshot({ path: testInfo.outputPath("owner-quantities.png"), fullPage: true });
     surpriseMode = true;
     await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(page.getByText("Quantité réservée : 1", { exact: true })).toBeVisible();
+    await page.reload();
     await expect(page.getByRole("heading", { name: api.wish.name, exact: true })).toBeVisible();
     await expect(page.getByText(/Quantité réservée|Quantité disponible/)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Actualiser|Réessayer/ })).toHaveCount(0);
