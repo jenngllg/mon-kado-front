@@ -7,7 +7,7 @@
 .shared-wish-view .shared-wish-results:has(> .shared-wish-layout) { display: block; }
 .shared-wish-view .shared-wish-product { display: grid; gap: var(--space-5); }
 .shared-wish-view .shared-wish-product > * { min-width: 0; margin: 0; }
-.shared-wish-view .shared-wish-product > .wish-card__media { aspect-ratio: 1.71; width: 100%; min-height: 0; max-height: 27rem; border-radius: var(--radius-md); }
+.shared-wish-view .shared-wish-product > .wish-card__media { aspect-ratio: 4 / 3; width: min(100%, 26rem); min-height: 0; max-height: 19.5rem; justify-self: center; border-radius: var(--radius-md); }
 .shared-wish-view .wish-card__media:has(> img) { background: var(--color-surface); }
 .shared-wish-view .wish-card__media img { width: 90%; height: 90%; object-fit: contain; }
 .shared-wish-view .wish-detail-information { display: grid; gap: var(--space-4); padding: 0; border: 0; background: transparent; }
@@ -56,18 +56,16 @@
 .wish-detail__commands .wish-favorite-button { position: static; }
 @media (max-width: 60rem) {
   .shared-wish-view .shared-wish-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
-  .shared-wish-view .shared-wish-product > .wish-card__media { max-height: 24rem; }
 }
 @media (max-width: 40rem) {
   .wish-detail__toolbar { flex-wrap: wrap; }
-  .shared-wish-view .shared-wish-product > .wish-card__media { aspect-ratio: 4 / 3; }
 }
 
-/* The detail and reservation share the right column; the image spans both rows. */
+/* The compact image stays independent of the information and reservation heights. */
 @media (min-width: 60.001rem) {
   .shared-wish-view .shared-wish-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: stretch; }
   .shared-wish-view .shared-wish-product { display: contents; }
-  .shared-wish-view .shared-wish-product > .wish-card__media { grid-column: 1; grid-row: 1 / 3; height: 100%; max-height: none; min-height: 30rem; aspect-ratio: auto; }
+  .shared-wish-view .shared-wish-product > .wish-card__media { grid-column: 1; grid-row: 1 / 3; height: auto; align-self: start; }
   .shared-wish-view .wish-detail-information { grid-column: 2; grid-row: 1; align-content: start; }
   .shared-wish-view .shared-wish-reservation { grid-column: 2; grid-row: 2; align-self: end; }
 }
@@ -90,7 +88,7 @@
   .shared-wish-view .shared-wish-reservation .reservation-panel form:has(.reservation-quantity-stepper) { grid-template-columns: minmax(0, 1fr); }
 }
 
-#app .app-main .wish-detail-information h1 { text-align: left; background: none; padding-block-end: 0; }
+#app .app-main .wish-detail-information h1 { font-size: clamp(1.5rem, 2vw, 2rem); line-height: 1.25; text-align: left; background: none; padding-block-end: 0; }
 #app .app-main .wish-detail-information h1:has(.wish-favorite-indicator) { justify-content: start; }
 
 /* Keep labels available to assistive technology while matching the compact reservation band. */
@@ -107,3 +105,16 @@
 .shared-wish-view .shared-wish-reservation .reservation-create-form--compact .wishlist-form__actions > .ui-button--primary { min-height: 4rem; }
 
 .shared-wish-view .reservation-manage-link { width: fit-content; color: var(--color-text-on-accent); text-decoration: none; }
+
+.wish-card__media--enlargeable { position: relative; }
+.wish-card__media .wish-image-enlarge { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 44px; border: 0; border-radius: inherit; padding: 0; background: transparent; cursor: zoom-in; }
+.wish-card__media .wish-image-enlarge:hover { background: transparent; }
+.wish-card__media .wish-image-enlarge:focus-visible { outline: 3px solid var(--color-text); outline-offset: -3px; }
+.wish-image-dialog { box-sizing: border-box; width: min(72rem, calc(100vw - 2rem)); max-width: none; max-height: calc(100dvh - 2rem); margin: auto; padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-text); background: var(--color-surface); overflow: auto; }
+.wish-image-dialog[open] { display: flex; flex-direction: column; gap: var(--space-3); }
+.wish-image-dialog::backdrop { background: color-mix(in srgb, var(--color-text) 65%, transparent); }
+.wish-image-dialog__close { align-self: end; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: var(--radius-full); }
+.wish-image-dialog__close svg { width: 1.5rem; height: 1.5rem; }
+.shared-wish-view .wish-image-dialog img { display: block; width: 100%; height: auto; min-height: 0; max-height: calc(100dvh - 9rem); object-fit: contain; border-radius: 0; }
+.wish-image-dialog p { margin: 0; }
+html:has(.wish-image-dialog[open]) { overflow: hidden; }

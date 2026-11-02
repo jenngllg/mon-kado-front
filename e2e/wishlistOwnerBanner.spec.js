@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { controlledApi, frontendOrigin, listId, shareId, secret, wishId } from "./controlledApi.js";
+import { openListOptions } from "./ownerActions.js";
 
 /** @param {import('@playwright/test').BrowserContext} context Isolated fixture transport. */
 async function ownerApi(context) {
@@ -43,18 +44,21 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     const api = await ownerApi(context);
     // Act
     await page.goto(`/lists/${listId}`);
-    const banner = page.locator(".wishlist-details-info"); const identity = banner.locator(".shared-wishlist-identity"); const metadata = banner.locator(".shared-wishlist-metadata");
+    const banner = page.locator(".wishlist-details-info"); const metadata = banner.locator(".shared-wishlist-metadata");
+    const title = page.getByRole("heading", { name: "Liste 1", exact: true });
     const tiles = page.locator(".wish-card--gallery"); await expect(tiles).toHaveCount(8);
     const reorder = page.getByRole("button", { name: "Réorganiser les souhaits", exact: true });
+    const options = page.getByRole("button", { name: "Options de la liste", exact: true });
+    await expect(reorder).toBeHidden(); await openListOptions(page);
     await expect(page.locator(".wishlist-details-actions").getByRole("button", { name: "Réorganiser les souhaits", exact: true })).toBeVisible();
     await expect(reorder).toHaveAttribute("title", "Réorganiser les souhaits");
-    await expect(reorder.locator("svg circle")).toHaveCount(6);
-    const reorderBox = await reorder.boundingBox(); expect(reorderBox?.width).toBe(44); expect(reorderBox?.height).toBe(44);
-    await expect(reorder).toHaveCSS("border-radius", "999px");
-    expect(await reorder.evaluate(button => [button.previousElementSibling?.getAttribute("aria-label"), button.nextElementSibling?.getAttribute("aria-label")])).toEqual(["Modifier les informations", "Supprimer cette liste"]);
-    await expect(page.locator(".section-toolbar").getByRole("button", { name: "Réorganiser les souhaits", exact: true })).toHaveCount(0);
-    await expect(identity.locator(".shared-wishlist-owner")).toHaveCount(0); await expect(identity.getByRole("heading", { level: 1 })).toHaveText("Liste 1");
-    await expect(identity).toContainText(api.wishlist.message); await expect(metadata).toContainText("Anniversaire"); await expect(metadata).toContainText("103 jours restants");
+    const optionsBox = await options.boundingBox(); expect(optionsBox?.width).toBe(44); expect(optionsBox?.height).toBe(44);
+    expect(await reorder.evaluate(button => [button.previousElementSibling?.getAttribute("aria-label"), button.nextElementSibling?.getAttribute("aria-label")])).toEqual(["Modifier les informations", "Archiver"]);
+    await expect(page.locator(".wishlist-details-toolbar").getByRole("button", { name: "Réorganiser les souhaits", exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("owner-options-menu.png") });
+    await page.keyboard.press("Escape"); await expect(options).toBeFocused(); await expect(reorder).toBeHidden();
+    await expect(banner.locator(".shared-wishlist-owner, h1")).toHaveCount(0); await expect(title).toBeVisible();
+    await expect(banner).toContainText(api.wishlist.message); await expect(metadata).toContainText("Anniversaire"); await expect(metadata).toContainText("103 jours restants");
     await expect(metadata.locator("time")).toHaveText("18 janvier 2027");
     await expect(page.locator(".wishlist-settings, .wishlist-share")).toHaveCount(0); expect(api.share.reads).toBe(0);
     const bannerBox = await banner.boundingBox(); const galleryBox = await page.locator(".wish-grid").boundingBox();
@@ -63,8 +67,35 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     const firstRow = positions.filter(item => item.y === positions[0].y);
     expect(firstRow.length).toBeLessThanOrEqual(4); if (width >= 1487) expect(firstRow).toHaveLength(4);
     expect(firstRow.at(-1)?.right).toBeCloseTo((galleryBox?.x ?? 0) + (galleryBox?.width ?? 0), 0);
-    if (width > 768) await expect(metadata).toHaveCSS("border-left-width", "1px");
-    else await expect(metadata).toHaveCSS("border-top-width", "1px");
+    const description = banner.locator(".wishlist-details-note");
+    await expect(metadata).toHaveCSS("align-items", "center"); await expect(metadata).toHaveCSS("justify-content", "center");
+    await expect(metadata).toHaveCSS("text-align", "center"); await expect(description).toHaveCSS("text-align", "center");
+    await expect(description).toHaveCSS("align-items", "center"); await expect(description).toHaveCSS("justify-content", "center");
+    await expect(description).toHaveCSS(width > 768 ? "border-left-width" : "border-top-width", "1px");
+    const backBox = await page.getByRole("link", { name: "Retour à Mes listes", exact: true }).boundingBox();
+    const titleBox = await title.boundingBox(); const metadataBox = await metadata.boundingBox(); const descriptionBox = await description.boundingBox();
+    const toolbarBox = await page.locator(".wishlist-details-toolbar").boundingBox();
+    const actionsBox = await page.getByRole("group", { name: "Actions de la liste", exact: true }).boundingBox();
+    const sortingBox = await page.getByRole("combobox", { name: "Trier par" }).boundingBox();
+    expect((actionsBox?.x ?? 0) + (actionsBox?.width ?? 0)).toBeCloseTo((toolbarBox?.x ?? 0) + (toolbarBox?.width ?? 0), 0);
+    expect(await page.locator(".wish-sort-control").evaluate(control => control.getBoundingClientRect().left)).toBeCloseTo(toolbarBox?.x ?? 0, 0);
+    if (width >= 1487) {
+      expect((actionsBox?.y ?? 0) + (actionsBox?.height ?? 0) / 2).toBeCloseTo((sortingBox?.y ?? 0) + (sortingBox?.height ?? 0) / 2, 0);
+      expect((sortingBox?.x ?? 0) + (sortingBox?.width ?? 0)).toBeLessThan(actionsBox?.x ?? 0);
+    }
+    expect((backBox?.y ?? 0) + (backBox?.height ?? 0)).toBeLessThanOrEqual(titleBox?.y ?? 0);
+    expect((titleBox?.y ?? 0) + (titleBox?.height ?? 0)).toBeLessThan(bannerBox?.y ?? 0);
+    expect((bannerBox?.y ?? 0) + (bannerBox?.height ?? 0)).toBeLessThanOrEqual(toolbarBox?.y ?? 0);
+    if (width > 768) {
+      expect(metadataBox?.width).toBeCloseTo(descriptionBox?.width ?? 0, 0);
+      expect((metadataBox?.x ?? 0) + (metadataBox?.width ?? 0)).toBeCloseTo(descriptionBox?.x ?? 0, 0);
+    }
+    else expect((metadataBox?.y ?? 0) + (metadataBox?.height ?? 0)).toBeLessThan(descriptionBox?.y ?? 0);
+    await page.getByRole("link", { name: "Retour à Mes listes", exact: true }).focus();
+    await page.keyboard.press("Tab"); await expect(page.getByRole("combobox", { name: "Trier par" })).toBeFocused();
+    await page.keyboard.press("Tab"); await expect(page.getByRole("button", { name: "Partager", exact: true })).toBeFocused();
+    await page.keyboard.press("Tab"); await expect(options).toBeFocused();
+    await page.keyboard.press("Tab"); await expect(page.getByRole("link", { name: "Ajouter un souhait", exact: true })).toBeFocused();
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await expect.poll(() => tiles.first().locator("img").evaluate(image => image instanceof globalThis.HTMLImageElement && image.complete && image.naturalWidth > 0)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("owner-banner-page.png") });
@@ -87,9 +118,34 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
   });
 }
 
-test("sharing empty/error states and archived/suspended owner restrictions", async ({ page, context }, testInfo) => {
+for (const width of [390, 1440]) {
+test(`owner loading, empty/error states and archived/suspended restrictions at ${width}px`, async ({ page, context }, testInfo) => {
   // Arrange
-  const api = await ownerApi(context); api.share.active = false; await page.goto(`/lists/${listId}`);
+  await page.setViewportSize({ width, height: 1000 });
+  const api = await ownerApi(context); api.share.active = false;
+  let releaseList = () => {}; let releaseWishes = () => {};
+  const listRead = new Promise(resolve => { releaseList = () => resolve(undefined); });
+  const wishRead = new Promise(resolve => { releaseWishes = () => resolve(undefined); });
+  let wishesState = "loaded";
+  const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"fixture"' };
+  await context.route(`**/api/v1/wishlists/${listId}`, async route => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await listRead; return route.fallback();
+  });
+  await context.route(`**/api/v1/wishlists/${listId}/wishes`, async route => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await wishRead;
+    if (wishesState === "error") return route.fulfill({ status: 503, headers, json: { statusCode: 503, title: null, message: null, errorCode: null, validationErrors: null } });
+    if (wishesState === "empty") return route.fulfill({ headers, json: { wishes: [] } });
+    return route.fallback();
+  });
+  await page.goto(`/lists/${listId}`);
+  await expect(page.getByRole("status").filter({ hasText: "Chargement de ta liste…" })).toBeVisible();
+  releaseList();
+  await expect(page.getByRole("status").filter({ hasText: "Chargement de tes souhaits…" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Trier par" })).toBeDisabled();
+  releaseWishes();
+  await expect(page.locator(".wish-card--gallery")).toHaveCount(8);
   const trigger = page.getByRole("button", { name: "Partager", exact: true }); const modal = page.getByRole("dialog", { name: "Partager la liste", exact: true });
   // Act
   await trigger.click(); await expect(modal.getByRole("button", { name: "Créer le lien de partage" })).toBeVisible();
@@ -102,4 +158,19 @@ test("sharing empty/error states and archived/suspended owner restrictions", asy
   api.wishlist.isArchived = false; api.wishlist.isSuspended = true; await page.reload(); await expect(page.getByRole("heading", { name: "Liste suspendue", exact: true })).toBeVisible(); await expect(trigger).toHaveCount(0);
   // Assert
   await expect(page.locator(".wish-card--gallery")).toHaveCount(8); expect(api.share.writes).toBe(1); expect(api.unexpected).toEqual([]);
+  api.wishlist.isSuspended = false; wishesState = "error"; await page.reload();
+  await expect(page.locator(".wishlist-details-gifts").getByRole("alert")).toBeVisible();
+  await expect(page.locator(".wishlist-details-toolbar")).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("owner-list-error.png"), fullPage: true });
+  wishesState = "empty"; await page.reload();
+  await expect(page.locator(".wishlist-details-empty")).toHaveText("Commence par Créer un souhait et donne des idées à tes proches");
+  await expect(page.getByRole("link", { name: "Ajouter un souhait", exact: true })).toBeHidden();
+  await page.getByRole("link", { name: "Retour à Mes listes", exact: true }).focus();
+  await page.keyboard.press("Tab"); await expect(page.getByRole("combobox", { name: "Trier par" })).toBeFocused();
+  await page.keyboard.press("Tab"); await expect(page.getByRole("button", { name: "Partager", exact: true })).toBeFocused();
+  await page.keyboard.press("Tab"); await expect(page.getByRole("button", { name: "Options de la liste", exact: true })).toBeFocused();
+  expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("owner-list-empty.png"), fullPage: true });
+  expect(api.state.listWrites).toBe(0); expect(api.state.wishWrites).toBe(0); expect(api.unexpected).toEqual([]);
 });
+}

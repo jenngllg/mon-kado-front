@@ -104,7 +104,7 @@ describe("review page", () => {
     const load = vi.fn(async () => { throw createAbortError(); }); const next = createWishlistReportReviewView({ wishlistId, reportId, loadOne: load, update: vi.fn() }); views.push(next); await settle(); expect(next.querySelector("[role=alert]")).toBeNull();
   });
   it("protects the route, keeps returnTo unchanged and marks Modération active", () => {
-    expect(isProtectedRoute(RouteNames.WishlistReportReview)).toBe(true); expect(getSafeReturnTo(`/admin/reported-wishlists/${wishlistId}/reports/${reportId}`)).toBe("/lists");
+    expect(isProtectedRoute(RouteNames.WishlistReportReview)).toBe(true); expect(getSafeReturnTo(`/admin/reported-wishlists/${wishlistId}/reports/${reportId}`)).toBe("/");
     const shell = createApplicationShell(); shell.setSession(/** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id: wishlistId, displayName: "Admin", isAdmin: true }, authenticationPending: false, logoutPending: false })));
     shell.setCurrentRoute(/** @type {import("../src/router/router.js").RouteSnapshot} */ (/** @type {unknown} */ ({ name: RouteNames.WishlistReportReview })));
     expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')?.getAttribute("aria-current")).toBe("page"); disposeComponent(shell.element);

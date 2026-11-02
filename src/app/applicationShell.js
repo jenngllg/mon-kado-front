@@ -4,6 +4,7 @@ import { createMemberAvatar } from "../components/memberAvatar.js";
 import { readProfilePhoto } from "../features/profile/profileImageService.js";
 import { hasAdminAccess } from "../features/admin/adminAccess.js";
 import { createHeaderMemberSearch } from "../features/members/headerMemberSearch.js";
+import { createHeaderAdminMenu } from "../components/headerAdminMenu.js";
 import {
   NavigationItems,
   RouteNames,
@@ -11,6 +12,8 @@ import {
 } from "./routeContracts.js";
 
 let shellIdentifier = 0;
+/** @type {Set<string>} */
+const AdminNavigationRoutes = new Set([RouteNames.ReportedWishlists, RouteNames.Activity, RouteNames.AdminMembers]);
 
 /**
  * @typedef {Readonly<{
@@ -60,6 +63,8 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
   navigationList.className = "app-navigation__list";
   /** @type {Map<string, HTMLAnchorElement>} */
   const navigationLinks = new Map();
+  /** @type {ReturnType<typeof createHeaderAdminMenu> | null} */
+  let adminMenu = null;
 
   let navigationMode = "";
   let avatarKey = "";
@@ -183,6 +188,7 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
     const activeNavigationRoute = getActiveNavigationRoute(route?.name ?? null);
     memberSearch.close();
     memberSearch.element.classList.toggle("app-member-search--active", activeNavigationRoute === RouteNames.Members);
+    adminMenu?.setActive(activeNavigationRoute !== null && AdminNavigationRoutes.has(activeNavigationRoute));
 
     for (const [routeName, link] of navigationLinks) {
       if (routeName === activeNavigationRoute) {
@@ -204,11 +210,19 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
     navigationMode = key;
     const restoreFocus = navigationList.contains(document.activeElement);
     disposeComponent(navigationList);
+    adminMenu = null;
     navigationList.replaceChildren();
     navigationLinks.clear();
     for (const item of NavigationItems) {
       if (item.routeName === RouteNames.Members) continue;
-      if ((item.routeName === RouteNames.ReportedWishlists || item.routeName === RouteNames.Activity || item.routeName === RouteNames.AdminMembers) && !hasAdminAccess(state)) continue;
+      if (AdminNavigationRoutes.has(item.routeName)) {
+        if (mode === "member" && hasAdminAccess(state) && !adminMenu) {
+          adminMenu = createHeaderAdminMenu({ items: NavigationItems.filter(entry => AdminNavigationRoutes.has(entry.routeName)), onOpen: () => memberSearch.close() });
+          navigationList.append(adminMenu.element);
+          for (const [name, link] of adminMenu.links) navigationLinks.set(name, link);
+        }
+        continue;
+      }
       const isAccountAction = item.routeName === RouteNames.Login || item.routeName === RouteNames.Register;
       if (item.routeName !== RouteNames.Home &&
         (mode === "pending" || (mode === "member" ? isAccountAction : !isAccountAction))) continue;
@@ -256,6 +270,7 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
    */
   function setNavigationOpen(open) {
     if (open) memberSearch.close();
+    if (!open) adminMenu?.close();
     navigation.dataset.open = String(open);
     menuButton.setAttribute("aria-expanded", String(open));
     menuButton.setAttribute(

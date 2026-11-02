@@ -24,6 +24,27 @@ function setup(options = {}) {
 }
 
 describe("wishlist share modal", () => {
+  it("keeps group sharing independent, preserves its draft across tabs and closes after saving", async () => {
+    const result = { visibility: { wishlistId, isPublic: false, groups: [{ groupId: wishlistId, name: "Famille", isVisible: false }] }, etag: '"groups"' };
+    const groups = { wishlistVisibility: vi.fn(async () => result), setWishlistVisibility: vi.fn(async () => result) };
+    const ui = setup({ groups }); await settle();
+    expect(ui.load).not.toHaveBeenCalled(); expect(ui.create).not.toHaveBeenCalled();
+    const input = /** @type {HTMLInputElement} */ (ui.dialog.querySelector('input[name="groups"]'));
+    input.click(); ui.button("Lien public").click(); await settle(); ui.button("Mes groupes").click(); await settle();
+    expect(input.checked).toBe(true); expect(ui.create).not.toHaveBeenCalled();
+    ui.button("Enregistrer").click(); await settle();
+    expect(groups.setWishlistVisibility).toHaveBeenCalledExactlyOnceWith(wishlistId, [{ groupId: wishlistId, isVisible: true }], expect.objectContaining({ etag: '"groups"' }));
+    expect(ui.dialog.isConnected).toBe(false); expect(ui.onClose).toHaveBeenCalledOnce();
+  });
+  it("locks tab changes and dismissal while the group save is pending", async () => {
+    const result = { visibility: { wishlistId, isPublic: false, groups: [{ groupId: wishlistId, name: "Famille", isVisible: false }] }, etag: '"groups"' };
+    const gate = barrier(); const save = vi.fn(async () => { await gate.promise; return result; });
+    const ui = setup({ groups: { wishlistVisibility: async () => result, setWishlistVisibility: save } }); await settle();
+    /** @type {HTMLInputElement} */ (ui.dialog.querySelector('input[name="groups"]')).click(); ui.button("Enregistrer").click();
+    ui.button("Lien public").click(); ui.dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
+    expect(ui.dialog.open).toBe(true); expect(ui.load).not.toHaveBeenCalled(); expect(ui.button("Fermer le partage").disabled).toBe(true);
+    gate.resolve(); await settle(); expect(ui.onClose).toHaveBeenCalledOnce(); expect(save).toHaveBeenCalledOnce();
+  });
   it("clears the bearer on Escape and reports close exactly once", async () => {
     // Arrange
     const ui = setup(); await settle(); const input = ui.dialog.querySelector("textarea");

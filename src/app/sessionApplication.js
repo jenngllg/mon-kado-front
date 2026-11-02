@@ -121,6 +121,19 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
           showNotification(shell.notificationRegion, { message: "Liste créée", variant: "success" });
         }
       },
+      onWishlistUpdated: async (saved, context) => {
+        const listId = context.params.listId;
+        if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.EditList ||
+          window.location.pathname.replace(/\/+$/, "") !== RoutePaths.EditList.replace(":listId", listId) ||
+          saved.wishlist.id.toLowerCase() !== listId.toLowerCase() || session.getSnapshot().status !== "authenticated") return;
+        const epoch = protectedViewEpoch;
+        const destination = RoutePaths.ListDetails.replace(":listId", listId);
+        const route = await router.replace(destination);
+        if (!disposed && epoch === protectedViewEpoch && route !== null && route === router.getCurrentRoute() &&
+          route.name === RouteNames.ListDetails && window.location.pathname === destination && session.getSnapshot().status === "authenticated") {
+          showNotification(shell.notificationRegion, { message: "Liste modifiée", variant: "success" });
+        }
+      },
       onWishlistDeleted: async context => {
         if (disposed || context.signal.aborted || router.getCurrentRoute()?.name !== RouteNames.ListDetails ||
           window.location.pathname.replace(/\/+$/, "") !== RoutePaths.ListDetails.replace(":listId", context.params.listId) ||
@@ -213,7 +226,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       sharedSignIn.cancel();
       sharedSignIn.discardResume();
       const destination = current.name === RouteNames.Login && getLoginDestination(current.url.searchParams) === RoutePaths.ExtensionAdd && readExtensionProduct()
-        ? RoutePaths.ExtensionAdd : RoutePaths.Lists;
+        ? RoutePaths.ExtensionAdd : RoutePaths.Home;
       void router.replace(destination);
     }
     const showingNewRecoveryCodes = state.endReason === "authenticatorChanged" && current?.name === RouteNames.Authenticator &&
@@ -280,7 +293,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     if (!googleVerified || disposed || router.getCurrentRoute()?.name !== googleFlowRoute ||
       window.location.pathname.replace(/\/+$/, "") !== (googleFlowRoute === RouteNames.LinkGoogle ? RoutePaths.LinkGoogle : RoutePaths.GoogleReturn) ||
       googleDestination === null || session.getSnapshot().status !== "authenticated") return;
-    const destination = googleDestination === RoutePaths.ExtensionAdd && readExtensionProduct() ? RoutePaths.ExtensionAdd : RoutePaths.Lists;
+    const destination = googleDestination === RoutePaths.ExtensionAdd && readExtensionProduct() ? RoutePaths.ExtensionAdd : RoutePaths.Home;
     const linked = googleFlowRoute === RouteNames.LinkGoogle;
     googleDestination = null;
     googleVerified = false;

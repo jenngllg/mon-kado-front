@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { openListOptions } from "./ownerActions.js";
 import { controlledApi, listId } from "./controlledApi.js";
 
 for (const width of [390, 1440]) {
@@ -45,10 +46,11 @@ for (const width of [390, 1440]) {
     await expect(page.locator('.wishlist-details-gifts [aria-busy="false"]')).toBeVisible();
     const trigger = page.getByRole("button", { name: "Supprimer cette liste", exact: true });
     // Act
+    await openListOptions(page);
     await trigger.click();
     await page.getByRole("dialog").getByRole("button", { name: "Annuler", exact: true }).click();
     // Assert
-    await expect(page.getByRole("dialog")).toHaveCount(0); await expect(trigger).toBeFocused();
+    await expect(page.getByRole("dialog")).toHaveCount(0); await expect(page.getByRole("button", { name: "Options de la liste", exact: true })).toBeFocused();
     await expect(page).toHaveURL(`/lists/${listId}`);
     expect(api.state.listWrites).toBe(0); expect(api.unexpected).toEqual([]);
   });

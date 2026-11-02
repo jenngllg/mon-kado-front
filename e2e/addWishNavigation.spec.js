@@ -18,10 +18,10 @@ test("adding another wish takes one click when its control is partly below the s
   const add = page.getByRole("link", { name: "Ajouter un souhait", exact: true });
   for (let index = 0; index < 3; index++) {
     await add.click();
-    await page.getByRole("button", { name: "Continuer sans lien", exact: true }).click();
+    await page.getByRole("button", { name: "Continuer", exact: true }).click();
     await page.getByRole("textbox", { name: /Nom du (produit|souhait)/ }).fill(`Souhait ${index + 1}`);
     await page.getByRole("button", { name: "Continuer", exact: true }).click();
-    await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+    await page.getByRole("button", { name: "Ajouter le souhait", exact: true }).click();
     await expect(page.locator(".wish-card")).toHaveCount(12);
   }
   const point = await partlyCoverWithHeader(add);

@@ -35,9 +35,9 @@ function retry(view) { [...view.querySelectorAll("button")].find(button => butto
 describe("manual gift creation view", () => {
   it.each(["", "40"])("keeps shared preferences on step three and accepts an open-ended wish with budget '%s'", async budget => {
     const ui = setup(); await settle();
-    const surprise = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("isSurprise"));
+    const surprise = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[name="wishType"][value="surprise"]'));
     const secondHand = /** @type {HTMLInputElement} */ (ui.form.elements.namedItem("acceptsSecondHand"));
-    expect(surprise.closest("label")?.hidden).toBe(false); expect(ui.form.dataset.creationStep).toBe("link");
+    expect(surprise.closest("label")?.hidden).toBe(false); expect(ui.form.dataset.creationStep).toBe("type");
     ui.input(2, "unfinished product URL"); surprise.click();
     expect(ui.fields[2].closest(".form-field")?.hasAttribute("hidden")).toBe(true);
     [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer" && !button.hidden)?.click();
@@ -51,19 +51,33 @@ describe("manual gift creation view", () => {
     expect(observer.takeRecords().some(record => record.target instanceof Element && record.target.matches(".wish-step-panel"))).toBe(false);
     observer.disconnect(); expect(document.activeElement).toBe(ui.fields[1]);
     expect(ui.fields[1].closest('[role="group"]')?.getAttribute("aria-label")).toBe("Souhait");
-    expect(ui.view.querySelector('[aria-current="step"]')?.textContent).toBe("Souhait");
+    expect(ui.view.querySelector('[aria-current="step"] .wish-steps__name')?.textContent).toBe("Souhait");
+    expect(ui.view.querySelector(".wish-step-status")?.textContent).toBe("Étape 2 sur 3");
     expect(ui.create).not.toHaveBeenCalled(); ui.send(); await settle();
     expect(ui.create).toHaveBeenCalledExactlyOnceWith(id, expect.objectContaining({ isSurprise: true, acceptsSecondHand: true, name: "Un moment de détente", note: "Massage ou atelier créatif", price: budget, quantity: "2", url: "" }), { signal: expect.any(AbortSignal) });
     expect(surprise.disabled).toBe(true); expect(secondHand.disabled).toBe(true);
   });
-  it("changes only local panels on Continue and Back and clears a discarded link", async () => {
-    const ui = setup(); await settle(); ui.input(2, "https://example.test/product");
-    const skip = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer sans lien" && !button.hidden);
-    skip?.click(); expect(ui.form.dataset.creationStep).toBe("product"); expect(ui.fields[2].value).toBe("");
-    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Retour")?.click();
-    expect(ui.form.dataset.creationStep).toBe("link");
-    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer sans lien" && !button.hidden)?.click();
-    ui.input(0, "Produit"); [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer")?.click();
+  it.each(["", "https://example.test/product"])("starts step two with the optional link '%s' and preserves the draft on Back", async url => {
+    const ui = setup(); await settle();
+    const next = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer");
+    const back = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Précédent");
+    expect(ui.fields[2].closest(".wish-step-panel")?.hasAttribute("hidden")).toBe(true);
+    expect(ui.view.textContent).not.toContain("Continuer sans lien");
+    next?.click(); expect(ui.form.dataset.creationStep).toBe("product");
+    expect(ui.fields[2].closest(".wish-step-panel")?.firstElementChild).toBe(ui.fields[2].closest(".form-field"));
+    ui.input(2, url); ui.input(0, "Produit"); next?.click();
+    expect(ui.form.dataset.creationStep).toBe("details"); back?.click(); back?.click();
+    expect(ui.form.dataset.creationStep).toBe("type"); next?.click();
+    expect(ui.fields[2].value).toBe(url); expect(ui.fields[0].value).toBe("Produit");
+    expect(ui.create).not.toHaveBeenCalled();
+  });
+  it("validates an invalid product link on step two and focuses it before the name", async () => {
+    const ui = setup(); await settle(); ui.input(2, "invalid link");
+    const next = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Continuer");
+    next?.click(); expect(ui.form.dataset.creationStep).toBe("product");
+    next?.click(); expect(ui.form.dataset.creationStep).toBe("product");
+    expect(document.activeElement).toBe(ui.fields[2]); expect(ui.fields[2].getAttribute("aria-invalid")).toBe("true");
+    ui.input(2, "https://example.test/product"); ui.input(0, "Produit"); next?.click();
     expect(ui.form.dataset.creationStep).toBe("details"); expect(ui.create).not.toHaveBeenCalled();
   });
   it("reads the parent first and provides five accessible native fields without extra functionality", async () => {
@@ -75,6 +89,24 @@ describe("manual gift creation view", () => {
     expect(ui.fields[1].tagName).toBe("TEXTAREA"); expect(ui.fields[3].type).toBe("text"); expect(ui.fields[3].inputMode).toBe("decimal"); expect(ui.fields[4].type).toBe("number"); expect(ui.fields[4].value).toBe("1");
     for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.hasAttribute("aria-describedby")).toBe(false); expect(field.hasAttribute("maxlength")).toBe(false); }
     expect(ui.view.querySelector(`a[href="/lists/${id}"]`)?.textContent).toBe("Retour à la liste"); expect(document.activeElement).toBe(document.body); expect(ui.view.querySelector('input[type="file"],img')).toBeNull();
+  });
+  it("switches exclusive wish types without losing the draft or writing before confirmation", async () => {
+    const ui = setup(); await settle(); ui.fill();
+    const product = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[value="product"]'));
+    const surprise = /** @type {HTMLInputElement} */ (ui.form.querySelector('input[value="surprise"]'));
+    expect(product.checked).toBe(true); expect(surprise.checked).toBe(false);
+    surprise.click();
+    expect(product.checked).toBe(false); expect(surprise.checked).toBe(true);
+    expect(ui.form.querySelector(".wish-form__note .form-field__label")?.textContent).toBe("Mes envies");
+    product.click();
+    expect(product.checked).toBe(true); expect(surprise.checked).toBe(false);
+    expect(ui.form.querySelector(".wish-form__note .form-field__label")?.textContent).toBe("Description");
+    expect(ui.fields[0].value).toBe(" Souhait 🎁 "); expect(ui.fields[2].value).toBe(" https://example.test/product ");
+    expect(ui.create).not.toHaveBeenCalled();
+    ui.send(); await settle();
+    expect(ui.create).toHaveBeenCalledExactlyOnceWith(id, expect.objectContaining({ isSurprise: false, note: " Note\nmultiligne " }), expect.anything());
+    expect(product.disabled).toBe(true); expect(surprise.disabled).toBe(true);
+    expect(ui.submit.textContent).toBe("Ajouter le souhait");
   });
   it("validates on submit, announces a summary and focuses the first invalid field", async () => {
     const ui = setup(); await settle(); ui.input(3, "12.345"); ui.input(4, "101"); ui.send();

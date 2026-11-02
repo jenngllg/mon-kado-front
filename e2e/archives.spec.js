@@ -1,3 +1,4 @@
+import { openListOptions } from "./ownerActions.js";
 import { test, expect } from "@playwright/test";
 import { controlledApi, frontendOrigin, listId } from "./controlledApi.js";
 
@@ -25,8 +26,8 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("link", { name: "Actives", exact: true })).toHaveAttribute("aria-current", "page");
     await expect(page.locator(".wishlist-card").getByRole("button", { name: "Archiver", exact: true })).toHaveCount(0);
     await page.getByRole("link", { name: `Ouvrir la liste « ${api.wishlist.name} »` }).click();
-    await page.getByRole("button", { name: "Archiver", exact: true }).focus();
-    await page.getByRole("button", { name: "Archiver", exact: true }).press("Enter");
+    await openListOptions(page); await page.getByRole("button", { name: "Archiver", exact: true }).focus();
+    await openListOptions(page); await page.getByRole("button", { name: "Archiver", exact: true }).press("Enter");
     await expect(page.getByText("Liste archivée", { exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Retour à Mes listes", exact: true }).click();
     expect(writes).toBe(1);
@@ -47,7 +48,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByText("Liste archivée", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Enregistrer", exact: true })).toBeDisabled();
     await page.goto(`/lists/${listId}`);
-    await page.getByRole("button", { name: "Désarchiver", exact: true }).click();
+    await openListOptions(page); await page.getByRole("button", { name: "Désarchiver", exact: true }).click();
     await expect(page.getByRole("link", { name: "Ajouter un souhait", exact: true })).toBeVisible();
     await expect(page.getByText("Liste archivée", { exact: true })).toHaveCount(0);
     expect(writes).toBe(2);

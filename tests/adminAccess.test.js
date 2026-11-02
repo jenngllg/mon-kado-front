@@ -29,12 +29,15 @@ describe("administration presentation boundary", () => {
   it("offers navigation only to stable administrators and updates when the boolean changes", () => {
     const shell = createApplicationShell(); const state = snapshot(); shell.setSession(state); expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')?.textContent).toBe("Modération");
     expect(shell.element.querySelector(".app-navigation__list > li:first-child a")?.getAttribute("href")).toBe("/");
+    expect(shell.element.querySelector('.app-admin-menu summary')?.textContent).toBe("Administration");
+    expect(shell.element.querySelectorAll('.app-admin-menu a')).toHaveLength(3);
     shell.setSession(snapshot(false)); expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')).toBeNull();
+    expect(shell.element.querySelector('.app-admin-menu')).toBeNull();
     shell.setSession({ ...state, authenticationPending: true }); expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')).toBeNull();
     shell.setSession({ ...state, status: "anonymous", user: null }); expect(shell.element.querySelector('a[href="/admin/reported-wishlists"]')).toBeNull(); disposeComponent(shell.element);
   });
   it("keeps the route protected without changing login destinations", () => {
-    expect(isProtectedRoute(RouteNames.ReportedWishlists)).toBe(true); expect(getSafeReturnTo("/admin/reported-wishlists")).toBe("/lists");
+    expect(isProtectedRoute(RouteNames.ReportedWishlists)).toBe(true); expect(getSafeReturnTo("/admin/reported-wishlists")).toBe("/");
     expect(createSessionGuard(RouteNames.ReportedWishlists, /** @type {Pick<import("../src/auth/sessionManager.js").SessionManager, "ensureSession">} */ (/** @type {unknown} */ ({ ensureSession: async () => ({ status: "anonymous" }) })))).toBeTypeOf("function");
   });
   it.each([{ roles: [] }, { roles: ["member"] }, { roles: ["admin"] }])("does not read private data without a boolean grant %j", () => {
@@ -59,6 +62,7 @@ describe("administration presentation boundary", () => {
     shell.setCurrentRoute(/** @type {import("../src/router/router.js").RouteSnapshot} */ (/** @type {unknown} */ ({ name: RouteNames.ReportedWishlists })));
     shell.setSession(snapshot());
     expect(link.getAttribute("aria-current")).toBe("page"); expect(document.activeElement).toBe(link);
+    expect(shell.element.querySelector('.app-admin-menu')?.getAttribute('data-active')).toBe("true");
     disposeComponent(shell.element); shell.element.remove();
   });
   it.each([
@@ -76,7 +80,7 @@ describe("administration presentation boundary", () => {
     const guard = createSessionGuard(RouteNames.ReportedWishlists, { ensureSession });
     if (!guard) throw new Error("Missing protected guard.");
     const result = await guard(/** @type {import("../src/router/router.js").RouteContext} */ (/** @type {unknown} */ ({ url: new URL("https://monkado.test/admin/reported-wishlists"), signal: controller.signal })));
-    expect(result).toEqual({ redirectTo: "/login?returnTo=%2Flists", replace: true });
+    expect(result).toEqual({ redirectTo: "/login?returnTo=%2F", replace: true });
     expect(ensureSession).toHaveBeenCalledExactlyOnceWith({ signal: controller.signal });
   });
   it("aborts an old administrator read before starting a fresh account read", async () => {

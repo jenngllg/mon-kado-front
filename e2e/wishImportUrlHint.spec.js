@@ -6,8 +6,8 @@ for (const url of ["https://www.fnac.com/figurine/a21262654/w-4", "https://www.c
     await page.setViewportSize({ width: 390, height: 844 });
     const api = await controlledApi(context); api.state.authenticated = true;
     await page.goto(`/lists/${listId}/wishes/new`);
-    await page.getByLabel("Lien du produit", { exact: true }).fill(url);
     await page.getByRole("button", { name: "Continuer", exact: true }).click();
+    await page.getByLabel("Lien du produit", { exact: true }).fill(url);
     await expect(page.getByLabel(/Nom du souhait/)).toHaveValue("");
     await expect(page.getByLabel("Prix en euros", { exact: true })).toHaveValue("");
     await expect(page.getByRole("button", { name: "Ajouter une image" })).toBeEnabled();

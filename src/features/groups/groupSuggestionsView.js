@@ -2,35 +2,39 @@ import { ApiError, isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createButton, createFormField, disposeComponent, setFormFieldValidation } from "../../components/index.js";
 import { createImagePlaceholder } from "../../components/imagePlaceholder.js";
-import { safeHttpUrl, validateWishField } from "../wishes/wishValidation.js";
+import { safeHttpUrl } from "../wishes/wishValidation.js";
 import { decodeWishImage, validateWishImageFile, WishImageValidationError } from "../wishes/wishImageValidation.js";
 import { createWishForm } from "../wishes/wishForm.js";
 import { registerSuggestionDraft } from "../extension/suggestionDraft.js";
+import { createGroupSuggestionBatch } from "./groupSuggestionBatch.js";
+import { prependShareDialogIcon } from "../../components/shareDialogIcons.js";
 
 /** @typedef {import("./groupSuggestionsService.js").Suggestion} Suggestion */
 /** @typedef {ReturnType<typeof import("./groupSuggestionsService.js").createGroupSuggestionsService>} SuggestionService */
 
 /** Displays and manages ideas in the exact group, excluding the list owner.
- * @param {{service:SuggestionService,ownerName:string,signal:AbortSignal}} options Scoped dependencies.
+ * @param {{service:SuggestionService,ownerName:string,signal:AbortSignal,creationOnly?:boolean,loadDestinations?:(signal:AbortSignal)=>Promise<import("./groupSuggestionBatch.js").SuggestionDestination[]>}} options Scoped dependencies.
  * @returns {HTMLElement} Disposable section.
  */
-export function createGroupSuggestionsView({ service, ownerName, signal }) {
+export function createGroupSuggestionsView({ service, ownerName, signal, creationOnly = false, loadDestinations }) {
   const root = document.createElement("section"); root.className = "group-suggestions flow";
   const header = document.createElement("div"); header.className = "section-toolbar";
   const title = document.createElement("h2"); title.textContent = "Idées surprises proposées";
   const add = createButton({label:"Proposer une idée", onClick: () => openEditor(null)});
+  add.classList.add("group-suggestions__add");
   header.append(title, add);
   const explanation = document.createElement("p"); explanation.textContent = `Visibles par les membres de ce groupe, sauf ${ownerName}.`;
   const feedback = document.createElement("p"); feedback.setAttribute("role", "status");
   const items = document.createElement("div"); items.className = "group-suggestions__items";
   root.append(header, explanation, feedback, items);
+  if (creationOnly) { root.classList.add("group-suggestions--action"); root.replaceChildren(add, feedback); }
   const lifetime = new AbortController();
   /** @type {Set<string>} */ const objectURLs = new Set();
   /** @type {HTMLDialogElement | null} */ let dialog = null;
   let disposed = false, generation = 0, reading = false;
   addComponentEventListener(root, signal, "abort", () => disposeComponent(root), {once:true});
-  registerComponentCleanup(root, () => { disposed = true; generation++; lifetime.abort(); closeDialog(); releaseImages(); items.replaceChildren(); });
-  if (signal.aborted) disposeComponent(root); else void refresh();
+  registerComponentCleanup(root, () => { disposed = true; generation++; lifetime.abort(); closeDialog(); releaseImages(); disposeComponent(add); add.remove(); items.replaceChildren(); });
+  if (signal.aborted) disposeComponent(root); else if (!creationOnly) void refresh();
   return root;
 
   function releaseImages() { for (const url of objectURLs) URL.revokeObjectURL(url); objectURLs.clear(); }
@@ -105,10 +109,13 @@ export function createGroupSuggestionsView({ service, ownerName, signal }) {
     modal.setAttribute("aria-labelledby",label.id); modal.append(label);
     let busy = false;
     const close = () => { if (!busy) { closeDialog(); add.focus(); } };
+    const dismiss = createButton({ label: "Fermer l’idée", variant: "secondary", onClick: close });
+    dismiss.setAttribute("aria-label", "Fermer l’idée"); dismiss.title = "Fermer l’idée";
+    dismiss.replaceChildren(); prependShareDialogIcon(dismiss, "close"); dismiss.classList.add("icon-action", "wishlist-share-dialog__close"); modal.prepend(dismiss);
     addComponentEventListener(modal, modal, "cancel", event => { event.preventDefault(); close(); });
     registerComponentCleanup(modal, () => { if (modal.open) modal.close(); modal.remove(); });
     dialog = modal; root.append(modal); modal.showModal(); label.focus();
-    return {modal,close,setBusy: (/** @type {boolean} */ value) => {busy=value; modal.setAttribute("aria-busy",String(value));}};
+    return {modal,close,setBusy: (/** @type {boolean} */ value) => {busy=value; dismiss.disabled=value; modal.setAttribute("aria-busy",String(value));}};
   }
 
   /** @param {unknown} error Failure. */
@@ -125,7 +132,7 @@ export function createGroupSuggestionsView({ service, ownerName, signal }) {
     const verify = createButton({label:"Actualiser les idées",variant:"secondary",onClick:() => { shell.close(); void refresh(); }});
     host.append(document.createTextNode(" "),verify);
   }
-  function completed() { closeDialog(); add.focus(); void refresh(); }
+  function completed() { closeDialog(); add.focus(); if (creationOnly) feedback.textContent = "Idée proposée dans les listes sélectionnées."; else void refresh(); }
 
   /** @param {Suggestion | null} item Existing idea or creation. */
   function openEditor(item) {
@@ -152,10 +159,41 @@ export function createGroupSuggestionsView({ service, ownerName, signal }) {
     fileField.append(fileLabel,choose,filename,file); form.append(fileField);
     const removeImage = document.createElement("input"); removeImage.type="checkbox";
     if (item?.hasImage) { const label = document.createElement("label"); label.append(removeImage, document.createTextNode(" Retirer l’image existante")); form.append(label); }
-    const status = document.createElement("p"); status.setAttribute("role","alert");
-    const actions = document.createElement("div"); actions.className="cluster";
+    const details = document.createElement("details"); details.className = "suggestion-details";
+    const detailsLabel = document.createElement("summary"); detailsLabel.textContent = "Précisions";
+    const detailsBody = document.createElement("div"); detailsBody.className = "flow";
+    const note = fields.find(field => field.name === "note"), quantity = fields.find(field => field.name === "quantity"), price = fields.find(field => field.name === "price");
+    if (note) detailsBody.append(note.element); if (quantity) detailsBody.append(quantity.element);
+    const amounts = form.querySelector(".wish-form__amounts"); if (price && amounts) amounts.before(price.element); amounts?.remove();
+    details.append(detailsLabel, detailsBody); details.open = !!item && (!!item.note || item.quantity !== 1); form.append(details);
+    const status = document.createElement("div"); status.setAttribute("role","alert"); status.tabIndex = -1;
+    const actions = document.createElement("div"); actions.className="cluster group-suggestions__actions";
     const cancel = createButton({label:"Annuler",variant:"secondary",onClick:shell.close});
     const submit = createButton({label:item ? "Enregistrer" : "Proposer",type:"submit"}); actions.append(cancel,submit); form.append(status,actions); shell.modal.append(info,form);
+    const batch = !item && loadDestinations ? createGroupSuggestionBatch() : null;
+    /** @type {import("./groupSuggestionBatch.js").SuggestionDestination[]} */ let targets = [];
+    const targetField = document.createElement("fieldset"); targetField.className = "suggestion-destinations flow";
+    const targetLegend = document.createElement("legend"); targetLegend.textContent = "Listes *"; targetField.append(targetLegend);
+    const targetChoices = document.createElement("div"); targetChoices.className = "suggestion-destinations__choices flow"; targetField.append(targetChoices);
+    if (batch) { form.prepend(targetField); void readTargets(); }
+    addComponentEventListener(shell.modal, targetField, "change", () => { if (!saving && !batch?.hasConfirmed()) submit.disabled = !targetField.querySelector("input:checked"); });
+    async function readTargets() {
+      if (!loadDestinations) return;
+      submit.disabled = true; targetChoices.replaceChildren(); status.textContent = "Chargement des listes…";
+      try {
+        targets = await loadDestinations(lifetime.signal);
+        if (disposed || !shell?.modal.isConnected) return;
+        for (const [index, target] of targets.entries()) {
+          const label = document.createElement("label"); label.className = "wishlist-group-visibility__choice";
+          const input = document.createElement("input"); input.type = "checkbox"; input.name = "destinations"; input.value = target.id; input.checked = index === 0;
+          label.append(input, document.createTextNode(`${target.name} — ${target.groupName}`)); targetChoices.append(label);
+        }
+        status.textContent = targets.length ? "" : "Cette personne n’a plus de liste accessible dans ce groupe."; submit.disabled = !targets.length;
+      } catch (error) {
+        if (disposed || !shell?.modal.isConnected || isAbortError(error)) return;
+        status.textContent = "Impossible de charger les listes. "; status.append(createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void readTargets(); } }));
+      }
+    }
     const stopDraft = registerSuggestionDraft({label:`Idée surprise pour ${ownerName}`, apply: product => {
       if (disposed || saving || submit.disabled || !shell.modal.isConnected) return false;
       for (const field of fields) {
@@ -169,16 +207,21 @@ export function createGroupSuggestionsView({ service, ownerName, signal }) {
     }});
     registerComponentCleanup(shell.modal, stopDraft);
     const importHint=document.createElement("p");importHint.className="form-field__description";
-    importHint.textContent=`Depuis la page produit, ouvre l’extension MonKado et choisis « Idée surprise pour ${ownerName} ».`;
-    if (link) link.element.append(importHint);
+    importHint.textContent="Tu peux aussi préremplir cette idée avec l’extension MonKado.";
+    detailsBody.append(importHint);
     addComponentEventListener(form, form, "submit", event => {
       event.preventDefault();
       if (saving || submit.disabled) return;
       shared.discardDeferredBlur();
       let valid = true;
-      for (const field of fields) { const message = validateWishField(field.name,field.control.value); setFormFieldValidation(field.element,message); if (message) valid=false; }
+      for (const field of fields) { shared.validate(field); if (field.error) valid=false; }
       if (file.files?.length && removeImage.checked) { status.textContent="Choisis une nouvelle image ou retire l’image existante."; valid=false; }
-      if (!valid) return;
+      if (!valid) {
+        const invalid = ["url", "name", "price", "note", "quantity"].flatMap(name => fields.filter(field => field.name === name && field.error))[0];
+        if (invalid) { if (details.contains(invalid.control)) details.open = true; invalid.control.focus(); }
+        else status.focus();
+        return;
+      }
       /** @type {import("./groupSuggestionsService.js").SuggestionValues} */ const values = /** @type {any} */ (Object.fromEntries(fields.map(field => [field.name,field.control.value])));
       const selected = file.files?.[0] ?? null;
       saving=true; submit.disabled=cancel.disabled=choose.disabled=file.disabled=true; shell.setBusy(true); shared.syncQuantityControls(); status.textContent="Enregistrement…";
@@ -189,6 +232,26 @@ export function createGroupSuggestionsView({ service, ownerName, signal }) {
             await validateWishImageFile(selected);
             const preview = URL.createObjectURL(selected);
             try { await decodeWishImage(preview,lifetime.signal); } finally { URL.revokeObjectURL(preview); }
+          }
+          if (batch) {
+            const selectedIds = [...targetField.querySelectorAll('input:checked')].map(input => /** @type {HTMLInputElement} */ (input).value);
+            const selectedTargets = targets.filter(target => selectedIds.includes(target.id));
+            if (!selectedTargets.length) { saving = false; shell.setBusy(false); cancel.disabled = false; submit.disabled = true; return; }
+            for (const input of form.querySelectorAll("input,textarea")) /** @type {HTMLInputElement} */ (input).disabled = true;
+            const result = await batch.run(selectedTargets, values, selected, lifetime.signal);
+            if (disposed || !shell.modal.isConnected) return;
+            if (result.complete && result.outcomes.every(outcome => outcome.state === "saved")) { completed(); return; }
+            saving = false; shell.setBusy(false); cancel.disabled = false;
+            status.textContent = result.uncertain ? "Un ajout ne peut pas être confirmé. Vérifie la liste concernée avant tout nouvel ajout." : "Résultat des ajouts :";
+            for (const outcome of result.outcomes) {
+              const line = document.createElement("p");
+              line.textContent = `${outcome.destination.name} — ${outcome.destination.groupName} : ${{saved:"idée ajoutée",imageUnconfirmed:"idée ajoutée, image à vérifier",refused:"ajout refusé",uncertain:"ajout à vérifier",notSent:"ajout non envoyé"}[outcome.state]}. `;
+              const link = document.createElement("a"); link.href = outcome.destination.href; link.textContent = "Voir la liste"; line.append(link); status.append(line);
+            }
+            submit.disabled = result.uncertain || !result.retryable;
+            const caption = submit.querySelector(".ui-button__label"); if (caption) caption.textContent = "Réessayer les listes refusées";
+            if (!batch.hasConfirmed() && !result.uncertain) { for (const input of form.querySelectorAll("input,textarea")) /** @type {HTMLInputElement} */ (input).disabled = false; choose.disabled = file.disabled = false; }
+            shared.syncQuantityControls(); return;
           }
           let result = item ? await service.update(item.id,values,item.entityTag,lifetime.signal) : await service.create(values,lifetime.signal);
           saved = true;

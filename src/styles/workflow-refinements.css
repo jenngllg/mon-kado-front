@@ -1,0 +1,39 @@
+/* Shared action and dialog refinements approved by Jenn on 2 November 2026. */
+.wishlist-share-tabs { display: flex; gap: var(--space-2); margin-block: var(--space-5); }
+.wishlist-share-tabs > [role="tab"] { flex: 1; min-width: 0; }
+.wishlist-share-tabs > [aria-selected="true"] { background: var(--color-surface-sage); border-color: var(--color-text); color: var(--color-text); }
+.wishlist-share-dialog [role="tabpanel"] { min-width: 0; }
+.wishlist-share-dialog [role="tabpanel"] h2 { font-size: var(--font-size-xl); }
+.wishlist-share-dialog .wishlist-group-visibility__groups { max-height: min(45dvh, 24rem); overflow-y: auto; padding: var(--space-1); }
+.wishlist-share-dialog .wishlist-group-visibility__groups legend { position: sticky; top: 0; z-index: 1; background: var(--color-surface); padding-block: var(--space-2); }
+.wishlist-share-dialog :is([role="status"], [role="alert"]):empty { display: none; }
+.group-suggestions.group-suggestions--action { margin: 0; }
+.member-profile-header .member-profile-actions { margin-inline-start: auto; margin-block: 0; max-width: 100%; }
+.member-profile-actions > [role="status"]:empty { display: none; }
+.suggestion-destinations { margin: 0; padding: 0; border: 0; min-width: 0; }
+.suggestion-destinations legend { font-weight: var(--font-weight-semibold); margin-block-end: var(--space-3); }
+.suggestion-destinations__choices { max-height: 15rem; overflow-y: auto; padding: var(--space-1); }
+.workflow-options > summary { width: 44px; min-height: 44px; padding: 0; border: 1px solid var(--color-border); border-radius: 50%; background: var(--color-surface); font-size: var(--font-size-xl); }
+.workflow-options .action-disclosure__panel { min-width: min(17rem, calc(100vw - 3rem)); z-index: 5; }
+.workflow-options .action-disclosure__panel > :is(a,button) { width: 100%; justify-content: flex-start; text-align: start; border: 0; box-shadow: none; background: transparent; }
+.workflow-options .workflow-menu-danger { color: var(--color-danger); }
+.group-invite-action > svg { width: 1.25rem; height: 1.25rem; }
+.wish-owner-detail .wish-detail__commands { max-width: 100%; }
+.group-suggestions__dialog .wish-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); --flow-space: var(--space-4); }
+.group-suggestions__dialog > h2 { padding-inline-end: 3rem; }
+.group-suggestions__dialog .wish-form > * { margin: 0; grid-column: 1 / -1; min-width: 0; }
+.group-suggestions__dialog :is([role="alert"], [role="status"]):empty { display: none; }
+.group-suggestions__dialog .suggestion-destinations { --flow-space: var(--space-2); }
+.group-suggestions__dialog .suggestion-destinations__choices { margin: 0; }
+.suggestion-details > summary { min-height: 44px; display: list-item; padding-block: var(--space-3); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.suggestion-details > div { margin-block-start: var(--space-3); }
+.group-suggestions__dialog .group-suggestions__actions { justify-content: space-between; margin: 0; }
+.group-suggestions__actions .ui-button { min-width: 0; }
+@media (max-width: 40rem) {
+  .group-suggestions__dialog .group-suggestions__actions { position: sticky; inset-block-end: calc(-1 * var(--space-6)); z-index: 2; padding-block: var(--space-3) max(var(--space-3), env(safe-area-inset-bottom)); background: var(--color-surface); border-block-start: 1px solid var(--color-border); }
+  .group-suggestions__dialog form:has(:is(input:not([type="checkbox"], [type="file"]), textarea):focus) .group-suggestions__actions { position: static; }
+  .group-suggestions__dialog :is(input,textarea,button) { scroll-margin-block: 5rem; }
+}
+@media (max-width: 40rem) and (max-height: 30rem) {
+  .group-suggestions__dialog .group-suggestions__actions { position: static; }
+}

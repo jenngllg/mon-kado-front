@@ -39,8 +39,8 @@
   text-wrap: pretty;
 }
 .profile-layout {
-  grid-template-columns: 12rem minmax(0, 1fr);
-  gap: var(--space-7) var(--space-7);
+  grid-template-columns: 14rem minmax(0, 1fr);
+  gap: var(--space-7) var(--space-6);
   width: min(100%, 56rem);
   max-width: none;
 }
@@ -348,11 +348,20 @@
 /* Constrain the fields, not the page heading or account navigation. */
 :is(.registration-view, .login-view) { --flow-space: var(--space-4); }
 :is(.registration-form, .login-form) { --flow-space: var(--space-4); }
+.app-main:has(> .login-view) { padding-block: var(--space-5); }
+#app .app-main .login-view > h1 { font-size: 2rem; }
+.login-view, .login-form { --flow-space: var(--space-3); }
+.login-form .form-field { gap: var(--space-1); }
+.login-form .form-field__control { padding-block: var(--space-2); }
+.login-form__options { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-1) var(--space-3); }
+.login-form__options .login-form__remember { gap: var(--space-2); font-size: var(--font-size-sm); }
+.login-form__options > .action-link { padding-inline: 0; font-size: var(--font-size-sm); }
+.login-form .auth-method-separator { margin-block: var(--space-2); font-size: var(--font-size-sm); line-height: 1.25; }
 .profile-layout :is(.profile-form, .recovery-form) > .ui-button { width: fit-content; max-width: 100%; }
 @media (max-width: 48rem) {
   .profile-view__settings { padding: 0 0 var(--space-4); border-inline-end: 0; border-block-end: 1px solid var(--color-border); }
-  .profile-view__settings nav { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--space-1); }
-  .profile-view__settings a { min-height: 44px; padding: var(--space-2); overflow-wrap: anywhere; }
+  .profile-view__settings nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1); }
+  .profile-view__settings a { min-height: 44px; min-width: 0; padding: var(--space-2); gap: var(--space-2); overflow-wrap: anywhere; }
   .shared-wishlist-view .wishlist-details-info { padding: var(--space-4); min-height: 0; --flow-space: var(--space-3); }
   .shared-wishlist-view .wishlist-details-note { padding-block: var(--space-3); }
   .shared-wishlist-view .wishlist-details-info > * { margin-block-start: var(--space-3); }

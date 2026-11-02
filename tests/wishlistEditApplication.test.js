@@ -12,15 +12,16 @@ const path = `/lists/${item.id}/edit`;
 afterEach(() => { for (const cleanup of cleanups.splice(0).reverse()) cleanup(); document.body.replaceChildren(); window.history.replaceState(null, "", "/"); });
 function setup() {
   const transport = createSessionTransport(); const original = transport.fetch.getMockImplementation(); const hub = createCoordinatorHub();
-  const state = { status: 200, reads: 0, writes: 0, beforeWrite: async () => {} };
+  const state = { status: 200, reads: 0, writes: 0, name: item.name, beforeWrite: async () => {} };
   transport.fetch.mockImplementation(async (input, init) => {
     if (new URL(String(input)).pathname === `/api/v1/wishlists/${item.id}`) {
       const headers = new Headers(init?.headers); expect(headers.get("Authorization")).toMatch(/^Bearer jwt-fixture-/); expect(init?.credentials).toBe("include");
       expect(headers.has("X-CSRF-TOKEN")).toBe(false);
-      if (init?.method === "GET") { state.reads++; expect(init.body).toBeUndefined(); return Response.json(item, { headers: { ETag: '"v1"' } }); }
+      if (init?.method === "GET") { state.reads++; expect(init.body).toBeUndefined(); return Response.json({ ...item, name: state.name }, { headers: { ETag: '"v1"' } }); }
       state.writes++; expect(init?.method).toBe("PUT"); expect(headers.get("If-Match")).toBe('"v1"');
       expect(JSON.parse(String(init?.body))).toEqual({ name: "Nouveau nom", occasion: "birthday", eventDate: "2020-02-29", message: null, surpriseMode: true });
       await state.beforeWrite();
+      if (state.status === 200) state.name = "Nouveau nom";
       return Response.json(state.status === 200 ? { ...item, name: "Nouveau nom" } : { statusCode: state.status, title: "Private English", message: "Private message" }, { status: state.status, headers: { ETag: '"v2"' } });
     }
     if (!original) throw Error("Missing transport"); return original(input, init);
@@ -53,15 +54,17 @@ describe("wishlist edit application integration", () => {
     expect(app.state.reads).toBe(0); expect(app.state.writes).toBe(0);
   });
   it.each(["/lists/not-guid/edit", "/lists/00000000-0000-0000-0000-000000000000/edit", "/lists/%2f/edit", path + "/extra", "//evil.test" + path])("rejects unsafe edit return destination %s", target => {
-    expect(getSafeReturnTo(target)).toBe("/lists");
+    expect(getSafeReturnTo(target)).toBe("/");
   });
-  it("loads on each opening, keeps navigation active and stays on the form after PUT without GET", async () => {
+  it("returns to the writable list after a confirmed update without retaining the editor in history", async () => {
     const app = setup(); await app.start(); await loaded(app);
     expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes"); expect(document.activeElement).toBe(app.shell.outlet);
-    const length = window.history.length; const name = app.send();
-    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Modifications enregistrées") === true);
-    expect(name.value).toBe("Nouveau nom"); expect(window.location.pathname).toBe(path); expect(window.history.length).toBe(length); expect(app.state.reads).toBe(1); expect(app.state.writes).toBe(1);
-    await app.router.navigate("/"); await app.router.navigate(path); await loaded(app); expect(app.state.reads).toBe(2);
+    const length = window.history.length; app.send();
+    await until(app.shell.outlet, () => app.shell.outlet.querySelector("h1")?.textContent === "Nouveau nom");
+    expect(window.location.pathname).toBe(`/lists/${item.id}`); expect(window.history.length).toBe(length);
+    expect(app.shell.outlet.querySelector('a[href="' + path + '"]')).not.toBeNull();
+    expect(app.state.reads).toBe(2); expect(app.state.writes).toBe(1);
+    await app.router.navigate("/"); await app.router.navigate(path); await loaded(app); expect(app.state.reads).toBe(3);
   });
   it.each([401, 403, 429, 503])("never replays HTTP %s, expiring only 401 and not duplicating failures in the shell", async status => {
     const app = setup(); app.state.status = status; await app.start(); await loaded(app); app.send();
@@ -69,7 +72,7 @@ describe("wishlist edit application integration", () => {
     else await until(app.shell.outlet, () => app.shell.outlet.querySelector('[role="alert"]') !== null);
     expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toContain("Private English");
     if (status === 401) expect(app.session.getSnapshot().user).toBeNull();
-    else { expect(app.session.getSnapshot().status).toBe("authenticated"); expect(app.session.getSnapshot().issue).toBeNull(); expect(app.shell.sessionFeedback.querySelector('[role="alert"]')).toBeNull(); }
+    else { expect(window.location.pathname).toBe(path); expect(app.session.getSnapshot().status).toBe("authenticated"); expect(app.session.getSnapshot().issue).toBeNull(); expect(app.shell.sessionFeedback.querySelector('[role="alert"]')).toBeNull(); }
   });
   it("clears the draft and ignores completion after leaving the form", async () => {
     const app = setup(); const gate = barrier(); const entered = barrier(); app.state.beforeWrite = async () => { entered.resolve(); await gate.promise; };

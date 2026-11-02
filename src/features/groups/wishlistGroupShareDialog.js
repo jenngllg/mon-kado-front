@@ -9,6 +9,24 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
  */
 export function createWishlistGroupShareDialog({ service, wishlistId, signal, onClose }) {
   const dialog = document.createElement("dialog"); dialog.className = "group-dialog wishlist-group-visibility flow";
+  let disposed = false;
+  const panel = createWishlistGroupSharePanel({ service, wishlistId, signal, onClose: finish });
+  dialog.setAttribute("aria-labelledby", panel.element.querySelector("h2")?.id ?? "");
+  dialog.append(panel.element);
+  addComponentEventListener(dialog, dialog, "cancel", event => { event.preventDefault(); if (panel.canClose()) finish(); });
+  addComponentEventListener(dialog, dialog, "close", finish);
+  addComponentEventListener(dialog, signal, "abort", () => disposeComponent(dialog), { once: true });
+  registerComponentCleanup(dialog, () => { disposed = true; if (dialog.open) dialog.close(); dialog.remove(); });
+  if (signal.aborted) disposeComponent(dialog);
+  return dialog;
+  function finish() { if (!disposed && panel.canClose()) { disposeComponent(dialog); onClose(); } }
+}
+
+/** Reusable owner group-audience editor; it never changes the independent public link.
+ * @param {{service:Pick<ReturnType<typeof import("./groupsService.js").createGroupsService>,"wishlistVisibility"|"setWishlistVisibility">,wishlistId:string,signal:AbortSignal,onClose:()=>void,onBusy?:(pending:boolean)=>void}} options Owner scope.
+ */
+export function createWishlistGroupSharePanel({ service, wishlistId, signal, onClose, onBusy = () => {} }) {
+  const dialog = document.createElement("section"); dialog.className = "wishlist-group-visibility flow";
   const title = document.createElement("h2"); title.textContent = "Visibilité dans mes groupes"; title.id = `wishlist-group-${crypto.randomUUID()}`; dialog.setAttribute("aria-labelledby", title.id);
   const help = document.createElement("p");
   const form = document.createElement("form"); form.className = "flow";
@@ -26,19 +44,17 @@ export function createWishlistGroupShareDialog({ service, wishlistId, signal, on
   const choices = new Map(/** @type {Array<[string,boolean]>} */ ([]));
   addComponentEventListener(dialog, form, "submit", event => { event.preventDefault(); void commit(); });
   addComponentEventListener(dialog, groups, "change", () => sync());
-  addComponentEventListener(dialog, dialog, "cancel", event => { event.preventDefault(); finish(); });
-  addComponentEventListener(dialog, dialog, "close", finish);
   addComponentEventListener(dialog, signal, "abort", () => disposeComponent(dialog), { once: true });
-  registerComponentCleanup(dialog, () => { disposed = true; lifetime.abort(); choices.clear(); base = null; if (dialog.open) dialog.close(); dialog.remove(); });
+  registerComponentCleanup(dialog, () => { disposed = true; lifetime.abort(); choices.clear(); base = null; dialog.remove(); });
   if (signal.aborted) disposeComponent(dialog); else void read(false);
-  return dialog;
+  return { element: dialog, canClose: () => !pending, refresh: () => read(!!base?.visibility.groups.some(group => choices.get(group.groupId) !== group.isVisible)) };
 
-  function finish() { if (!pending && !disposed) { disposeComponent(dialog); onClose(); } }
+  function finish() { if (!pending && !disposed) { onBusy(false); disposeComponent(dialog); onClose(); } }
   function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); }
   function collect() { for (const input of groups.querySelectorAll("input")) choices.set(input.value, input.checked); }
   function sync() {
     if (disposed) return;
-    collect(); dialog.setAttribute("aria-busy", String(pending || reading)); close.disabled = pending;
+    collect(); dialog.setAttribute("aria-busy", String(pending || reading)); close.disabled = pending; onBusy(pending);
     for (const input of groups.querySelectorAll("input")) input.disabled = pending || reading || blocked;
     save.disabled = pending || reading || blocked || !base?.visibility.groups.some(group => choices.get(group.groupId) !== group.isVisible);
     verify.hidden = !blocked || reading; verify.disabled = pending;

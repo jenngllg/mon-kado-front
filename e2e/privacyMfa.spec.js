@@ -100,6 +100,8 @@ for (const action of /** @type {const} */ (["verify", "enroll"])) {
       await page.getByRole("checkbox", { name: "J’ai enregistré mes codes de récupération" }).check();
       await page.getByRole("button", { name: "Terminer la connexion" }).click();
     }
+    await expect(page).toHaveURL("/");
+    await expect(page.getByRole("heading", { name: "Bonjour Camille test", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Mes listes", exact: true })).toBeVisible();
     const stored = await page.evaluate(() => JSON.stringify([localStorage, sessionStorage]));
     for (const value of [flow, manualKey, ...recoveryCodes]) expect(stored).not.toContain(value);

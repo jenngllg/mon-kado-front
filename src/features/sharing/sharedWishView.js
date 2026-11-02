@@ -51,7 +51,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
 
   /** @param {boolean} explicit User-initiated reread. */
   async function read(explicit) {
-    if (disposed || busy || terminal || mutationBusy || copying) return;
+    if (disposed || busy || terminal || view.querySelector(".wish-image-dialog[open]") || mutationBusy || copying) return;
     busy = true; clear(); title.textContent = "Souhait partagé";
     results.setAttribute("aria-busy", "true"); results.append(createLoadingState({ label: "Chargement du souhait…" }));
     try {
@@ -77,7 +77,7 @@ export function createSharedWishView({ shareLinkId, wishId, loadOne, copy, signa
         information.querySelector(".wish-detail__merchant")?.append(createWishDetailProductLink(wish.url, wish.name));
       } else if (wish.productUnavailable) information.append(element("p", "Lien produit indisponible"));
       if (actions.childElementCount) information.append(actions);
-      product.append(createWishImage(wish), information); layout.append(product, reservation); results.append(layout);
+      product.append(createWishImage(wish, { enlargeName: wish.name }), information); layout.append(product, reservation); results.append(layout);
       if (createReservation && canReserve) reservation.append(createReservation(() => {
         if (disposed || terminal) return;
         terminal = true; lifetime.abort(); clear(); clearNotice();

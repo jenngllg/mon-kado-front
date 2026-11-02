@@ -51,6 +51,7 @@
   letter-spacing: -0.04em;
   line-height: var(--line-height-tight);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .app-brand::before {
@@ -67,6 +68,9 @@
 .app-brand::after {
   color: var(--color-accent);
   content: ".";
+}
+@media (max-width: 22rem) {
+  .app-brand { font-size: 1.5rem; }
 }
 
 .app-menu-button {
@@ -154,6 +158,19 @@
 
 .app-navigation__link[aria-current="page"] {
   box-shadow: none;
+}
+
+.app-admin-menu { position: relative; }
+.app-admin-menu > summary { justify-content: space-between; gap: var(--space-2); cursor: pointer; list-style: none; }
+.app-admin-menu > summary::-webkit-details-marker { display: none; }
+.app-admin-menu > summary::after { content: ""; width: .45rem; height: .45rem; margin-inline: var(--space-1); border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+.app-admin-menu[open] > summary::after { transform: rotate(225deg); }
+.app-admin-menu[data-active="true"] > summary, .app-admin-menu[open] > summary { color: var(--color-text); background: var(--color-surface-muted); }
+.app-admin-menu > summary:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.app-admin-menu__links { display: grid; gap: var(--space-1); list-style: none; margin: var(--space-2) 0 0; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.app-admin-menu__links .app-navigation__link { font-size: var(--font-size-md); }
+@media (min-width: 80rem) {
+  .app-admin-menu__links { position: absolute; z-index: 1; inset-inline-end: 0; top: 100%; width: 13rem; box-shadow: var(--shadow-sm); }
 }
 
 .app-navigation__link--primary {

@@ -41,7 +41,8 @@ describe("login form", () => {
     const app = mount(vi.fn(async () => {}));
     const children = [...app.form.children];
     const google = app.form.querySelector(".google-button");
-    expect(app.form.firstElementChild).toBe(app.fields[2].closest("label"));
+    expect(app.form.firstElementChild).toBe(app.fields[2].closest(".login-form__options"));
+    expect(app.form.firstElementChild?.querySelector('a[href="/forgot-password"]')?.textContent).toBe("Mot de passe oublié ?");
     expect(google).not.toBeNull();
     expect(children.indexOf(/** @type {Element} */ (google))).toBeLessThan(children.indexOf(/** @type {Element} */ (app.fields[0].closest(".form-field"))));
     expect(app.fields[0].closest(".form-field")?.nextElementSibling).toBe(app.fields[1].closest(".form-field"));
@@ -76,7 +77,7 @@ describe("login form", () => {
     }
     expect(app.fields[2].checked).toBe(false);
     expect(app.fields[2].closest("label")?.textContent).toBe("Se souvenir de moi");
-    expect(app.form.firstElementChild).toBe(app.fields[2].closest("label"));
+    expect(app.form.firstElementChild).toBe(app.fields[2].closest(".login-form__options"));
     expect(app.view.querySelector('a[href="/forgot-password"]')).not.toBeNull();
     expect(app.view.querySelector('a[href="/register"]')).not.toBeNull();
     expect(app.view.textContent).not.toContain("Google");

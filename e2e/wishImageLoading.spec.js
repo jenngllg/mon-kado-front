@@ -1,3 +1,4 @@
+import { openListOptions } from "./ownerActions.js";
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { controlledApi, listId, wishId, frontendOrigin, sharedPath, secret } from "./controlledApi.js";
@@ -94,7 +95,7 @@ test("manual owner reordering preserves loaded photos after six minutes without 
   await page.clock.install();
   const transport = await imageApi(context, true);
   await page.goto(transport.route);
-  await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
+  await openListOptions(page); await page.getByRole("button", { name: "Réorganiser les souhaits", exact: true }).click();
   const images = page.locator(".wish-reorder-view img");
   await expect(images).toHaveCount(2);
   await expect.poll(() => images.evaluateAll(items => items.every(item => item instanceof globalThis.HTMLImageElement && item.complete && item.naturalWidth > 0))).toBe(true);

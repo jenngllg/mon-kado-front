@@ -18,8 +18,8 @@ for (const width of [390, 1440]) {
         Object.assign(api.wishlist, { name: "Mes envies", message: "Quelques idées à partager", occasion: scenario.occasion, eventDate: scenario.eventDate });
         // Act
         await page.goto(mode === "owner" ? `/lists/${listId}` : `${sharedPath}#${secret}`);
-        const banner = page.locator(".shared-wishlist-summary");
-        await expect(banner.getByRole("heading", { name: "Mes envies", exact: true })).toBeVisible();
+        const banner = page.locator(mode === "owner" ? ".wishlist-owner-summary" : ".shared-wishlist-summary");
+        await expect(page.getByRole("heading", { name: "Mes envies", exact: true })).toBeVisible();
         // Assert
         await expect(banner).not.toContainText("Autre"); await expect(banner).not.toContainText("Sans date");
         await expect(banner.locator(".wishlist-details-note")).toHaveText("Quelques idées à partager");
@@ -27,7 +27,8 @@ for (const width of [390, 1440]) {
         const metadata = banner.locator(".shared-wishlist-metadata");
         if (scenario.label || scenario.eventDate) {
           await expect(metadata).toHaveCount(1);
-          await expect(metadata).toHaveCSS(width > 768 ? "border-left-width" : "border-top-width", mode === "owner" ? "1px" : "0px");
+          await expect(metadata).toHaveCSS(width > 768 ? "border-left-width" : "border-top-width", "0px");
+          if (mode === "owner") await expect(banner.locator(".wishlist-details-note")).toHaveCSS(width > 768 ? "border-left-width" : "border-top-width", "1px");
           if (scenario.label) await expect(metadata.locator(".shared-wishlist-occasion")).toHaveText(scenario.label);
           else await expect(metadata.locator(".shared-wishlist-occasion")).toHaveCount(0);
           if (scenario.eventDate) {
@@ -36,7 +37,7 @@ for (const width of [390, 1440]) {
           } else await expect(metadata.locator("time, .wishlist-event-countdown")).toHaveCount(0);
         } else {
           await expect(metadata).toHaveCount(0);
-          const identity = await banner.getByRole("heading",{name:"Mes envies",exact:true}).boundingBox();
+          const identity = await (mode === "owner" ? banner.locator(".wishlist-details-note") : banner.getByRole("heading",{name:"Mes envies",exact:true})).boundingBox();
           const box = await banner.boundingBox();
           if (mode === "owner") expect(identity?.width).toBeCloseTo(box?.width ?? 0, 0);
           else expect((identity?.x ?? 0) + (identity?.width ?? 0) / 2).toBeCloseTo((box?.x ?? 0) + (box?.width ?? 0) / 2, 0);

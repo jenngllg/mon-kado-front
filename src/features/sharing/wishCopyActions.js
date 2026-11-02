@@ -8,9 +8,9 @@ import { toUserFacingError } from "../../errors/errorMessages.js";
  * copy: (wishlistId: string, wishId: string, options: {signal: AbortSignal}) => Promise<import("../wishes/wishesService.js").CreatedWish>}} WishCopyOperations */
 
 /** Owns one eligible-list read per screen and the common explicit-copy dialog.
- * @param {WishCopyOperations & {signal: AbortSignal, onUnavailable: () => void, onBusy?: (busy: boolean) => void, excludeWishlistId?: string, actionLabel?: string}} options Private operations.
+ * @param {WishCopyOperations & {signal: AbortSignal, onUnavailable: () => void, onBusy?: (busy: boolean) => void, excludeWishlistId?: string, actionLabel?: string, returnFocus?: () => HTMLElement | null}} options Private operations.
  */
-export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, onBusy = () => {}, excludeWishlistId, actionLabel = "Je le veux aussi !" }) {
+export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, onBusy = () => {}, excludeWishlistId, actionLabel = "Je le veux aussi !", returnFocus }) {
   const host = document.createElement("div");
   const notice = document.createElement("p"); notice.setAttribute("role", "status"); notice.hidden = true; host.append(notice);
   const lifetime = new AbortController();
@@ -80,7 +80,8 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
     function finish() {
       if (saving || closed) return;
       disposeComponent(modal); sync(); onBusy(false);
-      if (!disposed && trigger.isConnected && !trigger.hidden) trigger.focus();
+      const target = returnFocus?.() ?? trigger;
+      if (!disposed && target.isConnected && !target.hidden) target.focus();
     }
     function clearFeedback() { disposeComponent(feedback); feedback.replaceChildren(); }
     async function read() {

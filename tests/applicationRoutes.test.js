@@ -334,14 +334,16 @@ describe("application routes", () => {
     );
     expect(view.querySelector(".view-eyebrow")).toBeNull();
     expect([...view.querySelectorAll("figcaption")].map((caption) => caption.textContent))
-      .toEqual(["Anniversaire", "Noël", "Mariage", "Naissance"]);
+      .toEqual(["Anniversaire, Noël, mariage, naissance… une liste pour chaque occasion."]);
     expect(view.querySelectorAll("img")).toHaveLength(4);
+    expect(view.querySelectorAll("figure")).toHaveLength(1);
     for (const image of view.querySelectorAll("img")) {
       expect(image.alt).toBe("");
       expect(image.width).toBe(800);
       expect(image.height).toBe(1000);
       expect(image.src).toContain(".webp");
       expect(image.closest("a, button")).toBeNull();
+      expect(image.draggable).toBe(false);
     }
     expect(view.querySelector('a[href="/register"]')?.textContent)
       .toBe("Créer un compte");

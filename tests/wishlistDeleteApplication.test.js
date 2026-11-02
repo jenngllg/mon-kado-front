@@ -59,11 +59,11 @@ describe("wishlist deletion integration", () => {
     expect(app.state.reads).toBe(0); expect(app.state.deletes).toBe(0);
   });
   it.each(["/lists/not-guid/delete", "/lists/00000000-0000-0000-0000-000000000000/delete", "/lists/%2f/delete", path + "/delete", "//evil.test" + path])("rejects invalid deletion return destination %s", target => {
-    expect(getSafeReturnTo(target)).toBe("/lists");
+    expect(getSafeReturnTo(target)).toBe("/");
   });
   it("cancels the modal without navigating or deleting, and restores the trigger focus", async () => {
     const app = setup(); await app.start(); await loaded(app);
-    const trigger = app.shell.outlet.querySelector('button[aria-label="Supprimer cette liste"]');
+    const trigger = app.shell.outlet.querySelector('.wishlist-details-options > summary');
     const cancel = [...app.shell.outlet.querySelectorAll("dialog button")].find(button => button.textContent === "Annuler");
     /** @type {HTMLButtonElement | undefined} */ (cancel)?.click();
     await until(app.shell.outlet, () => app.shell.outlet.querySelector("dialog") === null);

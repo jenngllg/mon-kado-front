@@ -50,7 +50,7 @@ describe("Google entry buttons", () => {
     view.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
     // Assert
     expect(start).toHaveBeenCalledTimes(1); expect(submit).not.toHaveBeenCalled();
-    expect(start).toHaveBeenCalledWith({ rememberMe: kind === "login", returnTo: kind === "login" ? "/reservations" : "/lists", signal: expect.any(AbortSignal) });
+    expect(start).toHaveBeenCalledWith({ rememberMe: kind === "login", returnTo: kind === "login" ? "/reservations" : "/", signal: expect.any(AbortSignal) });
     expect(google.type).toBe("button"); expect(google.querySelector("img")?.alt).toBe("");
     expect([...view.querySelectorAll("input,button")].every(node => /** @type {HTMLInputElement} */ (node).disabled)).toBe(true);
     expect([...view.querySelectorAll('input:not([type="checkbox"])')].every(node => /** @type {HTMLInputElement} */ (node).value === "")).toBe(true);

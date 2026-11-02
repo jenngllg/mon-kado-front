@@ -52,16 +52,16 @@ describe("activity visits", () => {
 });
 
 describe("session routes and shell", () => {
-  it.each(["", "?returnTo=/profile", "?returnTo=/reservations", "?returnTo=/lists/another-member"])("opens own lists after e-mail authentication regardless of the previous destination %s", async query => {
+  it.each(["", "?returnTo=/profile", "?returnTo=/reservations", "?returnTo=/lists/another-member"])("opens the dashboard after e-mail authentication regardless of the previous destination %s", async query => {
     // Arrange
     const transport = createSessionTransport(); transport.state.refreshStatus = 401;
     const app = mount(`/login${query}`, transport); await app.start();
     // Act
     await app.session.establishSession(async () => ({ data: transport.state.token, status: 200, metadata: { correlationId: "fixture", etag: null, location: null, retryAfterSeconds: null } }));
-    await waitRoute(app, "/lists");
+    await waitRoute(app, "/");
     // Assert
-    expect(window.location.pathname).toBe("/lists"); expect(window.location.search).toBe("");
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes");
+    expect(window.location.pathname).toBe("/"); expect(window.location.search).toBe("");
+    expect(app.shell.outlet.querySelector(".dashboard h1")?.textContent).toBe("Bonjour Fixture");
   });
   it.each(["/profile/email", "/profile/password"])("redirects Google-linked members away from %s before mounting a credential form", async path => {
     // Arrange
@@ -238,14 +238,14 @@ describe("session routes and shell", () => {
     } finally { observer.disconnect(); unsubscribe(); }
   });
 
-  it.each(["/login", "/register"])("redirects a connected visitor of %s to lists", async path => {
+  it.each(["/login", "/register"])("redirects a connected visitor of %s to the dashboard", async path => {
     // Arrange
     const app = mount(path);
     // Act
     await app.start();
     // Assert
-    expect(window.location.pathname).toBe("/lists");
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes");
+    expect(window.location.pathname).toBe("/");
+    expect(app.shell.outlet.querySelector(".dashboard h1")?.textContent).toBe("Bonjour Fixture");
   });
 
   it.each(["/", "/confirm-email", "/confirm-email-change", "/forgot-password", "/reset-password", "/shared-wishlists/share-1#secret-fixture", "/missing"])("keeps %s public during an API outage", async path => {
@@ -330,7 +330,7 @@ describe("session routes and shell", () => {
     app.shell.outlet.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
     await entered.promise;
     const rendered = barrier();
-    const unsubscribe = app.router.subscribe(route => { if (route.name === "lists") rendered.resolve(); });
+    const unsubscribe = app.router.subscribe(route => { if (route.name === "home") rendered.resolve(); });
     transport.state.refreshStatus = 200;
     // Act
     try {
@@ -339,7 +339,7 @@ describe("session routes and shell", () => {
       await rendered.promise;
       release.resolve(); await Promise.resolve();
       // Assert
-      expect(window.location.pathname).toBe("/lists");
+      expect(window.location.pathname).toBe("/");
       expect(app.shell.outlet.querySelector("form")).toBeNull();
       expect(app.shell.outlet.textContent).not.toMatch(/private-password|Demande prise en compte/);
       for (const field of fields) expect(field.value).toBe("");
@@ -458,9 +458,9 @@ describe("authenticated password navigation", () => {
 describe("safe return destinations", () => {
   it.each(["https://evil.test/profile", "//evil.test/profile", "/\\evil.test/profile", "/login", "/register", "/lists/%2f%2fevil.test", "/lists/%5cevil", "/lists/%0a", "/lists/%", "/lists/../login"])("rejects %s", target => {
     // Arrange / Act / Assert
-    expect(getSafeReturnTo(target)).toBe("/lists");
+    expect(getSafeReturnTo(target)).toBe("/");
   });
-  it.each(["/profile", "/profile/password", "/profile/email", "/reservations", "/lists", "/lists/new", "/lists/list-123"])("retains only the protected pathname of %s", path => {
+  it.each(["/", "/profile", "/profile/password", "/profile/email", "/reservations", "/lists", "/lists/new", "/lists/list-123"])("retains only the approved pathname of %s", path => {
     // Arrange / Act / Assert
     expect(getSafeReturnTo(path + "/?token=private#secret")).toBe(path);
     expect(createLoginTarget(path + "?token=private#secret")).not.toMatch(/private|secret/);

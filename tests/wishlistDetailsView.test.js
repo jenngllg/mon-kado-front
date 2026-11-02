@@ -131,19 +131,30 @@ describe("wishlist owner detail", () => {
     expect(ui.loadWishes).toHaveBeenCalledTimes(2);
     expect(ui.view.querySelector("select")?.disabled).toBe(false);
   });
-  it("places list actions above the shared-style banner without a disclosure", async () => {
+  it("places the title above the banner and list actions with sorting below it", async () => {
     const ui = setup({ setArchived: vi.fn() }); await settle();
     const header = ui.view.querySelector(".wishlist-details-header");
     if (!header) throw new Error("Missing list title toolbar");
-    expect(ui.view.querySelector(".shared-wishlist-identity h1")?.textContent).toBe(list.wishlist.name);
+    const title = ui.view.querySelector("h1");
+    const summary = ui.view.querySelector(".wishlist-owner-summary");
+    const toolbar = ui.view.querySelector(".wishlist-details-toolbar");
+    if (!toolbar) throw new Error("Missing list actions and sorting");
+    expect(title?.textContent).toBe(list.wishlist.name);
+    expect(header.nextElementSibling).toBe(title);
+    expect(summary?.contains(title)).toBe(false);
+    expect(summary?.firstElementChild?.className).toBe("shared-wishlist-metadata");
     expect(ui.view.querySelector(".shared-wishlist-owner")).toBeNull();
     expect(ui.view.querySelector(".wishlist-details-note")?.textContent).toBe(list.wishlist.message);
-    expect([...header.querySelectorAll(".icon-action")].map(control => control.getAttribute("aria-label")))
-      .toEqual(["Ajouter un souhait", "Modifier les informations", "Supprimer cette liste", "Archiver"]);
-    expect(header.querySelectorAll(".wishlist-details-actions svg")).toHaveLength(4);
+    expect([...toolbar.querySelectorAll(".action-disclosure__panel > *")].map(control => control.getAttribute("aria-label")))
+      .toEqual(["Modifier les informations", "Archiver", "Supprimer cette liste"]);
+    expect(toolbar.querySelector(".wishlist-details-add")?.textContent).toBe("Ajouter un souhait");
+    expect(toolbar.querySelector(".wishlist-details-add")?.classList.contains("ui-button--primary")).toBe(true);
+    expect(toolbar.querySelector("details")?.open).toBe(false);
+    expect(toolbar.querySelector("select")).not.toBeNull();
+    expect(header.querySelector(".wishlist-details-actions")).toBeNull();
     expect(header.querySelector("details")).toBeNull();
   });
-  it.each([false, true])("uses the outlined destructive icon instead of a solid danger button (archived: %s)", async isArchived => {
+  it.each([false, true])("keeps deletion labelled and secondary inside list options (archived: %s)", async isArchived => {
     // Arrange
     const removeWishlist = vi.fn();
     const ui = setup({ removeWishlist, loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, isArchived } }) });
@@ -151,25 +162,25 @@ describe("wishlist owner detail", () => {
     await settle();
     const remove = ui.view.querySelector('.wishlist-details-actions button[aria-label="Supprimer cette liste"]');
     // Assert
-    expect(remove?.classList.contains("ui-button--secondary")).toBe(true);
+    expect(remove?.classList.contains("ui-button--ghost")).toBe(true);
     expect(remove?.classList.contains("ui-button--danger")).toBe(false);
-    expect(remove?.classList.contains("icon-action--danger")).toBe(true);
-    expect(remove?.querySelector('svg[aria-hidden="true"] path')?.getAttribute("d")).toContain("M3 6h18");
+    expect(remove?.classList.contains("wishlist-details-menu-danger")).toBe(true);
+    expect(remove?.closest("details")?.hasAttribute("open")).toBe(false);
     expect(removeWishlist).not.toHaveBeenCalled();
   });
-  it("places the named round reorder icon between edit and delete instead of beside sorting", async () => {
+  it("keeps named reordering with the secondary list options", async () => {
     // Arrange
     const ui = setup({ reorder: vi.fn(), loadWishes: async () => ({ ...collection, wishes: [wish, { ...wish, id: "other" }] }) });
     await settle();
     // Act
     const trigger = ui.view.querySelector('button[aria-label="Réorganiser les souhaits"]');
     // Assert
-    expect(trigger?.parentElement?.className).toBe("wishlist-details-actions");
+    expect(trigger?.parentElement?.className).toBe("action-disclosure__panel");
     expect(trigger?.previousElementSibling?.getAttribute("aria-label")).toBe("Modifier les informations");
     expect(trigger?.nextElementSibling?.getAttribute("aria-label")).toBe("Supprimer cette liste");
     expect(trigger?.getAttribute("title")).toBe("Réorganiser les souhaits");
-    expect(trigger?.textContent?.trim()).toBe(""); expect(trigger?.querySelectorAll("svg circle")).toHaveLength(6);
-    expect(ui.view.querySelector('.section-toolbar button[aria-label="Réorganiser les souhaits"]')).toBeNull();
+    expect(trigger?.textContent?.trim()).toBe("Réorganiser les souhaits");
+    expect(ui.view.querySelector('.wishlist-details-toolbar button[aria-label="Réorganiser les souhaits"]')).toBe(trigger);
   });
   it("confirms card deletion and refreshes the wishes without opening the editor", async () => {
     const remove = vi.fn(async () => {});

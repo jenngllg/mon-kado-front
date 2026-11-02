@@ -52,7 +52,7 @@ describe("moderation page", () => {
   it("validates a dirty blur without a pressed command", async () => { const ui = setup(); await settle(); ui.draft("\ud800"); ui.reason.dispatchEvent(new FocusEvent("blur")); expect(ui.reason.getAttribute("aria-invalid")).toBe("true"); });
   it("requires a fresh read before writing and keeps the route protected without extending returnTo", async () => {
     const ui = setup(); expect(ui.form.hidden).toBe(true); ui.submit(); expect(ui.update).not.toHaveBeenCalled(); await settle(); expect(ui.load).toHaveBeenCalledExactlyOnceWith(wishlistId, { signal: expect.any(AbortSignal) }); expect(ui.form.noValidate).toBe(true); expect(ui.reason.hasAttribute("maxlength")).toBe(false); expect(ui.button("Suspendre la liste").disabled).toBe(true);
-    expect(isProtectedRoute(RouteNames.WishlistModeration)).toBe(true); expect(getSafeReturnTo(`/admin/reported-wishlists/${wishlistId}/moderation`)).toBe("/lists");
+    expect(isProtectedRoute(RouteNames.WishlistModeration)).toBe(true); expect(getSafeReturnTo(`/admin/reported-wishlists/${wishlistId}/moderation`)).toBe("/");
     expect(ui.view.querySelector('a[href$="/history"]')?.getAttribute("href")).toBe(`/admin/reported-wishlists/${wishlistId}/moderation/history`);
   });
   it("opens one native confirmation with ARIA and no request, then cancels with preserved draft", async () => {

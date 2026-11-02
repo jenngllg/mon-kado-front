@@ -16,7 +16,7 @@ import { createTwoFactorView } from "../twoFactor/twoFactorView.js";
  *   startGoogle?: import("../google/googleService.js").StartGoogle, returnTo?: string}} options View-owned operations and one local notice.
  * @returns {HTMLElement} Disposable routed form.
  */
-export function createLoginView({ login, session, signal, passwordChanged = false, sharedReturn, startGoogle, returnTo = RoutePaths.Lists }) {
+export function createLoginView({ login, session, signal, passwordChanged = false, sharedReturn, startGoogle, returnTo = RoutePaths.Home }) {
   const view = textElement("section", "");
   view.className = "login-view flow";
   const feedback = textElement("div", "");
@@ -83,17 +83,18 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   rememberLabel.className = "login-form__remember";
   rememberLabel.append(remember, textElement("span", "Se souvenir de moi"));
   const submit = createButton({ label: "Se connecter", type: "submit" });
-  form.prepend(rememberLabel);
+  const options = textElement("div", ""); options.className = "login-form__options";
+  options.append(rememberLabel, createActionLink({ label: "Mot de passe oublié ?", href: RoutePaths.ForgotPassword }));
+  form.prepend(options);
   form.append(submit);
   const googleButton = startGoogle ? createGoogleButton(() => { void departGoogle(); }) : null;
   if (googleButton) {
     const separator = textElement("p", "ou"); separator.className = "auth-method-separator";
-    rememberLabel.after(googleButton, separator);
+    options.after(googleButton, separator);
   }
   const links = textElement("div", "");
   links.className = "cluster";
-  links.append(createActionLink({ label: "Mot de passe oublié ?", href: RoutePaths.ForgotPassword }),
-    createActionLink({ label: "Créer un compte", href: RoutePaths.Register }));
+  links.append(createActionLink({ label: "Créer un compte", href: RoutePaths.Register }));
   view.append(textElement("h1", "Se connecter"),
     status, feedback, form, links);
   if (sharedReturn && !sharedReturn.signal.aborted) {

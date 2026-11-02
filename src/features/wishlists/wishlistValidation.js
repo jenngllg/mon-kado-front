@@ -40,7 +40,7 @@ export function validateWishlistField(field, value, now = () => new Date()) {
     if (/\p{Cs}/u.test(value) || /[\p{Cc}\p{Zl}\p{Zp}]/u.test(clean)) return WishlistServerMessages.name;
     return [...clean].length > 100 ? "Nom de la liste trop long : 100 caractères maximum." : null;
   }
-  if (field === "occasion") return isWishlistOccasion(value) ? null : WishlistServerMessages.occasion;
+  if (field === "occasion") return value === "" ? "Occasion obligatoire." : isWishlistOccasion(value) ? null : WishlistServerMessages.occasion;
   if (field === "eventDate") {
     if (value === "") return null;
     return isCalendarDate(value) && value >= now().toISOString().slice(0, 10) ? null : WishlistServerMessages.eventDate;

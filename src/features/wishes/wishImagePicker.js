@@ -36,6 +36,8 @@ export function createWishImagePicker({ onBusy }) {
     remove.hidden = host.hidden = !selected; empty.hidden = !!selected;
     const label = selected ? "Remplacer l’image" : "Ajouter une image";
     choose.setAttribute("aria-label", label); applyActionIcon(choose, selected ? "edit" : "add", label);
+    choose.classList.toggle("wish-image-picker-add", !selected);
+    if (!selected) { choose.classList.remove("icon-action"); choose.append(document.createTextNode(label)); }
     frame.classList.toggle("wish-image-section__media--empty", !selected);
   }
   async function select() {

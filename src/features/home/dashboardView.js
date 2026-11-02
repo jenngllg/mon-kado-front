@@ -17,6 +17,8 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
   const occasions = node('section', '', 'dashboard-occasions');
   occasions.setAttribute('aria-label', 'Prochaines occasions');
   const title = node('h1', displayName ? `Bonjour ${displayName}` : 'Bonjour');
+  const shortcuts = node('nav', '', 'dashboard-shortcuts'); shortcuts.setAttribute('aria-label', 'Accès rapides');
+  shortcuts.append(action('Mes listes', '/lists'), action('Mes groupes', '/groups'));
   const listIntroduction = node('p', '', 'dashboard-intro');
   const create = action('Créer une liste', '/lists/new', true);
   const createLabel = node('span', 'Créer une liste');
@@ -35,7 +37,7 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
   lists.header.after(listIntroduction);
   groups.header.after(groupIntroduction);
   columns.append(lists.section, groups.section);
-  root.append(title, occasions, columns);
+  root.append(title, shortcuts, occasions, columns);
   let busy = false;
   refreshOnReturn(root, () => { void load(); });
   void load();

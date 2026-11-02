@@ -18,7 +18,9 @@ export function createWishlistOverviewToolbar(category) {
     if (item.key === category) tab.setAttribute("aria-current", "page");
     tabs.append(tab);
   }
-  const create = createActionLink({ label: "Créer une liste", href: RoutePaths.NewList });
+  const create = createActionLink(category === "followed"
+    ? { label: "Rechercher un membre", href: RoutePaths.Members }
+    : { label: "Créer une liste", href: RoutePaths.NewList });
   create.classList.add("ui-button", "ui-button--primary", "page-primary-action");
   toolbar.append(tabs, create);
   return toolbar;

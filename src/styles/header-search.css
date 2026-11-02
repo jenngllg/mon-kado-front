@@ -42,6 +42,7 @@
 @media (min-width: 80rem) {
   .app-header__content { grid-template-columns: auto auto minmax(0, 1fr); }
   .app-header__content:has(.app-member-search[data-open="true"]) { padding-block-end: var(--space-3); }
+  .app-member-search[data-open="false"] { width: var(--control-min-size); }
   .app-navigation { grid-column: auto; }
   .app-member-search__panel {
     position: relative;

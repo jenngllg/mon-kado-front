@@ -19,8 +19,8 @@ for (const width of [390,1440]) {
       }
       await route.fulfill({status:200,headers:{"Access-Control-Allow-Origin":frontendOrigin,"Access-Control-Allow-Credentials":"true","Access-Control-Expose-Headers":"ETag",ETag:version},json:{wishlistId:listId,isPublic:true,groups}});
     });
-    await page.goto(`/lists/${listId}`);await page.getByRole("button",{name:"Visibilité dans mes groupes",exact:true}).click();
-    const dialog=page.getByRole("dialog",{name:"Visibilité dans mes groupes",exact:true});
+    await page.goto(`/lists/${listId}`);await page.getByRole("button",{name:"Partager",exact:true}).click();
+    const dialog=page.getByRole("dialog",{name:"Partager la liste",exact:true});
     const family=dialog.getByRole("checkbox",{name:"Famille",exact:true}),friends=dialog.getByRole("checkbox",{name:groups[1].name,exact:true});
     await expect(family).toBeChecked();await expect(friends).toBeChecked();
     await expect(dialog.getByRole("button",{name:"Enregistrer",exact:true})).toBeDisabled();expect(writes).toBe(0);
@@ -28,7 +28,7 @@ for (const width of [390,1440]) {
     expect(await dialog.evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
     await page.screenshot({path:testInfo.outputPath(`group-visibility-${width}.png`),fullPage:true});
     await dialog.getByRole("button",{name:"Enregistrer",exact:true}).click();await expect(dialog).toHaveCount(0);expect(writes).toBe(1);
-    await page.getByRole("button",{name:"Visibilité dans mes groupes",exact:true}).click();await expect(family).not.toBeChecked();await expect(friends).toBeChecked();
+    await page.getByRole("button",{name:"Partager",exact:true}).click();await expect(family).not.toBeChecked();await expect(friends).toBeChecked();
     await dialog.getByRole("button",{name:"Fermer",exact:true}).click();expect(writes).toBe(1);expect(api.unexpected).toEqual([]);
   });
 }

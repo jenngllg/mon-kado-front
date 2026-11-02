@@ -10,6 +10,7 @@ import { openGroupShareDialog } from "./groupShareDialog.js";
 import { openGroupCreateDialog } from "./groupCreateDialog.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { prependShareDialogIcon } from "../../components/shareDialogIcons.js";
+import { createActionDisclosure } from "../../components/actionDisclosure.js";
 
 /** @typedef {ReturnType<typeof import("./groupsService.js").createGroupsService>} GroupsService */
 /** @typedef {{service:GroupsService,signal:AbortSignal,navigate:(path:string)=>void,apiBaseUrl?:string}} GroupsOptions */
@@ -87,23 +88,27 @@ export function createGroupView({ service, groupId, memberId, apiBaseUrl, signal
       openGroupShareDialog({ parent: frame.element, trigger: invite, signal: frame.signal, groupId, group, apiBaseUrl, service });
     } });
     invite.setAttribute("aria-label", "Inviter un proche"); invite.title = "Inviter un proche";
-    invite.replaceChildren(); prependShareDialogIcon(invite, "share");
-    invite.classList.add("group-invite-action", "icon-action");
+    prependShareDialogIcon(invite, "share");
+    invite.classList.add("group-invite-action");
     {
+      /** @type {HTMLDetailsElement|null} */ let options = null;
+      const closeOptions = () => { if (options) options.open = false; return options?.querySelector("summary") ?? null; };
       const edit = createActionLink({ label: "Modifier le groupe", href: `/groups/${groupId}/edit` });
       edit.classList.add("ui-button", "ui-button--secondary");
-      applyActionIcon(edit, "edit", "Modifier le groupe");
-      const remove = createButton({ label: "Supprimer le groupe", variant: "secondary", onClick: () => openDialog(frame, remove, {
+      edit.setAttribute("aria-label", "Modifier le groupe");
+      addComponentEventListener(edit, edit, "click", closeOptions);
+      const remove = createButton({ label: "Supprimer le groupe", variant: "secondary", onClick: () => openDialog(frame, closeOptions() ?? remove, {
         title: "Supprimer ce groupe ?", description: "Les membres perdront l’accès aux listes partagées dans ce groupe. Les listes et les souhaits seront conservés.", label: "Supprimer", danger: true,
         save: async () => { await service.remove(groupId, { etag, signal: frame.signal }); navigate("/groups"); },
       }) });
-      applyActionIcon(remove, "delete", "Supprimer le groupe"); remove.classList.add("icon-action--danger");
-      const leave = createButton({ label: "Quitter le groupe", variant: "secondary", onClick: () => openDialog(frame, leave, {
+      remove.classList.add("workflow-menu-danger");
+      const leave = createButton({ label: "Quitter le groupe", variant: "secondary", onClick: () => openDialog(frame, closeOptions() ?? leave, {
         title: "Quitter ce groupe ?", description: group.memberCount === 1 ? "Tu es le dernier membre : le groupe sera supprimé. Tes listes et souhaits seront conservés." : "Tu perdras les accès accordés par ce groupe. Tes listes n’y seront plus partagées. Si tu es le dernier membre, le groupe sera supprimé.", label: "Quitter", danger: true,
         save: async () => { await service.leave(groupId, { signal: frame.signal }); navigate("/groups"); },
       }) });
-      applyActionIcon(leave, "leave", "Quitter le groupe");
-      frame.actions.append(edit, invite, leave, remove);
+      options = createActionDisclosure("⋯", "Options du groupe", [edit, leave, remove]);
+      options.classList.add("workflow-options"); options.querySelector("summary")?.setAttribute("role", "button");
+      frame.actions.append(options, invite);
     }
     const people = node("section", "", "group-people flow");
     const roster = node("ul", "", "group-members"); roster.setAttribute("role", "list"); roster.setAttribute("aria-label", "Membres du groupe");
@@ -197,7 +202,7 @@ function createFrame(title, signal) {
 }
 
 /** @typedef {ReturnType<typeof createFrame>} GroupFrame */
-/** @param {GroupFrame} frame @param {HTMLButtonElement} trigger
+/** @param {GroupFrame} frame @param {HTMLElement} trigger
  * @param {{title:string,label:string,description?:string,name?:string,danger?:boolean,save:(name:string)=>Promise<void>}} options */
 function openDialog(frame, trigger, { title, label, description, name, danger = false, save }) {
   const dialog = node("dialog", "", "group-dialog flow");

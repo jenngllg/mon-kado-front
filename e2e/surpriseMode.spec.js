@@ -1,5 +1,6 @@
 /* global window, document */
 import { test, expect } from "@playwright/test";
+import { openListOptions } from "./ownerActions.js";
 import { controlledApi, frontendOrigin, listId, wishId } from "./controlledApi.js";
 
 for (const width of [390, 1440]) {
@@ -28,7 +29,7 @@ for (const width of [390, 1440]) {
     await expect(mode).toBeChecked();
     const hint = page.locator(".wishlist-surprise-hint");
     await expect(hint).toBeVisible();
-    await expect(hint).toContainText("Mode surprise activé");
+    await expect(hint).toHaveText("Vous ne verrez pas ce que les gens réservent sur votre liste.");
     await expect(mode).toHaveCSS("background-color", "rgb(185, 62, 50)");
     await expect(mode).toHaveAttribute("aria-describedby", await hint.getAttribute("id") ?? "");
     await page.screenshot({ path: testInfo.outputPath("surprise-enabled.png"), fullPage: true });
@@ -37,7 +38,8 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("button", { name: "Annuler les modifications", exact: true })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Suppression de la liste", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
-    await expect(page.getByText("Modifications enregistrées", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(`/lists/${listId}`);
+    await openListOptions(page); await expect(page.getByRole("link", { name: "Modifier les informations", exact: true })).toBeVisible();
     expect(surpriseMode).toBe(false);
     await page.screenshot({ path: testInfo.outputPath("mode-form.png"), fullPage: true });
     await page.goto(`/lists/${listId}/wishes/${wishId}`);

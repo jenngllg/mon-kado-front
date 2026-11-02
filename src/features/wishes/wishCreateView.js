@@ -23,7 +23,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   let disposed = false; let busy = false; let blocked = true; let terminal = false; let completed = false; let validationSummary = false;
   const { form, fields, favorite, surprise, secondHand, surpriseLabel, secondHandLabel, validate, getValues, clear, syncQuantityControls, discardDeferredBlur } = createWishForm({ inactive: () => disposed || busy || blocked || terminal || completed,
     onChange: () => { if (validationSummary && fields.every(field => field.error === null)) clearFeedback(); syncSteps(); } });
-  const submit = createButton({ label: "Ajouter", type: "submit" }); form.append(submit);
+  const submit = createButton({ label: "Ajouter le souhait", type: "submit" }); form.append(submit);
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
   const destination = isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists;
   const cancel = createBackLink({ label: "Retour à la liste", href: destination });
@@ -32,11 +32,14 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   const importer = uploadImage && loadWish ? createWishImagePicker({ onBusy: syncControls }) : null;
   let step = 0;
   const stepNames = ["Type de souhait", "Souhait", "Précisions"];
-  const stepKeys = ["link", "product", "details"];
+  const stepKeys = ["type", "product", "details"];
   const progress = element("ol", ""); progress.className = "wish-steps"; progress.setAttribute("aria-label", "Étapes de création du souhait");
   const stepLabels = stepNames.map((name, index) => {
     const item = element("li", "");
-    const label = element("span", name); label.className = "wish-steps__label"; item.append(label);
+    const label = element("span", ""); label.className = "wish-steps__label";
+    const number = element("span", String(index + 1)); number.className = "wish-steps__number"; number.setAttribute("aria-hidden", "true");
+    const caption = element("span", name); caption.className = "wish-steps__name";
+    label.append(number, caption); item.append(label);
     if (index < stepNames.length - 1) {
       const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       arrow.classList.add("wish-steps__separator"); arrow.setAttribute("viewBox", "0 0 24 24");
@@ -46,14 +49,16 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
     }
     progress.append(item); return item;
   });
-  const stepStatus = element("p", ""); stepStatus.className = "visually-hidden"; stepStatus.setAttribute("role", "status");
+  const stepStatus = element("p", "Étape 1 sur 3"); stepStatus.className = "wish-step-status"; stepStatus.setAttribute("role", "status");
   const panels = stepNames.map(name => {
     const panel = element("div", ""); panel.className = "wish-step-panel flow"; panel.setAttribute("role", "group"); panel.setAttribute("aria-label", name); panel.tabIndex = -1; return panel;
   });
   for (const field of fields) {
-    const index = field.name === "url" ? 0 : ["name", "price"].includes(field.name) ? 1 : 2;
+    const index = ["url", "name", "price"].includes(field.name) ? 1 : 2;
     if (!["color", "size"].includes(field.name)) panels[index].append(field.element);
   }
+  const productLink = fields.find(field => field.name === "url");
+  if (productLink) panels[1].prepend(productLink.element);
   const variants = form.querySelector(".wish-form__variants");
   if (variants) panels[2].prepend(variants);
   form.querySelector(".wish-form__amounts")?.remove();
@@ -66,19 +71,29 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   if (importer) panels[1].append(importer.imagePanel);
   const imageHeading = element("p", "Image du souhait"); imageHeading.className = "wish-step-image-label";
   if (importer) importer.imagePanel.before(imageHeading);
-  panels[0].prepend(surpriseLabel);
+  // Reuse the form's boolean draft while exposing a native, exclusive type choice.
+  surprise.type = "radio"; surprise.name = "wishType"; surprise.value = "surprise"; surprise.removeAttribute("role");
+  surpriseLabel.className = "wish-type-choice__option";
+  const product = document.createElement("input"); product.type = "radio"; product.name = surprise.name; product.value = "product"; product.checked = true;
+  product.setAttribute("aria-label", "Un produit précis");
+  const productLabel = element("label", ""); productLabel.className = "wish-type-choice__option";
+  const productText = element("span", ""); productText.className = "wish-preference__text";
+  const productHint = element("span", "Je sais ce que je veux, avec ou sans lien."); productHint.className = "wish-preference__hint";
+  productHint.id = `${form.id}-product-hint`; product.setAttribute("aria-describedby", productHint.id);
+  productText.append(element("span", "Un produit précis"), productHint); productLabel.append(product, productText);
+  const typeChoice = element("fieldset", ""); typeChoice.className = "wish-type-choice";
+  const typeLegend = element("legend", "Type de souhait"); typeLegend.className = "visually-hidden";
+  typeChoice.append(typeLegend, productLabel, surpriseLabel); panels[0].prepend(typeChoice);
+  addComponentEventListener(view, product, "change", () => {
+    if (product.checked && canNavigate()) surprise.dispatchEvent(new Event("change", { bubbles: true }));
+  });
   panels[2].append(secondHandLabel);
   let presentedSurprise = false;
-  const back = createButton({ label: "Retour", variant: "secondary", onClick: () => { if (canNavigate() && step > 0) changeStep(step - 1); } });
-  const skip = createButton({ label: "Continuer sans lien", variant: "secondary", onClick: () => {
-    if (!canNavigate()) return;
-    const url = fields.find(field => field.name === "url"); if (url) { url.control.value = ""; validate(url); }
-    changeStep(1);
-  } });
+  const back = createButton({ label: "Précédent", variant: "secondary", onClick: () => { if (canNavigate() && step > 0) changeStep(step - 1); } });
   const next = createButton({ label: "Continuer", onClick: advance });
-  const actions = element("div", ""); actions.className = "wish-step-actions"; actions.append(back, skip, next, submit);
+  const actions = element("div", ""); actions.className = "wish-step-actions"; actions.append(back, next, submit);
   form.prepend(...panels); form.append(actions);
-  view.append(cancel, title, progress, feedback, status, stepStatus, surpriseLabel);
+  view.append(cancel, title, progress, stepStatus, feedback, status);
   if (importer) view.append(importer.messages);
   view.append(form, retry);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); if (step < 2) advance(); else void addWish(); });
@@ -95,6 +110,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   function show(options) { clearFeedback(); feedback.hidden = false; const alert = createAlert({ variant: "error", ...options }); alert.tabIndex = -1; feedback.append(alert); return alert; }
   function syncControls() {
     favorite.disabled = surprise.disabled = secondHand.disabled = disposed || busy || blocked || terminal || completed || !!importer?.isBusy();
+    product.disabled = surprise.disabled;
     form.hidden = disposed || blocked || terminal;
     if (importer) importer.imagePanel.hidden = form.hidden;
     for (const field of fields) {
@@ -115,7 +131,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   }
   function canNavigate() { return !disposed && !busy && !blocked && !terminal && !completed && !importer?.isBusy(); }
   function syncSteps() {
-    surpriseLabel.hidden = form.hidden || step !== 0;
+    product.checked = !surprise.checked;
     const url = fields.find(field => field.name === "url");
     if (url) url.element.hidden = surprise.checked;
     // Both modes share one draft; changing the presentation never discards input.
@@ -128,26 +144,25 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
     presentedSurprise = surprise.checked;
     form.dataset.creationStep = stepKeys[step];
     progress.hidden = disposed || blocked || terminal;
+    stepStatus.hidden = progress.hidden;
     panels.forEach((panel, index) => { panel.hidden = index !== step; });
     stepLabels.forEach((item, index) => {
       item.classList.toggle("wish-steps__current", index === step);
       if (index === step) item.setAttribute("aria-current", "step"); else item.removeAttribute("aria-current");
     });
-    const hasUrl = getValues().url.trim() !== "";
-    back.hidden = step === 0; skip.hidden = step !== 0 || !hasUrl || surprise.checked; next.hidden = step === 2; submit.hidden = step !== 2;
-    const label = step === 0 && !surprise.checked && !hasUrl ? "Continuer sans lien" : "Continuer";
-    const nextLabel = next.querySelector(".ui-button__label"); if (nextLabel) nextLabel.textContent = label;
-    back.disabled = skip.disabled = next.disabled = !canNavigate();
+    back.hidden = step === 0; next.hidden = step === 2; submit.hidden = step !== 2;
+    back.disabled = next.disabled = !canNavigate();
   }
   /** @param {number} index Local step; never resets inputs or performs a write. */
   function changeStep(index) {
-    step = index; syncSteps(); stepStatus.textContent = `${stepNames[index]}, étape ${index + 1} sur 3`;
+    step = index; syncSteps(); stepStatus.textContent = `Étape ${index + 1} sur 3`;
     panels[index].focus();
   }
   function advance() {
     if (!canNavigate()) return;
     discardDeferredBlur();
-    const relevant = fields.filter(field => step === 0 ? field.name === "url" && !surprise.checked : ["name", "price", ...(surprise.checked ? ["note"] : [])].includes(field.name));
+    const names = surprise.checked ? ["name", "note", "price"] : ["url", "name", "price"];
+    const relevant = step === 1 ? names.flatMap(name => fields.filter(field => field.name === name)) : [];
     for (const field of relevant) validate(field);
     const invalid = relevant.find(field => field.error !== null);
     if (invalid) { invalid.control.focus(); return; }
@@ -155,7 +170,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
   }
   /** @param {typeof fields[number]} field Reveal the failing field before focus. */
   function focusField(field) {
-    changeStep(field.name === "url" ? 0 : ["name", "price", ...(surprise.checked ? ["note"] : [])].includes(field.name) ? 1 : 2);
+    changeStep(["url", "name", "price", ...(surprise.checked ? ["note"] : [])].includes(field.name) ? 1 : 2);
     field.control.focus();
   }
   /** @param {boolean} explicit User retry. */

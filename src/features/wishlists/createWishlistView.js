@@ -97,14 +97,15 @@ export function createWishlistView({ create, onCreated, groups, signal, now = ()
       for (const group of all) {
         const label = textElement("label", ""); label.className = "wishlist-group-visibility__choice";
         const input = document.createElement("input"); input.type = "checkbox"; input.value = group.id; input.checked = selectedGroups.has(group.id);
-        input.addEventListener("change", () => { if (input.checked) selectedGroups.add(group.id); else selectedGroups.delete(group.id); });
+        input.addEventListener("change", () => { if (input.checked) selectedGroups.add(group.id); else selectedGroups.delete(group.id); updateGroupAudience(); });
         label.append(input, textElement("span", group.name)); groupChoices.append(label);
       }
-      hasGroups = all.length > 0; groupStatus.textContent = "Choisis les groupes qui pourront voir cette liste."; groupLoadingStatus.textContent = ""; groupsReady = true;
+      hasGroups = all.length > 0; updateGroupAudience(); groupLoadingStatus.textContent = ""; groupsReady = true;
     } catch (error) {
       if (!disposed && !isAbortError(error)) { groupLoadingStatus.textContent = "Impossible de charger tes groupes."; retryGroups.hidden = false; }
     } finally { loadingGroups = false; if (!disposed) syncStep(); }
   }
+  function updateGroupAudience() { groupStatus.textContent = selectedGroups.size ? `Partagée avec ${selectedGroups.size} groupe${selectedGroups.size > 1 ? "s" : ""}` : "Seulement moi"; }
   /** @param {Parameters<typeof createAlert>[0]} options Safe local presentation. */
   function showFeedback(options) {
     clearFeedback(); feedback.hidden = false;

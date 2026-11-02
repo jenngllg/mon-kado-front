@@ -27,6 +27,7 @@ for (const width of [390, 1440]) {
       await page.keyboard.press("Escape"); await expect(dialog).toHaveCount(0); await expect(trigger).toBeFocused();
       expect(api.state.wishWrites).toBe(0);
       await page.getByRole("link", { name: api.wish.name, exact: true }).click();
+      await page.getByRole("button", { name: "Options du souhait", exact: true }).click();
       await page.getByRole("button", { name: "Supprimer", exact: true }).click();
       await expect(dialog.getByRole("button", { name: "Supprimer", exact: true })).toBeEnabled();
       if (scenario === "unreserved") await expect(warning).toBeHidden();

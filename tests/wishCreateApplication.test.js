@@ -53,7 +53,7 @@ function until(root, predicate) {
 function ready(app) { return until(app.shell.outlet, () => /** @type {HTMLFormElement | null} */ (app.shell.outlet.querySelector('form[aria-label="Ajouter un souhait"]'))?.hidden === false); }
 
 describe("manual gift creation integration", () => {
-  it.each([[path, path], [path + "?secret=x#private", path], [path + "/", path], ["https://evil.test" + path, "/lists"], ["/lists/bad/wishes/new", "/lists"], ["/lists/00000000-0000-0000-0000-000000000000/wishes/new", "/lists"], [path + "/extra", "/lists"]])("validates returnTo %s", (target, expected) => expect(getSafeReturnTo(target)).toBe(expected));
+  it.each([[path, path], [path + "?secret=x#private", path], [path + "/", path], ["https://evil.test" + path, "/"], ["/lists/bad/wishes/new", "/"], ["/lists/00000000-0000-0000-0000-000000000000/wishes/new", "/"], [path + "/extra", "/"]])("validates returnTo %s", (target, expected) => expect(getSafeReturnTo(target)).toBe(expected));
   it("guards anonymous access before reading or showing private fields", async () => {
     const app = setup(); app.transport.state.refreshStatus = 401; await app.start(); expect(window.location.pathname).toBe("/login"); expect(new URLSearchParams(window.location.search).get("returnTo")).toBe(path); expect(app.state.reads).toBe(0); expect(app.state.writes).toBe(0);
   });

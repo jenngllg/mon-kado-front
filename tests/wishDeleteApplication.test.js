@@ -52,14 +52,15 @@ describe("gift deletion integration", () => {
     // Arrange
     const app = setup(); await app.start();
     await app.router.navigate(`${detail}/wishes/${wish.id}`);
-    await until(app.shell.outlet, () => app.shell.outlet.querySelector('.wish-owner-detail__actions button[aria-label="Supprimer"]') !== null);
-    const trigger = /** @type {HTMLButtonElement} */ (app.shell.outlet.querySelector('.wish-owner-detail__actions button[aria-label="Supprimer"]'));
+    await until(app.shell.outlet, () => app.shell.outlet.querySelector('.wish-owner-detail__actions summary') !== null);
+    app.shell.outlet.querySelector('.wish-owner-detail__actions summary')?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const trigger = /** @type {HTMLButtonElement} */ ([...app.shell.outlet.querySelectorAll('.wish-owner-detail__actions button')].find(button => button.textContent === "Supprimer"));
     // Act
     trigger.click();
     await until(app.shell.outlet, () => [...app.shell.outlet.querySelectorAll("dialog button")].some(button => button.textContent === "Supprimer" && !/** @type {HTMLButtonElement} */ (button).disabled));
     // Assert
     expect(app.state.writes).toBe(0);
-    app.click("Supprimer");
+    /** @type {HTMLButtonElement} */ ([...app.shell.outlet.querySelectorAll("dialog button")].find(button => button.textContent === "Supprimer")).click();
     await until(app.shell.element, () => window.location.pathname === detail && app.shell.notificationRegion.textContent.includes("Souhait supprimé") && app.shell.outlet.textContent.includes("et donne des idées à tes proches"));
     expect(app.state.writes).toBe(1);
     expect(app.shell.outlet.querySelector("dialog")).toBeNull();

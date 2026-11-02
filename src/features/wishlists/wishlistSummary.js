@@ -29,6 +29,24 @@ export function populateWishlistSummary(summary, title, list, ownerDisplayName, 
   }
   if (list.message) identity.append(element("p", list.message, "wishlist-details-note"));
   summary.append(identity);
+  appendWishlistMetadata(summary, list);
+}
+
+/** Populates editable list context beneath its separate page title.
+ * @param {HTMLElement} summary Empty banner destination.
+ * @param {HTMLHeadingElement} title Existing route focus target outside the banner.
+ * @param {{name: string, occasion: keyof typeof WishlistOccasions, message: string | null, eventDate: string | null}} list List metadata.
+ */
+export function populateOwnedWishlistSummary(summary, title, list) {
+  title.textContent = list.name;
+  appendWishlistMetadata(summary, list);
+  if (list.message) summary.append(element("p", list.message, "wishlist-details-note"));
+}
+
+/** @param {HTMLElement} summary Banner destination.
+ * @param {{occasion: keyof typeof WishlistOccasions, eventDate: string | null}} list Verified event metadata.
+ */
+function appendWishlistMetadata(summary, list) {
   if (list.occasion === "other" && list.eventDate === null) return;
   const metadata = element("div", "", "shared-wishlist-metadata");
   if (list.occasion !== "other") metadata.append(element("p", WishlistOccasions[list.occasion], "shared-wishlist-occasion"));
