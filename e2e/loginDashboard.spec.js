@@ -13,6 +13,8 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("heading", { name: "Bonjour Camille test", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Mes listes", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Mes groupes", exact: true })).toBeVisible();
+    await expect(page.locator(".dashboard-occasion__author")).toHaveText(["Par Camille test"]);
+    expect(await page.locator(".dashboard-occasion__author").evaluateAll(authors => authors.every(author => author.closest("a") === null))).toBe(true);
     await page.reload();
     await expect(page.getByRole("heading", { name: "Bonjour Camille test", exact: true })).toBeVisible();
     await page.goto("/login");

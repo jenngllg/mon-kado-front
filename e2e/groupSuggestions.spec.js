@@ -83,7 +83,8 @@ for (const width of [390, 1440]) {
     await dialog.getByLabel("Quantité à réserver").fill("2");
     await dialog.getByRole("button",{name:"Confirmer la réservation"}).click();
     await expect(page.getByText("Tu as réservé 2 exemplaires.")).toBeVisible();
-    await expect(page.getByRole("button",{name:"Modifier",exact:true})).toBeDisabled();
+    await expect(page.getByRole("button",{name:"Modifier",exact:true})).toHaveCount(0);
+    await expect(page.getByRole("button",{name:"Supprimer",exact:true})).toBeDisabled();
     expect(api.unexpected).toEqual([]);
   });
 

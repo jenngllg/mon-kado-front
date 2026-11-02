@@ -11,7 +11,8 @@ import { createGroupWishlistService } from "../features/groups/groupWishlistServ
 import { createGroupWishReservation } from "../features/groups/groupWishReservation.js";
 import { createGroupSuggestionsService } from "../features/groups/groupSuggestionsService.js";
 import { createGroupSuggestionsView } from "../features/groups/groupSuggestionsView.js";
-import { createMemberSuggestionAction } from "../features/groups/memberSuggestionAction.js";
+import { memberOriginQuery } from "../features/members/memberNavigation.js";
+import { withWishSort } from "../features/wishes/wishSorting.js";
 import { ApiError, createAbortError } from "../api/apiError.js";
 import {
   createSessionHomeView,
@@ -211,8 +212,6 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       render: (/** @type {import("../router/router.js").RouteContext} */ context) => createMemberProfileView({
         memberId: context.params.memberId, backHref: `/groups/${context.params.groupId}`, backLabel: "Retour au groupe", signal: context.signal,
         load: withResourcePageTitle(createGroupMemberProfileService(createGroupsService(session), { groupId: context.params.groupId, apiBaseUrl, currentUserId: session.getSnapshot().user?.id }).load, context, profile => profile.displayName),
-        createActions: (profile, signal) => profile.id !== session.getSnapshot().user?.id && profile.wishlists.length
-          ? createMemberSuggestionAction({ session, groupId: context.params.groupId, profile, signal }) : null,
       }),
     },
     {
@@ -222,7 +221,7 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const wishes = createGroupWishlistService(session, { groupId, apiBaseUrl });
         return createSharedWishlistView({ groupId, shareLinkId: wishlistId, currentUserId: session.getSnapshot().user?.id, loadPersonalReservations: createPersonalReservationsReader(session), signal: context.signal, fromMemberId: context.searchParams.get("fromMember"),
           copy: groupCopyOperations(groupId, wishlistId),
-          createSuggestions: ({ownerName, signal}) => createGroupSuggestionsView({service:createGroupSuggestionsService(session, {groupId,wishlistId}),ownerName,signal}),
+          createSuggestions: ({ownerName, signal, returnSort}) => createGroupSuggestionsView({service:createGroupSuggestionsService(session, {groupId,wishlistId}),ownerName,signal,getReturnSort:returnSort,listHref:withWishSort(`/groups/${groupId}/wishlists/${wishlistId}${memberOriginQuery(context.searchParams.get("fromMember"))}`,context.searchParams.get("sort"))}),
           load: withResourcePageTitle(wishes.load, context, result => result.name), loadOne: wishes.loadOne,
           createSubscription: ({ signal, onUnavailable }) => createWishlistSubscriptionControl({
             shareLinkId: wishlistId, ...createWishlistSubscriptionsService(session, { groupId }), signal, onUnavailable,
@@ -234,6 +233,18 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
             const owner = members.items.find(item => item.id === ownerId);
             return owner ? readProfilePhoto(owner.profileImageUrl, owner.id, apiBaseUrl).imageUrl : null;
           },
+        });
+      },
+    },
+    {
+      name: RouteNames.GroupSuggestion, path: RoutePaths.GroupSuggestion, title: "Idée du groupe · MonKado",
+      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const {groupId,wishlistId,suggestionId} = context.params;
+        const wishes = createGroupWishlistService(session,{groupId,apiBaseUrl});
+        return createGroupSuggestionsView({service:createGroupSuggestionsService(session,{groupId,wishlistId}),ownerName:"",signal:context.signal,detailId:suggestionId,
+          listHref:withWishSort(`/groups/${groupId}/wishlists/${wishlistId}${memberOriginQuery(context.searchParams.get("fromMember"))}`,context.searchParams.get("sort")),
+          loadOwnerName:async signal => (await wishes.load(wishlistId,{signal})).ownerDisplayName,
+          setTitle:title => context.setTitle?.(title), navigate:href => { void context.navigate(href); },
         });
       },
     },

@@ -18,6 +18,19 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it("keeps the selected sort and member origin on suggestion page links without another read", async () => {
+    const ownerId="019c52dd-56c1-7cc6-8a95-243f3a032e07";
+    const createSuggestions=()=>{
+      const section=document.createElement("section"),card=document.createElement("div"),link=document.createElement("a");
+      card.className="group-suggestions__card"; link.href="/groups/"+id+"/wishlists/"+id+"/suggestions/"+ownerId+"?fromMember="+ownerId;
+      card.append(link);section.append(card);return section;
+    };
+    const load=vi.fn(async()=>({...list,ownerId}));
+    const ui=setup({groupId:id,currentUserId:id,load,createSuggestions});await settle();
+    const select=/** @type {HTMLSelectElement} */ (ui.view.querySelector(".wish-sort-control select"));select.value="priceAsc";select.dispatchEvent(new Event("change"));
+    const href=ui.view.querySelector(".group-suggestions__card a")?.getAttribute("href");
+    expect(href).toContain("fromMember="+ownerId);expect(href).toContain("sort=priceAsc");expect(load).toHaveBeenCalledOnce();
+  });
   it("never reads personal owner reservations for another member's group list", async () => {
     const personalReservation = vi.fn();
     const ui = setup({ groupId: id, currentUserId: id, personalReservation, load: async () => ({ ...list, ownerId: "019c52dd-56c1-7cc6-8a95-243f3a032e07" }) });

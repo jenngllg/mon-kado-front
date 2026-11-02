@@ -56,6 +56,7 @@ const ExpectedRoutes = [
   [RouteNames.Group, RoutePaths.Group],
   [RouteNames.GroupMember, RoutePaths.GroupMember],
   [RouteNames.GroupWishlist, RoutePaths.GroupWishlist],
+  [RouteNames.GroupSuggestion, RoutePaths.GroupSuggestion],
   [RouteNames.GroupWish, RoutePaths.GroupWish],
   [RouteNames.FollowedLists, RoutePaths.FollowedLists],
   [RouteNames.WishlistReportHistory, RoutePaths.WishlistReportHistory],
@@ -120,6 +121,21 @@ describe("application routes", () => {
     expect(view.querySelector("h1")?.textContent).toBe("Camille#0001");
     expect(view.querySelector(".back-link")?.getAttribute("href")).toBe(`/groups/${f.id}`);
     expect(f.request.mock.calls.every(([path]) => path.startsWith(`/api/v1/groups/${f.id}/`))).toBe(true); disposeComponent(view);
+  });
+  it("opens a private suggestion page using only its exact group and list", async () => {
+    const f=groupRoutesFixture(false,true),view=await f.render(RouteNames.GroupSuggestion); await f.settle();
+    expect(view.querySelector("h1")?.textContent).toBe("Idée du groupe");
+    expect(view.querySelector(".shared-wish-layout")).not.toBeNull(); expect(view.querySelector("dialog")).toBeNull();
+    expect(view.querySelector(".back-link")?.getAttribute("href")).toBe(`/groups/${f.id}/wishlists/${f.id}#suggestion-${f.wishId}`);
+    expect(f.request.mock.calls.every(([path,options])=>path.startsWith(`/api/v1/groups/${f.id}/wishlists/${f.id}`) && options.authentication==="required")).toBe(true);
+    disposeComponent(view);
+  });
+  it("requires authentication before entering a suggestion page", async () => {
+    const session={...unusedSession,ensureSession:vi.fn(async()=>unusedSession.getSnapshot())};
+    const route=createApplicationRoutes({session,apiBaseUrl:"https://api.example"}).find(item=>item.name===RouteNames.GroupSuggestion);
+    const context=createRouteContext("/groups/019c52dd-56c1-7cc6-8a95-243f3a032e04/wishlists/019c52dd-56c1-7cc6-8a95-243f3a032e04/suggestions/019c52dd-56c1-7cc6-8a95-243f3a032e05");
+    expect(await route?.beforeEnter?.(context)).toEqual({redirectTo:expect.stringContaining("/login?returnTo="),replace:true});
+    expect(session.ensureSession).toHaveBeenCalledOnce();
   });
   it("wires the combined owner group editor without writing on page entry", async () => {
     const f = groupRoutesFixture();
@@ -441,6 +457,7 @@ function groupRoutesFixture(copyEnabled = false, asOther = false) {
     else if (path.startsWith("/api/v1/group-invitations?")) data = page([]);
     else if (path === `/api/v1/groups/${id}/wishlists/${id}`) data = list;
     else if (path === `/api/v1/groups/${id}/wishlists/${id}/suggestions`) data = [];
+    else if (path === `/api/v1/groups/${id}/wishlists/${id}/suggestions/${wishId}`) data = {id:wishId,name:"Idée du groupe",note:null,url:null,price:null,quantity:1,reservedQuantity:0,currentParticipantReservedQuantity:0,authorId:id,authorDisplayName:"Emma",canEdit:true,hasImage:false,createdAt:at,updatedAt:null,entityTag:'"00000001"'};
     else if (path === `/api/v1/groups/${id}/wishlists/${id}/wishes/${wishId}`) data = wish;
     else if (path === "/api/v1/wishlists") data = copyEnabled ? [
       { id, name: "Source", occasion: "other", eventDate: null, isArchived: false, isSuspended: false },
@@ -463,7 +480,7 @@ function groupRoutesFixture(copyEnabled = false, asOther = false) {
     settle: async () => { for (let i = 0; i < 50; i++) await Promise.resolve(); },
     /** @param {string} name */ render: async name => {
       const route = routes.find(route => route.name === name); if (!route) throw new Error(name);
-      const context = { ...createRouteContext(`/groups/${id}`), params: { groupId: id, wishlistId: id, wishId, memberId: ownerId }, navigate, replaceSearchParameter };
+      const context = { ...createRouteContext(`/groups/${id}`), params: { groupId: id, wishlistId: id, wishId, suggestionId:wishId, memberId: ownerId }, navigate, replaceSearchParameter };
       const view = await route.render(context); document.body.append(view); return view;
     },
     /** @param {HTMLElement} view @param {string} label */ button: (view, label) => { const found = [...view.querySelectorAll("button")].find(button => button.textContent === label || button.getAttribute("aria-label") === label); if (!found) throw new Error(`Missing ${label}: ${view.textContent}`); return found; },

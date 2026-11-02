@@ -40,12 +40,12 @@ describe('authenticated dashboard', () => {
   });
   it('links group occasions, deduplicates owned lists and excludes past dates', async () => {
     const { view } = fixture({ occasions: async () => [
-      { ...list, href: '/groups/family/wishlists/own' },
-      { id: 'past', name: 'Passé', eventDate: '2026-10-30', href: '/past' },
-      { id: 'today', name: 'Aujourd’hui', eventDate: '2026-10-31', href: '/groups/family/wishlists/today' },
+      { ...list, ownerDisplayName: 'Jenn', href: '/groups/family/wishlists/own' },
+      { id: 'past', name: 'Passé', ownerDisplayName: 'Alex', eventDate: '2026-10-30', href: '/past' },
+      { id: 'today', name: 'Aujourd’hui', ownerDisplayName: 'Alex', eventDate: '2026-10-31', href: '/groups/family/wishlists/today' },
     ] });
     await vi.waitFor(() => expect(view.querySelectorAll('.dashboard-occasion')).toHaveLength(2));
-    const links = [...view.querySelectorAll('.dashboard-occasion')];
+    const links = [...view.querySelectorAll('.dashboard-occasion__link')];
     expect(links.map(link => link.getAttribute('href'))).toEqual(['/groups/family/wishlists/today', '/lists/own']);
     expect(view.querySelector('a[href="/groups/family"]')?.textContent).toContain('La famille');
     disposeComponent(view);
@@ -86,8 +86,8 @@ describe('authenticated dashboard', () => {
     const service = createDashboardService({ wishlists: { load: async () => [] }, groups: /** @type {never} */ ({ load, wishlists }), subscriptions });
     expect(await service.groups({ signal })).toEqual([group]);
     expect(await service.occasions([group], { signal })).toEqual([
-      { id: followed.wishlistId, name: followed.name, eventDate: followed.eventDate, href: followed.shareHref },
-      { id: secondFollowed.wishlistId, name: secondFollowed.name, eventDate: secondFollowed.eventDate, href: secondFollowed.shareHref },
+      { id: followed.wishlistId, name: followed.name, ownerDisplayName: followed.ownerDisplayName, eventDate: followed.eventDate, href: followed.shareHref },
+      { id: secondFollowed.wishlistId, name: secondFollowed.name, ownerDisplayName: secondFollowed.ownerDisplayName, eventDate: secondFollowed.eventDate, href: secondFollowed.shareHref },
       expect.objectContaining({ href: '/groups/family/wishlists/own' }),
     ]);
     expect(load).toHaveBeenLastCalledWith({ signal, page: 2 });
@@ -98,7 +98,7 @@ describe('authenticated dashboard', () => {
   });
   it('deduplicates followed, owned and group lists by list identifier and keeps the best access link', async () => {
     const own = { ...list, id: '019c52dd-56c1-7cc6-8a95-243f3a032e0b', name: 'Envies' };
-    const shared = { ...list, id: '019c52dd-56c1-7cc6-8a95-243f3a032e0c', name: 'Envies', eventDate: '2026-11-01' };
+    const shared = { ...list, id: '019c52dd-56c1-7cc6-8a95-243f3a032e0c', name: 'Envies', ownerDisplayName: 'Alex du groupe', eventDate: '2026-11-01' };
     const subscriptions = { load: vi.fn(async () => ({
       items: [
         { ...followed, name: 'Envies', eventDate: '2026-10-31' },
@@ -113,9 +113,12 @@ describe('authenticated dashboard', () => {
       groups: /** @type {never} */ ({ load: async () => ({ items: [group], hasNextPage: false }), wishlists: async () => ({ items: [shared, own], hasNextPage: false }) }) });
     const view = createDashboardView({ displayName: 'Jenn', service, now: () => new Date('2026-10-31T12:00:00Z') });
     await vi.waitFor(() => expect(view.querySelectorAll('.dashboard-occasion')).toHaveLength(3));
-    const links = [...view.querySelectorAll('.dashboard-occasion')];
+    const links = [...view.querySelectorAll('.dashboard-occasion__link')];
     expect(links.map(link => link.getAttribute('href'))).toEqual([followed.shareHref, `/groups/family/wishlists/${shared.id}`, `/lists/${own.id}`]);
     expect(links.every(link => link.textContent?.startsWith('Envies'))).toBe(true);
+    const authors = [...view.querySelectorAll('.dashboard-occasion__author')];
+    expect(authors.map(author => author.textContent)).toEqual(['Par Camille', 'Par Alex du groupe', 'Par Jenn']);
+    expect(authors.every(author => author.tagName === 'SPAN' && author.closest('a') === null && author.querySelector('a') === null)).toBe(true);
     expect(subscriptions.load).toHaveBeenCalledTimes(1);
     disposeComponent(view);
     expect(links.every(link => !link.hasAttribute('href'))).toBe(true);

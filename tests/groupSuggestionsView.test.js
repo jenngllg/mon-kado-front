@@ -15,18 +15,98 @@ const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04", other = "019c52dd-56c1-7cc6-8
 const suggestion = {id,name:"Une idée",note:"Une note",url:"https://shop.test/gift",price:12.5,quantity:2,reservedQuantity:0,currentParticipantReservedQuantity:0,authorId:other,authorDisplayName:"Emma",canEdit:true,hasImage:false,createdAt:"2026-10-31T10:00:00Z",updatedAt:null,entityTag:'"00000001"'};
 async function settle() { for (let i=0;i<40;i++) await Promise.resolve(); }
 /** @param {HTMLElement} root @param {string} label */
-function button(root,label) { const match=[...root.querySelectorAll("button")].find(element=>element.textContent===label); if (!match) throw Error(label); return match; }
+function button(root,label) { const match=[...root.querySelectorAll("button")].find(element=>element.textContent===label || element.getAttribute("aria-label")===label); if (!match) throw Error(label); return match; }
 /** @param {Partial<ReturnType<typeof import("../src/features/groups/groupSuggestionsService.js").createGroupSuggestionsService>>} [overrides]
  * @param {Partial<Parameters<typeof createGroupSuggestionsView>[0]>} [options] */
 function setup(overrides={}, options={}) {
   const service = {list:vi.fn(async()=>[suggestion]),get:vi.fn(async()=>suggestion),create:vi.fn(async()=>suggestion),update:vi.fn(async()=>suggestion),remove:vi.fn(async()=>{}),uploadImage:vi.fn(async()=>suggestion),removeImage:vi.fn(async()=>suggestion.entityTag),image:vi.fn(async()=>new Blob()),reservation:vi.fn(async()=>null),reserve:vi.fn(async()=>({id,wishId:id,quantity:1,etag:'"00000002"'})),cancel:vi.fn(async()=>{}),...overrides};
   const controller=new AbortController();
   const view=createGroupSuggestionsView({service,ownerName:"Léa",signal:controller.signal,...options}); document.body.append(view);
-  return {view,service,controller};
+  return {view,service,controller,navigate:vi.fn(),setTitle:vi.fn()};
 }
+/** @param {ReturnType<typeof setup>} ui */
+function showDetail(ui) {
+  disposeComponent(ui.view); ui.view.remove();
+  ui.view=createGroupSuggestionsView({service:ui.service,ownerName:"Léa",signal:ui.controller.signal,detailId:id,listHref:"/groups/"+other+"/wishlists/"+id+"?sort=priceAsc",navigate:ui.navigate,setTitle:ui.setTitle}); document.body.append(ui.view);
+}
+/** @param {ReturnType<typeof setup>} ui */
+async function openIdeaEditor(ui) { showDetail(ui); await settle(); button(ui.view,"Modifier").click(); }
 afterEach(() => { for (const child of [...document.body.children]) if (child instanceof HTMLElement) disposeComponent(child); document.body.replaceChildren(); vi.restoreAllMocks(); });
 
 describe("private group ideas", () => {
+  it("links cards to a dedicated page without loading details or opening a modal", async () => {
+    const ui=setup({}, {listHref:"/groups/"+other+"/wishlists/"+id+"?sort=priceAsc"}); await settle();
+    const card=/** @type {HTMLElement} */ (ui.view.querySelector(".group-suggestions__card"));
+    expect(card.textContent).not.toMatch(/Voir le produit|disponible|Une note|Modifier/);
+    expect(card.querySelector("h3 a")?.getAttribute("href")).toBe("/groups/"+other+"/wishlists/"+id+"/suggestions/"+id+"?sort=priceAsc");
+    expect(card.querySelector(".wish-gallery__photo")?.getAttribute("href")).toBe(card.querySelector("h3 a")?.getAttribute("href"));
+    expect(card.querySelector(".wish-reading__media > .wish-reading__reserve")).toBe(button(ui.view,"Réserver"));
+    expect(button(card,"Supprimer").querySelector("svg")).not.toBeNull();
+    expect(ui.service.get).not.toHaveBeenCalled(); expect(ui.view.querySelector("dialog")).toBeNull();
+  });
+  it("reads a fresh private detail on page entry and retains its list context", async () => {
+    const fresh={...suggestion,name:"Idée actualisée",note:"Détail actualisé"};
+    const ui=setup({get:vi.fn(async()=>fresh)}); await settle(); showDetail(ui); await settle();
+    expect(ui.view.querySelector("h1")?.textContent).toBe(fresh.name); expect(ui.view.textContent).toContain(fresh.note);
+    expect(ui.service.get).toHaveBeenCalledExactlyOnceWith(id,expect.any(AbortSignal));
+    expect(ui.setTitle).toHaveBeenCalledWith("Idée actualisée · MonKado");
+    expect(ui.view.querySelector(".back-link")?.getAttribute("href")).toBe("/groups/"+other+"/wishlists/"+id+"?sort=priceAsc#suggestion-"+id);
+    expect(ui.view.querySelector('a[href="https://shop.test/gift"]')?.getAttribute("rel")).toContain("noreferrer");
+    expect(ui.view.querySelector('.wish-detail__merchant > a[href="https://shop.test/gift"]')).not.toBeNull();
+    expect(ui.view.querySelector('.wish-detail-information button')).toBeNull();
+    expect(ui.view.querySelector('.wish-detail__toolbar .wish-detail__commands')).toContain(button(ui.view,"Modifier"));
+    expect(ui.view.querySelector('.wish-detail__toolbar details summary')?.getAttribute("aria-label")).toBe("Options de l’idée");
+    expect(ui.view.querySelector('.wish-detail__toolbar details')).toContain(button(ui.view,"Supprimer"));
+    expect(ui.view.querySelector("dialog")).toBeNull(); expect(ui.service.reservation).not.toHaveBeenCalled();
+  });
+  it("uses the latest selected sort when suggestions finish loading", async () => {
+    const gate=barrier(); let sort="listOrder";
+    const ui=setup({list:vi.fn(async()=>{await gate.promise;return [suggestion];})},{listHref:"/groups/"+other+"/wishlists/"+id,getReturnSort:()=>sort});
+    sort="priceDesc"; gate.resolve(); await settle();
+    expect(ui.view.querySelector("h3 a")?.getAttribute("href")).toContain("?sort=priceDesc");
+  });
+  it("retries detail errors explicitly without exposing unsafe URLs or foreign edits", async () => {
+    const get=vi.fn().mockRejectedValueOnce(new ApiError({kind:"network"})).mockResolvedValueOnce({...suggestion,url:"javascript:alert(1)",canEdit:false});
+    const ui=setup({get}); await settle(); showDetail(ui); await settle();
+    expect(ui.view.textContent).toContain("Impossible de charger cette idée."); expect(get).toHaveBeenCalledOnce();
+    button(ui.view,"Réessayer").click(); await settle();
+    expect(get).toHaveBeenCalledTimes(2); expect(ui.view.querySelector('a[href^="javascript:"]')).toBeNull();
+    expect(ui.view.textContent).not.toContain("Modifier"); button(ui.view,"Réserver").click(); await settle();
+    expect(ui.service.reservation).toHaveBeenCalledOnce(); expect(ui.service.reserve).not.toHaveBeenCalled();
+  });
+  it("aborts detail reads on navigation and ignores late responses", async () => {
+    const gate=barrier();
+    /** @type {{signal:AbortSignal|null}} */ const observed={signal:null};
+    const get=vi.fn(async(_id,signal)=>{observed.signal=signal;await gate.promise;return suggestion;});
+    const ui=setup({get}); await settle(); showDetail(ui); await settle();
+    expect(ui.view.textContent).toContain("Chargement de l’idée…"); ui.controller.abort();
+    expect(observed.signal?.aborted).toBe(true); gate.resolve(); await settle();
+    expect(ui.view.querySelector("h1")?.textContent).toBe(""); expect(ui.service.image).not.toHaveBeenCalled(); expect(ui.setTitle).not.toHaveBeenCalled();
+  });
+  it("releases detail image URLs when leaving its page", async () => {
+    const create=vi.spyOn(URL,"createObjectURL").mockReturnValue("blob:detail-image"),revoke=vi.spyOn(URL,"revokeObjectURL").mockImplementation(()=>{});
+    const ui=setup({get:vi.fn(async()=>({...suggestion,hasImage:true}))}); await settle(); showDetail(ui); await settle();
+    expect(create).toHaveBeenCalledOnce(); expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("blob:detail-image");
+    ui.controller.abort(); expect(revoke).toHaveBeenCalledExactlyOnceWith("blob:detail-image");
+  });
+  it("keeps readable detail information when its private image fails", async () => {
+    const ui=setup({get:vi.fn(async()=>({...suggestion,hasImage:true})),image:vi.fn(async()=>{throw new ApiError({kind:"network"});})});
+    await settle(); showDetail(ui); await settle();
+    expect(ui.view.querySelector('[aria-label="Image indisponible"]')).not.toBeNull(); expect(ui.view.textContent).toContain("Une note");
+    expect(ui.service.image).toHaveBeenCalledOnce(); expect(button(ui.view,"Réserver").disabled).toBe(false);
+  });
+  it("discards a detail image received after navigation", async () => {
+    const gate=barrier(),create=vi.spyOn(URL,"createObjectURL");
+    const ui=setup({get:vi.fn(async()=>({...suggestion,hasImage:true})),image:vi.fn(async()=>{await gate.promise;return new Blob();})});
+    await settle(); showDetail(ui); await settle(); ui.controller.abort(); gate.resolve(); await settle();
+    expect(create).not.toHaveBeenCalled(); expect(ui.view.querySelector("img")).toBeNull();
+  });
+  it("shows unavailable details without retaining private content or retrying access automatically", async () => {
+    const ui=setup({get:vi.fn(async()=>{throw new ApiError({kind:"http",statusCode:404,errorCode:"GROUP_SUGGESTION_NOT_FOUND"});})});
+    await settle(); showDetail(ui); await settle();
+    expect(ui.view.querySelector("h1")?.textContent).toBe("Idée indisponible"); expect(ui.view.textContent).not.toContain("Une note");
+    expect(ui.service.get).toHaveBeenCalledOnce(); expect(ui.view.querySelector(".shared-wish-layout")).toBeNull();
+  });
   it("keeps creation-only reads scoped to selected lists and creates once per destination", async () => {
     /** @type {import("../src/features/groups/groupSuggestionBatch.js").SuggestionDestination[]} */ const targets = [];
     const ui = setup({}, { creationOnly: true, loadDestinations: async () => targets });
@@ -69,11 +149,16 @@ describe("private group ideas", () => {
     expect(suggestionDraftDestination()).toBeNull();
   });
   it("identifies the proposing member, limits actions on reserved ideas, and describes the audience", async () => {
-    const ui=setup({list:vi.fn(async()=>[{...suggestion,reservedQuantity:1}])}); await settle();
+    const reserved={...suggestion,reservedQuantity:1};
+    const ui=setup({list:vi.fn(async()=>[reserved]),get:vi.fn(async()=>reserved)}); await settle();
     expect(ui.view.textContent).toContain("Idée proposée par Emma");
     expect(ui.view.textContent).toContain("Visibles par les membres de ce groupe, sauf Léa.");
-    expect(button(ui.view,"Modifier").disabled).toBe(true); expect(button(ui.view,"Supprimer").disabled).toBe(true);
-    expect(ui.view.querySelector('a[href="https://shop.test/gift"]')?.getAttribute("rel")).toContain("noreferrer");
+    expect(ui.view.querySelector('.group-suggestions__card button[aria-label="Supprimer"] svg')).not.toBeNull();
+    expect(button(ui.view,"Supprimer").disabled).toBe(true);
+    expect(ui.view.textContent).not.toContain("Modifier");
+    expect(ui.view.querySelector('a[href="https://shop.test/gift"]')).toBeNull();
+    showDetail(ui); await settle();
+    expect(button(ui.view,"Modifier").disabled).toBe(true);
   });
   it("shows an empty state and permits an explicit retry after access changes", async () => {
     const list=vi.fn().mockRejectedValueOnce(new ApiError({kind:"http",statusCode:404,errorCode:"GROUP_WISHLIST_NOT_FOUND"})).mockResolvedValueOnce([]);
@@ -102,7 +187,7 @@ describe("private group ideas", () => {
   it("does not turn an unsafe product URL into a link or expose edits to other members", async () => {
     const ui=setup({list:vi.fn(async()=>[{...suggestion,url:"javascript:alert(1)",authorId:null,authorDisplayName:null,canEdit:false,reservedQuantity:2}])}); await settle();
     expect(ui.view.textContent).toContain("Idée proposée par un membre supprimé");
-    expect(ui.view.textContent).toContain("2 sur 2 réservés");
+    expect(ui.view.textContent).not.toContain("2 sur 2 réservés");
     expect(ui.view.querySelector('a[href^="javascript:"]')).toBeNull();
     expect([...ui.view.querySelectorAll("button")].map(value=>value.textContent)).not.toContain("Modifier");
     expect([...ui.view.querySelectorAll("button")].map(value=>value.textContent)).not.toContain("Réserver");
@@ -144,7 +229,7 @@ describe("private group ideas", () => {
     expect(ui.service.list).toHaveBeenCalledTimes(2);
   });
   it("edits and deletes only after an explicit author action", async () => {
-    const ui=setup(); await settle(); button(ui.view,"Modifier").click();
+    const ui=setup(); await settle(); await openIdeaEditor(ui);
     let modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     /** @type {HTMLTextAreaElement} */ (modal.querySelector('[name="note"]')).value="Nouvelle note";
     modal.querySelector("form")?.dispatchEvent(new Event("submit",{cancelable:true})); await settle();
@@ -153,19 +238,25 @@ describe("private group ideas", () => {
     expect(ui.service.remove).not.toHaveBeenCalled(); expect(modal.textContent).toContain("Supprimer « Une idée » ?");
     button(modal,"Supprimer").click(); await settle();
     expect(ui.service.remove).toHaveBeenCalledExactlyOnceWith(id,suggestion.entityTag,expect.any(AbortSignal));
+    expect(ui.navigate).toHaveBeenCalledWith("/groups/"+other+"/wishlists/"+id+"?sort=priceAsc");
+  });
+  it("returns focus to the round delete action when confirmation is cancelled", async () => {
+    const ui=setup(); await settle(); const remove=button(ui.view,"Supprimer"); remove.click();
+    const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog")); button(modal,"Annuler").click();
+    expect(document.activeElement).toBe(remove); expect(ui.service.remove).not.toHaveBeenCalled(); expect(ui.service.get).not.toHaveBeenCalled();
   });
   it("removes an existing image after saving the current idea version", async () => {
     const imageIdea={...suggestion,hasImage:true};
-    const ui=setup({list:vi.fn(async()=>[imageIdea]),update:vi.fn(async()=>imageIdea),image:vi.fn(async()=>{throw new Error("unavailable");})}); await settle();
-    button(ui.view,"Modifier").click(); const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
+    const ui=setup({list:vi.fn(async()=>[imageIdea]),get:vi.fn(async()=>imageIdea),update:vi.fn(async()=>imageIdea),image:vi.fn(async()=>{throw new Error("unavailable");})}); await settle();
+    await openIdeaEditor(ui); const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     /** @type {HTMLInputElement} */ (modal.querySelector('input[type="checkbox"]')).checked=true;
     modal.querySelector("form")?.dispatchEvent(new Event("submit",{cancelable:true})); await settle();
     expect(ui.service.update).toHaveBeenCalledOnce();
     expect(ui.service.removeImage).toHaveBeenCalledExactlyOnceWith(id,suggestion.entityTag,expect.any(AbortSignal));
   });
   it("validates an idea before saving and rejects replacing and deleting an image together", async () => {
-    const ui=setup({list:vi.fn(async()=>[{...suggestion,hasImage:true}]),image:vi.fn(async()=>{throw new Error("unavailable");})}); await settle();
-    button(ui.view,"Modifier").click(); const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
+    const ui=setup({list:vi.fn(async()=>[{...suggestion,hasImage:true}]),get:vi.fn(async()=>({...suggestion,hasImage:true})),image:vi.fn(async()=>{throw new Error("unavailable");})}); await settle();
+    await openIdeaEditor(ui); const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     const name=/** @type {HTMLInputElement} */ (modal.querySelector('[name="name"]')); name.value="";
     modal.querySelector("form")?.dispatchEvent(new Event("submit",{cancelable:true})); await settle();
     expect(ui.service.update).not.toHaveBeenCalled(); expect(modal.textContent).toContain("Nom du souhait obligatoire");
@@ -263,8 +354,8 @@ describe("private group ideas", () => {
   it("shows only available information for a gift with no link, price or note",async()=>{
     const idea={...suggestion,note:null,url:null,price:null,quantity:1,currentParticipantReservedQuantity:1,reservedQuantity:1};
     const ui=setup({list:vi.fn(async()=>[idea])});await settle();
-    expect(ui.view.textContent).toContain("1 sur 1 réservé");expect(ui.view.textContent).toContain("Tu as réservé 1 exemplaire.");
-    expect(ui.view.querySelector('a')).toBeNull();expect(button(ui.view,"Ma réservation")).not.toBeNull();
+    expect(ui.view.textContent).not.toContain("1 sur 1 réservé");expect(ui.view.textContent).toContain("Tu as réservé 1 exemplaire.");
+    expect(ui.view.querySelector('a[target="_blank"]')).toBeNull();expect(button(ui.view,"Ma réservation")).not.toBeNull();
   });
   it("discards a private image that completes after the viewer leaves",async()=>{
     const gate=barrier(),create=vi.spyOn(URL,"createObjectURL");
@@ -273,7 +364,7 @@ describe("private group ideas", () => {
     expect(create).not.toHaveBeenCalled();expect(ui.view.querySelector("img")).toBeNull();
   });
   it("allows an author to close an unsaved editor without changing the idea",async()=>{
-    const ui=setup();await settle();button(ui.view,"Modifier").click();const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
+    const ui=setup();await settle();await openIdeaEditor(ui);const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     button(modal,"Annuler").click();expect(ui.view.querySelector("dialog")).toBeNull();expect(ui.service.update).not.toHaveBeenCalled();
   });
   it("does not start private reads with an already aborted view",()=>{
@@ -290,7 +381,7 @@ describe("private group ideas", () => {
     gate.resolve();await settle();expect(image).toHaveBeenCalledTimes(5);expect(ui.view.querySelectorAll(".group-suggestions__media img")).toHaveLength(5);
   });
   it("checks each edited field before saving",async()=>{
-    const ui=setup();await settle();button(ui.view,"Modifier").click();const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
+    const ui=setup();await settle();await openIdeaEditor(ui);const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     /** @type {HTMLInputElement} */ (modal.querySelector('[name="url"]')).value="javascript:alert(1)";
     /** @type {HTMLInputElement} */ (modal.querySelector('[name="price"]')).value="-1";
     /** @type {HTMLInputElement} */ (modal.querySelector('[name="quantity"]')).value="0";

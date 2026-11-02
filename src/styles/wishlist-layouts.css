@@ -238,3 +238,4 @@
 @media (max-width: 40rem) {
   .wishlist-details-view--split.shared-wishlist-view--empty .shared-wishlist-metadata { border: 0; }
 }
+.wishlist-details-view .shared-wishlist-metadata time { color: var(--color-accent-text); }

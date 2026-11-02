@@ -1,2 +1,4 @@
-- Les nouveautés de MonKado seront annoncées dans ce salon après leur mise en ligne.
-- L’extension et son guide d’installation seront disponibles dans <#1566852359395483848>, regroupés par version.
+- Les idées surprises adoptent les mêmes cartes que les souhaits, avec la réservation sur l’image et une page de détail dédiée. Leur auteur peut les modifier et les supprimer.
+- Le bouton « Proposer une idée » se trouve directement dans la section des idées surprises.
+- Les bandeaux des listes sont mieux alignés sur tous les écrans, avec la date en terracotta.
+- L’accueil gagne des cartes plus lisibles et affiche l’auteur de chaque liste dans les prochaines occasions.
