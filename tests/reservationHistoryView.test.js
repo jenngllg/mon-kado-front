@@ -196,7 +196,7 @@ describe("reservation history presentation", () => {
     await settle(); changeFilter(view);
     await settle();
     expect(view.textContent).toContain("Par Camille");
-    expect(view.querySelector("img")?.getAttribute("src")).toBe("https://example.test/photo");
+    expect(view.querySelector("img")?.getAttribute("src")).toBe("https://example.test/photo?size=thumbnail");
     const listLink = view.querySelector(".reservation-history-card__metadata-link");
     expect(listLink?.getAttribute("href")).toBe("/shared-wishlists/test#private-test");
     expect(listLink?.textContent).toBe("Noël");

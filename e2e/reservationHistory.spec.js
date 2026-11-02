@@ -49,7 +49,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     api.state.authenticated = true; api.state.reservedQuantity = 1; api.wish.quantity = 1;
     const imageUrl = `http://localhost:7000/api/v1/shared-wishlists/${shareId}/wishes/${wishId}/image?token=history-image`;
     api.wish.imageUrl = imageUrl;
-    await context.route(imageUrl, route => route.fulfill({
+    await context.route(`${imageUrl}*`, route => route.fulfill({
       status: 200, contentType: "image/png",
       body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jSeoAAAAASUVORK5CYII=", "base64"),
     }));
@@ -72,6 +72,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     const filter = page.getByLabel("Statut", { exact: true });
     await expect(page.getByRole("button", { name: "Appliquer le filtre" })).toHaveCount(0);
     await expect(card).toBeVisible();
+    await expect(card.locator("img")).toHaveAttribute("src", `${imageUrl}&size=thumbnail`);
     const bounds = await card.boundingBox();
     expect(bounds).not.toBeNull();
     if (bounds && viewport.width === 1440) {

@@ -130,7 +130,7 @@ export function createReservationHistoryView({ load, signal, onOpenWish, createC
           const dates = node("div", ""); dates.className = "reservation-history-card__dates flow";
           appendDate(dates, "Réservée le", item.createdAt);
           if (item.endedAt) appendDate(dates, item.status === "cancelled" ? "Annulée le" : "Indisponible depuis", item.endedAt);
-          const media = createWishImage({ imageUrl: item.imageUrl ?? null, imageUnavailable: item.imageUnavailable ?? false });
+          const media = createWishImage({ imageUrl: item.imageUrl ?? null, imageUnavailable: item.imageUnavailable ?? false }, { thumbnail: true });
           const imageLink = wishHref ? wishLink(`Voir le souhait « ${item.wishName} »`, wishHref) : null;
           if (imageLink) { imageLink.setAttribute("aria-label", `Voir le souhait « ${item.wishName} »`); imageLink.replaceChildren(media); }
           const thumbnail = imageLink ?? media;
