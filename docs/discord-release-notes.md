@@ -1,0 +1,2 @@
+- Les nouveautés de MonKado seront annoncées dans ce salon après leur mise en ligne.
+- L’extension et son guide d’installation seront disponibles dans <#1566852359395483848>, regroupés par version.
