@@ -89,7 +89,8 @@ describe("gift deletion integration", () => {
   it("preserves confirmed success when collection reloading fails and retries only GET", async () => {
     const app = setup(); await app.start(); await ready(app); app.state.collectionStatus = 503; app.click("Supprimer");
     await until(app.shell.element, () => window.location.pathname === detail && app.state.collectionReads === 2 && app.shell.outlet.querySelector('.wishlist-details-gifts > .flow[aria-busy="false"] [role="alert"]') !== null && app.shell.notificationRegion.textContent.includes("Souhait supprimé"));
-    app.state.collectionStatus = 200; window.dispatchEvent(new Event("focus")); await until(app.shell.outlet, () => app.state.collectionReads === 3 && app.shell.outlet.textContent.includes("et donne des idées à tes proches")); expect(app.state.writes).toBe(1); expect(app.state.collectionReads).toBe(3);
+    app.state.collectionStatus = 200; window.dispatchEvent(new Event("focus")); expect(app.state.collectionReads).toBe(2);
+    app.click("Réessayer"); await until(app.shell.outlet, () => app.state.collectionReads === 3 && app.shell.outlet.textContent.includes("et donne des idées à tes proches")); expect(app.state.writes).toBe(1); expect(app.state.collectionReads).toBe(3);
   });
   it("deletes on the current list without relying on history navigation", async () => {
     const app = setup(); await app.start(); await ready(app); vi.spyOn(window.history, "replaceState").mockImplementationOnce(() => { throw new Error("history failure"); }); app.click("Supprimer");

@@ -4,6 +4,7 @@ import { createDashboardView } from '../src/features/home/dashboardView.js';
 import { createDashboardService } from '../src/features/home/dashboardService.js';
 import { disposeComponent } from '../src/components/index.js';
 import { createSessionHomeView } from '../src/views/applicationViews.js';
+const { document, window } = globalThis;
 
 /** @type {import('../src/features/wishlists/wishlistsService.js').Wishlist} */
 const list = { id: 'own', name: 'Mon anniversaire', occasion: 'birthday', eventDate: '2026-11-08', isSuspended: false };
@@ -17,6 +18,14 @@ function fixture(overrides = {}) {
   return { view, service };
 }
 describe('authenticated dashboard', () => {
+  it('does not reread business data on window return', async () => {
+    const { view, service } = fixture(); document.body.append(view);
+    await vi.waitFor(() => expect(view.querySelector('a[href="/lists/own"]')).not.toBeNull());
+    const link = /** @type {HTMLAnchorElement} */ (view.querySelector('a[href="/lists/own"]')); link.focus();
+    window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange'));
+    expect(service.lists).toHaveBeenCalledOnce(); expect(service.occasions).toHaveBeenCalledOnce();
+    expect(view.querySelector('a[href="/lists/own"]')).toBe(link); expect(document.activeElement).toBe(link); disposeComponent(view); view.remove();
+  });
   it('removes private dashboard data immediately when the session ends', async () => {
     const f = fixture();
     let state = /** @type {import('../src/auth/sessionManager.js').SessionSnapshot} */ ({ status: 'authenticated', user: { id: 'member', displayName: 'Jenn' } });

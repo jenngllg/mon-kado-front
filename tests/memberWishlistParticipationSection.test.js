@@ -19,6 +19,13 @@ function setup(overrides = {}) {
   return { view, loadCurrentMember, joinMember, onUnavailable, button };
 }
 describe("member participation", () => {
+  it("keeps recognized participation and does not replay its continuation after a return read", async () => {
+    const gate = barrier(), onRecognized = vi.fn(); const loadCurrentMember = vi.fn().mockResolvedValueOnce(participant).mockImplementation(() => gate.promise.then(() => participant));
+    const ui = setup({ loadCurrentMember, onRecognized }); await settle();
+    window.dispatchEvent(new Event("focus")); expect(ui.view.textContent).toContain("Tu participes à cette liste");
+    expect(ui.view.textContent).not.toContain("Vérification de ta participation"); gate.resolve(); await settle();
+    expect(onRecognized).toHaveBeenCalledOnce(); expect(ui.joinMember).not.toHaveBeenCalled();
+  });
   it("omits the account name from wish identification and exposes the requested reservation action", async () => {
     const onRecognized = vi.fn();
     const ui = setup({ onRecognized }); await settle();
@@ -41,7 +48,7 @@ describe("member participation", () => {
     const ui = setup({ loadCurrentMember: load }); await settle();
     const explanation = [...ui.view.querySelectorAll("p")].find(item => item.textContent?.startsWith("Ta participation invitée"));
     expect(explanation?.hidden).toBe(true); window.dispatchEvent(new Event("focus")); await settle();
-    expect(explanation?.hidden).toBe(true); expect(ui.view.querySelector("h2")?.textContent).toBe("Participer"); expect(ui.view.textContent).not.toContain("Nom d’affichage"); expect(ui.joinMember).not.toHaveBeenCalled();
+    expect(explanation?.hidden).toBe(true); expect(ui.view.querySelector("h2")?.textContent).toBe("Tu participes à cette liste"); expect(load).toHaveBeenCalledOnce(); expect(ui.view.textContent).not.toContain("Nom d’affichage"); expect(ui.joinMember).not.toHaveBeenCalled();
   });
   it("keeps the attachment explanation until explicit continuation succeeds", async () => {
     const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); await settle();

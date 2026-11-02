@@ -20,6 +20,12 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 16; i++) await Promise.resolve(); }
 describe("guest participation presentation", () => {
+  it("retains recognized participation while rereading and avoids repeated recognition callbacks", async () => {
+    const onRecognized = vi.fn(); const ui = setup({ loadCurrent: async () => participant, onRecognized }); await settle();
+    window.dispatchEvent(new Event("focus")); await settle();
+    expect(ui.view.textContent).toContain("Tu participes à cette liste"); expect(ui.view.textContent).not.toContain("Vérification de ta participation");
+    expect(onRecognized).toHaveBeenCalledOnce(); expect(ui.joinGuest).not.toHaveBeenCalled();
+  });
   it("explains that guest participation grants no editing rights", async () => { const ui = setup(); await settle(); expect(ui.view.textContent).toContain("Tu peux consulter cette liste. Participer ne permet pas de modifier ses souhaits."); expect(ui.view.querySelector('a[href*="/edit"]')).toBeNull(); });
   it("offers dedicated sign-in after lookup failure but not while an operation runs", async () => {
     const onSignIn = vi.fn(), gate = barrier(); const ui = setup({ onSignIn, loadCurrent: async () => { await gate.promise; throw new ApiError({ kind: "network" }); } });

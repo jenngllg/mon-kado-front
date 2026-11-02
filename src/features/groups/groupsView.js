@@ -2,7 +2,6 @@ import { ApiError, isAbortError } from "../../api/apiError.js";
 import { createActionLink, createAlert, createBackLink, createButton, createFormField, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createMemberAvatar } from "../../components/memberAvatar.js";
-import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { readProfilePhoto } from "../profile/profileImageService.js";
 import { createGroupAvatar } from "./groupPhoto.js";
@@ -164,7 +163,6 @@ function createFrame(title, signal) {
   /** @type {()=>Promise<void>} */ let render = async () => {};
   registerComponentCleanup(element, () => { disposed = true; lifetime.abort(); clear(content); clear(feedback); });
   addComponentEventListener(element, signal, "abort", () => disposeComponent(element), { once: true });
-  refreshOnReturn(element, () => { if (!element.querySelector("dialog[open]") && ![...element.querySelectorAll("input")].some(input => input.value.trim())) void read(); });
   const frame = { element, actions, content, title: heading, signal: combined, read, run, clear: () => clear(content),
     /** @param {()=>Promise<void>} callback */ onRead(callback) { render = callback; if (combined.aborted) disposeComponent(element); else void read(); } };
   return frame;
@@ -174,7 +172,8 @@ function createFrame(title, signal) {
     try { await render(); if (!combined.aborted) blocked = false; }
     catch (error) {
       if (isAbortError(error) || combined.aborted) return;
-      clear(content); show(error); blocked = true;
+      clear(content);
+      show(error); blocked = true;
     } finally { busy = false; if (!disposed) controls(false); }
   }
   /** @param {()=>Promise<void>} mutation */

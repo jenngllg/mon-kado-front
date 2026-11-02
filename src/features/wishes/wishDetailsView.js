@@ -21,7 +21,7 @@ import { createActionDisclosure } from "../../components/actionDisclosure.js";
  * copy?: import("../sharing/wishCopyActions.js").WishCopyOperations,
  * reservations?: ReturnType<typeof import("../sharing/ownedGiftReservationService.js").createOwnedGiftReservationService>,
  * onDeleted?: () => void | Promise<void>, signal?: AbortSignal, returnSort?: string | null}} options Dependencies.
- * @returns {HTMLElement} Disposable detail with fresh reads on return.
+ * @returns {HTMLElement} Disposable detail read on entry and after explicit actions.
  */
 export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlist, remove, setFavorite, copy, reservations, onDeleted = () => {}, signal, returnSort }) {
   const view = document.createElement("section"); view.className = "shared-wish-view wish-owner-detail flow";
@@ -48,23 +48,22 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
     addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });
     if (signal.aborted) disposeComponent(view);
   }
-  addComponentEventListener(view, window, "focus", () => { void read(); });
-  addComponentEventListener(view, document, "visibilitychange", () => { if (!document.hidden) void read(); });
   if (!disposed) void read();
   return view;
 
   async function read() {
     if (disposed || deletionDialog || optionsMenu?.open || view.querySelector(".wish-image-dialog[open]") || mutationBusy || copying || reservationDraft || reservationPanel?.contains(document.activeElement)) return;
-    reservationPanel = null;
     request.abort(); request = new AbortController();
     const active = request;
+    const readSignal = AbortSignal.any([lifetime.signal, active.signal]);
+    reservationPanel = null;
     disposeComponent(commandHost); commandHost.replaceChildren(); optionsMenu = null;
     disposeComponent(content); content.replaceChildren(createLoadingState({ label: "Chargement du souhait…" }));
     try {
-      const parent = loadWishlist ? await loadWishlist(wishlistId, { signal: active.signal }) : null;
-      if (disposed || active.signal.aborted) return;
-      const { wish } = await loadOne(wishlistId, wishId, { signal: active.signal });
-      if (disposed || active.signal.aborted) return;
+      const parent = loadWishlist ? await loadWishlist(wishlistId, { signal: readSignal }) : null;
+      if (disposed || readSignal.aborted) return;
+      const { wish } = await loadOne(wishlistId, wishId, { signal: readSignal });
+      if (disposed || readSignal.aborted) return;
       disposeComponent(content); content.replaceChildren();
       const title = document.createElement("h1"); title.textContent = wish.name;
       const editable = parent && !parent.wishlist.isSuspended && !parent.wishlist.isArchived;
@@ -150,6 +149,8 @@ export function createWishDetailsView({ wishlistId, wishId, loadOne, loadWishlis
       }
     } catch (error) {
       if (disposed || active.signal.aborted || isAbortError(error)) return;
+      request.abort(); reservationPanel = null;
+      disposeComponent(commandHost); commandHost.replaceChildren(); optionsMenu = null;
       const translated = toUserFacingError(error);
       disposeComponent(content); content.replaceChildren(createAlert({ title: translated.title, message: translated.message, variant: "error" }));
     }

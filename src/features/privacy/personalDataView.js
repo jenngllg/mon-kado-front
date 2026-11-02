@@ -1,4 +1,3 @@
-import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { isAbortError } from "../../api/apiError.js";
 import { createAlert, createButton, disposeComponent, setButtonLoading } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
@@ -62,12 +61,10 @@ export function createPersonalDataView({ service, signal }) {
     if (signal.aborted) disposeComponent(view);
   }
   if (!disposed) void execute(read);
-  if (!disposed) refreshOnReturn(view, () => { void execute(read); });
   return view;
 
   async function read() {
-    const request = archive === null ? service.latest({ signal: lifetime.signal }) : service.refresh(archive.id, { signal: lifetime.signal });
-    const result = await request;
+    const result = await service.latest({ signal: lifetime.signal });
     if (disposed) return;
     archive = result;
   }
@@ -89,7 +86,8 @@ export function createPersonalDataView({ service, signal }) {
    * @param {typeof operationKind} [kind] User action announced while waiting. */
   async function execute(operation, kind = "read") {
     if (disposed || busy) return;
-    busy = true; operationKind = kind; disposeComponent(feedback); feedback.replaceChildren(); render();
+    busy = true; operationKind = kind;
+    disposeComponent(feedback); feedback.replaceChildren(); render();
     try { await operation(); }
     catch (error) {
       if (!disposed && !isAbortError(error)) {

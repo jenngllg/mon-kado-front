@@ -1,4 +1,3 @@
-import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { createAlert, createButton, createFormField, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
@@ -58,7 +57,6 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
     if (signal.aborted) disposeComponent(section);
   }
   sync(); if (!disposed) void perform(false, false);
-  if (!disposed) refreshOnReturn(section, () => { void perform(false, false); });
   return section;
 
   function sync() {
@@ -126,6 +124,7 @@ export function createWishlistShareSection({ wishlistId, wishlistName, load, cre
       if (explicit) title.focus();
     } catch (error) {
       if (disposed || isAbortError(error)) return;
+      absent = false; link = null; input.value = ""; status.textContent = "";
       clearFeedback();
       if (error instanceof ApiError && (error.statusCode === 404 || error.errorCode === "WISHLIST_SUSPENDED")) {
         terminal = true; sync(); onUnavailable(error.errorCode === "WISHLIST_SUSPENDED" ? "suspended" : "wishlistMissing"); return;

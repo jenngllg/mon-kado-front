@@ -34,6 +34,12 @@ function button(root, label) {
 async function idle(view) { await vi.waitFor(() => expect(button(view, "Demander mon export").disabled).toBe(false)); }
 
 describe("personal data lifecycle UI", () => {
+  it("does not reread export status on window return", async () => {
+    const ui = fixture(ready); const view = ui.mount(); await idle(view);
+    const action = button(view, "Demander mon export"); action.focus();
+    window.dispatchEvent(new Event("focus")); document.dispatchEvent(new Event("visibilitychange")); await idle(view);
+    expect(ui.service.latest).toHaveBeenCalledOnce(); expect(ui.service.refresh).not.toHaveBeenCalled(); expect(document.activeElement).toBe(action);
+  });
   it("uses the shared coral primary style for requesting the deletion link", async () => {
     const f = fixture(); const view = f.mount(); await idle(view);
     expect(button(view, "Recevoir le lien de suppression").classList.contains("ui-button--primary")).toBe(true);
@@ -60,22 +66,14 @@ describe("personal data lifecycle UI", () => {
     expect(view.textContent).toContain("En attente de préparation");
     expect(f.service.requestExport).toHaveBeenCalledOnce();
   });
-  it("reads the latest state once, requests only on click and refreshes the selected export on return", async () => {
-    // Arrange
-    const f = fixture(); const view = f.mount(); await idle(view);
-    // Assert
-    expect(view.textContent).toContain("Aucune demande d’export"); expect(f.service.latest).toHaveBeenCalledOnce();
-    expect(f.service.requestExport).not.toHaveBeenCalled();
-    // Act
-    window.dispatchEvent(new Event("focus")); await idle(view);
-    expect(f.service.latest).toHaveBeenCalledTimes(2);
-    button(view, "Demander mon export").click(); await idle(view);
-    expect(view.textContent).toContain("En attente de préparation");
-    window.dispatchEvent(new Event("focus")); await idle(view);
-    // Assert
-    expect(view.textContent).toContain("Archive disponible"); expect(view.textContent).toContain("Fin de disponibilité");
-    expect(f.service.refresh).toHaveBeenCalledExactlyOnceWith(ready.id, { signal: expect.any(AbortSignal) });
-    expect(button(view, "Télécharger mon archive").hidden).toBe(false);
+  it("reads exports on page entry and after an explicit request, then uses manual re-entry for worker progress", async () => {
+    const f = fixture(); let view = f.mount(); await idle(view);
+    expect(f.service.latest).toHaveBeenCalledOnce(); expect(f.service.requestExport).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event("focus")); await idle(view); expect(f.service.latest).toHaveBeenCalledOnce();
+    button(view, "Demander mon export").click(); await idle(view); expect(view.textContent).toContain("En attente de préparation");
+    window.dispatchEvent(new Event("focus")); await idle(view); expect(f.service.refresh).not.toHaveBeenCalled();
+    f.service.latest.mockResolvedValue(ready); disposeComponent(view); view.remove(); view = f.mount(); await idle(view);
+    expect(view.textContent).toContain("Archive disponible"); expect(button(view, "Télécharger mon archive").hidden).toBe(false); expect(f.service.requestExport).toHaveBeenCalledOnce();
   });
   it.each(["processing", "failed", "expired"])("represents %s without downloading or creating another export", async status => {
     // Arrange

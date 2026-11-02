@@ -1,4 +1,3 @@
-import { refreshOnReturn } from "../../components/refreshOnReturn.js";
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { validateDisplayName, DisplayNameServerMessage } from "../../auth/displayNameValidation.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
@@ -59,7 +58,6 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
   });
   if (signal) { addComponentEventListener(section, signal, "abort", () => disposeComponent(section), { once: true }); if (signal.aborted) disposeComponent(section); }
   if (!disposed) void read(false);
-  if (!disposed) refreshOnReturn(section, () => { void read(false); });
   return section;
 
   function flushBlur() { const action = deferred; deferred = null; action?.(); }
@@ -105,6 +103,7 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
       else { mustRead = false; form.hidden = false; if (explicit) title.focus(); }
     } catch (error) {
       if (disposed || isAbortError(error)) return;
+      mustRead = true; joined = false; identity.textContent = ""; identity.hidden = true; form.hidden = true; title.textContent = onRecognized ? "Pour réserver ce souhait" : "Participer à cette liste";
       failure(error, explicit); if (!disposed) lookupAction("Réessayer");
     } finally { if (!disposed) loading(false); }
   }
