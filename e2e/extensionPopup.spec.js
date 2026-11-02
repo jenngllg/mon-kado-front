@@ -8,7 +8,7 @@ import { imageAsWebp } from "../extension/imageSelection.js";
 async function personalPopup(page,{count,failure="",oldRelay=false}){
   await page.route("**/extension/*",async route=>{
     const file=new URL(route.request().url()).pathname.split("/").pop();
-    if(!file||!["popup.html","popup.js","popup.css","extract.js","imageSelection.js","icon.png"].includes(file))return route.abort();
+    if(!file||!["popup.html","popup.js","popup.css","extract.js","imageSelection.js","suggestionFlow.js","icon.png"].includes(file))return route.abort();
     return route.fulfill({status:200,contentType:file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'image/png',body:await readFile(new URL(`../extension/${file}`,import.meta.url))});
   });
   await page.route('https://images.example/*.png',async route=>route.fulfill({status:200,contentType:'image/png',body:await readFile(new URL('../extension/icon.png',import.meta.url))}));
@@ -44,7 +44,7 @@ for(const count of [1,3]){
     await expect(page.getByRole('button',{name:'Choisir l’image 1',exact:true})).toHaveAttribute('aria-pressed','true');
     if(count===1){await expect(page.getByRole('combobox',{name:'Liste',exact:false})).toHaveValue('list-1');await expect(page.locator('.list-picker')).toHaveCount(0);}
     else{
-      await expect(page.getByRole('combobox')).toHaveCount(0);await page.locator('.list-picker summary').click();
+      await expect(page.getByRole('combobox')).toHaveCount(0);await expect(page.getByRole('checkbox',{name:'Liste 1',exact:true})).toBeVisible();
       await page.getByRole('checkbox',{name:'Liste 1',exact:true}).uncheck();await expect(page.getByRole('button',{name:'Ajouter',exact:true})).toBeDisabled();
       await page.getByRole('checkbox',{name:'Liste 1',exact:true}).check();await page.getByRole('checkbox',{name:'Liste 3',exact:true}).check();
       await page.keyboard.press('Escape');await expect(page.locator('.list-picker summary')).toBeFocused();
@@ -58,7 +58,7 @@ for(const count of [1,3]){
 }
 
 test('a partial rejection retries only failed destinations and keeps the captured favorite',async({page})=>{
-  await personalPopup(page,{count:3,failure:'rejected'});await page.getByRole('checkbox',{name:'Coup de cœur'}).check();await page.locator('.list-picker summary').click();
+  await personalPopup(page,{count:3,failure:'rejected'});await page.getByRole('checkbox',{name:'Coup de cœur'}).check();
   await page.getByRole('checkbox',{name:'Liste 2',exact:true}).check();await page.getByRole('checkbox',{name:'Liste 3',exact:true}).check();await page.getByRole('button',{name:'Ajouter',exact:true}).click();
   await expect(page.locator('#status')).toContainText('Ajout refusé dans « Liste 2 »');await page.getByRole('button',{name:'Réessayer les listes restantes'}).click();
   await expect(page.locator('#form')).toBeHidden();const state=await page.evaluate(()=>/** @type {any} */(window).popupState);
@@ -66,7 +66,7 @@ test('a partial rejection retries only failed destinations and keeps the capture
 });
 
 test('an uncertain multi-list write stops and cannot be replayed',async({page})=>{
-  await personalPopup(page,{count:3,failure:'uncertain'});await page.locator('.list-picker summary').click();await page.getByRole('checkbox',{name:'Liste 2',exact:true}).check();await page.getByRole('checkbox',{name:'Liste 3',exact:true}).check();
+  await personalPopup(page,{count:3,failure:'uncertain'});await page.getByRole('checkbox',{name:'Liste 2',exact:true}).check();await page.getByRole('checkbox',{name:'Liste 3',exact:true}).check();
   await page.getByRole('button',{name:'Ajouter',exact:true}).click();await expect(page.locator('#status')).toContainText('n’a pas pu être confirmé');await expect(page.getByRole('button',{name:'Ajouter',exact:true})).toBeDisabled();
   expect((await page.evaluate(()=>/** @type {any} */(window).popupState)).writes.map((/** @type {any} */ item)=>item.listId)).toEqual(['list-1','list-2']);
 });
@@ -76,10 +76,10 @@ test('an old relay cannot silently lose a selected favorite',async({page})=>{
   await expect(page.locator('#status')).toContainText('Actualise l’onglet MonKado');expect((await page.evaluate(()=>/** @type {any} */(window).popupState)).writes).toHaveLength(0);
 });
 
-test("prefills the open private suggestion instead of reporting a saved wish",async({page})=>{
+test("requires an updated relay instead of silently using a legacy private draft",async({page})=>{
   await page.route("**/extension/*",async route=>{
     const file=new URL(route.request().url()).pathname.split("/").pop();
-    if(!file || !["popup.html","popup.js","popup.css","extract.js","imageSelection.js","icon.png"].includes(file))return route.abort();
+    if(!file || !["popup.html","popup.js","popup.css","extract.js","imageSelection.js","suggestionFlow.js","icon.png"].includes(file))return route.abort();
     const contentType=file.endsWith(".html")?"text/html":file.endsWith(".js")?"text/javascript":file.endsWith(".css")?"text/css":"image/png";
     await route.fulfill({status:200,contentType,body:await readFile(new URL(`../extension/${file}`,import.meta.url))});
   });
@@ -90,15 +90,15 @@ test("prefills the open private suggestion instead of reporting a saved wish",as
       scripting:{executeScript:async()=>[{result:{url:"https://shop.example/item",name:"Livre",price:"12",images:[]}}]},
     }});
   });
-  await page.goto("/extension/popup.html");await expect(page.getByLabel("Nom du souhait")).toHaveValue("Livre");
-  await expect(page.locator(".variants")).toBeHidden();await page.getByRole("button",{name:"Préremplir l’idée"}).click();
-  await expect(page.getByRole("status")).toHaveText("Informations transmises au formulaire privé. Retourne dans MonKado pour vérifier et proposer l’idée.");
+  await page.goto("/extension/popup.html");
+  await expect(page.getByRole("status")).toHaveText("Actualise l’onglet MonKado pour choisir une personne et ses listes, puis rouvre l’extension.");
+  await expect(page.getByRole("button",{name:"Préremplir l’idée"})).toHaveCount(0);
 });
 
 test("separates personal and surprise forms and preserves their independent drafts",async({page},testInfo)=>{
   await page.route("**/extension/*",async route=>{
     const file=new URL(route.request().url()).pathname.split("/").pop();
-    if(!file || !["popup.html","popup.js","popup.css","extract.js","imageSelection.js","icon.png"].includes(file))return route.abort();
+    if(!file || !["popup.html","popup.js","popup.css","extract.js","imageSelection.js","suggestionFlow.js","icon.png"].includes(file))return route.abort();
     const contentType=file.endsWith(".html")?"text/html":file.endsWith(".js")?"text/javascript":file.endsWith(".css")?"text/css":"image/png";
     await route.fulfill({status:200,contentType,body:await readFile(new URL(`../extension/${file}`,import.meta.url))});
   });
@@ -106,8 +106,10 @@ test("separates personal and surprise forms and preserves their independent draf
     Object.assign(window,{extensionWrites:[],chrome:{
       tabs:{query:async(/** @type {{active?:boolean}} */ options)=>options.active?[{id:1,url:"https://shop.example/item"}]:[{id:2}],
         sendMessage:async(/** @type {number} */ _id,/** @type {{action:string,value?:{listId:string}}} */ message)=>{
-          if(message.action==="probe")return {ready:true,supportsVariants:true};
-          if(message.action==="lists")return {lists:[{id:"suggestion:private",name:"Idée surprise pour Léa",isDraft:true},{id:"mine",name:"Ma liste"}]};
+          if(message.action==="probe")return {ready:true,supportsVariants:true,supportsGroupSuggestions:true};
+          if(message.action==="lists")return {lists:[{id:"mine",name:"Ma liste"}]};
+          if(message.action==="suggestionRecipients")return {recipients:[{id:"lea",name:"Léa#1234"}]};
+          if(message.action==="suggestionLists")return {lists:[{id:"target-1",name:"Anniversaire",groupName:"Famille"},{id:"target-2",name:"Noël",groupName:"Amis"}]};
           /** @type {any} */(window).extensionWrites.push(message.value);return {success:true,draft:message.value?.listId.startsWith("suggestion:")};
         }},
       scripting:{executeScript:async()=>[{result:{url:"https://shop.example/item",name:"Livre",price:"12",images:[]}}]},
@@ -119,22 +121,24 @@ test("separates personal and surprise forms and preserves their independent draf
   await page.screenshot({path:testInfo.outputPath("extension-personal.png"),fullPage:true});
   await page.getByRole("button",{name:"Idée surprise",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Proposer une idée surprise"})).toBeVisible();
-  await expect(page.getByLabel("Brouillon privé")).toHaveValue("suggestion:private");await expect(page.locator("select option")).toHaveCount(1);
+  await page.getByRole("combobox",{name:"Pour qui ?"}).selectOption("lea");
+  await expect(page.getByRole("checkbox",{name:"Anniversaire — Famille",exact:true})).toBeChecked();
+  await page.getByRole("checkbox",{name:"Noël — Amis",exact:true}).check();
   await expect(page.getByRole('checkbox',{name:'Coup de cœur',exact:true})).toHaveCount(0);
-  await expect(page.getByText("Visible uniquement par les membres du groupe, sauf le destinataire.",{exact:false})).toBeVisible();
+  await expect(page.getByText("Visible par les membres des groupes indiqués, sauf Léa#1234.",{exact:false})).toBeVisible();
   await expect(page.getByLabel("Nom du souhait")).toHaveValue("Livre");await page.getByLabel("Nom du souhait").fill("Son livre");
   await page.screenshot({path:testInfo.outputPath("extension-suggestion.png"),fullPage:true});
   await page.getByRole("button",{name:"Mes souhaits",exact:true}).click();await expect(page.getByLabel("Nom du souhait")).toHaveValue("Mon livre");await expect(page.getByRole('checkbox',{name:'Coup de cœur',exact:true})).toBeChecked();
   await page.getByRole("button",{name:"Idée surprise",exact:true}).click();await expect(page.getByLabel("Nom du souhait")).toHaveValue("Son livre");
-  await page.getByRole("button",{name:"Préremplir l’idée"}).click();
-  expect(await page.evaluate(()=>/** @type {any} */(window).extensionWrites)).toEqual([expect.objectContaining({listId:"suggestion:private",name:"Son livre"})]);
+  await page.getByRole("button",{name:"Proposer l’idée"}).click();
+  expect(await page.evaluate(()=>/** @type {any} */(window).extensionWrites)).toEqual([expect.objectContaining({listId:"target-1",name:"Son livre"}),expect.objectContaining({listId:"target-2",name:"Son livre"})]);
 });
 
 for (const imageFailure of [false, true]) {
   test(imageFailure ? "names the selected list when image upload fails" : "names the selected list when adding a wish", async ({ page }) => {
   await page.route("**/extension/*", async route => {
     const file = new URL(route.request().url()).pathname.split("/").pop();
-    if (!file || !["popup.html", "popup.js", "popup.css", "extract.js", "imageSelection.js", "icon.png"].includes(file)) return route.abort();
+    if (!file || !["popup.html", "popup.js", "popup.css", "extract.js", "imageSelection.js", "suggestionFlow.js", "icon.png"].includes(file)) return route.abort();
     const contentType = file.endsWith(".html") ? "text/html" : file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : "image/png";
     await route.fulfill({ status: 200, contentType, body: await readFile(new URL(`../extension/${file}`, import.meta.url)) });
   });
@@ -157,9 +161,7 @@ for (const imageFailure of [false, true]) {
   await page.goto("/extension/popup.html");
   await expect(page.getByLabel("Nom du souhait")).toHaveValue("Boîte");
   await expect(page.getByLabel("Prix en euros")).toHaveValue("2,99");
-  await page.locator('.list-picker summary').click();
   await expect(page.getByRole("checkbox",{name:"Anniversaire",exact:true})).toBeChecked();
-  await page.keyboard.press('Escape');
   if (!imageFailure) {
     await page.getByText("Ajouter une couleur ou une taille").click();
     await page.getByLabel("Couleur").fill("Bleu");
@@ -169,7 +171,6 @@ for (const imageFailure of [false, true]) {
     await expect(page.getByLabel("Couleur")).toHaveValue("Bleu");
     await page.getByLabel("Couleur").clear();
   }
-  await page.locator('.list-picker summary').click();
   await page.getByRole('checkbox',{name:'Anniversaire',exact:true}).uncheck();
   await page.getByRole('checkbox',{name:'Noël & amis',exact:true}).check();
   await page.getByRole("button", { name: "Ajouter" }).click();
@@ -185,7 +186,7 @@ test("uses the connected site session to add without any link-analysis request",
   const panel = await context.newPage();
   await panel.route("**/extension/*", async route => {
     const file = new URL(route.request().url()).pathname.split("/").pop();
-    if (!file || !["popup.html", "popup.js", "popup.css", "extract.js", "imageSelection.js", "icon.png"].includes(file)) return route.abort();
+    if (!file || !["popup.html", "popup.js", "popup.css", "extract.js", "imageSelection.js", "suggestionFlow.js", "icon.png"].includes(file)) return route.abort();
     const contentType = file.endsWith(".html") ? "text/html" : file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : "image/png";
     await route.fulfill({ status: 200, contentType, body: await readFile(new URL(`../extension/${file}`, import.meta.url)) });
   });
@@ -227,7 +228,7 @@ test("uses the connected site session to add without any link-analysis request",
 test("attaches a selected product image without requesting extra permission", async ({ page, context }) => {
   await page.route("**/extension/*", async route => {
     const file = new URL(route.request().url()).pathname.split("/").pop();
-    if (!file || !["popup.html", "popup.js", "popup.css", "extract.js", "imageSelection.js", "icon.png"].includes(file)) return route.abort();
+    if (!file || !["popup.html", "popup.js", "popup.css", "extract.js", "imageSelection.js", "suggestionFlow.js", "icon.png"].includes(file)) return route.abort();
     const contentType = file.endsWith(".html") ? "text/html" : file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : "image/png";
     await route.fulfill({ status: 200, contentType, body: await readFile(new URL(`../extension/${file}`, import.meta.url)) });
   });
@@ -274,7 +275,7 @@ test("uses the selected image relay when a merchant prevents direct reading", as
   await page.route("https://images.example/a.png", route => route.fulfill({ status: 200, contentType: "image/png", body: image }));
   await page.route("**/extension/*", async route => {
     const file = new URL(route.request().url()).pathname.split("/").pop();
-    if (!file || !["popup.html", "popup.js", "popup.css", "extract.js", "imageSelection.js", "icon.png"].includes(file)) return route.abort();
+    if (!file || !["popup.html", "popup.js", "popup.css", "extract.js", "imageSelection.js", "suggestionFlow.js", "icon.png"].includes(file)) return route.abort();
     const contentType = file.endsWith(".html") ? "text/html" : file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : "image/png";
     await route.fulfill({ status: 200, contentType, body: await readFile(new URL(`../extension/${file}`, import.meta.url)) });
   });
