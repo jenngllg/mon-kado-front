@@ -83,9 +83,10 @@ test("profile rereads active lists and deep links never bypass the share token",
   await page.getByRole("link", { name: /Anniversaire — test navigateur/ }).click();
   await expect(page.getByRole("heading", { name: api.wishlist.name })).toBeVisible();
   api.memberState.shared = false;
+  const reread = page.waitForResponse(response => new URL(response.url()).pathname === `/api/v1/members/${memberId}/profile` && response.request().method() === "GET");
   await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
+  expect((await reread).status()).toBe(200);
   await expect(page.getByText("Aucune liste partagée")).toBeVisible();
-  expect(api.memberState.profiles).toBe(3);
   await page.goto(`${sharedPath}?fromMember=${memberId}`);
   await expect(page.getByRole("heading", { name: "Cette liste n’est plus partagée." })).toBeVisible();
   await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
@@ -133,7 +134,9 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 360, height: 800
     await expect(list).toBeFocused();
     expect(await list.evaluate(element => globalThis.getComputedStyle(element).textDecorationLine)).toBe("none");
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath(`member-profile-${viewport.width}.png`), fullPage: true });
+    // Capture the tested viewport after fonts and layout settle, without a full-page viewport override.
+    await page.evaluate(async () => { await globalThis.document.fonts.ready; await new Promise(resolve => globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(resolve))); });
+    await page.screenshot({ path: testInfo.outputPath(`member-profile-${viewport.width}.png`), fullPage: false });
     api.memberState.status = 404;
     await page.reload();
     await expect(page.getByRole("heading", { name: "Profil introuvable" })).toBeVisible();
