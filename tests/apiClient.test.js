@@ -8,20 +8,6 @@ const BaseUrl = "http://localhost:7000";
 const CorrelationId = "0199-0000-7000-8000-000000000001";
 
 describe("ApiClient", () => {
-  it.each([true, false, undefined])("returns a fresh session-cookie presence hint and reuses its CSRF token: %s", async hasSessionCookie => {
-    const fetchMock = vi.fn(async input => String(input).endsWith("/security/csrf-token")
-      ? jsonResponse({ token: "fresh-csrf", ...(hasSessionCookie === undefined ? {} : { hasSessionCookie }) }) : new Response(null, { status: 204 }));
-    const client = createApiClient({ baseUrl: BaseUrl, fetchImplementation: fetchMock });
-    expect(await client.refreshCsrfToken()).toBe(hasSessionCookie ?? null);
-    await client.request("/session-operation", { method: "POST", csrf: true });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-  it.each([null, "false", 0])("rejects a malformed session-cookie presence hint: %s", async hasSessionCookie => {
-    const fetchMock = vi.fn(async () => jsonResponse({ token: "fresh-csrf", hasSessionCookie }));
-    const client = createApiClient({ baseUrl: BaseUrl, fetchImplementation: fetchMock });
-    await expect(client.refreshCsrfToken()).rejects.toMatchObject({ kind: "invalidResponse" });
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
   it("never dispatches a protected mutation after its credential generation changes during CSRF preparation", async () => {
     // Arrange
     let version = 0;

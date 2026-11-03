@@ -22,7 +22,7 @@ describe("session management", () => {
     await session.start();
     expect(session.getSnapshot().status).toBe("anonymous");
     expect(state.refreshCount).toBe(0);
-    expect(fetch.mock.calls.map(([input]) => new URL(String(input)).pathname)).toEqual(["/security/csrf-token"]);
+    expect(fetch.mock.calls.map(([input]) => new URL(String(input)).pathname)).toEqual(["/api/v1/auth/session-contexts/current"]);
   });
   it("checks cookie presence afresh and restores an existing session without treating presence as authentication", async () => {
     const { session, state } = setup(); state.hasSessionCookie = false;
@@ -33,6 +33,23 @@ describe("session management", () => {
     state.refreshStatus = 200;
     await session.restore();
     expect(session.getSnapshot().status).toBe("authenticated"); expect(state.refreshCount).toBe(2);
+  });
+  it.each([null, "false", 0])("rejects an invalid session-context hint without refreshing: %s", async hasSessionCookie => {
+    const transport = createSessionTransport();
+    Object.assign(transport.state, { hasSessionCookie });
+    const { session, state } = setup(undefined, transport);
+    await session.start();
+    expect(session.getSnapshot().status).toBe("unavailable");
+    expect(state.refreshCount).toBe(0);
+  });
+  it("preserves an unavailable context error without making an authentication request", async () => {
+    const transport = createSessionTransport();
+    const fetch = vi.fn(async (input, init) => String(input).endsWith("/session-contexts/current")
+      ? new Response(null, { status: 503 }) : transport.fetch(input, init));
+    const { session, state } = setup(undefined, { ...transport, fetch });
+    await session.start();
+    expect(session.getSnapshot().status).toBe("unavailable");
+    expect(state.refreshCount).toBe(0);
   });
   it.each([false, true])("retains the server administrator boolean: %s", async isAdmin => {
     const { session, state } = setup();
@@ -93,10 +110,10 @@ describe("session management", () => {
     expect(state.user).not.toHaveProperty("roles");
     expect(JSON.stringify(listener.mock.calls)).not.toMatch(/jwt-fixture|csrf-fixture|accessToken/);
     expect(fetch.mock.calls.map(call => new URL(String(call[0])).pathname)).toEqual([
-      "/security/csrf-token", "/api/v1/auth/sessions/refresh", "/api/v1/auth/sessions/current",
+      "/api/v1/auth/session-contexts/current", "/security/csrf-token", "/api/v1/auth/sessions/refresh", "/api/v1/auth/sessions/current",
     ]);
-    expect(new Headers(fetch.mock.calls[1][1]?.headers).has("Authorization")).toBe(false);
-    expect(new Headers(fetch.mock.calls[2][1]?.headers).get("Authorization")).toBe("Bearer jwt-fixture-1");
+    expect(new Headers(fetch.mock.calls[2][1]?.headers).has("Authorization")).toBe(false);
+    expect(new Headers(fetch.mock.calls[3][1]?.headers).get("Authorization")).toBe("Bearer jwt-fixture-1");
     expect(fetch.mock.calls.every(call => call[1]?.credentials === "include")).toBe(true);
   });
 
@@ -109,7 +126,7 @@ describe("session management", () => {
     // Assert
     expect(session.getSnapshot()).toMatchObject({ status: "anonymous", issue: null });
     await expect(session.request("/private", { authentication: "required" })).rejects.toMatchObject({ errorCode: "CLIENT_AUTHENTICATION_REQUIRED" });
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it.each([429, 500, 503])("does not retry restoration status %s or downgrade optional requests", async status => {
@@ -221,7 +238,7 @@ describe("session management", () => {
     // Assert
     expect(session.getSnapshot()).toMatchObject({ status: "anonymous", user: null, issue: { title: "Session expirée" } });
     expect(state.refreshCount).toBe(1);
-    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(fetch).toHaveBeenCalledTimes(5);
   });
 
   it("ignores a late 401 from a JWT replaced by a successful renewal", async () => {
@@ -274,7 +291,7 @@ describe("session management", () => {
   it.each([0, -1, NaN, Infinity, "", "not-a-number"])("rejects invalid token expiration %s without retaining the response", async expiresIn => {
     // Arrange
     const { session, fetch } = setup();
-    fetch.mockResolvedValueOnce(Response.json({ token: "csrf" })).mockResolvedValueOnce(Response.json({ accessToken: "jwt-private", tokenType: "Bearer", expiresIn }));
+    fetch.mockResolvedValueOnce(Response.json({ hasSessionCookie: true })).mockResolvedValueOnce(Response.json({ token: "csrf" })).mockResolvedValueOnce(Response.json({ accessToken: "jwt-private", tokenType: "Bearer", expiresIn }));
     // Act
     const result = await session.start();
     // Assert
@@ -286,7 +303,7 @@ describe("session management", () => {
   it("accepts the generated contract's numeric-string expiration", async () => {
     // Arrange
     const { session, fetch } = setup();
-    fetch.mockResolvedValueOnce(Response.json({ token: "csrf" })).mockResolvedValueOnce(Response.json({ accessToken: "jwt-private", tokenType: "Bearer", expiresIn: "900" }));
+    fetch.mockResolvedValueOnce(Response.json({ hasSessionCookie: true })).mockResolvedValueOnce(Response.json({ token: "csrf" })).mockResolvedValueOnce(Response.json({ accessToken: "jwt-private", tokenType: "Bearer", expiresIn: "900" }));
     // Act / Assert
     expect((await session.start()).status).toBe("authenticated");
   });

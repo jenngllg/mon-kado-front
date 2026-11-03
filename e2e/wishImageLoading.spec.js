@@ -70,6 +70,8 @@ for (const failure of [429, 404]) {
       await expect(page.locator(".wish-grid img")).toHaveCount(2);
       const select = page.getByRole("combobox", { name: "Trier par", exact: true });
       await select.selectOption("nameDesc");
+      await expect(page.locator(`.wish-grid img[src*="${wishId}"]`)).toHaveAttribute("src", /test-grant-2/);
+      await expect.poll(() => page.locator(".wish-grid img").evaluateAll(items => items.length === 2 && items.every(item => item instanceof globalThis.HTMLImageElement && item.complete && item.naturalWidth > 0))).toBe(true);
       expect(transport.state.reads).toBe(2);
       await page.locator(owner ? ".wishlist-details-view" : ".shared-wishlist-view").screenshot({ path: testInfo.outputPath("image-recovery.png") });
       // Act

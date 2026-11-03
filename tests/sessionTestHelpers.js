@@ -75,7 +75,9 @@ export function createSessionTransport() {
     if (path === "/api/v1/wishlists" && init?.method === "GET") return Response.json([]);
     if (path === "/api/v1/wishlist-subscriptions" && init?.method === "GET") return Response.json({ items: [], currentPage: 1, pageSize: 20, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false });
     if (path === "/api/v1/groups" && init?.method === "GET") return Response.json({ items: [], currentPage: 1, pageSize: 100, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false });
-    if (path === "/security/csrf-token") return Response.json({ token: "csrf-fixture", ...(state.hasSessionCookie === undefined ? {} : { hasSessionCookie: state.hasSessionCookie }) });
+    if (path === "/api/v1/auth/session-contexts/current") return state.hasSessionCookie === undefined
+      ? new Response(null, { status: 404 }) : Response.json({ hasSessionCookie: state.hasSessionCookie });
+    if (path === "/security/csrf-token") return Response.json({ token: "csrf-fixture" });
     if (path.endsWith("/refresh")) {
       state.refreshCount += 1;
       await state.beforeRefresh();

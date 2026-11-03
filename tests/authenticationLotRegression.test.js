@@ -26,7 +26,7 @@ describe("authentication lot HTTP contract regressions", () => {
     expect(state.status).toBe("unavailable");
     expect(state.user).toBeNull();
     expect(transport.state.refreshCount).toBe(1);
-    expect(transport.fetch.mock.calls).toHaveLength(2);
+    expect(transport.fetch.mock.calls).toHaveLength(3);
     await expect(session.ensureSession()).rejects.toMatchObject({ kind: "invalidResponse", statusCode: status });
     expect(JSON.stringify(state)).not.toMatch(/jwt-fixture|csrf-fixture/);
   });
