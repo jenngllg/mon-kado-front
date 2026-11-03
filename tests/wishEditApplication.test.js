@@ -53,7 +53,7 @@ describe("gift editing integration", () => {
     const app = setup(); app.transport.state.refreshStatus = 401; await app.start(); expect(window.location.pathname).toBe("/login"); expect(new URLSearchParams(window.location.search).get("returnTo")).toBe(path); expect(app.state.parentReads).toBe(0);
   });
   it("stays on the editor after success and rereads the full collection on return", async () => {
-    const app = setup(); await app.start(); await ready(app); expect(document.activeElement).toBe(app.shell.outlet); expect(app.shell.element.querySelector('nav [aria-current="page"]')?.textContent).toBe("Mes listes");
+    const app = setup(); await app.start(); await ready(app); expect(document.activeElement).toBe(app.shell.outlet); expect(app.shell.element.querySelector('nav [aria-current="page"]')?.textContent).toBe("Listes");
     app.send(); await until(app.shell.outlet, () => app.shell.outlet.textContent.includes("Souhait enregistré."));
     expect(window.location.pathname).toBe(path); expect(app.state.writes).toBe(1); expect(app.state.reads).toBe(1); expect(app.state.collectionReads).toBe(0);
     await app.router.navigate(detail); await until(app.shell.outlet, () => app.shell.outlet.querySelector(".wish-card") !== null);

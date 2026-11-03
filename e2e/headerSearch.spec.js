@@ -2,8 +2,8 @@
 import { test, expect } from "@playwright/test";
 import { controlledApi, frontendOrigin } from "./controlledApi.js";
 
-for (const width of [320, 390, 768, 1024, 1280, 1440]) {
-  test(`header magnifier opens, searches and closes without overflow at ${width}px`, async ({ page, context }, testInfo) => {
+for (const width of [320, 390, 768, 1024, 1103, 1115, 1280, 1440]) {
+  test(`header search uses its responsive field and submits without overflow at ${width}px`, async ({ page, context }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const api = await controlledApi(context); api.state.authenticated = true;
     /** @type {string[]} */ const searches = [];
@@ -19,38 +19,64 @@ for (const width of [320, 390, 768, 1024, 1280, 1440]) {
     const toggle = search.getByRole('button', { name: 'Rechercher un membre', exact: true });
     const field = search.getByRole('searchbox', { name: 'Pseudo ou identifiant', exact: true });
     const menu = header.locator('.app-menu-button');
-    await expect(toggle).toBeVisible(); await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    if (width < 1280) { await expect(toggle).toBeVisible(); await expect(toggle).toHaveAttribute('aria-expanded', 'false'); }
+    else { await expect(toggle).toBeHidden(); await expect(field).toBeVisible(); await expect(field).toBeEnabled(); }
     await expect(header.getByRole('link', { name: 'Rechercher un membre' })).toHaveCount(0);
-    await expect(field).toHaveCount(0); expect(searches).toEqual([]);
+    if (width < 1280) await expect(field).toHaveCount(0);
+    expect(searches).toEqual([]);
     if (width < 1280) { await menu.click(); await expect(menu).toHaveAttribute('aria-expanded', 'true'); }
-    await toggle.click(); await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    if (width < 1280) { await toggle.click(); await expect(toggle).toHaveAttribute('aria-expanded', 'true'); }
+    else await field.focus();
     await expect(field).toBeVisible(); await expect(field).toBeFocused();
     await expect(search.locator('.app-member-search__panel')).toHaveCSS('opacity', '1');
     if (width < 1280) await expect(menu).toHaveAttribute('aria-expanded', 'false');
-    const triggerBox = await toggle.boundingBox(), fieldBox = await field.boundingBox();
-    expect(triggerBox?.width).toBe(44); expect(triggerBox?.height).toBe(44);
+    const fieldBox = await field.boundingBox();
+    expect(fieldBox?.height).toBe(44);
     if (width >= 1280) {
-      expect(fieldBox?.x).toBeGreaterThan((triggerBox?.x ?? 0) + 40);
-      expect(Math.abs((fieldBox?.y ?? 0) - (triggerBox?.y ?? 0))).toBeLessThan(2);
       expect(await header.evaluate(node => node.getBoundingClientRect().height)).toBeLessThan(110);
-    } else expect(fieldBox?.y).toBeGreaterThan((triggerBox?.y ?? 0) + 44);
+    } else {
+      const triggerBox = await toggle.boundingBox();
+      expect(triggerBox?.width).toBe(44); expect(triggerBox?.height).toBe(44);
+      expect(fieldBox?.y).toBeGreaterThan((triggerBox?.y ?? 0) + 44);
+      expect(fieldBox?.x).toBeGreaterThanOrEqual(0);
+      expect((fieldBox?.x ?? 0) + (fieldBox?.width ?? 0)).toBeLessThanOrEqual(width);
+      if (width >= 768) await expect.poll(async () => {
+        const box = await field.boundingBox(), anchor = await toggle.boundingBox();
+        return Math.abs((box?.x ?? 0) + (box?.width ?? 0) - (anchor?.x ?? 0) - (anchor?.width ?? 0));
+      }).toBeLessThan(2);
+    }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await field.fill('a'); await field.press('Enter'); await expect(field).toHaveAttribute('aria-invalid', 'true'); expect(searches).toEqual([]);
     await field.fill('Camille'); expect(searches).toEqual([]);
+    if (width === 1103) {
+      await page.setViewportSize({ width: 390, height: 900 });
+      await expect(field).toHaveValue('Camille');
+      await expect.poll(async () => {
+        const box = await field.boundingBox(); return (box?.x ?? 0) >= 0 && (box?.x ?? 0) + (box?.width ?? 0) <= 390;
+      }).toBe(true);
+      await page.setViewportSize({ width, height: 900 });
+      await expect(field).toHaveValue('Camille');
+    }
     await page.screenshot({ path: testInfo.outputPath(`header-search-${width}.png`), fullPage: true });
-    await field.press('Escape'); await expect(toggle).toBeFocused(); await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await toggle.click(); await field.fill(' Camille '); await field.press('Enter');
+    await field.press('Escape');
+    if (width < 1280) { await expect(toggle).toBeFocused(); await expect(toggle).toHaveAttribute('aria-expanded', 'false'); await toggle.click(); }
+    else await expect(field).toBeVisible();
+    await field.fill(' Camille '); await field.press('Enter');
     await expect(page).toHaveURL('/members?q=Camille');
     await expect(page.getByText('Aucun membre trouvé', { exact: true }).last()).toBeVisible();
-    expect(searches).toEqual(['Camille']); await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await toggle.click(); await field.fill('Alex#0428');
+    expect(searches).toEqual(['Camille']);
+    if (width < 1280) { await expect(toggle).toHaveAttribute('aria-expanded', 'false'); await toggle.click(); }
+    else await expect(field).toBeVisible();
+    await field.fill('Alex#0428');
     await Promise.all([
       page.waitForResponse(response => new URL(response.url()).pathname === '/api/v1/members' && new URL(response.url()).searchParams.get('displayName') === 'Alex#0428'),
       search.getByRole('button', { name: 'Lancer la recherche', exact: true }).click(),
     ]);
     await expect(page).toHaveURL('/members?q=Alex%230428'); expect(searches).toEqual(['Camille', 'Alex#0428']);
-    await toggle.click(); await page.getByRole('heading', { name: 'Rechercher un membre', exact: true }).click();
-    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    if (width < 1280) await toggle.click();
+    await page.getByRole('heading', { name: 'Rechercher un membre', exact: true }).click();
+    if (width < 1280) await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    else await expect(field).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     expect(api.unexpected).toEqual([]);
   });

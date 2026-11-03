@@ -58,6 +58,7 @@ const ExpectedRoutes = [
   [RouteNames.GroupWishlist, RoutePaths.GroupWishlist],
   [RouteNames.GroupSuggestion, RoutePaths.GroupSuggestion],
   [RouteNames.GroupWish, RoutePaths.GroupWish],
+  [RouteNames.Notifications, RoutePaths.Notifications],
   [RouteNames.FollowedLists, RoutePaths.FollowedLists],
   [RouteNames.WishlistReportHistory, RoutePaths.WishlistReportHistory],
   [RouteNames.WishlistModerationHistory, RoutePaths.WishlistModerationHistory],

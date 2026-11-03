@@ -82,7 +82,7 @@ describe("wishlist details application integration", () => {
   });
   it("uses real details, correct navigation, initial focus and fresh reads on every opening", async () => {
     const app = setup(); await app.start(); await loaded(app);
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes"); expect(document.activeElement).toBe(app.shell.outlet);
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Listes"); expect(document.activeElement).toBe(app.shell.outlet);
     expect(document.title).toBe(`${item.name} · MonKado`); expect(app.shell.outlet.textContent).toContain(wish.name);
     expect(app.shell.outlet.querySelector(`a[href="/lists/${id}/edit"]`)).not.toBeNull(); expect(app.shell.outlet.querySelector('button[aria-label="Supprimer cette liste"]')).not.toBeNull();
     await app.router.navigate("/"); await app.router.navigate(`/lists/${id}`); await loaded(app); expect(app.state.listReads).toBe(2); expect(app.state.giftReads).toBe(2);

@@ -57,7 +57,7 @@ describe("routed email changes", () => {
     app.shell.outlet.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true }));
     await observe(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Demande prise en compte") === true);
     // Assert
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
+    expect(app.shell.element.querySelector('header a[aria-current="page"]')?.textContent).toBe("Paramètres");
     expect(app.session.getSnapshot().user?.email).toBe("fixture@example.test");
     expect(app.transport.fetch.mock.calls.filter(([url]) => String(url).endsWith("/current/email"))).toHaveLength(1);
     await app.router.navigate("/"); await app.router.navigate("/profile/email");

@@ -5,6 +5,7 @@ import {
 } from "./apiError.js";
 import { CsrfTokenManager } from "./csrfTokenManager.js";
 import { readArchiveResponse } from "./archiveResponse.js";
+import { readNotificationEvents } from "./notificationEvents.js";
 
 const AuthenticationModes = new Set(["none", "optional", "required"]);
 const DefaultTimeoutMilliseconds = 15_000;
@@ -54,6 +55,7 @@ const JsonContentType = "application/json";
  *   expectEmptyResponse?: boolean
  *   impersonationId?: string,
  *   archiveBytes?: number
+ *   onNotification?: (status:{hasUnread:boolean})=>void
  * }} ApiRequestOptions
  */
 
@@ -118,6 +120,7 @@ export class ApiClient {
     const authentication = options.authentication ?? "none";
     const timeoutMs = validateTimeout(options.timeoutMs ?? this.#timeoutMs);
     validateAuthenticationMode(authentication);
+    if (options.onNotification && (url.pathname !== "/api/v1/notifications/events" || method !== "GET" || authentication !== "required")) throw new TypeError("Invalid notification stream request.");
     if (options.archiveBytes !== undefined && (method !== "GET" || authentication !== "required" ||
       !Number.isSafeInteger(options.archiveBytes) || options.archiveBytes <= 0 || options.archiveBytes > 1024 ** 3)) {
       throw new TypeError("Invalid authenticated archive request.");
@@ -233,6 +236,7 @@ export class ApiClient {
         }
       },
       options.archiveBytes,
+      options.onNotification ? status => { if (this.#isCurrentCredential(accessToken, tokenVersion) && !options.signal?.aborted) options.onNotification?.(status); } : undefined,
     );
 
     if (response.ok) {
@@ -391,6 +395,7 @@ export class ApiClient {
    * @param {string} correlationId Request correlation identifier.
    * @param {(response: Response, metadata: ApiResponseMetadata) => void} [onHeaders] Receives headers before body consumption.
    * @param {number} [archiveBytes] Exact size for an authenticated archive read.
+   * @param {(status:{hasUnread:boolean})=>void} [onNotification] Authorized notification events.
    * @returns {Promise<{response: Response, metadata: ApiResponseMetadata, decodedResponse: {data: unknown, isValid: boolean, isEmpty: boolean}}>} Response read within the deadline.
    */
   async #fetchWithTimeout(
@@ -401,6 +406,7 @@ export class ApiClient {
     correlationId,
     onHeaders = () => {},
     archiveBytes,
+    onNotification,
   ) {
     const controller = new AbortController();
     let timedOut = false;
@@ -425,7 +431,7 @@ export class ApiClient {
       correlationId = metadata.correlationId;
       onHeaders(response, metadata);
       const decodedResponse = await waitForWithAbort(
-        response.ok && archiveBytes !== undefined ? readArchiveResponse(response, archiveBytes) : decodeResponse(response),
+        response.ok && onNotification ? readNotificationEvents(response, onNotification) : response.ok && archiveBytes !== undefined ? readArchiveResponse(response, archiveBytes) : decodeResponse(response),
         controller.signal,
       );
 

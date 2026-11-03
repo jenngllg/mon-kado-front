@@ -1,4 +1,3 @@
-- Les idées surprises adoptent les mêmes cartes que les souhaits, avec la réservation sur l’image et une page de détail dédiée. Leur auteur peut les modifier et les supprimer.
-- Le bouton « Proposer une idée » se trouve directement dans la section des idées surprises.
-- Les bandeaux des listes sont mieux alignés sur tous les écrans, avec la date en terracotta.
-- L’accueil gagne des cartes plus lisibles et affiche l’auteur de chaque liste dans les prochaines occasions.
+- Une cloche donne accès à tes notifications et signale les nouvelles activités en temps réel.
+- Sur mobile et tablette, les notifications restent accessibles hors du menu ; Paramètres et Se déconnecter se trouvent directement dans le menu.
+- L’accueil affiche des occasions mieux alignées sur tablette et des images sur toute la hauteur des cartes de listes.

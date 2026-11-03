@@ -13,6 +13,7 @@ test("protected lists require login and logout removes private data", async ({ p
   await page.goto("/lists");
   await expect(page.getByRole("heading", { name: "Mes listes", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Anniversaire — test navigateur" })).toBeVisible();
+  await page.locator(".app-account-menu > summary").click();
   await page.getByRole("button", { name: "Se déconnecter", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Anniversaire — test navigateur" })).toHaveCount(0);
   await expect(page).toHaveURL("/");
@@ -96,6 +97,7 @@ test("logout in another tab removes mounted private content", async ({ page, con
   const privateHeading = page.getByRole("heading", { name: "Anniversaire — test navigateur" });
   await expect(privateHeading).toBeVisible();
   await expect(other.getByRole("heading", { name: "Anniversaire — test navigateur" })).toBeVisible();
+  await other.locator(".app-account-menu > summary").click();
   await other.getByRole("button", { name: "Se déconnecter", exact: true }).click();
   await expect(privateHeading).toHaveCount(0);
   await expect(page).toHaveURL("/");

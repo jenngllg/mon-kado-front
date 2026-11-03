@@ -61,7 +61,7 @@ describe("owned wishlists session integration", () => {
     await app.start(); await until(app.shell.outlet, () => app.shell.outlet.querySelector("li") !== null);
     // Assert
     expect(document.activeElement).toBe(app.shell.outlet);
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Listes");
     expect(document.title).toBe("Mes listes · MonKado");
     for (const path of ["/lists/new", "/lists/" + item.id]) {
       await app.router.navigate(path);

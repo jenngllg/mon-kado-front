@@ -73,7 +73,7 @@ describe("wishlist deletion integration", () => {
   it("keeps initial focus with the router, waits for DELETE, then replaces history, reloads lists and notifies once", async () => {
     const app = setup(); const gate = barrier(); const entered = barrier(); app.state.beforeDelete = async () => { entered.resolve(); await gate.promise; };
     await app.start(); await loaded(app); const length = window.history.length;
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes"); expect(app.shell.outlet.querySelector("dialog")?.open).toBe(true);
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Listes"); expect(app.shell.outlet.querySelector("dialog")?.open).toBe(true);
     expect(app.state.deletes).toBe(0); app.confirm(); await entered.promise;
     expect(window.location.pathname).toBe(path); expect(app.state.exists).toBe(true); expect(app.state.collections).toBe(1); expect(app.shell.notificationRegion.children).toHaveLength(0);
     gate.resolve(); await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Liste supprimée") === true);

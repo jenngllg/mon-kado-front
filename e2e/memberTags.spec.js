@@ -33,8 +33,8 @@ for (const width of [390, 1440]) {
     await expect(page.getByText("Jenn renamed#0042", { exact: true })).toBeVisible();
     expect(writes).toBe(1);
     await page.goto("/members");
-    await page.getByRole("searchbox", { name: /Pseudo ou identifiant/ }).fill("Jenn renamed#0042");
-    await page.getByRole("button", { name: "Rechercher", exact: true }).click();
+    await page.locator("main").getByRole("searchbox", { name: /Pseudo ou identifiant/ }).fill("Jenn renamed#0042");
+    await page.locator("main").getByRole("button", { name: "Rechercher", exact: true }).click();
     await page.getByRole("link", { name: "Jenn renamed#0042", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Jenn renamed#0042", exact: true })).toBeVisible();
     expect(searched).toBe("Jenn renamed#0042"); expect(api.unexpected).toEqual([]);

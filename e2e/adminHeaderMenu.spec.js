@@ -18,14 +18,14 @@ for (const width of [390, 1280, 1366, 1440]) {
     await page.goto("/lists");
     await expect(page.getByRole("link", {name:`Ouvrir la liste « ${api.wishlist.name} »`,exact:true})).toBeVisible();
     await page.evaluate(() => globalThis.document.fonts.ready);
-    if (width >= 1280) await expect(page.locator(".app-member-search__panel")).toHaveCSS("width", "0px");
+    if (width >= 1280) await expect(page.getByRole("searchbox", {name:"Pseudo ou identifiant",exact:true})).toBeVisible();
     const mobile = page.getByRole("button", { name: "Ouvrir le menu principal", exact: true });
     if (width < 1280) await mobile.click();
     const menu = page.locator("header .app-admin-menu"); const toggle = menu.locator("summary");
     await expect(toggle).toBeVisible();
     if (width >= 1280) {
       const first = await page.locator('header a[href="/lists"]').boundingBox();
-      const logout = await page.getByRole("button", {name:"Se déconnecter",exact:true}).boundingBox();
+      const logout = await page.locator(".app-account-menu > summary").boundingBox();
       expect(Math.abs((first?.y ?? 0) - (logout?.y ?? 0))).toBeLessThan(4);
     }
     const moderation = menu.getByRole("link", { name: "Modération", exact: true });
@@ -38,13 +38,13 @@ for (const width of [390, 1280, 1366, 1440]) {
     await toggle.press("Enter"); await expect(activity).toBeVisible();
     if (width >= 1280) {
       const first = await page.locator('header a[href="/lists"]').boundingBox();
-      const logout = await page.getByRole("button", {name:"Se déconnecter",exact:true}).boundingBox();
+      const logout = await page.locator(".app-account-menu > summary").boundingBox();
       expect(Math.abs((first?.y ?? 0) - (logout?.y ?? 0))).toBeLessThan(4);
     }
     await page.screenshot({ path: `.local/admin-header-menu-${width}.png`, fullPage: true });
     if (width >= 1280) {
       const first = await page.locator('header a[href="/lists"]').boundingBox();
-      const logout = await page.getByRole("button", {name:"Se déconnecter",exact:true}).boundingBox();
+      const logout = await page.locator(".app-account-menu > summary").boundingBox();
       expect(Math.abs((first?.y ?? 0) - (logout?.y ?? 0))).toBeLessThan(4);
     }
     await activity.click();
@@ -56,10 +56,15 @@ for (const width of [390, 1280, 1366, 1440]) {
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
     if (width < 1280) await mobile.click();
     await toggle.click();
-    const search = page.getByRole("button", { name: "Rechercher un membre", exact: true });
-    await search.click(); await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(search).toHaveAttribute("aria-expanded", "true");
-    await search.press("Escape");
+    if (width < 1280) {
+      const search = page.getByRole("button", { name: "Rechercher un membre", exact: true });
+      await search.click(); await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(search).toHaveAttribute("aria-expanded", "true"); await search.press("Escape");
+    } else {
+      const field = page.getByRole("searchbox", {name:"Pseudo ou identifiant",exact:true});
+      await field.focus(); await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await field.press("Escape"); await expect(field).toBeVisible();
+    }
     administrator = false; await page.goto("/lists");
     await expect(page.locator("header .app-admin-menu")).toHaveCount(0);
     await expect(page.locator('header a[href^="/admin/"]')).toHaveCount(0);

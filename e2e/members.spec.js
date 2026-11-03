@@ -41,8 +41,8 @@ test("anonymous search → profile → shared list → wish and back preserves t
     body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jSeoAAAAASUVORK5CYII=", "base64"),
   }));
   await page.goto("/members");
-  await page.getByRole("searchbox", { name: /Pseudo ou identifiant/ }).fill("Camille");
-  await page.getByRole("button", { name: "Rechercher", exact: true }).click();
+  await page.locator("main").getByRole("searchbox", { name: /Pseudo ou identifiant/ }).fill("Camille");
+  await page.locator("main").getByRole("button", { name: "Rechercher", exact: true }).click();
   await page.getByRole("button", { name: "Page suivante" }).click();
   await expect(page.getByText("21 membres trouvés. Page 2 sur 2.").first()).toBeVisible();
   await page.getByRole("link", { name: "Camille", exact: true }).click();
@@ -65,7 +65,7 @@ test("anonymous search → profile → shared list → wish and back preserves t
   await page.getByRole("link", { name: "Retour à la liste", exact: true }).click();
   await page.getByRole("link", { name: "Retour au profil", exact: true }).click();
   await page.getByRole("link", { name: "Retour à la recherche", exact: true }).click();
-  await expect(page.getByRole("searchbox", { name: /Pseudo ou identifiant/ })).toHaveValue("Camille");
+  await expect(page.locator("main").getByRole("searchbox", { name: /Pseudo ou identifiant/ })).toHaveValue("Camille");
   await expect(page.getByText("21 membres trouvés. Page 2 sur 2.").first()).toBeVisible();
   expect(api.memberState.searches).toHaveLength(3);
   expect(api.memberState.searches[2]).toContain("page=2");
@@ -105,7 +105,7 @@ test("signing in from a discovered list opens the authenticated dashboard", asyn
   await expect(page).toHaveURL("/");
   await expect(page.getByRole("heading", { name: "Bonjour Camille test", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Mes listes", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Se déconnecter", exact: true })).toBeVisible();
+  await expect(page.locator(".app-account-menu > summary")).toBeVisible();
   expect(api.state.joins).toBe(0);
   expect(api.state.reservations).toBe(0);
   expect(api.unexpected).toEqual([]);

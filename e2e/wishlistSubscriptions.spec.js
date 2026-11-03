@@ -62,9 +62,9 @@ for (const width of [390, 1280, 1440, 1705]) {
     await expect(page).toHaveURL("/followed-lists");
     await expect(page.getByRole("heading", { name: "Mes listes", exact: true })).toBeVisible();
     await expect(categories.getByRole("link", { name: "Listes suivies", exact: true })).toHaveAttribute("aria-current", "page");
-    await expect(navigation.getByRole("link", { name: "Mes listes", exact: true, includeHidden: true })).toHaveAttribute("aria-current", "page");
+    await expect(navigation.getByRole("link", { name: "Listes", exact: true, includeHidden: true })).toHaveAttribute("aria-current", "page");
     if (width >= 1280) {
-      const rows = await navigation.locator("li").evaluateAll(items => items.map(item => item.getBoundingClientRect()).filter(box => box.width && box.height).map(box => box.top + box.height / 2));
+      const rows = await navigation.locator(".app-navigation__list > li").evaluateAll(items => items.map(item => item.getBoundingClientRect()).filter(box => box.width && box.height).map(box => box.top + box.height / 2));
       expect(Math.max(...rows) - Math.min(...rows)).toBeLessThanOrEqual(1);
     } else {
       await expect(page.getByRole("button", { name: "Ouvrir le menu principal", exact: true })).toBeVisible();
