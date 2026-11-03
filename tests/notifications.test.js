@@ -141,6 +141,23 @@ describe("live badge", () => {
     matchMedia.mockRestore(); matches.mockRestore();
   });
 
+  it("reconnects immediately after same-member credential renewal without clearing the unread dot", async () => {
+    /** @type {(state:import("../src/auth/sessionManager.js").SessionSnapshot)=>void} */ let publish = () => {};
+    /** @type {import("../src/api/apiClient.js").ApiRequestOptions[]} */ const streams = [];
+    const request = vi.fn((path, options) => { streams.push(options); return new Promise((resolve, reject) => options.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true })); });
+    const session = /** @type {import("../src/auth/sessionManager.js").SessionManager} */ (/** @type {unknown} */ ({ request, subscribe: (/** @type {(state:import("../src/auth/sessionManager.js").SessionSnapshot)=>void} */ listener) => { publish = listener; return () => {}; } }));
+    const update = vi.fn(); cleanups.push(createNotificationLive(session, update));
+    const state = /** @type {import("../src/auth/sessionManager.js").SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id } }));
+    publish(state); streams[0].onNotification?.({ hasUnread: true });
+    expect(update).toHaveBeenLastCalledWith(true);
+    publish(state); expect(request).toHaveBeenCalledTimes(1);
+    publish({ ...state, user: state.user ? { ...state.user } : null });
+    expect(request).toHaveBeenCalledTimes(2); expect(streams[0].signal?.aborted).toBe(true);
+    expect(update).toHaveBeenLastCalledWith(true);
+    streams[0].onNotification?.({ hasUnread: false }); expect(update).toHaveBeenLastCalledWith(true);
+    streams[1].onNotification?.({ hasUnread: false }); expect(update).toHaveBeenLastCalledWith(false);
+  });
+
   it("uses only the authenticated notification stream and aborts it on logout", async () => {
     /** @type {(state:import("../src/auth/sessionManager.js").SessionSnapshot)=>void} */ let publish = () => {};
     /** @type {import("../src/api/apiClient.js").ApiRequestOptions|null} */ let stream = null;

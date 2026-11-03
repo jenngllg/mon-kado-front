@@ -5,6 +5,8 @@
 export function createNotificationLive(session, update) {
   let controller = new AbortController();
   let member = "";
+  /** @type {import("../../auth/sessionManager.js").SessionSnapshot["user"]} */
+  let identity = null;
   let disposed = false;
   /** @type {ReturnType<typeof setTimeout>|null} */ let timer = null;
   let delay = 1000;
@@ -23,10 +25,13 @@ export function createNotificationLive(session, update) {
   }
   const unsubscribe = session.subscribe(state => {
     const next = state.status === "authenticated" ? state.user?.id ?? "" : "";
-    if (next === member) return;
+    // A fresh identity projection accompanies credential renewal, even for the
+    // same member. Rebind before the old stream's credential guard discards events.
+    if (next === member && state.user === identity) return;
+    const changedMember = next !== member;
     controller.abort(); if (timer !== null) clearTimeout(timer);
-    controller = new AbortController(); member = next; delay = 1000;
-    update(false);
+    controller = new AbortController(); member = next; identity = state.user; delay = 1000;
+    if (changedMember) update(false);
     if (member) void connect(controller.signal);
   });
   return () => { disposed = true; controller.abort(); if (timer !== null) clearTimeout(timer); unsubscribe(); };
