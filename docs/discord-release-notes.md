@@ -1,3 +1,2 @@
-- Les grosses images sont réduites avant leur envoi, sur les souhaits, les idées et les photos de profil ou de groupe.
-- Les idées surprises utilisent des miniatures plus légères dans les listes.
-- Après un enregistrement incertain, « Vérifier le souhait » permet de consulter le résultat sans le recréer.
+- La création d’un souhait poursuit automatiquement vers la liste lorsque son image a bien été enregistrée malgré une réponse interrompue.
+- Le bouton « Vérifier le souhait » est supprimé : aucune vérification manuelle n’est demandée et le souhait n’est jamais créé en double.
