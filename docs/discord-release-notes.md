@@ -1,3 +1,4 @@
 - Une nouvelle page Compte → Notifications permet d’activer ou de désactiver chaque type de notification de la cloche, puis d’enregistrer ses choix.
 - Les préférences sont conservées après rechargement, sur mobile comme sur ordinateur. Les notifications déjà reçues restent accessibles.
 - Plusieurs onglets d’un même compte partagent la connexion de la cloche pour garder les pages et formulaires disponibles, sans bloquer le chargement des préférences.
+- Sur les profils publics et les profils ouverts depuis un groupe, les avatars sont deux fois plus grands : 112 px au lieu de 56 px, sur mobile comme sur ordinateur.

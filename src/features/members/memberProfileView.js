@@ -39,7 +39,7 @@ export function createMemberProfileView({ memberId, load, signal, backHref = "/m
       const profile = await load(memberId, { signal: lifetime.signal });
       if (disposed) return;
       disposeComponent(results); results.replaceChildren(); title.textContent = formatMemberHandle(profile.displayName, profile.displayNameTag);
-      header.prepend(createMemberAvatar({ memberId: profile.id, imageUrl: profile.photo.imageUrl, size: 56 }));
+      header.prepend(createMemberAvatar({ memberId: profile.id, imageUrl: profile.photo.imageUrl, size: 112 }));
       results.append(node("h2", "Listes partagées"));
       if (!profile.wishlists.length) results.append(node("p", "Aucune liste partagée"));
       else {
