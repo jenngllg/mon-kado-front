@@ -1,17 +1,11 @@
-import { createActivityView } from "../features/admin/activityView.js";
 import { createLoadingState } from "../components/index.js";
-import { createAdminMembersView } from "../features/admin/adminMembersView.js";
 import { withResourcePageTitle } from "./resourcePageTitle.js";
 import { createGroupsService } from "../features/groups/groupsService.js";
 import { createDashboardService } from "../features/home/dashboardService.js";
-import { createGroupsView, createGroupView } from "../features/groups/groupsView.js";
-import { createGroupEditView } from "../features/groups/groupEditView.js";
 import { createGroupMemberProfileService } from "../features/groups/groupMemberProfileService.js";
-import { createGroupJoinView } from "../features/groups/groupJoinView.js";
 import { createGroupWishlistService } from "../features/groups/groupWishlistService.js";
 import { createGroupWishReservation } from "../features/groups/groupWishReservation.js";
 import { createGroupSuggestionsService } from "../features/groups/groupSuggestionsService.js";
-import { createGroupSuggestionsView } from "../features/groups/groupSuggestionsView.js";
 import { memberOriginQuery } from "../features/members/memberNavigation.js";
 import { withWishSort } from "../features/wishes/wishSorting.js";
 import { ApiError, createAbortError } from "../api/apiError.js";
@@ -24,71 +18,39 @@ import {
   RoutePaths,
 } from "./routeContracts.js";
 import { createSessionGuard, getLoginDestination } from "../auth/sessionGuards.js";
-import { createAdminReportedWishlistsView, createAdminView } from "../features/admin/adminAccess.js";
 import { createWishlistReportReviewService } from "../features/admin/wishlistReportReviewService.js";
-import { createWishlistReportReviewView } from "../features/admin/wishlistReportReviewView.js";
 import { createWishlistModerationService } from "../features/admin/wishlistModerationService.js";
-import { createWishlistModerationView } from "../features/admin/wishlistModerationView.js";
 import { createWishlistHistoryService } from "../features/admin/wishlistHistoryService.js";
-import { createWishlistReportHistoryView, createWishlistModerationHistoryView } from "../features/admin/wishlistHistoryView.js";
 import { createReportedWishlistsService } from "../features/admin/reportedWishlistsService.js";
 import { createMemberSearchService } from "../features/members/memberSearchService.js";
-import { createMemberSearchView } from "../features/members/memberSearchView.js";
 import { createMemberProfileService } from "../features/members/memberProfileService.js";
-import { createMemberProfileView } from "../features/members/memberProfileView.js";
 import { createMemberNavigation } from "../features/members/memberNavigation.js";
 import { createReservationHistoryService } from "../features/reservations/reservationHistoryService.js";
-import { createReservationHistoryView } from "../features/reservations/reservationHistoryView.js";
 import { createWishlistSubscriptionsService } from "../features/subscriptions/wishlistSubscriptionsService.js";
-import { createWishlistSubscriptionsView } from "../features/subscriptions/wishlistSubscriptionsView.js";
 import { createWishlistSubscriptionControl } from "../features/subscriptions/wishlistSubscriptionControl.js";
 import { createButton } from "../components/button.js";
 import { applyActionIcon } from "../components/actionIcon.js";
 import { registerComponentCleanup } from "../components/componentLifecycle.js";
 import { createRegistrationService } from "../features/registration/registrationService.js";
-import { createRegistrationView } from "../features/registration/registrationView.js";
 import { createEmailConfirmationService } from "../features/emailConfirmation/emailConfirmationService.js";
-import { createEmailConfirmationView } from "../features/emailConfirmation/emailConfirmationView.js";
 import { createProfileService } from "../features/profile/profileService.js";
 import { readProfilePhoto } from "../features/profile/profileImageService.js";
-import { createProfileView } from "../features/profile/profileView.js";
 import { createAccountLayout } from "../components/accountLayout.js";
 import { createPersonalDataService } from "../features/privacy/personalDataService.js";
-import { createPersonalDataView } from "../features/privacy/personalDataView.js";
-import { createAccountDeletionLinkView } from "../features/privacy/accountDeletionLinkView.js";
 import { createAccountDeletionService } from "../features/privacy/accountDeletionService.js";
 import { createAuthenticatorService } from "../features/twoFactor/authenticatorService.js";
-import { createAuthenticatorView } from "../features/twoFactor/authenticatorView.js";
 import { createLoginService } from "../features/login/loginService.js";
-import { createLoginView } from "../features/login/loginView.js";
 import { createPasswordRecoveryService } from "../features/passwordRecovery/passwordRecoveryService.js";
-import { createForgotPasswordView, createResetPasswordView } from "../features/passwordRecovery/passwordRecoveryViews.js";
 import { createPasswordChangeService } from "../features/passwordChange/passwordChangeService.js";
-import { createPasswordChangeView } from "../features/passwordChange/passwordChangeView.js";
 import { createEmailChangeService } from "../features/emailChange/emailChangeService.js";
-import { createEmailChangeView } from "../features/emailChange/emailChangeView.js";
-import { createEmailChangeConfirmationView } from "../features/emailChange/emailChangeConfirmationView.js";
-import { createGoogleReturnView } from "../features/google/googleReturnView.js";
-import { createGoogleLinkView } from "../features/google/googleLinkView.js";
 import { createWishlistsService } from "../features/wishlists/wishlistsService.js";
 import { createWishlistShareService } from "../features/wishlists/wishlistShareService.js";
-import { createWishlistsView } from "../features/wishlists/wishlistsView.js";
-import { createWishlistView } from "../features/wishlists/createWishlistView.js";
-import { createWishlistEditView } from "../features/wishlists/wishlistEditView.js";
-import { createWishlistDetailsView } from "../features/wishlists/wishlistDetailsView.js";
 import { createWishesService } from "../features/wishes/wishesService.js";
-import { createWishCreateView } from "../features/wishes/wishCreateView.js";
-import { createExtensionAddView } from "../features/extension/extensionAddView.js";
 import { readExtensionProduct } from "../features/extension/extensionProduct.js";
-import { createWishEditView } from "../features/wishes/wishEditView.js";
-import { createWishDetailsView } from "../features/wishes/wishDetailsView.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
 import { createSharedWishlistService } from "../features/sharing/sharedWishlistService.js";
 import { createWishlistReportService } from "../features/sharing/wishlistReportService.js";
-import { createSharedWishlistView, createSharedWishlistEntryView } from "../features/sharing/sharedWishlistView.js";
 import { createSharedWishReservation } from "../features/sharing/sharedWishReservation.js";
-import { createSharedWishView } from "../features/sharing/sharedWishView.js";
-import { createSharedSessionView } from "../features/sharing/sharedSessionView.js";
 import { createGiftReservationService } from "../features/sharing/giftReservationService.js";
 import { createOwnedGiftReservationService } from "../features/sharing/ownedGiftReservationService.js";
 import { createPersonalReservationsReader } from "../features/sharing/personalReservations.js";
@@ -184,40 +146,70 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
   return Object.freeze([
     {
       name: RouteNames.GroupJoin, path: RoutePaths.GroupJoin, title: "Rejoindre un groupe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, code: context.consumeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const { createGroupJoinView } = await import("../features/groups/groupJoinView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, code: takeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } });
+      },
     },
     {
       name: RouteNames.GroupInvitation, path: RoutePaths.GroupInvitation, title: "Invitation au groupe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, groupId: context.params.groupId, code: context.consumeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const { createGroupJoinView } = await import("../features/groups/groupJoinView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, groupId: context.params.groupId, code: takeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } });
+      },
     },
     {
       name: RouteNames.Groups, path: RoutePaths.Groups, title: "Mes groupes · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupsView({ service: createGroupsService(session), apiBaseUrl, signal: context.signal, navigate: path => { void context.navigate(path); } }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createGroupsView } = await import("../features/groups/groupsView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createGroupsView({ service: createGroupsService(session), apiBaseUrl, signal: context.signal, navigate: path => { void context.navigate(path); } });
+      },
     },
     {
       name: RouteNames.GroupEdit, path: RoutePaths.GroupEdit, title: "Modifier le groupe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupEditView({
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createGroupEditView } = await import("../features/groups/groupEditView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createGroupEditView({
         service: createGroupsService(session), groupId: context.params.groupId, memberId: session.getSnapshot().user?.id ?? "", apiBaseUrl,
         signal: context.signal, navigate: path => { void context.navigate(path); },
-      }),
+      });
+      },
     },
     {
       name: RouteNames.Group, path: RoutePaths.Group, title: "Mon groupe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createGroupView({
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createGroupView } = await import("../features/groups/groupsView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createGroupView({
         service: createGroupsService(session), groupId: context.params.groupId, memberId: session.getSnapshot().user?.id ?? "", apiBaseUrl,
         signal: context.signal, navigate: path => { void context.navigate(path); },
-      }),
+      });
+      },
     },
     {
       name: RouteNames.GroupMember, path: RoutePaths.GroupMember, title: "Listes du membre · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createMemberProfileView({
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createMemberProfileView } = await import("../features/members/memberProfileView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createMemberProfileView({
         memberId: context.params.memberId, backHref: `/groups/${context.params.groupId}`, backLabel: "Retour au groupe", signal: context.signal,
         load: withResourcePageTitle(createGroupMemberProfileService(createGroupsService(session), { groupId: context.params.groupId, apiBaseUrl, currentUserId: session.getSnapshot().user?.id }).load, context, profile => profile.displayName),
-      }),
+      });
+      },
     },
     {
       name: RouteNames.GroupWishlist, path: RoutePaths.GroupWishlist, title: "Liste du groupe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const [{ createGroupSuggestionsView }, { createSharedWishlistView }] = await Promise.all([import("../features/groups/groupSuggestionsView.js"), import("../features/sharing/sharedWishlistView.js")]);
+        if (context.signal.aborted) throw createAbortError();
         const { groupId, wishlistId } = context.params;
         const wishes = createGroupWishlistService(session, { groupId, apiBaseUrl });
         return createSharedWishlistView({ groupId, shareLinkId: wishlistId, currentUserId: session.getSnapshot().user?.id, loadPersonalReservations: createPersonalReservationsReader(session), signal: context.signal, fromMemberId: context.searchParams.get("fromMember"),
@@ -239,7 +231,9 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     },
     {
       name: RouteNames.GroupSuggestion, path: RoutePaths.GroupSuggestion, title: "Idée du groupe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createGroupSuggestionsView } = await import("../features/groups/groupSuggestionsView.js");
+        if (context.signal.aborted) throw createAbortError();
         const {groupId,wishlistId,suggestionId} = context.params;
         const wishes = createGroupWishlistService(session,{groupId,apiBaseUrl});
         return createGroupSuggestionsView({service:createGroupSuggestionsService(session,{groupId,wishlistId}),ownerName:"",signal:context.signal,detailId:suggestionId,
@@ -251,7 +245,9 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     },
     {
       name: RouteNames.GroupWish, path: RoutePaths.GroupWish, title: "Souhait du groupe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createSharedWishView } = await import("../features/sharing/sharedWishView.js");
+        if (context.signal.aborted) throw createAbortError();
         const { groupId, wishlistId, wishId } = context.params;
         const wishes = createGroupWishlistService(session, { groupId, apiBaseUrl });
         return createSharedWishView({ groupId, shareLinkId: wishlistId, wishId, signal: context.signal, fromMemberId: context.searchParams.get("fromMember"), returnSort: context.searchParams.get("sort"),
@@ -267,57 +263,90 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     },
     {
       name: RouteNames.FollowedLists, path: RoutePaths.FollowedLists, title: "Listes suivies · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishlistSubscriptionsView({ ...createWishlistSubscriptionsService(session), signal: context.signal,
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createWishlistSubscriptionsView } = await import("../features/subscriptions/wishlistSubscriptionsView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createWishlistSubscriptionsView({ ...createWishlistSubscriptionsService(session), signal: context.signal,
           onOpen: href => {
             const target = new URL(href, window.location.origin);
             if (target.pathname.startsWith("/groups/")) { void context.navigate(target.pathname); return; }
             if (sharing.enter(target.pathname.split("/")[2], target.hash) === "ready") void context.navigate(target.pathname);
-          } }),
+          } });
+      },
     },
     {
       name: RouteNames.WishlistReportHistory, path: RoutePaths.WishlistReportHistory, title: "Historique du signalement · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const [{ createAdminView }, { createWishlistReportHistoryView }] = await Promise.all([import("../features/admin/adminAccess.js"), import("../features/admin/wishlistHistoryView.js")]);
+        if (context.signal.aborted) throw createAbortError();
+        return createAdminView(session, {
         signal: context.signal, createView: () => createWishlistReportHistoryView({ wishlistId: context.params.wishlistId, reportId: context.params.reportId, ...createWishlistHistoryService(session), signal: context.signal }),
-      }),
+      });
+      },
     },
     {
       name: RouteNames.WishlistModerationHistory, path: RoutePaths.WishlistModerationHistory, title: "Historique de modération · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const [{ createAdminView }, { createWishlistModerationHistoryView }] = await Promise.all([import("../features/admin/adminAccess.js"), import("../features/admin/wishlistHistoryView.js")]);
+        if (context.signal.aborted) throw createAbortError();
+        return createAdminView(session, {
         signal: context.signal, createView: () => createWishlistModerationHistoryView({ wishlistId: context.params.wishlistId, ...createWishlistHistoryService(session), signal: context.signal }),
-      }),
+      });
+      },
     },
     {
       name: RouteNames.WishlistModeration, path: RoutePaths.WishlistModeration, title: "Suspension de la liste · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const [{ createAdminView }, { createWishlistModerationView }] = await Promise.all([import("../features/admin/adminAccess.js"), import("../features/admin/wishlistModerationView.js")]);
+        if (context.signal.aborted) throw createAbortError();
+        return createAdminView(session, {
         signal: context.signal, createView: () => createWishlistModerationView({ wishlistId: context.params.wishlistId, ...createWishlistModerationService(session), signal: context.signal }),
-      }),
+      });
+      },
     },
     {
       name: RouteNames.WishlistReportReview, path: RoutePaths.WishlistReportReview, title: "Examiner un signalement · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const [{ createAdminView }, { createWishlistReportReviewView }] = await Promise.all([import("../features/admin/adminAccess.js"), import("../features/admin/wishlistReportReviewView.js")]);
+        if (context.signal.aborted) throw createAbortError();
+        return createAdminView(session, {
         signal: context.signal, createView: () => createWishlistReportReviewView({ wishlistId: context.params.wishlistId, reportId: context.params.reportId, ...createWishlistReportReviewService(session), signal: context.signal }),
-      }),
+      });
+      },
     },
     {
       name: RouteNames.Activity, path: RoutePaths.Activity, title: "Activité des membres · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const [{ createActivityView }, { createAdminView }] = await Promise.all([import("../features/admin/activityView.js"), import("../features/admin/adminAccess.js")]);
+        if (context.signal.aborted) throw createAbortError();
+        return createAdminView(session, {
         signal: context.signal, createView: () => createActivityView(session, context.signal),
-      }),
+      });
+      },
     },
     {
       name: RouteNames.AdminMembers, path: RoutePaths.AdminMembers, title: "Comptes · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminView(session, {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const [{ createAdminMembersView }, { createAdminView }] = await Promise.all([import("../features/admin/adminMembersView.js"), import("../features/admin/adminAccess.js")]);
+        if (context.signal.aborted) throw createAbortError();
+        return createAdminView(session, {
         signal: context.signal, createView: () => createAdminMembersView(session, context.signal),
-      }),
+      });
+      },
     },
     {
       name: RouteNames.ReportedWishlists, path: RoutePaths.ReportedWishlists, title: "Listes signalées · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createAdminReportedWishlistsView(session, { ...createReportedWishlistsService(session), signal: context.signal }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createAdminReportedWishlistsView } = await import("../features/admin/adminAccess.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createAdminReportedWishlistsView(session, { ...createReportedWishlistsService(session), signal: context.signal });
+      },
     },
     {
       name: RouteNames.Members, path: RoutePaths.Members, title: "Rechercher un membre · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createMemberSearchView } = await import("../features/members/memberSearchView.js");
+        if (context.signal.aborted) throw createAbortError();
         const query = context.searchParams.get("q");
         if (query !== null && query !== memberSearchState.query) { memberSearchState.query = query; memberSearchState.page = 1; }
         return createMemberSearchView({ ...createMemberSearchService(session, { apiBaseUrl }), signal: context.signal, state: memberSearchState });
@@ -325,35 +354,49 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     },
     {
       name: RouteNames.MemberProfile, path: RoutePaths.MemberProfile, title: "Profil du membre · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createMemberProfileView({ memberId: context.params.memberId, ...createMemberProfileService(session, { apiBaseUrl, frontendOrigin: window.location.origin }), signal: context.signal }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createMemberProfileView } = await import("../features/members/memberProfileView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createMemberProfileView({ memberId: context.params.memberId, ...createMemberProfileService(session, { apiBaseUrl, frontendOrigin: window.location.origin }), signal: context.signal });
+      },
     },
     {
       name: RouteNames.Login,
       path: RoutePaths.Login,
       title: "Se connecter · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createLoginView({ login: createLoginService(session), session, signal: context.signal,
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createLoginView } = await import("../features/login/loginView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createLoginView({ login: createLoginService(session), session, signal: context.signal,
           sharedReturn: sharingSignIn.continuation?.bindLogin(context.signal),
           passwordChanged: consumePasswordChangeNotice(), startGoogle: google?.enabled ? google.start : undefined,
-          returnTo: getLoginDestination(context.searchParams) === RoutePaths.ExtensionAdd && readExtensionProduct() ? RoutePaths.ExtensionAdd : RoutePaths.Home }),
+          returnTo: getLoginDestination(context.searchParams) === RoutePaths.ExtensionAdd && readExtensionProduct() ? RoutePaths.ExtensionAdd : RoutePaths.Home });
+      },
     },
     {
       name: RouteNames.LinkGoogle, path: RoutePaths.LinkGoogle, title: "Associer Google · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        context.consumeFragment();
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const { createGoogleLinkView } = await import("../features/google/googleLinkView.js");
+        if (context.signal.aborted) throw createAbortError();
+        takeFragment();
         return createGoogleLinkView({ continuation: google?.takeLinkContinuation() ?? null, session,
           signal: context.signal, onDestination: onGoogleLinkDestination, onAuthenticated: onGoogleAuthenticated });
       },
     },
     {
       name: RouteNames.GoogleReturn, path: RoutePaths.GoogleReturn, title: "Connexion avec Google · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const { createGoogleReturnView } = await import("../features/google/googleReturnView.js");
+        if (context.signal.aborted) throw createAbortError();
         if (!google) {
-          context.consumeFragment();
+          takeFragment();
           return createPlaceholderView({ title: "Connexion Google indisponible", message: "Tu peux utiliser la connexion par e-mail.", eyebrow: "Compte MonKado" });
         }
-        return createGoogleReturnView({ google, session, consumeFragment: context.consumeFragment, signal: context.signal,
+        return createGoogleReturnView({ google, session, consumeFragment: takeFragment, signal: context.signal,
           onDestination: onGoogleDestination, onAuthenticated: onGoogleAuthenticated, onLinkRequired: onGoogleLinkRequired });
       },
     },
@@ -361,92 +404,152 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       name: RouteNames.Register,
       path: RoutePaths.Register,
       title: "Créer un compte · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createRegistrationView({ register: createRegistrationService(session), signal: context.signal,
-          startGoogle: google?.enabled ? google.start : undefined }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createRegistrationView } = await import("../features/registration/registrationView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createRegistrationView({ register: createRegistrationService(session), signal: context.signal,
+          startGoogle: google?.enabled ? google.start : undefined });
+      },
     },
     {
       name: RouteNames.ConfirmEmail,
       path: RoutePaths.ConfirmEmail,
       title: "Confirmer l’adresse e-mail · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createEmailConfirmationView({ ...createEmailConfirmationService(session),
-          consumeFragment: context.consumeFragment, signal: context.signal }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        {
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const { createEmailConfirmationView } = await import("../features/emailConfirmation/emailConfirmationView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createEmailConfirmationView({ ...createEmailConfirmationService(session),
+          consumeFragment: takeFragment, signal: context.signal });
+      },
     },
     {
       name: RouteNames.ConfirmEmailChange, path: RoutePaths.ConfirmEmailChange, title: "Confirmer la nouvelle adresse e-mail · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createEmailChangeConfirmationView({ ...createEmailChangeService(session), consumeFragment: context.consumeFragment, signal: context.signal }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        {
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const { createEmailChangeConfirmationView } = await import("../features/emailChange/emailChangeConfirmationView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createEmailChangeConfirmationView({ ...createEmailChangeService(session), consumeFragment: takeFragment, signal: context.signal });
+      },
     },
     {
       name: RouteNames.ForgotPassword, path: RoutePaths.ForgotPassword, title: "Mot de passe oublié · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createForgotPasswordView({ ...createPasswordRecoveryService(session), signal: context.signal }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createForgotPasswordView } = await import("../features/passwordRecovery/passwordRecoveryViews.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createForgotPasswordView({ ...createPasswordRecoveryService(session), signal: context.signal });
+      },
     },
     {
       name: RouteNames.ResetPassword, path: RoutePaths.ResetPassword, title: "Réinitialiser le mot de passe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createResetPasswordView({ ...createPasswordRecoveryService(session), consumeFragment: context.consumeFragment, signal: context.signal }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        {
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const { createResetPasswordView } = await import("../features/passwordRecovery/passwordRecoveryViews.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createResetPasswordView({ ...createPasswordRecoveryService(session), consumeFragment: takeFragment, signal: context.signal });
+      },
     },
     {
       name: RouteNames.Profile,
       path: RoutePaths.Profile,
       title: "Mon profil · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createAccountLayout(createProfileView({ ...createProfileService(session, { apiBaseUrl }), signal: context.signal }), RoutePaths.Profile, session),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createProfileView } = await import("../features/profile/profileView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createAccountLayout(createProfileView({ ...createProfileService(session, { apiBaseUrl }), signal: context.signal }), RoutePaths.Profile, session);
+      },
     },
     {
       name: RouteNames.PasswordChange, path: RoutePaths.PasswordChange, title: "Changer mon mot de passe · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createAccountLayout(createPasswordChangeView({ ...createPasswordChangeService(session), signal: context.signal }), RoutePaths.PasswordChange, session),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createPasswordChangeView } = await import("../features/passwordChange/passwordChangeView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createAccountLayout(createPasswordChangeView({ ...createPasswordChangeService(session), signal: context.signal }), RoutePaths.PasswordChange, session);
+      },
     },
     {
       name: RouteNames.PersonalData, path: RoutePaths.PersonalData, title: "Mes données personnelles · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createAccountLayout(createPersonalDataView({ service: createPersonalDataService(session), signal: context.signal }), RoutePaths.PersonalData, session),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createPersonalDataView } = await import("../features/privacy/personalDataView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createAccountLayout(createPersonalDataView({ service: createPersonalDataService(session), signal: context.signal }), RoutePaths.PersonalData, session);
+      },
     },
     {
       name: RouteNames.Authenticator, path: RoutePaths.Authenticator, title: "Mon authentificateur · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createAccountLayout(createAuthenticatorView({ service: createAuthenticatorService(session), session, signal: context.signal,
-          onFinished: () => { void context.navigate(RoutePaths.Login); } }), RoutePaths.Authenticator, session),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createAuthenticatorView } = await import("../features/twoFactor/authenticatorView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createAccountLayout(createAuthenticatorView({ service: createAuthenticatorService(session), session, signal: context.signal,
+          onFinished: () => { void context.navigate(RoutePaths.Login); } }), RoutePaths.Authenticator, session);
+      },
     },
     {
       name: RouteNames.ConfirmAccountDeletion, path: RoutePaths.ConfirmAccountDeletion, title: "Supprimer mon compte · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createAccountDeletionLinkView({ session, service: createAccountDeletionService(session), consumeFragment: context.consumeFragment, signal: context.signal }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        {
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const { createAccountDeletionLinkView } = await import("../features/privacy/accountDeletionLinkView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createAccountDeletionLinkView({ session, service: createAccountDeletionService(session), consumeFragment: takeFragment, signal: context.signal });
+      },
     },
     {
       name: RouteNames.EmailChange, path: RoutePaths.EmailChange, title: "Changer mon adresse e-mail · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createAccountLayout(createEmailChangeView({ load: createProfileService(session).load, ...createEmailChangeService(session), signal: context.signal }), RoutePaths.EmailChange, session),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createEmailChangeView } = await import("../features/emailChange/emailChangeView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createAccountLayout(createEmailChangeView({ load: createProfileService(session).load, ...createEmailChangeService(session), signal: context.signal }), RoutePaths.EmailChange, session);
+      },
     },
     {
       name: RouteNames.Lists, path: RoutePaths.Lists, title: "Mes listes · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishlistsView({ ...createWishlistsService(session), isArchived: context.searchParams.get("isArchived") === "true", signal: context.signal }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createWishlistsView } = await import("../features/wishlists/wishlistsView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createWishlistsView({ ...createWishlistsService(session), isArchived: context.searchParams.get("isArchived") === "true", signal: context.signal });
+      },
     },
     {
       name: RouteNames.ExtensionAdd, path: RoutePaths.ExtensionAdd, title: "Ajouter un souhait · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => createExtensionAddView({
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createExtensionAddView } = await import("../features/extension/extensionAddView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createExtensionAddView({
         lists: createWishlistsService(session), wishes: createWishesService(session, { apiBaseUrl }),
         signal: context.signal,
-      }),
+      });
+      },
     },
     {
       name: RouteNames.NewList, path: RoutePaths.NewList, title: "Créer une liste · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishlistView({ create: createWishlistsService(session).create, groups: createGroupsService(session), signal: context.signal,
-          onCreated: created => onWishlistCreated(created, context) }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createWishlistView } = await import("../features/wishlists/createWishlistView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createWishlistView({ create: createWishlistsService(session).create, groups: createGroupsService(session), signal: context.signal,
+          onCreated: created => onWishlistCreated(created, context) });
+      },
     },
     {
       name: RouteNames.EditList, path: RoutePaths.EditList, title: "Modifier ma liste · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishlistEditView({ ...createWishlistsService(session), update: withResourcePageTitle(createWishlistsService(session).update, context, result => result.wishlist.name), loadOne: withResourcePageTitle(createWishlistsService(session).loadOne, context, result => result.wishlist.name), wishlistId: context.params.listId, signal: context.signal, onSaved: saved => onWishlistUpdated(saved, context) }),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createWishlistEditView } = await import("../features/wishlists/wishlistEditView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createWishlistEditView({ ...createWishlistsService(session), update: withResourcePageTitle(createWishlistsService(session).update, context, result => result.wishlist.name), loadOne: withResourcePageTitle(createWishlistsService(session).loadOne, context, result => result.wishlist.name), wishlistId: context.params.listId, signal: context.signal, onSaved: saved => onWishlistUpdated(saved, context) });
+      },
     },
     {
       name: RouteNames.NewWish, path: RoutePaths.NewWish, title: "Ajouter un souhait · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) => {
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createWishCreateView } = await import("../features/wishes/wishCreateView.js");
+        if (context.signal.aborted) throw createAbortError();
         const wishes = createWishesService(session, { apiBaseUrl });
         return createWishCreateView({ wishlistId: context.params.listId, loadOne: createWishlistsService(session).loadOne,
           create: wishes.create, uploadImage: wishes.uploadImage, loadWish: wishes.loadOne,
@@ -455,24 +558,32 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     },
     {
       name: RouteNames.EditWish, path: RoutePaths.EditWish, title: "Modifier un souhait · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishEditView({ ...createWishesService(session, { apiBaseUrl }), update: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).update, context, result => result.wish.name), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createWishEditView } = await import("../features/wishes/wishEditView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createWishEditView({ ...createWishesService(session, { apiBaseUrl }), update: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).update, context, result => result.wish.name), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
           returnSort: context.searchParams.get("sort"),
-          loadWishlist: createWishlistsService(session).loadOne, signal: context.signal, onDeleted: () => onWishDeleted(context) }),
+          loadWishlist: createWishlistsService(session).loadOne, signal: context.signal, onDeleted: () => onWishDeleted(context) });
+      },
     },
     {
       name: RouteNames.WishDetails, path: RoutePaths.WishDetails, title: "Détail du souhait · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishDetailsView({ ...createWishesService(session, { apiBaseUrl }), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createWishDetailsView } = await import("../features/wishes/wishDetailsView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createWishDetailsView({ ...createWishesService(session, { apiBaseUrl }), loadOne: withResourcePageTitle(createWishesService(session, { apiBaseUrl }).loadOne, context, result => result.wish.name), wishlistId: context.params.listId, wishId: context.params.wishId,
           copy: ownedCopyOperations(context.params.listId),
           reservations: createOwnedGiftReservationService(session),
           loadWishlist: createWishlistsService(session).loadOne, onDeleted: () => onWishDeleted(context),
-          signal: context.signal, returnSort: context.searchParams.get("sort") }),
+          signal: context.signal, returnSort: context.searchParams.get("sort") });
+      },
     },
     {
       name: RouteNames.ListDetails, path: RoutePaths.ListDetails, title: "Détail de la liste · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: withResourcePageTitle(createWishlistsService(session).loadOne, context, result => result.wishlist.name),
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createWishlistDetailsView } = await import("../features/wishlists/wishlistDetailsView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createWishlistDetailsView({ wishlistId: context.params.listId, loadOne: withResourcePageTitle(createWishlistsService(session).loadOne, context, result => result.wishlist.name),
           groups: createGroupsService(session),
           copy: ownedCopyOperations(context.params.listId),
           initialSort: context.searchParams.get("sort"), onSortChange: sort => context.replaceSearchParameter("sort", sort === "listOrder" ? null : sort),
@@ -485,12 +596,15 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
           loadWishes: createWishesService(session, { apiBaseUrl }).load, reorder: createWishesService(session, { apiBaseUrl }).reorder, signal: context.signal,
           share: { ...createWishlistShareService(session, { frontendOrigin: window.location.origin }),
             onRevoked: () => onWishlistShareRevoked(context),
-            copyText: text => navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : Promise.reject(new Error("Clipboard unavailable")) } }),
+            copyText: text => navigator.clipboard?.writeText ? navigator.clipboard.writeText(text) : Promise.reject(new Error("Clipboard unavailable")) } });
+      },
     },
     {
       name: RouteNames.Reservations, path: RoutePaths.Reservations, title: "Mes réservations · MonKado",
-      render: (/** @type {import("../router/router.js").RouteContext} */ context) =>
-        createReservationHistoryView({ ...createReservationHistoryService(session, { apiBaseUrl }), signal: context.signal,
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const { createReservationHistoryView } = await import("../features/reservations/reservationHistoryView.js");
+        if (context.signal.aborted) throw createAbortError();
+        return createReservationHistoryView({ ...createReservationHistoryService(session, { apiBaseUrl }), signal: context.signal,
           createCancel: (item, callbacks) => {
             if (item.isSuggestion && item.wishHref) {
               const target = new URL(item.wishHref, window.location.origin);
@@ -550,12 +664,17 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
             const target = new URL(href, window.location.origin);
             const shareLinkId = target.pathname.split("/")[2];
             if (sharing.enter(shareLinkId, target.hash) === "ready") void context.navigate(target.pathname);
-          } }),
+          } });
+      },
     },
     {
       name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de souhaits partagée · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        const fragment = context.consumeFragment();
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const [{ createSharedWishlistView, createSharedWishlistEntryView }, { createSharedSessionView }] = await Promise.all([import("../features/sharing/sharedWishlistView.js"), import("../features/sharing/sharedSessionView.js")]);
+        if (context.signal.aborted) throw createAbortError();
+        const fragment = takeFragment();
         const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams, !!fragment);
         const entry = sharing.enter(context.params.shareLinkId, fragment);
         /** @type {string | null | undefined} */ let recoveredOwnerPhoto;
@@ -600,8 +719,12 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.SharedWish, path: RoutePaths.SharedWish, title: "Souhait partagé · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        let pendingFragment = context.consumeFragment();
+        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const [{ createSharedWishlistEntryView }, { createSharedWishView }, { createSharedSessionView }] = await Promise.all([import("../features/sharing/sharedWishlistView.js"), import("../features/sharing/sharedWishView.js"), import("../features/sharing/sharedSessionView.js")]);
+        if (context.signal.aborted) throw createAbortError();
         // Only an original list link can establish access; a detail fragment is discarded.
-        context.consumeFragment();
+        takeFragment();
         const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams);
         const entry = sharing.enter(context.params.shareLinkId, "");
         const state = entry === "missing" && fromMemberId ? await recoverMemberAccess(context, fromMemberId) : entry;

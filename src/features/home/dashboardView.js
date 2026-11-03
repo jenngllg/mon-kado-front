@@ -1,7 +1,7 @@
 import { createActionLink, createButton, createLoadingState, disposeComponent } from '../../components/index.js';
 import { registerComponentCleanup } from '../../components/componentLifecycle.js';
 import { createGroupAvatar } from '../groups/groupPhoto.js';
-import { wishlistArtwork } from '../wishlists/wishlistArtwork.js';
+import { wishlistArtwork, wishlistArtworkSources } from '../wishlists/wishlistArtwork.js';
 
 /** @typedef {ReturnType<typeof import('./dashboardService.js').createDashboardService>} DashboardService */
 
@@ -74,6 +74,7 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
         const row = rowLink(list.name, `/lists/${list.id}`, list.eventDate ? formatDate(list.eventDate) : '');
         const image = document.createElement('img');
         image.src = wishlistArtwork(list.occasion); image.alt = ''; image.width = 112; image.height = 80;
+        image.srcset = wishlistArtworkSources(list.occasion); image.sizes = "112px"; image.decoding = "async";
         row.prepend(image); lists.content.append(row);
       }
     } else failure(lists.content, 'Impossible de charger tes listes.');
