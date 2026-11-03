@@ -1,6 +1,7 @@
 import { createActionLink } from "../../components/index.js";
 import { memberProfileHref } from "../members/memberNavigation.js";
 import { isWishlistId, WishlistOccasions } from "./wishlistValidation.js";
+import { nextOccasionDate } from "./birthdayDate.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 const MillisecondsPerDay = 86_400_000;
@@ -57,10 +58,12 @@ function appendWishlistMetadata(summary, list) {
     separator.setAttribute("aria-hidden", "true");
     metadata.append(separator);
   }
-  const eventTime = new Date(list.eventDate + "T00:00:00Z");
-  const date = document.createElement("time"); date.textContent = DateFormat.format(eventTime); date.dateTime = list.eventDate;
-  metadata.append(date);
   const today = new Date();
+  const calendarToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+  const occurrence = nextOccasionDate(list.eventDate, list.occasion, calendarToday) ?? list.eventDate;
+  const eventTime = new Date(occurrence + "T00:00:00Z");
+  const date = document.createElement("time"); date.textContent = DateFormat.format(eventTime); date.dateTime = occurrence;
+  metadata.append(date);
   // Calendar-day arithmetic avoids daylight-saving rounding errors.
   const remaining = Math.round((eventTime.getTime() - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / MillisecondsPerDay);
   if (remaining >= 0) metadata.append(element("p", remaining === 0 ? "Aujourd’hui" : `${remaining} jour${remaining > 1 ? "s" : ""} restant${remaining > 1 ? "s" : ""}`, "wishlist-event-countdown"));

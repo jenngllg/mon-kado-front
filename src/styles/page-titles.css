@@ -26,6 +26,10 @@
 .app-main > :is(.registration-view, .recovery-view, .login-view, .google-return-view, .google-link-view, .email-confirmation-view, .two-factor-view, .authenticator-view) { margin-inline: auto; }
 .wishlists-view__header > .flow, .wishlists-view__header > h1 { flex: 1 1 100%; }
 .groups-header .group-identity { flex: 1 1 100%; justify-content: center; }
+.groups-header { row-gap: var(--space-5); }
+.wishlists-view > .wishlists-view__toolbar { margin-block-start: var(--space-5); }
+.group-people > h2 + .group-members,
+.member-profile-view > .flow > h2 + * { margin-block-start: var(--space-5); }
 /* Split reading banners keep their own centered identity group at every breakpoint. */
 .wishlist-details-view:not(.wishlist-details-view--split) .shared-wishlist-summary:has(> .shared-wishlist-identity > h1) > .shared-wishlist-identity { display: contents; }
 .wishlist-details-view:not(.wishlist-details-view--split) .shared-wishlist-summary > .shared-wishlist-identity > h1 { grid-column: 1 / -1; }

@@ -85,9 +85,9 @@ describe("wishlist editor", () => {
   });
   it("loads fresh, leaves initial focus to the router, uses four labelled fields and prevents unchanged writes", async () => {
     const ui = setup(); expect(ui.form.hidden).toBe(true); expect(ui.view.textContent).toContain("Chargement de ta liste…"); await settle();
-    expect(ui.form.hidden).toBe(false); expect(ui.form.noValidate).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(["Liste initiale", "birthday", "2020-02-29", "Message initial"]);
+    expect(ui.form.hidden).toBe(false); expect(ui.form.noValidate).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(["Liste initiale", "birthday", "29/02", "Message initial"]);
     expect(ui.submit.disabled).toBe(true); ui.send(); expect(ui.update).not.toHaveBeenCalled(); expect(document.activeElement).not.toBe(ui.fields[0]);
-    for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.hasAttribute("maxlength")).toBe(false); }
+    for (const field of ui.fields) { expect(ui.view.querySelector(`label[for="${field.id}"]`)).not.toBeNull(); expect(field.hasAttribute("maxlength")).toBe(field === ui.fields[2]); }
     ui.input(0, " Liste initiale "); ui.input(3, " Message initial\n "); expect(ui.submit.disabled).toBe(true);
   });
   it("does not offer cancellation or deletion in the edit form and preserves its draft", async () => {
@@ -115,7 +115,7 @@ describe("wishlist editor", () => {
   });
   it("rechecks the UTC day on submit, allows clearing, and rejects native bad input", async () => {
     let date = new Date("2028-03-01T23:59:59Z"); const ui = setup({ now: () => date }); await settle();
-    ui.input(2, "2028-03-01"); ui.fields[2].dispatchEvent(new FocusEvent("blur")); date = new Date("2028-03-02T00:00:00Z"); ui.send();
+    ui.input(1, "wedding"); ui.input(2, "2028-03-01"); ui.fields[2].dispatchEvent(new FocusEvent("blur")); date = new Date("2028-03-02T00:00:00Z"); ui.send();
     expect(ui.update).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.fields[2]); ui.input(2, "");
     Object.defineProperty(ui.fields[2], "validity", { value: { badInput: true }, configurable: true }); ui.send(); expect(ui.update).not.toHaveBeenCalled();
     Object.defineProperty(ui.fields[2], "validity", { value: { badInput: false } }); ui.send(); await settle(); expect(ui.update.mock.calls[0][1].eventDate).toBe("");
@@ -130,7 +130,7 @@ describe("wishlist editor", () => {
     ui.update.mockResolvedValue(original); ui.send(); await settle(); expect(ui.update.mock.calls[2][2].etag).toBe('"v9"');
   });
   it("uses the reloaded server version by explicit local choice and updates date validation against that version", async () => {
-    const ui = setup(); await settle(); ui.loadOne.mockResolvedValue({ ...original, wishlist: { ...original.wishlist, name: "Nouvelle base", eventDate: "2021-01-01" }, etag: '"v2"' }); await conflict(ui); ui.send(); expect(ui.update).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(ui.fields[2]);
+    const ui = setup(); await settle(); ui.input(1, "wedding"); ui.loadOne.mockResolvedValue({ ...original, wishlist: { ...original.wishlist, occasion: "wedding", name: "Nouvelle base", eventDate: "2021-01-01" }, etag: '"v2"' }); await conflict(ui); ui.send(); expect(ui.update).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(ui.fields[2]);
     ui.button("Utiliser la version enregistrée").click(); expect(ui.fields[0].value).toBe("Nouvelle base"); expect(ui.fields[2].value).toBe("2021-01-01"); expect(ui.submit.disabled).toBe(true);
     ui.input(0, "Encore"); expect(ui.fields[0].value).toBe("Encore"); expect(ui.loadOne).toHaveBeenCalledTimes(2);
   });

@@ -107,14 +107,14 @@ describe("shared group admission", () => {
   });
   it("keeps the bearer out of login and registration URLs and waits for authentication", async () => {
     const f = joining({ anonymous: true }); await settle(); f.submit(); expect(f.join).not.toHaveBeenCalled();
-    for (const href of ["/login", "/register"]) { const action = f.view.querySelector(`a[href="${href}"]`); expect(action?.getAttribute("target")).toBe("_blank"); expect(action?.getAttribute("rel")).toBe("noopener noreferrer"); }
+    for (const href of ["/login", "/register"]) { const action = f.view.querySelector(`a[href="${href}"]`); expect(action?.getAttribute("target")).toBeNull(); expect(action?.getAttribute("href")).not.toContain(code); }
     f.identity(owner); f.submit(); await settle(); expect(f.join).toHaveBeenCalledOnce();
   });
-  it("lets the holder verify a separate sign-in and recover a failed restoration without submitting the code", async () => {
-    const f = joining({ anonymous: true }); await settle(); f.session.restore.mockRejectedValueOnce(new ApiError({ kind: "network" }));
-    button(f.view, "Je suis connecté").click(); await settle(); expect(f.view.querySelector('[role="status"]')?.textContent).not.toBe("");
-    button(f.view, "Je suis connecté").click(); await settle(); expect(f.session.restore).toHaveBeenCalledTimes(2); expect(f.join).not.toHaveBeenCalled();
-    const input = /** @type {HTMLInputElement} */ (f.view.querySelector("input")); input.value = code; input.dispatchEvent(new Event("input"));
+  it("uses normal account navigation without a manual session-restoration command", async () => {
+    const f = joining({ anonymous: true }); await settle();
+    expect(f.view.textContent).not.toContain("Je suis connecté");
+    expect(f.view.textContent).not.toContain("nouvel onglet");
+    expect(f.session.restore).not.toHaveBeenCalled(); expect(f.join).not.toHaveBeenCalled();
   });
   it("keeps admission locked during unavailable, incomplete and changing sessions", async () => {
     const f = joining({ anonymous: true }), initial = f.session.getSnapshot(); await settle();

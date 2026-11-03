@@ -190,7 +190,7 @@ describe("shared wishlist presentation", () => {
     ["2027-01-18", "104 jours restants"],
     ["2026-10-07", "1 jour restant"],
     ["2026-10-06", "Aujourd’hui"],
-    ["2026-10-05", null],
+    ["2026-10-05", "364 jours restants"],
     [null, null],
   ])("shows calendar-day countdown for event %s immediately after its date", async (eventDate, expected) => {
     // Arrange
@@ -258,8 +258,9 @@ describe("shared wishlist presentation", () => {
     const access = new AbortController(), ui = setup({ accessSignal: access.signal }); await settle(); const image = ui.view.querySelector("img"); access.abort(); expect(image?.hasAttribute("src")).toBe(false); expect(ui.view.querySelector("li")).toBeNull(); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
   });
   it("shows public information, safe card links and no management actions", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 10, 3, 12));
     const ui = setup(); expect(ui.view.textContent).toContain("Chargement de la liste…"); await settle();
-    expect(ui.view.querySelector("h1")?.textContent).toBe(list.name); expect(ui.view.textContent).toContain("Par Camille"); expect(ui.view.textContent).toContain("29 février 2024"); expect(ui.view.querySelector("time")?.dateTime).toBe("2024-02-29");
+    expect(ui.view.querySelector("h1")?.textContent).toBe(list.name); expect(ui.view.textContent).toContain("Par Camille"); expect(ui.view.textContent).toContain("28 février 2027"); expect(ui.view.querySelector("time")?.dateTime).toBe("2027-02-28");
     const layout = ui.view.querySelector(".wishlist-details-layout");
     expect(layout?.firstElementChild?.className).toContain("wishlist-details-info");
     expect(layout?.lastElementChild?.className).toContain("wishlist-details-gifts");

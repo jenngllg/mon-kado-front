@@ -14,7 +14,7 @@ const wish = { id: "019c52dd-56c1-7cc6-8a95-243f3a032e05", wishlistId: id, name:
   url: "https://shop.example/product", imageUnavailable: false, productUnavailable: false };
 const collection = { wishes: [wish], etag: '"collection"' };
 /** @type {HTMLElement[]} */ const views = [];
-afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
+afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); vi.useRealTimers(); });
 /** @param {Partial<Parameters<typeof createWishlistDetailsView>[0]>} [options] Injectable reads. */
 function setup(options = {}) {
   const loadOne = vi.fn(async () => list); const loadWishes = vi.fn(async () => collection);
@@ -257,11 +257,12 @@ describe("wishlist owner detail", () => {
     disposeComponent(ui.view); expect(ui.view.querySelector("textarea")).toBeNull();
   });
   it("loads metadata before the collection and leaves initial focus to the router", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 10, 3, 12));
     const gate = barrier(); const loadOne = vi.fn(async () => { await gate.promise; return list; }); const ui = setup({ loadOne });
     expect(ui.view.textContent).toContain("Chargement de ta liste…"); expect(ui.loadWishes).not.toHaveBeenCalled(); gate.resolve(); await settle();
     expect(ui.loadWishes).toHaveBeenCalledExactlyOnceWith(id, { signal: expect.any(AbortSignal) });
     expect(ui.view.querySelector("h1")?.textContent).toBe(list.wishlist.name); expect(document.activeElement).toBe(document.body);
-    expect(ui.view.querySelector("time")?.dateTime).toBe("2020-02-29"); expect(ui.view.textContent).toContain("29 février 2020");
+    expect(ui.view.querySelector("time")?.dateTime).toBe("2027-02-28"); expect(ui.view.textContent).toContain("28 février 2027");
     expect(ui.view.querySelector(`a[href="/lists/${id}/edit"]`)?.getAttribute("aria-label")).toBe("Modifier les informations");
     expect(ui.view.querySelector('button[aria-label="Supprimer cette liste"]')?.getAttribute("aria-label")).toBe("Supprimer cette liste");
   });

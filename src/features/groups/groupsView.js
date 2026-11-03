@@ -83,7 +83,7 @@ export function createGroupView({ service, groupId, memberId, apiBaseUrl, signal
     if (previousAvatar instanceof HTMLElement) { disposeComponent(previousAvatar); previousAvatar.remove(); }
     frame.title.before(createGroupAvatar(group, apiBaseUrl));
     document.title = `${group.name} · MonKado`;
-    const invite = createButton({ label: "Inviter un proche", variant: "secondary", onClick: () => {
+    const invite = createButton({ label: "Inviter un proche", variant: "primary", onClick: () => {
       openGroupShareDialog({ parent: frame.element, trigger: invite, signal: frame.signal, groupId, group, apiBaseUrl, service });
     } });
     invite.setAttribute("aria-label", "Inviter un proche"); invite.title = "Inviter un proche";

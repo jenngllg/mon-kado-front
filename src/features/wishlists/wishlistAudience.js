@@ -5,9 +5,9 @@ import { registerComponentCleanup } from "../../components/componentLifecycle.js
 /** @typedef {Awaited<ReturnType<ReturnType<typeof import('../groups/groupsService.js').createGroupsService>['wishlistVisibility']>>} AudienceResponse */
 
 /** Reads a concise audience summary without changing sharing permissions.
- * @param {{load:(options:{signal:AbortSignal})=>Promise<AudienceResponse>, signal:AbortSignal}} options Authorized visibility read and lifetime.
+ * @param {{load:(options:{signal:AbortSignal})=>Promise<AudienceResponse>, signal:AbortSignal,onChange?:(visibility:AudienceResponse['visibility']|null)=>void}} options Authorized visibility read and lifetime.
  */
-export function createWishlistAudience({ load, signal }) {
+export function createWishlistAudience({ load, signal, onChange = () => {} }) {
   const element = document.createElement("div"); element.className = "wishlist-audience";
   const status = document.createElement("div"); status.className = "wishlist-audience__status"; status.setAttribute("role", "status");
   const groupAudience = document.createElement("p");
@@ -21,6 +21,7 @@ export function createWishlistAudience({ load, signal }) {
     const current = ++generation;
     const readSignal = AbortSignal.any([signal, lifetime.signal]);
     if (readSignal.aborted) return;
+    onChange(null);
     if (!status.hasChildNodes()) status.textContent = "Vérification de la visibilité…";
     retry.hidden = true;
     try {
@@ -31,6 +32,7 @@ export function createWishlistAudience({ load, signal }) {
       publicLink.textContent = visibility.isPublic ? "Lien public actif" : "Lien public inactif";
       publicLink.classList.toggle("wishlist-audience__public--active", visibility.isPublic);
       status.replaceChildren(groupAudience, publicLink);
+      onChange(visibility);
     } catch (error) {
       if (readSignal.aborted || current !== generation || isAbortError(error)) return;
       status.textContent = "Visibilité à vérifier"; retry.hidden = false;

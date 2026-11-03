@@ -1642,6 +1642,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/members/current/wishlist-subscription-owners": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read your followed lists
+         * @description Authenticated member only. No participants or reservations are created. Share secrets remain in the frontend URL fragment and are presented only in X-MonKado-Share-Token. The original share capability must remain valid; revoke, rotate, archive, suspension and deletion permanently remove follows. Private responses are not cacheable.
+         */
+        readonly get: operations["GetCurrentMemberWishlistSubscriptionOwners"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/notifications": {
         readonly parameters: {
             readonly query?: never;
@@ -3450,6 +3470,21 @@ export interface components {
             readonly id: string;
             readonly shareUrl: string;
             readonly updatedAt: string | null;
+        };
+        readonly WishlistSubscriptionOwnerResponse: {
+            /** Format: uuid */
+            readonly ownerId: string;
+            /** Format: uuid */
+            readonly wishlistId: string;
+        };
+        readonly WishlistSubscriptionOwnerResponsePaginatedResponse: {
+            readonly currentPage: number;
+            readonly hasNextPage: boolean;
+            readonly hasPreviousPage: boolean;
+            readonly items: readonly components["schemas"]["WishlistSubscriptionOwnerResponse"][];
+            readonly pageSize: number;
+            readonly totalCount: number;
+            readonly totalPages: number;
         };
         readonly WishlistSubscriptionPage: {
             readonly currentPage: number;
@@ -13993,6 +14028,93 @@ export interface operations {
                 };
             };
             /** @description 503ServiceUnavailable */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly GetCurrentMemberWishlistSubscriptionOwners: {
+        readonly parameters: {
+            readonly query?: {
+                readonly page?: number;
+                readonly pageSize?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishlistSubscriptionOwnerResponsePaginatedResponse"];
+                };
+            };
+            /** @description Invalid pagination or CSRF token. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Resource absent, private to another member, or original share capability revoked. */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request quota was exceeded. Retry-After gives the remaining wait in seconds. */
+            readonly 429: {
+                headers: {
+                    readonly "Retry-After"?: number;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected server error. */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable. */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

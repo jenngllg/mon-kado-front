@@ -20,7 +20,7 @@ export function createSessionHomeView(session, options) {
     identity = next;
     for (const child of root.children) if (child instanceof HTMLElement) disposeComponent(child);
     root.replaceChildren(state.status === 'authenticated'
-      ? createDashboardView({ ...options, displayName: state.user?.displayName ?? '' })
+      ? createDashboardView({ ...options, displayName: state.user?.displayName ?? '', memberId: state.user?.id })
       : createHomeView(session));
   }
   render();

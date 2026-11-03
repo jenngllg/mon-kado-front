@@ -1,14 +1,16 @@
 import { createActionLink, createButton, createLoadingState, disposeComponent } from '../../components/index.js';
-import { registerComponentCleanup } from '../../components/componentLifecycle.js';
+import { addComponentEventListener, registerComponentCleanup } from '../../components/componentLifecycle.js';
 import { createGroupAvatar } from '../groups/groupPhoto.js';
 import { wishlistArtwork, wishlistArtworkSources } from '../wishlists/wishlistArtwork.js';
+import { nextOccasionDate } from '../wishlists/birthdayDate.js';
+import { groupDashboardOccasions } from './dashboardOccasions.js';
 
 /** @typedef {ReturnType<typeof import('./dashboardService.js').createDashboardService>} DashboardService */
 
 /** Authenticated home, composed exclusively from authorized API data.
- * @param {{displayName:string,service:DashboardService,signal?:AbortSignal,apiBaseUrl?:string,now?:()=>Date}} options Dependencies.
+ * @param {{displayName:string,memberId?:string,service:DashboardService,signal?:AbortSignal,apiBaseUrl?:string,now?:()=>Date}} options Dependencies.
  */
-export function createDashboardView({ displayName, service, signal, apiBaseUrl = '', now = () => new Date() }) {
+export function createDashboardView({ displayName, memberId, service, signal, apiBaseUrl = '', now = () => new Date() }) {
   const root = node('section', '', 'dashboard');
   const lifetime = new AbortController();
   const readSignal = signal ? AbortSignal.any([signal, lifetime.signal]) : lifetime.signal;
@@ -71,7 +73,8 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
         listIntroduction.hidden = false;
       }
       for (const list of values.slice(0, 3)) {
-        const row = rowLink(list.name, `/lists/${list.id}`, list.eventDate ? formatDate(list.eventDate) : '');
+        const date = nextOccasionDate(list.eventDate, list.occasion, now());
+        const row = rowLink(list.name, `/lists/${list.id}`, date ? formatDate(date) : '');
         const image = document.createElement('img');
         image.src = wishlistArtwork(list.occasion); image.alt = ''; image.width = 112; image.height = 80;
         image.srcset = wishlistArtworkSources(list.occasion); image.sizes = "112px"; image.decoding = "async";
@@ -99,16 +102,17 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
         if (occasionResult?.error) throw occasionResult.error;
         const shared = occasionResult?.value ?? [];
         if (readSignal.aborted) return;
-        const own = listResult.value.filter(list => !list.isSuspended).map(list => ({ ...list, ownerDisplayName: displayName, href: `/lists/${list.id}` }));
-        const unique = new Map([...shared, ...own].map(list => [list.id.toLowerCase(), list]));
-        const upcoming = [...unique.values()].filter(list => list.eventDate && list.eventDate >= todayKey)
-          .sort((a, b) => (a.eventDate ?? '').localeCompare(b.eventDate ?? '') || a.name.localeCompare(b.name, 'fr')).slice(0, 3);
+        const own = listResult.value.filter(list => !list.isSuspended && !list.isArchived).map(list => ({ ...list, ownerDisplayName: displayName, ownerId: memberId, href: `/lists/${list.id}` }));
+        const upcoming = groupDashboardOccasions([...shared, ...own], new Date(`${todayKey}T00:00:00Z`));
         if (!upcoming.length) occasions.append(node('p', 'Aucune occasion à venir pour le moment.'));
-        for (const list of upcoming) {
+        for (const event of upcoming) {
           const occasion = node('div', '', 'dashboard-occasion');
-          const link = rowLink(list.name, list.href, formatDate(list.eventDate ?? ''));
-          link.classList.add('dashboard-occasion__link');
-          occasion.append(link, node('span', `Par ${list.ownerDisplayName}`, 'dashboard-occasion__author'));
+          if (event.lists.length === 1) {
+            const list = event.lists[0];
+            const link = rowLink(event.title, list.href, formatDate(event.date));
+            link.classList.add('dashboard-occasion__link');
+            occasion.append(link, node('span', `Par ${list.ownerDisplayName}`, 'dashboard-occasion__author'));
+          } else occasion.append(occasionDisclosure(event));
           occasions.append(occasion);
         }
       } catch {
@@ -122,6 +126,27 @@ export function createDashboardView({ displayName, service, signal, apiBaseUrl =
     const feedback = node('p', message); feedback.setAttribute('role', 'status');
     target.append(feedback, createButton({ label: 'Réessayer', variant: 'secondary', onClick: () => { void load(); } }));
   }
+}
+
+/** @param {import('./dashboardOccasions.js').OccasionGroup} event Authorized group of lists. */
+function occasionDisclosure(event) {
+  const details = document.createElement('details'); details.className = 'dashboard-occasion__disclosure';
+  const summary = document.createElement('summary'); summary.className = 'dashboard-occasion__summary';
+  const copy = node('span', '', 'dashboard-row__copy');
+  copy.append(node('strong', event.title), node('span', formatDate(event.date)));
+  const count = `${event.lists.length} listes${event.ownerCount === null ? '' : ` · ${event.ownerCount} personne${event.ownerCount > 1 ? 's' : ''}`}`;
+  copy.append(node('span', count, 'dashboard-occasion__count')); summary.append(copy);
+  const lists = document.createElement('ul'); lists.className = 'dashboard-occasion__lists';
+  for (const list of event.lists) {
+    const item = document.createElement('li'), link = rowLink(list.name, list.href, '');
+    link.classList.add('dashboard-occasion__list-link');
+    item.append(link, node('span', `Par ${list.ownerDisplayName}`, 'dashboard-occasion__author')); lists.append(item);
+  }
+  details.append(summary, lists);
+  addComponentEventListener(details, details, 'keydown', event => {
+    if (/** @type {KeyboardEvent} */ (event).key === 'Escape' && details.open) { event.preventDefault(); details.open = false; summary.focus(); }
+  });
+  return details;
 }
 
 /** @param {string} title @param {string} href @param {string} label */

@@ -5,8 +5,6 @@
 .groups-header > .cluster { margin-inline-start: auto; justify-content: flex-end; }
 .groups-header .icon-action { border-radius: var(--radius-full); }
 .groups-header .icon-action--danger { color: var(--color-danger); }
-.group-invite-action.ui-button { background: var(--color-surface-sage); border-color: var(--color-surface-sage); color: var(--color-text); }
-.group-invite-action.ui-button:hover { background: var(--color-surface-sage); border-color: var(--color-text); }
 .group-identity { display: flex; align-items: center; gap: var(--space-4); min-width: 0; max-width: 100%; }
 .group-identity h1 { min-width: 0; }
 .groups-content { --flow-space: var(--space-7); }

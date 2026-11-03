@@ -9,9 +9,10 @@ import { normalizeGroupCode } from "./groupsService.js";
 /** Redeems an in-memory fragment or typed code only on an explicit authenticated submission.
  * @param {{session:Pick<import("../../auth/sessionManager.js").SessionManager,"getSnapshot"|"subscribe"|"restore">,
  * service:Pick<ReturnType<typeof import("./groupsService.js").createGroupsService>,"join"|"previewJoin"|"previewInvitation">,
- * apiBaseUrl:string,groupId?:string,code?:string,signal:AbortSignal,navigate:(path:string)=>void}} options Admission dependencies.
+ * apiBaseUrl:string,groupId?:string,code?:string,signal:AbortSignal,navigate:(path:string)=>void,
+ * onAuthenticate?:(code:string)=>void,onJoined?:()=>void}} options Admission dependencies.
  */
-export function createGroupJoinView({ session, service, apiBaseUrl, groupId, code = "", signal, navigate }) {
+export function createGroupJoinView({ session, service, apiBaseUrl, groupId, code = "", signal, navigate, onAuthenticate = () => {}, onJoined = () => {} }) {
   const view = node("section", ""); view.className = "group-join-view flow";
   const form = document.createElement("form"); form.className = "flow"; form.noValidate = true;
   const input = document.createElement("input"); input.value = normalizeGroupCode(code.replace(/^#/, "")) ?? "";
@@ -23,12 +24,11 @@ export function createGroupJoinView({ session, service, apiBaseUrl, groupId, cod
   const feedback = node("div", ""); feedback.setAttribute("role", "status");
   const signIn = createActionLink({ label: "Se connecter", href: "/login" });
   const register = createActionLink({ label: "Créer un compte", href: "/register" });
-  // Keep the admission code in this tab, never in authentication URLs or storage.
-  for (const link of [signIn, register]) { link.target = "_blank"; link.rel = "noopener noreferrer"; link.setAttribute("aria-label", `${link.textContent} (nouvel onglet)`); }
+  // Save the explicit return before the router disposes this page; auth URLs contain no code.
+  for (const link of [signIn, register]) addComponentEventListener(view, link, "click", () => onAuthenticate(input.value));
   const accountActions = node("div", ""); accountActions.className = "cluster"; accountActions.append(signIn, register);
-  const restore = createButton({ label: "Je suis connecté", variant: "secondary", onClick: () => { void session.restore().catch(error => { if (!disposed) feedback.replaceChildren(createAlert({ ...toUserFacingError(error), variant: "error" })); }); } });
-  const accountCopy = node("p", "Connecte-toi dans le nouvel onglet, puis reviens ici pour rejoindre le groupe.");
-  access.append(accountCopy, accountActions, restore);
+  const accountCopy = node("p", "Connecte-toi ou crée un compte pour rejoindre le groupe.");
+  access.append(accountCopy, accountActions);
   form.append(field, submit);
   view.append(createBackLink({ label: "Retour à Mes groupes", href: "/groups" }), node("h1", "Rejoindre un groupe"), preview, node("p", "Utilise le code reçu ou celui du lien. Aucune validation supplémentaire n’est nécessaire."), access, form, feedback);
   const lifetime = new AbortController(); let identity = new AbortController();
@@ -54,7 +54,7 @@ export function createGroupJoinView({ session, service, apiBaseUrl, groupId, cod
       actor = next;
     }
     access.hidden = !!actor; sync();
-    accountCopy.textContent = state.status === "unavailable" ? "La session n’a pas pu être vérifiée." : "Connecte-toi dans le nouvel onglet, puis reviens ici pour rejoindre le groupe.";
+    accountCopy.textContent = state.status === "unavailable" ? "La session n’a pas pu être vérifiée." : "Connecte-toi ou crée un compte pour rejoindre le groupe.";
   };
   addComponentEventListener(view, form, "submit", event => { event.preventDefault(); void join(); });
   addComponentEventListener(view, input, "input", () => { setFormFieldValidation(field, null); clearPreview(); disposeComponent(feedback); feedback.replaceChildren(); });
@@ -94,7 +94,7 @@ export function createGroupJoinView({ session, service, apiBaseUrl, groupId, cod
     pending = true; input.disabled = submit.disabled = true; form.setAttribute("aria-busy", "true"); disposeComponent(feedback); feedback.replaceChildren();
     try {
       const group = await service.join(normalized, { signal: requestSignal });
-      if (!requestSignal.aborted) { input.value = ""; navigate(`/groups/${group.id}`); }
+      if (!requestSignal.aborted) { input.value = ""; onJoined(); navigate(`/groups/${group.id}`); }
     } catch (error) { if (!requestSignal.aborted && !isAbortError(error)) feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" })); }
     finally { if (!disposed && !requestSignal.aborted) { pending = false; sync(); } }
   }
