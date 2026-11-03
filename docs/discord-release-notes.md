@@ -1,2 +1,3 @@
 - L’ajout de souhaits avec de grosses photos est accéléré, en particulier sur les connexions mobiles : l’image est allégée dès sa sélection et sa préparation est réutilisée lors de l’enregistrement.
 - Les idées surprises des groupes bénéficient du même allègement des images ; les proportions et la transparence sont conservées.
+- Le texte des notifications reste aligné à gauche, quelle que soit sa longueur.

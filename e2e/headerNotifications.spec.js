@@ -47,7 +47,7 @@ for (const width of [390, 1280, 1728]) {
     expect(commands).toEqual(["/api/v1/notifications/read"]);
     await page.keyboard.press("Escape"); await expect(bell).toBeFocused(); await expect(panel).toBeHidden();
     await bell.press("Enter"); await expect(panel.locator(".notification-item")).toHaveCount(20);
-    await page.locator(width < 1280 ? ".app-menu-button" : ".app-account-menu > summary").click(); await expect(panel).toBeHidden();
+    await (width < 1280 ? page.getByRole("button", { name: "Ouvrir le menu principal", exact: true }) : page.locator(".app-account-menu > summary")).click(); await expect(panel).toBeHidden();
     await bell.click(); await expect(panel.locator(".notification-item")).toHaveCount(20);
     await panel.locator(".notification-item a").first().click();
     await expect(page).toHaveURL(`/lists/${listId}`); await expect(panel).toBeHidden();
