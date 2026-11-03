@@ -3,7 +3,7 @@ import { isStrongEntityTag } from "../../api/entityTag.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { projectReservation } from "../sharing/giftReservationService.js";
 import { parseWishPrice, validateWishField } from "../wishes/wishValidation.js";
-import { prepareImageUpload } from "../wishes/prepareImageUpload.js";
+import { prepareWishImageUpload } from "../wishes/prepareImageUpload.js";
 import { validateWishImageFile } from "../wishes/wishImageValidation.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GroupSuggestionResponse"]} Suggestion */
@@ -78,7 +78,7 @@ export function createGroupSuggestionsService(session, { groupId, wishlistId }) 
       if (response.status !== 204 || response.data !== null) throw new ApiError({kind:"invalidResponse"});
     },
     async uploadImage(/** @type {string} */ id, /** @type {Blob} */ file, /** @type {string} */ etag, /** @type {AbortSignal} */ signal) {
-      check(signal); const prepared = await prepareImageUpload(file, { maximumEdge: 1600, signal }); check(signal); const formData = new FormData(); formData.append("image", prepared, "suggestion-image");
+      check(signal); const prepared = await prepareWishImageUpload(file, { signal }); check(signal); const formData = new FormData(); formData.append("image", prepared, "suggestion-image");
       const response = await session.request(`${path(id)}/image`, {method:"PUT",authentication:"required",csrf:true,ifMatch:etag,formData,signal}); check(signal);
       if (response.status !== 200) throw new ApiError({kind:"invalidResponse"});
       if (!isStrongEntityTag(response.metadata.etag)) throw new ApiError({kind:"invalidResponse"});

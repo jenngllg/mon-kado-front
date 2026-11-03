@@ -3,7 +3,7 @@ import { isStrongEntityTag } from "../../api/entityTag.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { createWishPayload, safeHttpUrl } from "./wishValidation.js";
 import { validateWishImageFile } from "./wishImageValidation.js";
-import { prepareImageUpload } from "./prepareImageUpload.js";
+import { prepareWishImageUpload } from "./prepareImageUpload.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionResponse"]} WishCollectionResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"] & {reservedQuantity?:number|null,availableQuantity?:number|null}} WishCollectionItemResponse */
@@ -68,7 +68,7 @@ export function createWishesService(session, { apiBaseUrl }) {
   }, uploadImage: async (wishlistId, wishId, file, { etag, signal }) => {
     const path = itemPath(wishlistId, wishId) + "/image";
     if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
-    const prepared = await prepareImageUpload(file, { maximumEdge: 1600, signal });
+    const prepared = await prepareWishImageUpload(file, { signal });
     const mediaType = await validateWishImageFile(prepared);
     const formData = new FormData();
     // OpenAPI represents the binary multipart member as a string, not a runtime model.

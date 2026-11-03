@@ -10,6 +10,8 @@
 }
 
 .app-main h1:has(.wish-favorite-indicator) { justify-content: center; }
+/* Center the avatar against the name, excluding the title's underline space. */
+.member-profile-header > .member-avatar { margin-block-end: 1rem; }
 #app .app-main .shared-wishlist-view .wishlist-details-info h1 {
   font-size: clamp(1.75rem, 2.25vw, 2rem);
   overflow-wrap: break-word;
@@ -23,8 +25,6 @@
 .profile-layout { margin-inline: auto; }
 .app-main > :is(.registration-view, .recovery-view, .login-view, .google-return-view, .google-link-view, .email-confirmation-view, .two-factor-view, .authenticator-view) { margin-inline: auto; }
 .wishlists-view__header > .flow, .wishlists-view__header > h1 { flex: 1 1 100%; }
-.member-profile-header { flex-wrap: wrap; }
-.member-profile-header > h1 { order: -1; width: 100%; }
 .groups-header .group-identity { flex: 1 1 100%; justify-content: center; }
 /* Split reading banners keep their own centered identity group at every breakpoint. */
 .wishlist-details-view:not(.wishlist-details-view--split) .shared-wishlist-summary:has(> .shared-wishlist-identity > h1) > .shared-wishlist-identity { display: contents; }
@@ -34,6 +34,6 @@
 @media (max-width: 48rem) {
   .wishlist-details-view:not(.wishlist-details-view--split) .shared-wishlist-summary > .shared-wishlist-metadata { grid-column: 1; grid-row: auto; }
 }
-.app-main :is(.reservation-history-header, .wishlist-details-header, .groups-header, .member-profile-header) > h1 {
+.app-main :is(.reservation-history-header, .wishlist-details-header, .groups-header) > h1 {
   flex-basis: 100%;
 }

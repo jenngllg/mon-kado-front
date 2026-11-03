@@ -47,7 +47,7 @@
 .notifications-list { display:grid; gap:.75rem; padding:0; list-style:none; }
 .notification-item { display:grid; gap:.5rem; padding:1rem 1.25rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface); overflow-wrap:anywhere; }
 .notification-item--unread { border-inline-start:4px solid var(--color-accent); }
-.notification-item a { color:inherit; font-weight:var(--font-weight-regular); text-decoration:none; min-height:44px; display:flex; align-items:center; }
+.notification-item a { color:inherit; font-weight:var(--font-weight-regular); text-decoration:none; min-height:44px; display:flex; align-items:center; justify-content:flex-start; padding-inline:0; }
 .notification-item time, .notification-unread-label { font-size:.875rem; }
 .notification-unread-label { color:var(--color-accent-text); }
 .notification-item button { justify-self:start; }

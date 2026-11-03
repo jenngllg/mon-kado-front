@@ -5,6 +5,10 @@ Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 Large images are prepared locally before upload, within the existing 15-second deadline.
 See [image preparation, compatibility and rollout](../mon-kado/docs/image-pipeline.md).
 
+Wish and surprise-idea uploads target 192 KiB using native browser WebP encoding at quality 0.82. They retain up to 1600 pixels on the longest edge when the image meets that target; complex images get at most one further encoding, with a 1024-pixel floor. This is a soft byte target, not a rejection limit. Aspect ratio and transparency are preserved, small sources stay unchanged, and the server still validates and strips every upload. Profile and group-avatar preparation keeps its existing policy.
+
+Wish creation prepares the image during selection, previews those prepared bytes, and reuses them at submission through a weak cache keyed by the immutable selected Blob. Cancellation and validation failures retain the previous selection; no request is sent during preparation and no write is retried. Removing or leaving the draft releases its image references.
+
 ## Private groups and wish preferences
 
 The group overview, membership, invitations, owner name/photo editing and revocable

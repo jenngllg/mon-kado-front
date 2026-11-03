@@ -2,13 +2,34 @@ import { createAbortError } from "../../api/apiError.js";
 import { MaximumWishImagePixels, validateWishImageFile, WishImageValidationError } from "./wishImageValidation.js";
 
 const PreparationThresholdBytes = 384 * 1024;
+const WishUploadTargetBytes = 192 * 1024;
+const WishUploadMaximumEdge = 1600;
+const MinimumBudgetEdge = 1024;
+const BudgetEncodingAttempts = 2;
+/** @type {WeakMap<Blob, Blob>} Prepared bytes follow the lifetime of the selected immutable source. */
+const preparedWishes = new WeakMap();
+
+/** Prepares a wish image once, including when selection precedes its upload.
+ * @param {Blob} file Selected source.
+ * @param {{signal: AbortSignal}} options Selection or upload lifetime.
+ * @returns {Promise<Blob>} Reusable, bounded-resolution image targeting 192 KiB.
+ */
+export async function prepareWishImageUpload(file, { signal }) {
+  if (signal.aborted) throw createAbortError();
+  const cached = preparedWishes.get(file);
+  if (cached) return cached;
+  const prepared = await prepareImageUpload(file, { maximumEdge: WishUploadMaximumEdge, maximumBytes: WishUploadTargetBytes, signal });
+  if (signal.aborted) throw createAbortError();
+  preparedWishes.set(file, prepared);
+  return prepared;
+}
 
 /** Reduces large source files locally; the server still validates and strips every upload.
  * @param {Blob} file Selected source.
- * @param {{maximumEdge: number, signal: AbortSignal}} options Destination bounds and lifetime.
+ * @param {{maximumEdge: number, maximumBytes?: number, signal: AbortSignal}} options Destination bounds, optional soft byte target and lifetime.
  * @returns {Promise<Blob>} Original small file or bounded native-browser WebP/PNG.
  */
-export async function prepareImageUpload(file, { maximumEdge, signal }) {
+export async function prepareImageUpload(file, { maximumEdge, maximumBytes, signal }) {
   check();
   const type = await validateWishImageFile(file);
   check();
@@ -27,7 +48,7 @@ export async function prepareImageUpload(file, { maximumEdge, signal }) {
     }
     check();
   }
-  if (file.size <= PreparationThresholdBytes) return file;
+  if (file.size <= Math.min(PreparationThresholdBytes, maximumBytes ?? Infinity)) return file;
   const url = URL.createObjectURL(file);
   const image = new Image();
   try {
@@ -43,19 +64,30 @@ export async function prepareImageUpload(file, { maximumEdge, signal }) {
     check();
     const width = image.naturalWidth, height = image.naturalHeight;
     if (!width || !height || width * height > MaximumWishImagePixels) throw new WishImageValidationError("L’image doit contenir au maximum 40 millions de pixels.");
-    const scale = Math.min(1, maximumEdge / Math.max(width, height));
+    const sourceEdge = Math.max(width, height);
+    let edge = Math.min(maximumEdge, sourceEdge);
+    const minimumEdge = Math.min(edge, MinimumBudgetEdge);
     const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(width * scale)); canvas.height = Math.max(1, Math.round(height * scale));
     try {
       const context = canvas.getContext("2d");
       if (!context) throw new WishImageValidationError("Cette image ne peut pas être préparée.");
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const prepared = await new Promise((resolve, reject) => {
-        canvas.toBlob(blob => blob ? resolve(blob) : reject(new WishImageValidationError("Cette image ne peut pas être préparée.")), "image/webp", 0.9);
-      });
-      check();
-      const result = /** @type {Blob} */ (prepared);
-      return scale < 1 || result.size < file.size ? result : file;
+      let best = file;
+      for (let attempt = 0; attempt < (maximumBytes ? BudgetEncodingAttempts : 1); attempt++) {
+        check();
+        const scale = edge / sourceEdge;
+        canvas.width = Math.max(1, Math.round(width * scale)); canvas.height = Math.max(1, Math.round(height * scale));
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const prepared = await new Promise((resolve, reject) => {
+          canvas.toBlob(blob => blob ? resolve(blob) : reject(new WishImageValidationError("Cette image ne peut pas être préparée.")), "image/webp", maximumBytes ? 0.82 : 0.9);
+        });
+        check();
+        const result = /** @type {Blob} */ (prepared);
+        if (result.size < best.size || best === file && scale < 1) best = result;
+        if (!maximumBytes || best.size <= maximumBytes || edge <= minimumEdge) break;
+        // Adapt dimensions to actual image complexity; keep detail and bound encoder work.
+        edge = Math.max(minimumEdge, Math.floor(edge * Math.min(0.85, Math.sqrt(maximumBytes / best.size) * 0.95)));
+      }
+      return best;
     } finally { canvas.width = canvas.height = 0; }
   } finally { image.removeAttribute("src"); URL.revokeObjectURL(url); }
 
