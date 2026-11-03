@@ -68,6 +68,9 @@ export class ApiClient {
   #baseUrl;
   #correlationIdProvider;
   #csrfTokenManager;
+  #csrfVersion = 0;
+  /** @type {boolean | null} Presence hint from the current anonymous CSRF response, never an authenticated identity. */
+  #sessionCookiePresent = null;
   /** @type {{accessToken: string, version: number, manager: CsrfTokenManager} | null} */
   #authenticatedCsrf = null;
   #fetch;
@@ -151,6 +154,8 @@ export class ApiClient {
    * Invalidates the in-memory CSRF token.
    */
   invalidateCsrfToken() {
+    this.#csrfVersion++;
+    this.#sessionCookiePresent = null;
     this.#csrfTokenManager.invalidateToken();
     this.#authenticatedCsrf?.manager.invalidateToken();
     this.#authenticatedCsrf = null;
@@ -159,10 +164,13 @@ export class ApiClient {
   /**
    * Fetches and stores a fresh anonymous CSRF token for cookie-only operations.
    *
-   * @returns {Promise<void>} Completion signal.
+   * @returns {Promise<boolean | null>} Fresh cookie-presence hint, or null from an older API.
    */
   async refreshCsrfToken() {
+    this.#csrfVersion++;
+    this.#sessionCookiePresent = null;
     await this.#csrfTokenManager.refreshToken();
+    return this.#sessionCookiePresent;
   }
 
   /**
@@ -332,6 +340,7 @@ export class ApiClient {
    * @returns {Promise<string>} Fresh CSRF request token.
    */
   async #loadCsrfToken(accessToken = null, version = this.#accessTokenVersionProvider()) {
+    const csrfVersion = this.#csrfVersion;
     const url = createApiUrl(this.#baseUrl, "/security/csrf-token");
     const correlationId = this.#correlationIdProvider();
     const { response, metadata, decodedResponse } = await this.#fetchWithTimeout(
@@ -375,7 +384,8 @@ export class ApiClient {
       !decodedResponse.isValid ||
       !isRecord(decodedResponse.data) ||
       typeof decodedResponse.data.token !== "string" ||
-      decodedResponse.data.token.trim().length === 0
+      decodedResponse.data.token.trim().length === 0 ||
+      (decodedResponse.data.hasSessionCookie !== undefined && typeof decodedResponse.data.hasSessionCookie !== "boolean")
     ) {
       throw new ApiError({
         kind: "invalidResponse",
@@ -384,6 +394,9 @@ export class ApiClient {
       });
     }
 
+    if (accessToken === null && csrfVersion === this.#csrfVersion) {
+      this.#sessionCookiePresent = typeof decodedResponse.data.hasSessionCookie === "boolean" ? decodedResponse.data.hasSessionCookie : null;
+    }
     return decodedResponse.data.token;
   }
 

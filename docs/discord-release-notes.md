@@ -1,4 +1,3 @@
-- L’ajout de souhaits avec de grosses photos est accéléré, en particulier sur les connexions mobiles : l’image est allégée dès sa sélection et sa préparation est réutilisée lors de l’enregistrement.
-- Les idées surprises des groupes bénéficient du même allègement des images ; les proportions et la transparence sont conservées.
-- Le texte des notifications reste aligné à gauche, quelle que soit sa longueur.
-- Sur les profils, l’avatar et le nom restent côte à côte et centrés sur mobile comme sur ordinateur.
+- Les pages chargent leur interface à l’ouverture : le JavaScript initial est réduit de plus de moitié.
+- Les images de l’accueil et du tableau de bord s’adaptent à leur taille d’affichage, en conservant les photographies et leur mise en page.
+- Une visite anonyme ne provoque plus de renouvellement de session inutile ni son erreur 401 dans la console.

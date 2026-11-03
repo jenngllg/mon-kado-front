@@ -2,7 +2,7 @@ import { RoutePaths } from "../app/routeContracts.js";
 import { createActionLink } from "../components/index.js";
 import { createBackLink } from "../components/backLink.js";
 import { registerComponentCleanup } from "../components/componentLifecycle.js";
-import { wishlistArtwork } from "../features/wishlists/wishlistArtwork.js";
+import { wishlistArtwork, wishlistArtworkSources } from "../features/wishlists/wishlistArtwork.js";
 import { createDashboardView } from "../features/home/dashboardView.js";
 import { disposeComponent } from "../components/componentLifecycle.js";
 
@@ -84,6 +84,9 @@ export function createHomeView(session) {
   for (const occasion of ["birthday", "christmas", "wedding", "birth"]) {
     const image = document.createElement("img");
     image.src = wishlistArtwork(occasion);
+    image.srcset = wishlistArtworkSources(occasion);
+    image.sizes = "(max-width: 55rem) calc(30vw - 0.6rem), 250px";
+    image.decoding = "async";
     image.alt = "";
     image.width = 800;
     image.height = 1000;

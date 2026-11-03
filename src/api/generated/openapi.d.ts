@@ -2576,6 +2576,8 @@ export interface components {
             readonly url?: string | null;
         };
         readonly CsrfTokenResponse: {
+            /** @description Whether this request includes a non-empty refresh cookie. Presence only; never a proof of authentication. */
+            readonly hasSessionCookie: boolean;
             readonly token: string;
         };
         readonly CurrentSessionResponse: {

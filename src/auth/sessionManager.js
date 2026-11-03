@@ -323,6 +323,9 @@ export function createSessionManager({
     if (isFresh(credentials) && snapshot.status === "authenticated") return;
     if (!isFresh(candidate)) {
       api.invalidateCsrfToken();
+      const hasCookie = await api.refreshCsrfToken();
+      await verify(expected);
+      if (hasCookie === false) throw new ApiError({ kind: "http", statusCode: 401 });
       const response = await api.request(`${SessionPath}/refresh`, { method: "POST", csrf: true });
       await verify(expected);
       candidate = readCredentials(response, now());

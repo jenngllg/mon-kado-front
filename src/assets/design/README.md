@@ -4,6 +4,11 @@ These are decorative occasion covers, never member photos or private wish previe
 All assets are bundled and served locally; displaying them contacts no external
 image service. Icons retain the existing user-approved mockup artwork.
 
+The `*-200.webp` and `*-400.webp` occasion covers are native-browser WebP
+derivatives at quality 0.86 of the same original photographs. They keep the
+original composition, transparency and 4:5 aspect ratio. Width-based `srcset`
+selection retains each original 800-pixel source for larger displays.
+
 ## User-selected photographs
 
 The birth occasion icon is Tabler Icons' existing `baby-carriage` outline, with

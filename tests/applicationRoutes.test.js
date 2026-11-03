@@ -34,6 +34,20 @@ const unusedSession = {
   request: async () => { throw new Error("Rendering must not call the API."); },
 };
 
+describe("delayed page modules", () => {
+  const names = Object.values(RouteNames).filter(name => name !== RouteNames.Home && name !== RouteNames.Notifications);
+  it.each(names)("discards %s when navigation ends before its module is ready", async name => {
+    const routes = createApplicationRoutes({ session: unusedSession, apiBaseUrl: "http://localhost:7000" });
+    const route = routes.find(item => item.name === name);
+    if (!route) throw new Error("Missing route " + name);
+    const controller = new AbortController();
+    const pending = route.render({ url: new URL("http://localhost:5173/"), params: {}, searchParams: new URLSearchParams(),
+      signal: controller.signal, consumeFragment: () => "", navigate: async () => null, replaceSearchParameter: () => {} });
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
 describe("administrative routes use the real account session",()=>{
   it.each([RouteNames.AdminMembers,RouteNames.Activity])("mounts authorized %s content and binds its lifetime",async name=>{
     const state=/** @type {import('../src/auth/sessionManager.js').SessionSnapshot} */({...unusedSession.getSnapshot(),status:"authenticated",user:{id:"admin",email:"admin@example.test",displayName:"Admin",isAdmin:true}});

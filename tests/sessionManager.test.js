@@ -17,6 +17,23 @@ function setup(hub = createCoordinatorHub(), transport = createSessionTransport(
 }
 
 describe("session management", () => {
+  it("starts anonymously without a refresh POST when the server confirms no session cookie", async () => {
+    const { session, state, fetch } = setup(); state.hasSessionCookie = false;
+    await session.start();
+    expect(session.getSnapshot().status).toBe("anonymous");
+    expect(state.refreshCount).toBe(0);
+    expect(fetch.mock.calls.map(([input]) => new URL(String(input)).pathname)).toEqual(["/security/csrf-token"]);
+  });
+  it("checks cookie presence afresh and restores an existing session without treating presence as authentication", async () => {
+    const { session, state } = setup(); state.hasSessionCookie = false;
+    await session.start();
+    state.hasSessionCookie = true; state.refreshStatus = 401;
+    await session.restore();
+    expect(session.getSnapshot().status).toBe("anonymous"); expect(state.refreshCount).toBe(1);
+    state.refreshStatus = 200;
+    await session.restore();
+    expect(session.getSnapshot().status).toBe("authenticated"); expect(state.refreshCount).toBe(2);
+  });
   it.each([false, true])("retains the server administrator boolean: %s", async isAdmin => {
     const { session, state } = setup();
     Object.assign(state.user, { isAdmin, roles: ["Administrator"] });

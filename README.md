@@ -2,6 +2,18 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+Page views are loaded through native dynamic imports on navigation. Session guards
+still run before rendering; canceled navigations discard late modules, and private
+URL fragments are consumed synchronously before a module request. The initial
+build loads about 93 KiB of compressed JavaScript instead of 206 KiB. Occasion
+artwork uses 200/400/800-pixel browser-selected sources while preserving the
+original photographs and layout.
+
+Session restoration reads the fresh `hasSessionCookie` hint from CSRF preparation.
+An absent cookie does not cause a refresh POST; cookie presence is never treated
+as authentication. Older API responses without this optional client hint retain
+the previous authenticated refresh behavior.
+
 Large images are prepared locally before upload, within the existing 15-second deadline.
 See [image preparation, compatibility and rollout](../mon-kado/docs/image-pipeline.md).
 
