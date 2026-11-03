@@ -104,6 +104,8 @@ for (const failure of ["network", "revoked"]) {
       await expect(page.getByRole("heading", { name: "Liste indisponible", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Je le veux aussi !", exact: true })).toHaveCount(0);
     } else {
+      await expect(dialog.getByText(/^L’ajout n’a pas pu être confirmé/)).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Fermer", exact: true })).toBeEnabled();
       await expect(dialog.getByRole("link", { name: "Consulter ma liste", exact: true })).toHaveCount(0);
       await expect(dialog.getByRole("button", { name: "Ajouter", exact: true })).toBeHidden();
     }

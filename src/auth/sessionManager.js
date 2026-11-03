@@ -322,10 +322,21 @@ export function createSessionManager({
     if (authenticationPending) publish("initializing");
     if (isFresh(credentials) && snapshot.status === "authenticated") return;
     if (!isFresh(candidate)) {
-      api.invalidateCsrfToken();
-      const hasCookie = await api.refreshCsrfToken();
+      let context = null;
+      try {
+        context = await api.request("/api/v1/auth/session-contexts/current");
+      } catch (error) {
+        // Older APIs do not expose the hint and retain the usual refresh path.
+        if (!(error instanceof ApiError) || error.statusCode !== 404) throw error;
+      }
       await verify(expected);
-      if (hasCookie === false) throw new ApiError({ kind: "http", statusCode: 401 });
+      if (context !== null) {
+        if (!isRecord(context.data) || typeof context.data.hasSessionCookie !== "boolean") throw invalidResponse(context);
+        if (!context.data.hasSessionCookie) throw new ApiError({ kind: "http", statusCode: 401 });
+      }
+      api.invalidateCsrfToken();
+      await api.refreshCsrfToken();
+      await verify(expected);
       const response = await api.request(`${SessionPath}/refresh`, { method: "POST", csrf: true });
       await verify(expected);
       candidate = readCredentials(response, now());

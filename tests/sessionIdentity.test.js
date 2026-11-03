@@ -27,7 +27,7 @@ describe("session identity refresh", () => {
     expect(result.etag).toBe('"identity-1"');
     expect(Object.isFrozen(result)).toBe(true); expect(Object.isFrozen(result.user)).toBe(true);
     expect(listener).toHaveBeenCalledTimes(2);
-    expect(state.refreshCount).toBe(1); expect(fetch).toHaveBeenCalledTimes(4);
+    expect(state.refreshCount).toBe(1); expect(fetch).toHaveBeenCalledTimes(5);
     expect(new Headers(fetch.mock.calls.at(-1)?.[1]?.headers).get("Authorization")).toBe("Bearer jwt-fixture-1");
     expect(hub.messages).toEqual([]);
     expect(JSON.stringify(result)).not.toMatch(/jwt-fixture|csrf-fixture/);
@@ -46,7 +46,7 @@ describe("session identity refresh", () => {
     state.identityStatus = status;
     // Act / Assert
     await expect(session.refreshIdentity()).rejects.toMatchObject({ statusCode: status });
-    expect(session.getSnapshot()).toBe(before); expect(fetch).toHaveBeenCalledTimes(4);
+    expect(session.getSnapshot()).toBe(before); expect(fetch).toHaveBeenCalledTimes(5);
   });
   it.each([null, 'W/"a"', "*", '"a", "b"'])("rejects unusable ETag %s before publication", async etag => {
     // Arrange
@@ -72,7 +72,7 @@ describe("session identity refresh", () => {
     const { session, state, fetch } = setup(); await session.start(); state.identityStatus = 401;
     // Act / Assert
     await expect(session.refreshIdentity()).rejects.toMatchObject({ name: "AbortError" });
-    expect(session.getSnapshot().status).toBe("anonymous"); expect(fetch).toHaveBeenCalledTimes(4);
+    expect(session.getSnapshot().status).toBe("anonymous"); expect(fetch).toHaveBeenCalledTimes(5);
   });
   it("lets the latest identity read win", async () => {
     // Arrange
@@ -127,17 +127,17 @@ describe("session identity refresh", () => {
     const pending = session.refreshIdentity().catch(error => error);
     await vi.advanceTimersByTimeAsync(15_000);
     expect(await pending).toMatchObject({ kind: "timeout" });
-    expect(fetch).toHaveBeenCalledTimes(5);
+    expect(fetch).toHaveBeenCalledTimes(6);
   });
   it("rejects anonymous and disposed callers without sending a protected read", async () => {
     // Arrange
     const { session, state, fetch } = setup(); state.refreshStatus = 401;
     // Act / Assert
     await expect(session.refreshIdentity()).rejects.toMatchObject({ errorCode: "CLIENT_AUTHENTICATION_REQUIRED" });
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
     session.dispose(); session.dispose();
     await expect(session.refreshIdentity()).rejects.toMatchObject({ name: "AbortError" });
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
   it("does not let an already cancelled caller supersede an active read", async () => {
     // Arrange

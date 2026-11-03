@@ -9,7 +9,8 @@ build loads about 91 KiB of compressed JavaScript instead of 206 KiB. Occasion
 artwork uses 200/400/800-pixel browser-selected sources while preserving the
 original photographs and layout.
 
-Session restoration reads the fresh `hasSessionCookie` hint from CSRF preparation.
+Session restoration reads `hasSessionCookie` from the public, uncached
+`GET /api/v1/auth/session-contexts/current` resource before CSRF preparation.
 An absent cookie does not cause a refresh POST; cookie presence is never treated
 as authentication. Older API responses without this optional client hint retain
 the previous authenticated refresh behavior.

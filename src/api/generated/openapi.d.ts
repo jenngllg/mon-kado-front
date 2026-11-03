@@ -526,6 +526,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/auth/session-contexts/current": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read optional browser session context
+         * @description Public, uncached presence hint for this browser only. Does not authenticate, create or renew a session. Include browser cookies.
+         */
+        readonly get: operations["getSessionContext"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/auth/sessions": {
         readonly parameters: {
             readonly query?: never;
@@ -2576,8 +2596,6 @@ export interface components {
             readonly url?: string | null;
         };
         readonly CsrfTokenResponse: {
-            /** @description Whether this request includes a non-empty refresh cookie. Presence only; never a proof of authentication. */
-            readonly hasSessionCookie: boolean;
             readonly token: string;
         };
         readonly CurrentSessionResponse: {
@@ -3046,6 +3064,10 @@ export interface components {
             readonly price?: number | null;
             readonly quantity?: number | null;
             readonly url?: string | null;
+        };
+        readonly SessionContextResponse: {
+            /** @description Presence of a nonempty refresh cookie only; not proof of authentication. */
+            readonly hasSessionCookie: boolean;
         };
         readonly SetWishFavoriteRequest: {
             readonly isFavorite: boolean;
@@ -6534,6 +6556,35 @@ export interface operations {
             };
             /** @description 503ServiceUnavailable */
             readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly getSessionContext: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Refresh-cookie presence; no session or member data. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["SessionContextResponse"];
+                };
+            };
+            /** @description Invalid supplied bearer token */
+            readonly 401: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
