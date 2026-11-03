@@ -4,10 +4,11 @@ import email from "../assets/icons/envelope.svg?raw";
 import password from "../assets/icons/key.svg?raw";
 import authenticator from "../assets/icons/finger-print.svg?raw";
 import information from "../assets/icons/information-circle.svg?raw";
+import bell from "../assets/icons/bell.svg?raw";
 
-const Icons = { user, shield, email, password, authenticator, information };
+const Icons = { user, shield, email, password, authenticator, information, bell };
 
-/** Returns a decorative, locally bundled Heroicons outline.
+/** Returns a decorative, locally bundled outline icon.
  * @param {keyof typeof Icons} name Account icon.
  * @returns {HTMLElement} Noninteractive decoration.
  */

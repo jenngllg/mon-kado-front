@@ -67,7 +67,7 @@ describe("account layout", () => {
     });
     // Assert
     expect(layout.querySelector('a[href="/profile/authenticator"]')).toBeNull();
-    expect(layout.querySelectorAll("nav a")).toHaveLength(4);
+    expect(layout.querySelectorAll("nav a")).toHaveLength(5);
   });
   it("updates visibility when the session changes and unsubscribes on disposal", () => {
     // Arrange
@@ -87,7 +87,7 @@ describe("account layout", () => {
     expect(unsubscribe).toHaveBeenCalledOnce();
   });
   it.each([RoutePaths.Profile, RoutePaths.PasswordChange, RoutePaths.EmailChange,
-    RoutePaths.Authenticator, RoutePaths.PersonalData])("keeps navigation and marks %s active", path => {
+    RoutePaths.Authenticator, RoutePaths.PersonalData, RoutePaths.NotificationPreferences])("keeps navigation and marks %s active", path => {
     // Arrange
     const content = document.createElement("section");
     // Act
@@ -97,9 +97,9 @@ describe("account layout", () => {
     // Assert
     expect(layout.firstElementChild?.tagName).toBe("ASIDE");
     expect(layout.lastElementChild).toBe(content);
-    expect(layout.querySelectorAll("nav a")).toHaveLength(5);
+    expect(layout.querySelectorAll("nav a")).toHaveLength(6);
     expect([...layout.querySelectorAll("nav a")].map(link => link.textContent?.trim())).toEqual([
-      "Profil", "Adresse e-mail", "Mot de passe", "Données personnelles", "Authentificateur",
+      "Profil", "Notifications", "Adresse e-mail", "Mot de passe", "Données personnelles", "Authentificateur",
     ]);
     expect(layout.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
     expect(layout.querySelector('[aria-current="page"]')?.getAttribute("href")).toBe(path);

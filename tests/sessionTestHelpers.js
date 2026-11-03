@@ -74,6 +74,7 @@ export function createSessionTransport() {
     const path = new URL(String(input)).pathname;
     if (path === "/api/v1/wishlists" && init?.method === "GET") return Response.json([]);
     if (path === "/api/v1/wishlist-subscriptions" && init?.method === "GET") return Response.json({ items: [], currentPage: 1, pageSize: 20, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false });
+    if (path === "/api/v1/members/current/wishlist-subscription-owners" && init?.method === "GET") return Response.json({ items: [], currentPage: 1, pageSize: 100, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false });
     if (path === "/api/v1/groups" && init?.method === "GET") return Response.json({ items: [], currentPage: 1, pageSize: 100, totalCount: 0, totalPages: 0, hasPreviousPage: false, hasNextPage: false });
     if (path === "/api/v1/auth/session-contexts/current") return state.hasSessionCookie === undefined
       ? new Response(null, { status: 404 }) : Response.json({ hasSessionCookie: state.hasSessionCookie });

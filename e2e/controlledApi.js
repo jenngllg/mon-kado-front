@@ -52,6 +52,7 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
     }
     if (path === "/api/v1/auth/session-contexts/current") return send(200, { hasSessionCookie: state.authenticated });
     if (path === "/security/csrf-token") return send(200, { token: "csrf-test-only" });
+    if (path === "/api/v1/members/current/wishlist-subscription-owners" && method === "GET") return send(200, { items: [], currentPage: 1, pageSize: 100, totalCount: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false });
     if (path === "/api/v1/wishlist-subscriptions" && method === "GET") return send(200, { items: [], currentPage: 1, pageSize: 20, totalCount: 0, totalPages: 0, hasNextPage: false, hasPreviousPage: false });
     if (path === "/api/v1/member-activity/page-visits" && method === "POST") {
       expect(request.headers().authorization).toBe("Bearer access-test-only");

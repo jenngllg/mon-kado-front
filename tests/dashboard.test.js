@@ -18,6 +18,24 @@ function fixture(overrides = {}) {
   return { view, service };
 }
 describe('authenticated dashboard', () => {
+  it('opens grouped lists without fetching again and clears their private links on disposal', async () => {
+    const { view, service } = fixture({ lists: async () => [], occasions: vi.fn(async () => [
+      { id:'a',name:'Envies de Léa',ownerId:'lea',ownerDisplayName:'Léa',occasion:'christmas',eventDate:'2026-12-25',href:'/groups/g/wishlists/a' },
+      { id:'b',name:'Envies de Noé',ownerId:'noe',ownerDisplayName:'Noé',occasion:'christmas',eventDate:'2026-12-25',href:'/shared-wishlists/b#private' },
+    ]) }); document.body.append(view);
+    await vi.waitFor(() => expect(view.querySelectorAll('.dashboard-occasion')).toHaveLength(1));
+    const details=/** @type {HTMLDetailsElement} */(view.querySelector('details')), summary=/** @type {HTMLElement} */(details.querySelector('summary'));
+    expect(summary.textContent).toContain('Noël');expect(summary.textContent).toContain('2 listes · 2 personnes');expect(details.open).toBe(false);
+    summary.click();expect(details.open).toBe(true);const links=[...details.querySelectorAll('a')];expect(links).toHaveLength(2);
+    details.dispatchEvent(new window.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));expect(details.open).toBe(false);expect(document.activeElement).toBe(summary);
+    expect(service.occasions).toHaveBeenCalledOnce();disposeComponent(view);view.remove();expect(links.every(link=>!link.hasAttribute('href'))).toBe(true);
+  });
+  it('keeps a birthday from an earlier year in upcoming occasions', async () => {
+    const { view } = fixture({ lists: async () => [{ ...list, eventDate: '2020-11-08' }] });
+    await vi.waitFor(() => expect(view.querySelectorAll('.dashboard-occasion')).toHaveLength(1));
+    expect(view.querySelector('.dashboard-occasion')?.textContent).toContain('8 novembre 2026');
+    disposeComponent(view);
+  });
   it('does not reread business data on window return', async () => {
     const { view, service } = fixture(); document.body.append(view);
     await vi.waitFor(() => expect(view.querySelector('a[href="/lists/own"]')).not.toBeNull());
@@ -86,8 +104,8 @@ describe('authenticated dashboard', () => {
     const service = createDashboardService({ wishlists: { load: async () => [] }, groups: /** @type {never} */ ({ load, wishlists }), subscriptions });
     expect(await service.groups({ signal })).toEqual([group]);
     expect(await service.occasions([group], { signal })).toEqual([
-      { id: followed.wishlistId, name: followed.name, ownerDisplayName: followed.ownerDisplayName, eventDate: followed.eventDate, href: followed.shareHref },
-      { id: secondFollowed.wishlistId, name: secondFollowed.name, ownerDisplayName: secondFollowed.ownerDisplayName, eventDate: secondFollowed.eventDate, href: secondFollowed.shareHref },
+      { id: followed.wishlistId, name: followed.name, ownerDisplayName: followed.ownerDisplayName, occasion: followed.occasion, eventDate: followed.eventDate, href: followed.shareHref },
+      { id: secondFollowed.wishlistId, name: secondFollowed.name, ownerDisplayName: secondFollowed.ownerDisplayName, occasion: secondFollowed.occasion, eventDate: secondFollowed.eventDate, href: secondFollowed.shareHref },
       expect.objectContaining({ href: '/groups/family/wishlists/own' }),
     ]);
     expect(load).toHaveBeenLastCalledWith({ signal, page: 2 });
@@ -115,7 +133,7 @@ describe('authenticated dashboard', () => {
     await vi.waitFor(() => expect(view.querySelectorAll('.dashboard-occasion')).toHaveLength(3));
     const links = [...view.querySelectorAll('.dashboard-occasion__link')];
     expect(links.map(link => link.getAttribute('href'))).toEqual([followed.shareHref, `/groups/family/wishlists/${shared.id}`, `/lists/${own.id}`]);
-    expect(links.every(link => link.textContent?.startsWith('Envies'))).toBe(true);
+    expect(links.every(link => link.textContent?.startsWith('Anniversaire de '))).toBe(true);
     const authors = [...view.querySelectorAll('.dashboard-occasion__author')];
     expect(authors.map(author => author.textContent)).toEqual(['Par Camille', 'Par Alex du groupe', 'Par Jenn']);
     expect(authors.every(author => author.tagName === 'SPAN' && author.closest('a') === null && author.querySelector('a') === null)).toBe(true);

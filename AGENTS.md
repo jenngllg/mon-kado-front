@@ -1,5 +1,9 @@
 # MonKado frontend instructions
 
+- Notification preference qualifiers belong inline in parentheses within each label, without a separate helper line. Use “Rappels d’évènements (J-7 et J-1)” for occasion reminders.
+
+- Public and group-scoped member profile pages use a 112px avatar, double the former 56px size, on mobile and desktop.
+
 Read and apply [the shared MonKado instructions](../mon-kado/AGENTS.shared.md), which supplement Jenn's global preferences in `~/.codex/AGENTS.md`. This file adds frontend-specific rules.
 
 - Read `DESIGN_SYSTEM.md` before creating or changing any interface. Apply it to existing screens and new features; user-approved refinements take precedence over older mockups.

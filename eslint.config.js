@@ -30,6 +30,7 @@ export default [
       "tests/feedbackComponents.test.js",
       "tests/formField.test.js",
       "tests/notification.test.js",
+      "tests/notificationPreferencesView.test.js",
       "tests/refreshOnReturn.test.js",
       "tests/router.test.js",
       "tests/returnNavigation.test.js",

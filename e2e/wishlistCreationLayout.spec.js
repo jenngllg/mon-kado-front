@@ -16,7 +16,7 @@ for (const width of [240, 390, 768, 1024, 1716]) {
     const form = page.getByRole("form", { name: "Créer une liste", exact: true });
     const name = form.getByRole("textbox", { name: /Nom de la liste/ });
     const occasion = form.getByRole("combobox", { name: /Occasion/ });
-    const date = form.getByLabel("Date de l’événement", { exact: true });
+    const date = form.getByLabel(/^Date de l’/);
     const message = form.getByRole("textbox", { name: "Message", exact: true });
     const submit = form.getByRole("button", { name: "Créer ma liste", exact: true });
     await expect(view.getByRole("heading", { name: "Créer une liste" })).toBeVisible();
@@ -30,7 +30,9 @@ for (const width of [240, 390, 768, 1024, 1716]) {
     await page.screenshot({ path: testInfo.outputPath("creation-validation.png"), fullPage: true });
     await name.fill("Mon anniversaire");
     await occasion.selectOption("birthday");
-    await date.fill("2027-01-18");
+    await expect(date).toHaveAttribute("type", "text");
+    await expect(date).toHaveAttribute("placeholder", "JJ/MM");
+    await date.fill("18/01");
     await message.fill("Pour me faire de beaux cadeaux à mon anniversaire :)");
     await message.blur();
     await expect(view.getByRole("alert")).toHaveCount(0);

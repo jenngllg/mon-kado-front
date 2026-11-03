@@ -431,7 +431,7 @@ export class ApiClient {
       correlationId = metadata.correlationId;
       onHeaders(response, metadata);
       const decodedResponse = await waitForWithAbort(
-        response.ok && onNotification ? readNotificationEvents(response, onNotification) : response.ok && archiveBytes !== undefined ? readArchiveResponse(response, archiveBytes) : decodeResponse(response),
+        response.ok && onNotification ? readNotificationEvents(response, onNotification, controller.signal) : response.ok && archiveBytes !== undefined ? readArchiveResponse(response, archiveBytes) : decodeResponse(response),
         controller.signal,
       );
 

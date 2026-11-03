@@ -5,6 +5,13 @@ import { populateWishlistSummary } from "../src/features/wishlists/wishlistSumma
 afterEach(() => vi.useRealTimers());
 
 describe("wishlist summary", () => {
+  it("shows the next birthday and its countdown even when the stored year is past", () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2027-02-21T12:00:00Z"));
+    const summary = document.createElement("div"), title = document.createElement("h1");
+    populateWishlistSummary(summary, title, { name: "Anniversaire", occasion: "birthday", eventDate: "2020-02-29", message: null }, "Camille");
+    expect(summary.querySelector("time")?.dateTime).toBe("2027-02-28");
+    expect(summary.textContent).toContain("7 jours restants");
+  });
   it("links the verified author to their public profile", () => {
     const summary = document.createElement("div"), title = document.createElement("h1");
     const ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e07";

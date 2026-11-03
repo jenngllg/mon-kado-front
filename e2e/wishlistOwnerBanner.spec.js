@@ -80,7 +80,10 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     expect((actionsBox?.x ?? 0) + (actionsBox?.width ?? 0)).toBeCloseTo((toolbarBox?.x ?? 0) + (toolbarBox?.width ?? 0), 0);
     expect(await page.locator(".wish-sort-control").evaluate(control => control.getBoundingClientRect().left)).toBeCloseTo(toolbarBox?.x ?? 0, 0);
     if (width >= 1487) {
-      expect((actionsBox?.y ?? 0) + (actionsBox?.height ?? 0) / 2).toBeCloseTo((sortingBox?.y ?? 0) + (sortingBox?.height ?? 0) / 2, 0);
+      const shareBox = await page.getByRole("button", { name: "Partager", exact: true }).boundingBox();
+      const addBox = await page.getByRole("link", { name: "Ajouter un souhait", exact: true }).boundingBox();
+      expect(Math.abs((shareBox?.y ?? 0) + (shareBox?.height ?? 0) / 2 - (sortingBox?.y ?? 0) - (sortingBox?.height ?? 0) / 2)).toBeLessThanOrEqual(1);
+      expect(addBox?.y).toBeCloseTo(shareBox?.y ?? 0, 0);
       expect((sortingBox?.x ?? 0) + (sortingBox?.width ?? 0)).toBeLessThan(actionsBox?.x ?? 0);
     }
     expect((backBox?.y ?? 0) + (backBox?.height ?? 0)).toBeLessThanOrEqual(titleBox?.y ?? 0);

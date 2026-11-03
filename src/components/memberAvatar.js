@@ -1,7 +1,7 @@
 import { addComponentEventListener, registerComponentCleanup } from "./componentLifecycle.js";
 
 /** Renders a decorative, locally generated identity with an optional validated public photo.
- * @param {{memberId: string, imageUrl?: string | null, size: 32 | 56 | 256, onError?: () => void}} options Presentation.
+ * @param {{memberId: string, imageUrl?: string | null, size: 32 | 56 | 112 | 256, onError?: () => void}} options Presentation.
  * @returns {HTMLElement} Disposable avatar.
  */
 export function createMemberAvatar({ memberId, imageUrl = null, size, onError = () => {} }) {

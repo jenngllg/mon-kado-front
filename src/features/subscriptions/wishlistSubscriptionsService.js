@@ -1,7 +1,7 @@
 import { ApiError, createAbortError } from "../../api/apiError.js";
 import { isCalendarDate, isWishlistId, isWishlistOccasion } from "../wishlists/wishlistValidation.js";
 
-/** @typedef {Readonly<{id: string, wishlistId: string, name: string, ownerDisplayName: string, occasion: import("../wishlists/wishlistsService.js").Wishlist["occasion"], eventDate: string | null, createdAt: string, shareHref: string}>} WishlistSubscription */
+/** @typedef {Readonly<{id: string, wishlistId: string, name: string, ownerDisplayName: string, ownerId?:string, occasion: import("../wishlists/wishlistsService.js").Wishlist["occasion"], eventDate: string | null, createdAt: string, shareHref: string}>} WishlistSubscription */
 /** @typedef {Readonly<{items: readonly WishlistSubscription[], currentPage: number, pageSize: number, totalCount: number}>} SubscriptionPage */
 /** @typedef {(options: {signal: AbortSignal, page?: number, pageSize?: number}) => Promise<SubscriptionPage>} LoadSubscriptions */
 /** @typedef {(id: string, options: {signal: AbortSignal}) => Promise<void>} RemoveSubscription */
@@ -11,11 +11,32 @@ import { isCalendarDate, isWishlistId, isWishlistOccasion } from "../wishlists/w
 /** Uses authenticated transport and either a private group grant or a shared-list capability.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Current-member transport.
  * @param {{context?: import("../sharing/sharedWishlistContext.js").SharedWishlistContext, groupId?: string, frontendOrigin?: string}} [options] Trusted origin and optional private sharing context.
- * @returns {{load: LoadSubscriptions, remove: RemoveSubscription, loadCurrent: LoadCurrentSubscription, subscribe: SubscribeToWishlist}} Explicit subscription operations.
+ * @returns {{load: LoadSubscriptions, ownerIdentities: (options:{signal:AbortSignal})=>Promise<ReadonlyMap<string,string>>, remove: RemoveSubscription, loadCurrent: LoadCurrentSubscription, subscribe: SubscribeToWishlist}} Explicit subscription operations.
  */
 export function createWishlistSubscriptionsService(session, { context, groupId, frontendOrigin = window.location.origin } = {}) {
   if (groupId !== undefined && (!isWishlistId(groupId) || context)) throw new TypeError("Invalid group subscription scope.");
   return {
+    async ownerIdentities({ signal }) {
+      if (signal.aborted) throw createAbortError();
+      const owners = new Map();
+      for (let page = 1; !signal.aborted; page++) {
+        const response = await session.request(`/api/v1/members/current/wishlist-subscription-owners?page=${page}&pageSize=100`, {authentication:"required",signal});
+        const value = /** @type {{items?:{wishlistId?:unknown,ownerId?:unknown}[],currentPage?:number,pageSize?:number,totalCount?:number,totalPages?:number,hasNextPage?:boolean}|null} */ (response.data);
+        if (signal.aborted) throw createAbortError();
+        if (response.status !== 200 || !value || !Array.isArray(value.items) || value.currentPage !== page || value.pageSize !== 100 ||
+            !Number.isSafeInteger(value.totalCount) || Number(value.totalCount) < 0 || value.totalPages !== Math.ceil(Number(value.totalCount)/100) ||
+            value.items.length !== Math.min(100,Math.max(0,Number(value.totalCount)-(page-1)*100)) || value.hasNextPage !== (page < Number(value.totalPages))) {
+          throw new ApiError({kind:"invalidResponse",statusCode:response.status});
+        }
+        for (const item of value.items) {
+          if (!item || typeof item !== "object" || !isWishlistId(item.wishlistId) || !isWishlistId(item.ownerId) || owners.has(item.wishlistId.toLowerCase())) throw new ApiError({kind:"invalidResponse"});
+          owners.set(item.wishlistId.toLowerCase(),item.ownerId);
+        }
+        if (!value.hasNextPage) break;
+      }
+      if (signal.aborted) throw createAbortError();
+      return owners;
+    },
     async load({ signal, page = 1, pageSize = 20 }) {
       if (!Number.isInteger(page) || page < 1 || page > 2147483647 || !Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100) throw new TypeError("Invalid subscription pagination.");
       const query = new URLSearchParams();
@@ -58,7 +79,7 @@ export function createWishlistSubscriptionsService(session, { context, groupId, 
   function project(raw, invalid) {
     const item = /** @type {Partial<WishlistSubscription> & {shareUrl?: unknown} | null} */ (raw);
     if (!item || !isWishlistId(item.id) || !isWishlistId(item.wishlistId) || !name(item.name) || !name(item.ownerDisplayName) ||
-      !isWishlistOccasion(item.occasion) || !(item.eventDate === null || isCalendarDate(item.eventDate)) ||
+      (item.ownerId !== undefined && !isWishlistId(item.ownerId)) || !isWishlistOccasion(item.occasion) || !(item.eventDate === null || isCalendarDate(item.eventDate)) ||
       typeof item.createdAt !== "string" || !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,7})?Z$/.test(item.createdAt) || !isCalendarDate(item.createdAt.slice(0, 10)) ||
       typeof item.shareUrl !== "string") throw invalid();
     const groupPrefix = `${frontendOrigin}/groups/`;
@@ -66,14 +87,14 @@ export function createWishlistSubscriptionsService(session, { context, groupId, 
       const parts = item.shareUrl.slice(groupPrefix.length).split("/");
       if (parts.length !== 3 || !isWishlistId(parts[0]) || parts[1] !== "wishlists" || !isWishlistId(parts[2]) || parts[2].toLowerCase() !== item.wishlistId.toLowerCase()) throw invalid();
       return Object.freeze({ id: item.id, wishlistId: item.wishlistId, name: item.name, ownerDisplayName: item.ownerDisplayName,
-        occasion: item.occasion, eventDate: item.eventDate, createdAt: item.createdAt, shareHref: `/groups/${parts[0].toLowerCase()}/wishlists/${parts[2].toLowerCase()}` });
+        ...(item.ownerId ? {ownerId:item.ownerId} : {}), occasion: item.occasion, eventDate: item.eventDate, createdAt: item.createdAt, shareHref: `/groups/${parts[0].toLowerCase()}/wishlists/${parts[2].toLowerCase()}` });
     }
     const prefix = `${frontendOrigin}/shared-wishlists/`;
     if (!item.shareUrl.startsWith(prefix)) throw invalid();
     const parts = item.shareUrl.slice(prefix.length).split("#");
     if (parts.length !== 2 || !isWishlistId(parts[0]) || !/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/.test(parts[1])) throw invalid();
     return Object.freeze({ id: item.id, wishlistId: item.wishlistId, name: item.name, ownerDisplayName: item.ownerDisplayName,
-      occasion: item.occasion, eventDate: item.eventDate, createdAt: item.createdAt, shareHref: `/shared-wishlists/${parts[0].toLowerCase()}#${parts[1]}` });
+      ...(item.ownerId ? {ownerId:item.ownerId} : {}), occasion: item.occasion, eventDate: item.eventDate, createdAt: item.createdAt, shareHref: `/shared-wishlists/${parts[0].toLowerCase()}#${parts[1]}` });
   }
 
   /** @param {string} id Share link. @param {AbortSignal} signal View lifetime. @param {boolean} mutation Explicit follow command. */

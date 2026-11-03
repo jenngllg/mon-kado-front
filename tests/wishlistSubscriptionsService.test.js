@@ -15,6 +15,29 @@ function setup(data = page, status = 200) {
   return { service, request, context, signal: new AbortController().signal };
 }
 describe("wishlist subscriptions transport", () => {
+  it("loads verified owner identities through the additive private resource", async () => {
+    const f=setup({items:[{wishlistId:listId,ownerId:id}],currentPage:1,pageSize:100,totalCount:1,totalPages:1,hasNextPage:false,hasPreviousPage:false});
+    expect(await f.service.ownerIdentities({signal:f.signal})).toEqual(new Map([[listId,id]]));
+    expect(f.request).toHaveBeenCalledExactlyOnceWith('/api/v1/members/current/wishlist-subscription-owners?page=1&pageSize=100',{authentication:'required',signal:f.signal});
+  });
+  it("paginates owner identities without inferring identities from display names", async () => {
+    const items=Array.from({length:100},(_,index)=>({wishlistId:`019c52dd-56c1-7cc6-8a95-${String(index).padStart(12,'0')}`,ownerId:id}));
+    const f=setup({items,currentPage:1,pageSize:100,totalCount:101,totalPages:2,hasNextPage:true});
+    f.request.mockResolvedValueOnce({data:{items,currentPage:1,pageSize:100,totalCount:101,totalPages:2,hasNextPage:true},status:200,metadata:{correlationId:'test',etag:null,location:null,retryAfterSeconds:null}});
+    f.request.mockResolvedValueOnce({data:{items:[{wishlistId:listId,ownerId:id}],currentPage:2,pageSize:100,totalCount:101,totalPages:2,hasNextPage:false},status:200,metadata:{correlationId:'test',etag:null,location:null,retryAfterSeconds:null}});
+    expect((await f.service.ownerIdentities({signal:f.signal})).size).toBe(101);expect(f.request).toHaveBeenCalledTimes(2);
+  });
+  it.each([null,{}, {items:[null],currentPage:1,pageSize:100,totalCount:1,totalPages:1,hasNextPage:false}, {items:[{wishlistId:listId,ownerId:'bad'}],currentPage:1,pageSize:100,totalCount:1,totalPages:1,hasNextPage:false}, {items:[{wishlistId:listId,ownerId:id},{wishlistId:listId,ownerId:id}],currentPage:1,pageSize:100,totalCount:2,totalPages:1,hasNextPage:false}])("rejects incomplete or duplicate owner identity responses %j", async data => {
+    const f=setup(data);await expect(f.service.ownerIdentities({signal:f.signal})).rejects.toMatchObject({kind:'invalidResponse'});
+  });
+  it("does not dispatch an already-cancelled owner read",async()=>{
+    const f=setup(),abort=new AbortController();abort.abort();await expect(f.service.ownerIdentities({signal:abort.signal})).rejects.toMatchObject({name:'AbortError'});expect(f.request).not.toHaveBeenCalled();
+  });
+  it("preserves an authorized owner identifier and rejects malformed identities", async () => {
+    const f=setup({...page,items:[{...summary,ownerId:shareId}]});expect((await f.service.load({signal:f.signal})).items[0].ownerId).toBe(shareId);
+    f.request.mockResolvedValueOnce({data:{...page,items:[{...summary,ownerId:'not-an-id'}]},status:200,metadata:{correlationId:'test',etag:null,location:null,retryAfterSeconds:null}});
+    await expect(f.service.load({signal:f.signal})).rejects.toMatchObject({kind:'invalidResponse'});
+  });
   it("accepts case-insensitive share identifiers without changing the capability", async () => {
     const f = setup({ ...summary, shareUrl: `https://site.example/shared-wishlists/${shareId.toUpperCase()}#${secret}` });
     expect((await f.service.loadCurrent(shareId.toUpperCase(), { signal: f.signal }))?.shareHref).toBe(`/shared-wishlists/${shareId}#${secret}`);

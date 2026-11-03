@@ -20,9 +20,9 @@ export function createWishlistView({ create, onCreated, groups, signal, now = ()
   const status = textElement("p", ""); status.className = "visually-hidden"; status.setAttribute("role", "status");
   const lifetime = new AbortController();
   let disposed = false; let submitting = false; let completed = false; let validationSummary = false;
-  const { form, fields, surpriseMode, validate, discardDeferredBlur } = createWishlistForm({
+  const { form, fields, surpriseMode, validate, eventDateValue, discardDeferredBlur } = createWishlistForm({
     label: "Créer une liste", validateValue: (field, value) => validateWishlistField(field, value, now),
-    inactive: () => submitting || completed || disposed, onChange: updateSummary,
+    inactive: () => submitting || completed || disposed, onChange: updateSummary, now,
   });
   const submit = createButton({ label: "Créer ma liste", type: "submit" });
   let step = 0; let loadingGroups = false; let groupsReady = false; let hasGroups = false;
@@ -93,6 +93,7 @@ export function createWishlistView({ create, onCreated, groups, signal, now = ()
       const all = []; let page = 1; let response;
       do { response = await groups.load({ signal: lifetime.signal, page }); all.push(...response.items); page++; } while (response.hasNextPage);
       if (disposed || lifetime.signal.aborted) return;
+      if (!groupsReady) for (const group of all) selectedGroups.add(group.id);
       groupChoices.replaceChildren();
       for (const group of all) {
         const label = textElement("label", ""); label.className = "wishlist-group-visibility__choice";
@@ -135,7 +136,7 @@ export function createWishlistView({ create, onCreated, groups, signal, now = ()
     setLoading(true);
     /** @type {import("./wishlistsService.js").CreatedWishlist} */ let created;
     try {
-      created = await create({ name: fields[0].control.value, occasion, eventDate: fields[2].control.value, message: fields[3].control.value, surpriseMode: surpriseMode.checked }, { signal: lifetime.signal });
+      created = await create({ name: fields[0].control.value, occasion, eventDate: eventDateValue() ?? "", message: fields[3].control.value, surpriseMode: surpriseMode.checked }, { signal: lifetime.signal });
     } catch (error) {
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) presentFailure(error);
       return;

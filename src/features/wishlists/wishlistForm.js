@@ -1,6 +1,7 @@
 import { createFormField, setFormFieldValidation } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { WishlistOccasions, WishlistServerMessages } from "./wishlistValidation.js";
+import { birthdayEventDate, birthdayInput } from "./birthdayDate.js";
 
 /** @typedef {import("./wishlistValidation.js").WishlistField} WishlistField */
 /** @typedef {{name: WishlistField, label: string, required: boolean}} Definition */
@@ -14,11 +15,12 @@ const Fields = Object.freeze([
 
 /** Domain form shared by creation and editing; operations remain owned by each view.
  * @param {{label: string, validateValue: (field: WishlistField, value: string) => string | null,
- * inactive: () => boolean, onChange: () => void, editing?: boolean}} options Validation and view state.
+ * inactive: () => boolean, onChange: () => void, editing?: boolean, now?:()=>Date, originalEventDate?:()=>string|null}} options Validation and view state.
  */
-export function createWishlistForm({ label, validateValue, inactive, onChange, editing = false }) {
+export function createWishlistForm({ label, validateValue, inactive, onChange, editing = false, now = () => new Date(), originalEventDate }) {
   const form = document.createElement("form"); form.noValidate = true; form.className = "wishlist-form flow"; form.setAttribute("aria-label", label);
   let disposed = false;
+  let originalDate = /** @type {string|null} */ (null);
   /** @type {HTMLButtonElement | null} */ let pressedAction = null;
   /** @type {(() => void) | null} */ let deferredBlur = null;
   const fields = Fields.map(definition => {
@@ -38,6 +40,8 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
     const field = { ...definition, element, control, dirty: false, checked: false, error: /** @type {string | null} */ (null) };
     const update = () => {
       if (disposed || inactive()) return;
+      if (field.name === "occasion") syncDateControl();
+      if (field.name === "eventDate" && fields[1].control.value === "birthday") control.value = birthdayInput(control.value);
       field.dirty = true; if (field.checked) validate(field); onChange();
     };
     addComponentEventListener(form, control, "input", update);
@@ -77,7 +81,26 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
   });
   addComponentEventListener(form, document, "pointercancel", () => { pressedAction = null; flushBlur(); });
   registerComponentCleanup(form, () => { disposed = true; deferredBlur = null; pressedAction = null; reset(); });
-  return { form, fields, surpriseMode, validate, discardDeferredBlur: () => { deferredBlur = null; }, reset };
+  return { form, fields, surpriseMode, validate, eventDateValue, discardDeferredBlur: () => { deferredBlur = null; }, reset };
+
+  function eventDateValue() {
+    return fields[1].control.value === "birthday" ? birthdayEventDate(fields[2].control.value, now(), originalEventDate ? originalEventDate() : originalDate) : fields[2].control.value;
+  }
+  function syncDateControl() {
+    const field = fields[2], control = /** @type {HTMLInputElement} */ (field.control);
+    const birthday = fields[1].control.value === "birthday", value = control.value;
+    const wasBirthday = control.type === "text";
+    if (birthday === wasBirthday) return;
+    control.type = birthday ? "text" : "date";
+    if (birthday) {
+      control.value = birthdayInput(value); control.placeholder = "JJ/MM"; control.inputMode = "numeric"; control.maxLength = 5;
+    } else {
+      control.value = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : birthdayEventDate(value, now(), originalDate) ?? ""; control.removeAttribute("placeholder"); control.removeAttribute("inputmode"); control.removeAttribute("maxlength");
+    }
+    const label = field.element.querySelector("label");
+    if (label) label.textContent = birthday ? "Date de l’anniversaire (jour/mois)" : "Date de l’événement";
+    if (field.checked) validate(field);
+  }
 
   function flushBlur() { const check = deferredBlur; deferredBlur = null; check?.(); }
   function updateSurpriseHint() {
@@ -88,11 +111,13 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
   /** @param {typeof fields[number]} field Field to validate. */
   function validate(field) {
     field.checked = true;
-    field.error = field.name === "eventDate" && field.control.validity.badInput ? WishlistServerMessages.eventDate : validateValue(field.name, field.control.value);
+    const date = field.name === "eventDate" ? eventDateValue() : field.control.value;
+    field.error = date === null ? "Date invalide : indique le jour et le mois (JJ/MM)." : field.name === "eventDate" && field.control.validity.badInput ? WishlistServerMessages.eventDate : validateValue(field.name, date);
     setFormFieldValidation(field.element, field.error);
   }
   /** @param {Partial<Record<WishlistField, string | null>> & {surpriseMode?: boolean}} [values] Raw field values, empty by default. */
   function reset(values = {}) {
+    originalDate = values.occasion === "birthday" ? values.eventDate ?? null : null;
     surpriseMode.checked = values.surpriseMode ?? true;
     updateSurpriseHint();
     deferredBlur = null;
@@ -100,5 +125,8 @@ export function createWishlistForm({ label, validateValue, inactive, onChange, e
       field.control.value = values[field.name] ?? ""; field.dirty = false; field.checked = false; field.error = null;
       setFormFieldValidation(field.element, null);
     }
+    // A reset may replace the date while the same occasion remains selected.
+    syncDateControl();
+    if (fields[1].control.value === "birthday") fields[2].control.value = birthdayInput(values.eventDate ?? "");
   }
 }

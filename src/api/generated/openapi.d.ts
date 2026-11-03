@@ -1512,6 +1512,30 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/members/current/notification-preferences": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read current member notification preferences
+         * @description All nine in-app categories default to true. Reading defaults does not create a preference record. The strong ETag also represents the virtual default resource. Existing history and live authorization are unchanged.
+         */
+        readonly get: operations["GetNotificationPreferences"];
+        /**
+         * Update all current member notification preferences
+         * @description Applies to future in-app notification creation and grouping, including worker reminders. Does not remove history, override surprise-mode privacy, or disable security emails. Conditional insertion protects concurrent first saves.
+         */
+        readonly put: operations["UpdateNotificationPreferences"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/members/current/password": {
         readonly parameters: {
             readonly query?: never;
@@ -1612,6 +1636,26 @@ export interface paths {
         readonly put?: never;
         /** Reauthenticate */
         readonly post: operations["MemberTwoFactor_Reauthenticate"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/members/current/wishlist-subscription-owners": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read your followed lists
+         * @description Authenticated member only. No participants or reservations are created. Share secrets remain in the frontend URL fragment and are presented only in X-MonKado-Share-Token. The original share capability must remain valid; revoke, rotate, archive, suspension and deletion permanently remove follows. Private responses are not cacheable.
+         */
+        readonly get: operations["GetCurrentMemberWishlistSubscriptionOwners"];
+        readonly put?: never;
+        readonly post?: never;
         readonly delete?: never;
         readonly options?: never;
         readonly head?: never;
@@ -2808,6 +2852,17 @@ export interface components {
             readonly isVisibleInMemberSearch: boolean;
             readonly profileImageUrl: string | null;
         };
+        readonly NotificationPreferencesResponse: {
+            readonly groupInvitation: boolean;
+            readonly groupJoined: boolean;
+            readonly groupWishlistShared: boolean;
+            readonly occasionReminder: boolean;
+            readonly reservationUnavailable: boolean;
+            readonly sharingReminder: boolean;
+            readonly suggestionAdded: boolean;
+            readonly wishesAdded: boolean;
+            readonly wishReserved: boolean;
+        };
         readonly NotificationResponse: {
             readonly actorDisplayName: string | null;
             /** Format: date-time */
@@ -3218,6 +3273,17 @@ export interface components {
             readonly displayName?: string | null;
             readonly isVisibleInMemberSearch?: boolean | null;
         };
+        readonly UpdateNotificationPreferencesRequest: {
+            readonly groupInvitation: boolean;
+            readonly groupJoined: boolean;
+            readonly groupWishlistShared: boolean;
+            readonly occasionReminder: boolean;
+            readonly reservationUnavailable: boolean;
+            readonly sharingReminder: boolean;
+            readonly suggestionAdded: boolean;
+            readonly wishesAdded: boolean;
+            readonly wishReserved: boolean;
+        };
         readonly UpdateWishFavoriteRequest: {
             readonly isFavorite: boolean;
         };
@@ -3404,6 +3470,21 @@ export interface components {
             readonly id: string;
             readonly shareUrl: string;
             readonly updatedAt: string | null;
+        };
+        readonly WishlistSubscriptionOwnerResponse: {
+            /** Format: uuid */
+            readonly ownerId: string;
+            /** Format: uuid */
+            readonly wishlistId: string;
+        };
+        readonly WishlistSubscriptionOwnerResponsePaginatedResponse: {
+            readonly currentPage: number;
+            readonly hasNextPage: boolean;
+            readonly hasPreviousPage: boolean;
+            readonly items: readonly components["schemas"]["WishlistSubscriptionOwnerResponse"][];
+            readonly pageSize: number;
+            readonly totalCount: number;
+            readonly totalPages: number;
         };
         readonly WishlistSubscriptionPage: {
             readonly currentPage: number;
@@ -13163,6 +13244,104 @@ export interface operations {
             };
         };
     };
+    readonly GetNotificationPreferences: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Complete member-private preferences */
+            readonly 200: {
+                headers: {
+                    /** @description Strong version of these settings only. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationPreferencesResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly UpdateNotificationPreferences: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Current strong ETag returned by the preferences GET. */
+                readonly "If-Match": string;
+                /** @description Authenticated signed double-submit CSRF token. */
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UpdateNotificationPreferencesRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Complete member-private preferences */
+            readonly 200: {
+                headers: {
+                    /** @description Strong version of these settings only. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationPreferencesResponse"];
+                };
+            };
+            /** @description Invalid body, CSRF token or entity tag */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Preferences were changed by another request */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match is required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     readonly Members_UpdatePassword: {
         readonly parameters: {
             readonly query?: never;
@@ -13849,6 +14028,93 @@ export interface operations {
                 };
             };
             /** @description 503ServiceUnavailable */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly GetCurrentMemberWishlistSubscriptionOwners: {
+        readonly parameters: {
+            readonly query?: {
+                readonly page?: number;
+                readonly pageSize?: number;
+            };
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["WishlistSubscriptionOwnerResponsePaginatedResponse"];
+                };
+            };
+            /** @description Invalid pagination or CSRF token. */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Resource absent, private to another member, or original share capability revoked. */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Error */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The request quota was exceeded. Retry-After gives the remaining wait in seconds. */
+            readonly 429: {
+                headers: {
+                    readonly "Retry-After"?: number;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected server error. */
+            readonly 500: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Dependency unavailable. */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

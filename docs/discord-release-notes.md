@@ -1,2 +1,8 @@
-- Les couvertures des listes personnelles, suivies et des profils utilisent maintenant des images adaptées à leur taille, notamment les petites vignettes mobiles.
-- Les premières couvertures visibles se chargent dès l’ouverture ; les suivantes restent différées.
+- Une nouvelle page Compte → Notifications permet d’activer ou de désactiver chaque type de notification de la cloche, puis d’enregistrer ses choix. Les précisions sont intégrées entre parenthèses dans les libellés.
+- Les préférences sont conservées après rechargement, sur mobile comme sur ordinateur. Les notifications déjà reçues restent accessibles.
+- Plusieurs onglets d’un même compte partagent la connexion de la cloche pour garder les pages et formulaires disponibles, sans bloquer le chargement des préférences.
+- Sur les profils publics et les profils ouverts depuis un groupe, les avatars sont deux fois plus grands : 112 px au lieu de 56 px, sur mobile comme sur ordinateur.
+- Les anniversaires se saisissent avec leur jour et leur mois ; les listes affichent leur prochaine occurrence annuelle, y compris pour le 29 février.
+- Le tableau de bord regroupe les listes d’une même occasion et permet d’en déplier les liens, avec une présentation ajustée sur mobile et ordinateur.
+- Les groupes disponibles sont présélectionnés à la création d’une liste, en conservant tes modifications de sélection. Une invitation de groupe est conservée pendant la connexion ou l’inscription, sans adhésion automatique.
+- Les actions des listes et des groupes bénéficient des derniers ajustements de présentation validés en local.

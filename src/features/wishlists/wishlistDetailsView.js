@@ -70,7 +70,11 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   const lifetime = new AbortController();
   const imageRecovery = createWishImageRecovery({ signal: lifetime.signal,
     load: async signal => (await loadWishes(wishlistId, { signal })).wishes, onUnavailable: notFound });
-  const audience = groups?.wishlistVisibility ? createWishlistAudience({ load: groups.wishlistVisibility.bind(groups, wishlistId), signal: lifetime.signal }) : null;
+  /** @type {Parameters<NonNullable<Parameters<typeof createWishlistAudience>[0]['onChange']>>[0]} */
+  let visibility = null;
+  /** @type {HTMLParagraphElement|null} */ let shareReminder = null;
+  const audience = groups?.wishlistVisibility ? createWishlistAudience({ load: groups.wishlistVisibility.bind(groups, wishlistId), signal: lifetime.signal,
+    onChange: value => { visibility = value; updateShareReminder(); } }) : null;
   if (audience) { audience.element.hidden = true; view.insertBefore(audience.element, notice); }
   let copying = false;
   const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, excludeWishlistId: wishlistId,
@@ -190,7 +194,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   }
   function renderList() {
     if (!list) return;
-    closeShare(); clear(actions); optionsMenu = null; clear(listContent); clear(summary); const item = list.wishlist;
+    closeShare(); clear(actions); shareReminder = null; optionsMenu = null; clear(listContent); clear(summary); const item = list.wishlist;
     populateOwnedWishlistSummary(summary, title, item);
     if (audience) audience.element.hidden = item.isArchived === true || item.isSuspended;
     back.href = item.isArchived ? `${RoutePaths.Lists}?isArchived=true` : RoutePaths.Lists;
@@ -198,6 +202,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
     if (item.isSuspended) {
       listContent.append(createAlert({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" }));
       if (share) listContent.append(element("p", "Partage indisponible — Liste suspendue"));
+      listContent.append(createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void readList(true); } }));
     }
     else if (!reordering) {
       /** @type {HTMLElement[]} */ const secondary = [];
@@ -221,11 +226,15 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
       }
       if ((share || groups) && !item.isArchived) {
         const trigger = createButton({ label: "Partager", variant: "secondary", onClick: () => openShare(trigger) });
-        trigger.classList.add("wishlist-details-share"); prependShareDialogIcon(trigger, "share"); actions.append(trigger);
+        trigger.classList.add("wishlist-details-share"); prependShareDialogIcon(trigger, "share");
+        const sharing = element("div", ""); sharing.className = "wishlist-share-control";
+        shareReminder = createShareReminder();
+        sharing.append(trigger, shareReminder); actions.append(sharing); updateShareReminder();
       }
       optionsMenu = createActionDisclosure("⋯", "Options de la liste", secondary);
       optionsMenu.querySelector("summary")?.setAttribute("role", "button");
-      optionsMenu.classList.add("wishlist-details-options"); actions.append(optionsMenu);
+      optionsMenu.classList.add("wishlist-details-options");
+      actions.append(optionsMenu);
       if (!item.isArchived) {
         const add = createActionLink({ label: "Ajouter un souhait", href: RoutePaths.NewWish.replace(":listId", wishlistId) });
         applyActionIcon(add, "add", "Ajouter un souhait"); add.classList.remove("icon-action");
@@ -234,6 +243,16 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
       }
     }
     information.hidden = !summary.hasChildNodes() && !listContent.hasChildNodes();
+  }
+  function updateShareReminder() {
+    if (!shareReminder) return;
+    shareReminder.hidden = !visibility || visibility.isPublic || visibility.groups.some(group => group.isVisible)
+      || !list || list.wishlist.isArchived === true || list.wishlist.isSuspended || reordering || terminal;
+    if (shareReminder.hidden || !visibility) return;
+    const text = shareReminder.querySelector("span");
+    if (text) text.textContent = visibility.groups.length
+      ? `Partage ta liste avec ${visibility.groups.length === 1 ? "ton groupe" : "tes groupes"} ou par lien public.`
+      : "Partage le lien public de ta liste avec tes proches.";
   }
   /** @param {"wishlistMissing" | "suspended"} state Safe share access failure. */
   function shareUnavailable(state) {
@@ -332,6 +351,18 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   }
 }
 
+
+/** Creates a quiet owner-only reminder; the arrow is decorative and sharing stays explicit. */
+function createShareReminder() {
+  const note = element("p", ""); note.className = "wishlist-share-reminder"; note.hidden = true;
+  const text = element("span", "");
+  const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  arrow.setAttribute("viewBox", "0 0 64 56"); arrow.setAttribute("aria-hidden", "true"); arrow.setAttribute("focusable", "false");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "M3 43 C16 52 42 52 42 34 C42 20 23 20 23 32 C23 51 55 47 50 8 M41 17 Q47 10 50 5 Q53 11 59 16");
+  arrow.append(path); note.append(text, arrow);
+  return note;
+}
 
 /** @param {HTMLElement} container Owned subtree. */
 function clear(container) { disposeComponent(container); container.replaceChildren(); }

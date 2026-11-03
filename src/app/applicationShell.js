@@ -419,7 +419,7 @@ function getActiveNavigationRoute(routeName) {
   if ([RouteNames.Group, RouteNames.GroupEdit, RouteNames.GroupMember, RouteNames.GroupWishlist, RouteNames.GroupWish, RouteNames.GroupSuggestion].some(name => name === routeName)) return RouteNames.Groups;
   if (routeName === RouteNames.WishlistReportReview || routeName === RouteNames.WishlistModeration || routeName === RouteNames.WishlistReportHistory || routeName === RouteNames.WishlistModerationHistory) return RouteNames.ReportedWishlists;
   if (routeName === RouteNames.MemberProfile) return RouteNames.Members;
-  if ([RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.PersonalData, RouteNames.Authenticator].some(name => name === routeName)) return RouteNames.Profile;
+  if ([RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.PersonalData, RouteNames.NotificationPreferences, RouteNames.Authenticator].some(name => name === routeName)) return RouteNames.Profile;
   if (
     routeName === RouteNames.Lists ||
     routeName === RouteNames.FollowedLists ||

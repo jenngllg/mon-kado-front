@@ -117,7 +117,7 @@ describe("create wishlist form", () => {
     document.dispatchEvent(new Event(type)); expect(ui.fields[0].getAttribute("aria-invalid")).toBe("true");
   });
   it("checks the UTC day again at submission", () => {
-    let time = new Date("2028-02-29T23:59:59Z"); const ui = setup({ now: () => time }); ui.fill(); ui.fields[2].dispatchEvent(new FocusEvent("blur"));
+    let time = new Date("2028-02-29T23:59:59Z"); const ui = setup({ now: () => time }); ui.fill(); ui.input(1, "wedding"); ui.fields[2].dispatchEvent(new FocusEvent("blur"));
     expect(ui.fields[2].getAttribute("aria-invalid")).not.toBe("true"); time = new Date("2028-03-01T00:00:00Z"); ui.send();
     expect(ui.create).not.toHaveBeenCalled(); expect(document.activeElement).toBe(ui.fields[2]);
   });

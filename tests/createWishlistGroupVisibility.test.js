@@ -29,7 +29,7 @@ function setup(empty = false) {
 async function chooseGroup(ui) {
   await settle();
   [...view.querySelectorAll("button")].find(button => button.textContent.includes("Continuer"))?.click();
-  await settle(); /** @type {HTMLInputElement} */ (view.querySelector(`input[value="${groupId}"]`)).click();
+  await settle(); expect(/** @type {HTMLInputElement} */ (view.querySelector(`input[value="${groupId}"]`)).checked).toBe(true);
   ui.form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await settle();
 }
 it("creates the list once and applies the chosen group with the visibility version", async () => {
@@ -37,6 +37,31 @@ it("creates the list once and applies the chosen group with the visibility versi
   expect(ui.create).toHaveBeenCalledOnce();
   expect(ui.groups.setWishlistVisibility).toHaveBeenCalledWith(listId, [{ groupId, isVisible: true }], { etag: '"visibility"', signal: expect.any(AbortSignal) });
   expect(ui.onCreated).toHaveBeenCalledOnce();
+});
+it("preserves explicit deselection when returning to the list step", async () => {
+  const ui = setup(); await settle();
+  const button = /** @param {string} name */ name => [...view.querySelectorAll("button")].find(candidate => candidate.textContent === name);
+  button("Continuer")?.click(); await settle();
+  const choice = /** @type {HTMLInputElement} */ (view.querySelector(`input[value="${groupId}"]`));
+  expect(choice.checked).toBe(true); choice.click();
+  button("Retour")?.click(); button("Continuer")?.click(); await settle();
+  expect(choice.checked).toBe(false); expect(view.textContent).toContain("Seulement moi");
+  expect(ui.create).not.toHaveBeenCalled(); expect(ui.groups.setWishlistVisibility).not.toHaveBeenCalled();
+});
+it("preselects every page only after groups have loaded successfully", async () => {
+  const groups = { load: vi.fn().mockRejectedValueOnce(new Error("network"))
+    .mockResolvedValueOnce({ items: [{ id: groupId, name: "Famille" }], hasNextPage: true })
+    .mockResolvedValueOnce({ items: [{ id: "019c52dd-56c1-7cc6-8a95-243f3a032e06", name: "Amis" }], hasNextPage: false }),
+    wishlistVisibility: vi.fn(), setWishlistVisibility: vi.fn() };
+  const create = vi.fn(async () => created);
+  view = createWishlistView({ create, onCreated: vi.fn(), groups: /** @type {any} */ (groups) }); document.body.append(view);
+  expect(view.textContent).toContain("Chargement des groupes…"); await settle();
+  expect(view.textContent).toContain("Impossible de charger tes groupes."); expect(create).not.toHaveBeenCalled();
+  [...view.querySelectorAll("button")].find(button => button.textContent === "Réessayer")?.click(); await settle();
+  const choices = [...view.querySelectorAll('.wishlist-group-visibility__choice input')];
+  expect(choices).toHaveLength(2); expect(choices.every(choice => /** @type {HTMLInputElement} */ (choice).checked)).toBe(true);
+  expect(groups.load).toHaveBeenCalledTimes(3); expect(groups.load.mock.calls[2][0].page).toBe(2);
+  expect(groups.setWishlistVisibility).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
 });
 it("keeps the created list accessible and never creates it again when visibility cannot be confirmed", async () => {
   const ui = setup(); ui.groups.setWishlistVisibility.mockRejectedValue(new Error("network")); await chooseGroup(ui);
@@ -64,10 +89,10 @@ it("allows private creation without a visibility write when no group is selected
   ui.form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await settle();
   expect(ui.create).toHaveBeenCalledOnce(); expect(ui.groups.setWishlistVisibility).not.toHaveBeenCalled(); expect(ui.onCreated).toHaveBeenCalledOnce();
 });
-it("creates a private list when a group is available but left unchecked", async () => {
+it("creates a private list when the preselected group is explicitly unchecked", async () => {
   const ui = setup(); await settle();
   [...view.querySelectorAll("button")].find(button => button.textContent.includes("Continuer"))?.click();
-  await settle(); expect(/** @type {HTMLInputElement} */ (view.querySelector(`input[value="${groupId}"]`)).checked).toBe(false);
+  await settle(); const choice = /** @type {HTMLInputElement} */ (view.querySelector(`input[value="${groupId}"]`)); expect(choice.checked).toBe(true); choice.click(); expect(choice.checked).toBe(false);
   ui.form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await settle();
   expect(ui.create).toHaveBeenCalledOnce(); expect(ui.groups.setWishlistVisibility).not.toHaveBeenCalled(); expect(ui.onCreated).toHaveBeenCalledOnce();
 });

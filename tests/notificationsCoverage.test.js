@@ -119,6 +119,46 @@ it("never dispatches notification credentials through invalid API configuration 
   expect(fetchImplementation).not.toHaveBeenCalled();
 });
 
+it.each(["caller", "deadline"])("releases an open notification response on %s cancellation even when fetch ignores abort", async cancellation => {
+  // Arrange: a bridged fetch may deliver a body whose lifetime is independent
+  // of RequestInit.signal. Its reader must be cancelled explicitly.
+  vi.useFakeTimers();
+  const opened = barrier();
+  const cancel = vi.fn();
+  const controller = new AbortController();
+  const fetchImplementation = vi.fn(async () => new Response(new ReadableStream({
+    start(stream) { stream.enqueue(new TextEncoder().encode('event: notifications\ndata: {"hasUnread":true}\n\n')); },
+    cancel,
+  }), { headers: { "content-type": "text/event-stream" } }));
+  const client = createApiClient({ baseUrl: "http://localhost:7000", accessTokenProvider: () => "test-access", fetchImplementation });
+  const receive = vi.fn(() => opened.resolve());
+  const pending = client.request("/api/v1/notifications/events", {
+    authentication: "required", signal: controller.signal, timeoutMs: 100,
+    onNotification: receive,
+  }).catch(error => error);
+  await opened.promise;
+  // Act
+  if (cancellation === "caller") controller.abort();
+  else await vi.advanceTimersByTimeAsync(100);
+  const error = await pending;
+  // Assert
+  if (cancellation === "caller") expect(error.name).toBe("AbortError");
+  else expect(error.kind).toBe("timeout");
+  expect(cancel).toHaveBeenCalledOnce();
+  expect(receive).toHaveBeenCalledOnce();
+});
+
+it("does not deliver buffered notification events after the reader was already cancelled", async () => {
+  const controller = new AbortController(); controller.abort();
+  const cancel = vi.fn(); const receive = vi.fn();
+  const body = new ReadableStream({
+    start(stream) { stream.enqueue(new TextEncoder().encode('event: notifications\ndata: {"hasUnread":true}\n\n')); },
+    cancel,
+  });
+  await readNotificationEvents(new Response(body, { headers: { "content-type": "text/event-stream" } }), receive, controller.signal);
+  expect(cancel).toHaveBeenCalledOnce(); expect(receive).not.toHaveBeenCalled();
+});
+
 it.each(["bad", "-1", "Wed, 01 Jan 2031 00:00:00 GMT", "Wed, 01 Jan 2020 00:00:00 GMT"])("retains a safe retry budget after a notification service failure with Retry-After %s", async retryAfter => {
   const client = createApiClient({ baseUrl: "http://localhost:7000", accessTokenProvider: () => "test-access", fetchImplementation: async () => Response.json({ statusCode: 503, title: "Unavailable", message: "Unavailable", errorCode: "TECHNICAL_SERVICE_UNAVAILABLE", validationErrors: null }, { status: 503, headers: { "Retry-After": retryAfter } }) });
   const failure = await client.request("/api/v1/notifications/events", { authentication: "required", onNotification: vi.fn() }).catch(error => error);
@@ -239,4 +279,46 @@ it("keeps the adjacent account disclosure keyboard accessible and closes it outs
   const empty = createHeaderNavigationMenu({ items: [], onOpen }); document.body.append(empty.element);
   empty.trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })); empty.trigger.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
   empty.element.remove(); empty.close(true); disposeComponent(empty.element);
+});
+
+it("shares only badge state with sibling tabs, answers late subscribers and closes coordination on disposal", async () => {
+  /** @type {(state:import('../src/auth/sessionManager.js').SessionSnapshot)=>void} */ let publish = () => {};
+  /** @type {(event:{data:unknown})=>void} */ let onmessage = () => {};
+  /** @type {((value:{hasUnread:boolean})=>void)|undefined} */ let deliver;
+  const postMessage = vi.fn(), close = vi.fn(), update = vi.fn();
+  class Channel {
+    /** @param {(event:{data:unknown})=>void} value Message receiver. */
+    set onmessage(value) { onmessage = value; }
+    postMessage = postMessage;
+    close = close;
+  }
+  const lock = vi.fn(async (_name, _options, operation) => operation());
+  vi.stubGlobal("BroadcastChannel", Channel);
+  vi.stubGlobal("navigator", { locks: { request: lock } });
+  const session = /** @type {import('../src/auth/sessionManager.js').SessionManager} */ (/** @type {unknown} */ ({
+    subscribe(/** @type {typeof publish} */ listener) { publish = listener; return vi.fn(); },
+    request(/** @type {string} */ _path, /** @type {import('../src/api/apiClient.js').ApiRequestOptions} */ options) {
+      deliver = options.onNotification;
+      return new Promise((_, reject) => options.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true }));
+    },
+  }));
+  const dispose = createNotificationLive(session, update); cleanups.push(dispose);
+  publish(/** @type {import('../src/auth/sessionManager.js').SessionSnapshot} */ (/** @type {unknown} */ ({ status: "authenticated", user: { id } })));
+  expect(lock).toHaveBeenCalledOnce();
+  expect(postMessage).toHaveBeenCalledWith({ type: "status-request" });
+  deliver?.({ hasUnread: true });
+  expect(postMessage).toHaveBeenLastCalledWith({ type: "status", hasUnread: true });
+  onmessage?.({ data: { type: "status-request" } });
+  expect(postMessage).toHaveBeenLastCalledWith({ type: "status", hasUnread: true });
+  onmessage?.({ data: { type: "status", hasUnread: false } });
+  expect(update).toHaveBeenLastCalledWith(false);
+  onmessage?.({ data: { type: "status", hasUnread: null } });
+  expect(update).toHaveBeenLastCalledWith(null);
+  update.mockClear();
+  onmessage?.({ data: { type: "status", hasUnread: "true" } });
+  onmessage?.({ data: { type: "status", hasUnread: true, extra: true } });
+  expect(update).not.toHaveBeenCalled();
+  dispose(); expect(close).toHaveBeenCalledOnce();
+  onmessage?.({ data: { type: "status", hasUnread: true } });
+  expect(update).not.toHaveBeenCalled();
 });

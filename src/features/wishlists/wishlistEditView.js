@@ -23,7 +23,8 @@ export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = 
   const lifetime = new AbortController();
   /** @type {import("./wishlistsService.js").CreatedWishlist | null} */ let base = null;
   let disposed = false; let busy = false; let blocked = true; let terminal = false; let decision = false; let validationSummary = false;
-  const editor = createWishlistForm({ label: "Modifier ma liste", editing: true,
+  const editor = createWishlistForm({ label: "Modifier ma liste", editing: true, now,
+    originalEventDate: () => base?.wishlist.eventDate ?? null,
     validateValue: (field, value) => validateWishlistEditField(field, value, base?.wishlist.eventDate ?? null, now),
     inactive: () => disposed || busy || terminal || base?.wishlist.isSuspended === true,
     onChange: () => { if (validationSummary && editor.fields.every(field => field.error === null)) clearFeedback(); syncControls(); },
@@ -64,7 +65,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = 
     if (!base) return false;
     const stored = base.wishlist;
     return trimWishlistText(fields[0].control.value) !== stored.name || fields[1].control.value !== stored.occasion ||
-      (fields[2].control.value || null) !== stored.eventDate || (trimWishlistText(fields[3].control.value) || null) !== stored.message ||
+      (editor.eventDateValue() || null) !== stored.eventDate || (trimWishlistText(fields[3].control.value) || null) !== stored.message ||
       surpriseMode.checked !== (stored.surpriseMode ?? true);
   }
   function syncControls() {
@@ -144,7 +145,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = 
     busy = true; syncControls(); setButtonLoading(submit, true); status.textContent = "Enregistrement de ta liste…";
     try {
       const saved = await update(wishlistId, { name: fields[0].control.value, occasion,
-        eventDate: fields[2].control.value, message: fields[3].control.value, surpriseMode: surpriseMode.checked }, { etag: base.etag, signal: lifetime.signal });
+        eventDate: editor.eventDateValue() ?? "", message: fields[3].control.value, surpriseMode: surpriseMode.checked }, { etag: base.etag, signal: lifetime.signal });
       if (disposed || lifetime.signal.aborted) return;
       if (!isStrongEntityTag(saved.etag)) throw new ApiError({ kind: "invalidResponse" });
       base = saved; editor.reset(saved.wishlist); decision = false; blocked = saved.wishlist.isSuspended; clearComparison();

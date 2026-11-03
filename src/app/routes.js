@@ -3,6 +3,7 @@ import { withResourcePageTitle } from "./resourcePageTitle.js";
 import { createGroupsService } from "../features/groups/groupsService.js";
 import { createDashboardService } from "../features/home/dashboardService.js";
 import { createGroupMemberProfileService } from "../features/groups/groupMemberProfileService.js";
+import { createGroupJoinContinuation } from "../features/groups/groupJoinContinuation.js";
 import { createGroupWishlistService } from "../features/groups/groupWishlistService.js";
 import { createGroupWishReservation } from "../features/groups/groupWishReservation.js";
 import { createGroupSuggestionsService } from "../features/groups/groupSuggestionsService.js";
@@ -83,8 +84,9 @@ export {
  * @param {SharingSignInOptions} sharingSignIn Dedicated sign-in integration.
  * @param {WishlistDeletedHandler} onWishlistShareRevoked Confirmed share revocation notice.
  * @param {WishlistCreatedHandler} onWishlistUpdated Confirmed list update completion.
+ * @param {ReturnType<typeof createGroupJoinContinuation>} groupJoin Pending group admission.
  */
-function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked, onWishlistUpdated) {
+function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked, onWishlistUpdated, groupJoin) {
   /** Recover only a currently published link from its public member profile, never from browser storage.
    * @param {import("../router/router.js").RouteContext} context Current navigation.
    * @param {string} memberId Public origin.
@@ -151,7 +153,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
         const { createGroupJoinView } = await import("../features/groups/groupJoinView.js");
         if (context.signal.aborted) throw createAbortError();
-        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, code: takeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } });
+        const path = RoutePaths.GroupJoin;
+        const fragment = takeFragment();
+        if (fragment) groupJoin.clear();
+        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, code: fragment || groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
+          onAuthenticate: code => groupJoin.prepare(path, code), onJoined: groupJoin.clear });
       },
     },
     {
@@ -161,7 +167,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
         const { createGroupJoinView } = await import("../features/groups/groupJoinView.js");
         if (context.signal.aborted) throw createAbortError();
-        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, groupId: context.params.groupId, code: takeFragment(), signal: context.signal, navigate: path => { void context.navigate(path); } });
+        const path = RoutePaths.GroupInvitation.replace(":groupId", context.params.groupId);
+        const fragment = takeFragment();
+        if (fragment) groupJoin.clear();
+        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, groupId: context.params.groupId, code: fragment || groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
+          onAuthenticate: code => groupJoin.prepare(path, code), onJoined: groupJoin.clear });
       },
     },
     {
@@ -421,6 +431,9 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
         const { createEmailConfirmationView } = await import("../features/emailConfirmation/emailConfirmationView.js");
         if (context.signal.aborted) throw createAbortError();
+        // Finish initial session selection before preparing the confirmation CSRF token.
+        if (pendingFragment) await session.start();
+        if (context.signal.aborted) throw createAbortError();
         return createEmailConfirmationView({ ...createEmailConfirmationService(session),
           consumeFragment: takeFragment, signal: context.signal });
       },
@@ -471,6 +484,19 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const { createPasswordChangeView } = await import("../features/passwordChange/passwordChangeView.js");
         if (context.signal.aborted) throw createAbortError();
         return createAccountLayout(createPasswordChangeView({ ...createPasswordChangeService(session), signal: context.signal }), RoutePaths.PasswordChange, session);
+      },
+    },
+    {
+      name: RouteNames.NotificationPreferences, path: RoutePaths.NotificationPreferences, title: "Mes notifications · MonKado",
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const [{ createNotificationPreferencesView }, { createNotificationPreferencesService }] = await Promise.all([
+          import("../features/notifications/notificationPreferencesView.js"),
+          import("../features/notifications/notificationPreferencesService.js"),
+        ]);
+        if (context.signal.aborted) throw createAbortError();
+        return createAccountLayout(createNotificationPreferencesView({
+          service: createNotificationPreferencesService(session), signal: context.signal,
+        }), RoutePaths.NotificationPreferences, session);
       },
     },
     {
@@ -747,10 +773,10 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
 /**
  * Creates the complete frontend route catalogue.
  *
- * @param {{session: import("../auth/sessionManager.js").SessionManager, apiBaseUrl: string, sharingSignIn?: SharingSignInOptions, sharing?: import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext, consumePasswordChangeNotice?: () => boolean, onWishlistCreated?: WishlistCreatedHandler, onWishlistUpdated?: WishlistCreatedHandler, onWishlistDeleted?: WishlistDeletedHandler, onWishCreated?: WishCreatedHandler, onWishDeleted?: WishlistDeletedHandler, onWishlistShareRevoked?: WishlistDeletedHandler} & GoogleRouteOptions} options Session and local notice dependencies.
+ * @param {{session: import("../auth/sessionManager.js").SessionManager, apiBaseUrl: string, groupJoin?: ReturnType<typeof createGroupJoinContinuation>, sharingSignIn?: SharingSignInOptions, sharing?: import("../features/sharing/sharedWishlistContext.js").SharedWishlistContext, consumePasswordChangeNotice?: () => boolean, onWishlistCreated?: WishlistCreatedHandler, onWishlistUpdated?: WishlistCreatedHandler, onWishlistDeleted?: WishlistDeletedHandler, onWishCreated?: WishCreatedHandler, onWishDeleted?: WishlistDeletedHandler, onWishlistShareRevoked?: WishlistDeletedHandler} & GoogleRouteOptions} options Session and local notice dependencies.
  * @returns {ReadonlyArray<import("../router/router.js").RouteDefinition>} Application routes.
  */
-export function createApplicationRoutes({ session, apiBaseUrl, sharingSignIn = {}, sharing = createSharedWishlistContext(), consumePasswordChangeNotice = () => false, onWishlistCreated = () => {}, onWishlistUpdated = () => {}, onWishlistDeleted = () => {}, onWishCreated = () => {}, onWishDeleted = () => {}, onWishlistShareRevoked = () => {}, ...googleFlow }) {
+export function createApplicationRoutes({ session, apiBaseUrl, groupJoin = createGroupJoinContinuation(), sharingSignIn = {}, sharing = createSharedWishlistContext(), consumePasswordChangeNotice = () => false, onWishlistCreated = () => {}, onWishlistUpdated = () => {}, onWishlistDeleted = () => {}, onWishCreated = () => {}, onWishDeleted = () => {}, onWishlistShareRevoked = () => {}, ...googleFlow }) {
   return [
     Object.freeze({
       name: RouteNames.Home,
@@ -758,8 +784,13 @@ export function createApplicationRoutes({ session, apiBaseUrl, sharingSignIn = {
       title: "MonKado · Les souhaits qui font vraiment plaisir",
       render: context => createSessionHomeView(session, { service: createDashboardService({ wishlists: createWishlistsService(session), groups: createGroupsService(session), subscriptions: createWishlistSubscriptionsService(session) }), signal: context.signal, apiBaseUrl }),
     }),
-    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked, onWishlistUpdated).map(route => {
+    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked, onWishlistUpdated, groupJoin).map(route => {
       const guard = createSessionGuard(route.name, session);
+      if (route.name === RouteNames.Login || route.name === RouteNames.Register) return Object.freeze({ ...route, beforeEnter: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const result = await guard?.(context);
+        const destination = result?.redirectTo === RoutePaths.Home ? groupJoin.takeDestination() : null;
+        return destination ? { redirectTo: destination, replace: true } : result;
+      } });
       if (route.name !== RouteNames.Notifications) return Object.freeze({ ...route, beforeEnter: guard });
       return Object.freeze({ ...route, beforeEnter: async (/** @type {import("../router/router.js").RouteContext} */ context) =>
         await guard?.(context) ?? { redirectTo: "/?notifications=open", replace: true } });

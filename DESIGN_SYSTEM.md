@@ -1,5 +1,7 @@
 # MonKado — interface reference
 
+- Public and group-scoped member profile pages use a 112px avatar, double the former 56px size, on mobile and desktop.
+
 This charter applies to existing screens and all future interface work. It extends the existing tokens and components; it does not introduce a new theme or change API behaviour.
 
 ## Sources and precedence

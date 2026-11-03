@@ -13,6 +13,7 @@ import { RouteNames, RoutePaths } from "./routeContracts.js";
 import { createGoogleService } from "../features/google/googleService.js";
 import { createSharedWishlistContext } from "../features/sharing/sharedWishlistContext.js";
 import { createSharedSignInContinuation } from "../features/sharing/sharedSignInContinuation.js";
+import { createGroupJoinContinuation } from "../features/groups/groupJoinContinuation.js";
 import { captureExtensionProduct, readExtensionProduct } from "../features/extension/extensionProduct.js";
 import { installExtensionSessionBridge } from "../features/extension/extensionSessionBridge.js";
 import { createNotificationLive } from "../features/notifications/notificationLive.js";
@@ -36,6 +37,9 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   try { sharingStorage = window.sessionStorage; } catch { /* Sharing remains usable in memory when storage is restricted. */ }
   const sharing = createSharedWishlistContext({ storage: sharingStorage });
   const sharedSignIn = createSharedSignInContinuation(sharing);
+  const groupJoin = createGroupJoinContinuation({ storage: sharingStorage });
+  /** @type {Set<string>} */
+  const groupJoinPages = new Set([RouteNames.GroupJoin, RouteNames.GroupInvitation, RouteNames.Login, RouteNames.Register, RouteNames.ConfirmEmail, RouteNames.GoogleReturn, RouteNames.LinkGoogle]);
   let routeErrorVisible = false;
   let passwordChangeNotice = false;
   let protectedViewEpoch = 0;
@@ -72,7 +76,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   shell.outlet.append(createLoadingState({ label: "Vérification de la session…" }));
   const router = createRouter({
     outlet: shell.outlet,
-    routes: createApplicationRoutes({ session, google, apiBaseUrl, sharing,
+    routes: createApplicationRoutes({ session, google, apiBaseUrl, sharing, groupJoin,
       onWishlistShareRevoked: context => {
         const route = router.getCurrentRoute();
         if (disposed || context.signal.aborted || route?.name !== RouteNames.ListDetails ||
@@ -204,6 +208,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   }
   const unsubscribeRouter = router.subscribe(route => {
     recordVisit();
+    if (route?.name && !groupJoinPages.has(route.name)) groupJoin.clear();
     if (route && route.name !== RouteNames.SharedWishlist && route.name !== RouteNames.SharedWish) sharing.forgetContinuity();
     if (route?.name !== RouteNames.Login) sharedSignIn.cancel();
     if (route?.name !== RouteNames.Login) passwordChangeNotice = false;
@@ -226,6 +231,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     const current = router.getCurrentRoute();
     const lostAccess = previous.status === "authenticated" && state.status !== "authenticated";
     const gainedAccess = previous.status !== "authenticated" && state.status === "authenticated";
+    if (lostAccess) groupJoin.clear();
     if (gainedAccess && current?.name === RouteNames.Home && current.searchParams.get("notifications") === "open") shell.openNotifications();
     // Public bearer access survives logout in memory; only reload continuity is discarded.
     if (lostAccess || (previous.user && state.user && previous.user.id !== state.user.id)) sharing.forgetContinuity();
@@ -239,8 +245,8 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       shell.outlet.replaceChildren(createLoadingState({ label: "Vérification de la session…" }));
       sharedSignIn.cancel();
       sharedSignIn.discardResume();
-      const destination = current.name === RouteNames.Login && getLoginDestination(current.url.searchParams) === RoutePaths.ExtensionAdd && readExtensionProduct()
-        ? RoutePaths.ExtensionAdd : RoutePaths.Home;
+      const destination = groupJoin.takeDestination() ?? (current.name === RouteNames.Login && getLoginDestination(current.url.searchParams) === RoutePaths.ExtensionAdd && readExtensionProduct()
+        ? RoutePaths.ExtensionAdd : RoutePaths.Home);
       void router.replace(destination);
     }
     const showingNewRecoveryCodes = state.endReason === "authenticatorChanged" && current?.name === RouteNames.Authenticator &&
@@ -309,7 +315,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     if (!googleVerified || disposed || router.getCurrentRoute()?.name !== googleFlowRoute ||
       window.location.pathname.replace(/\/+$/, "") !== (googleFlowRoute === RouteNames.LinkGoogle ? RoutePaths.LinkGoogle : RoutePaths.GoogleReturn) ||
       googleDestination === null || session.getSnapshot().status !== "authenticated") return;
-    const destination = googleDestination === RoutePaths.ExtensionAdd && readExtensionProduct() ? RoutePaths.ExtensionAdd : RoutePaths.Home;
+    const destination = groupJoin.takeDestination() ?? (googleDestination === RoutePaths.ExtensionAdd && readExtensionProduct() ? RoutePaths.ExtensionAdd : RoutePaths.Home);
     const linked = googleFlowRoute === RouteNames.LinkGoogle;
     googleDestination = null;
     googleVerified = false;
