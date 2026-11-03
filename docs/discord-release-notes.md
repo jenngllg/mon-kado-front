@@ -1,2 +1,2 @@
-- Les couvertures des listes personnelles, suivies et des profils utilisent maintenant des images adaptées à leur taille, notamment les petites vignettes mobiles.
-- Les premières couvertures visibles se chargent dès l’ouverture ; les suivantes restent différées.
+- Une nouvelle page Compte → Notifications permet d’activer ou de désactiver chaque type de notification de la cloche, puis d’enregistrer ses choix.
+- Les préférences sont conservées après rechargement, sur mobile comme sur ordinateur. Les notifications déjà reçues restent accessibles.

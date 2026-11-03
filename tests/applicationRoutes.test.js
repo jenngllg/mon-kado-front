@@ -93,6 +93,7 @@ const ExpectedRoutes = [
   [RouteNames.ResetPassword, RoutePaths.ResetPassword],
   [RouteNames.Profile, RoutePaths.Profile],
   [RouteNames.PasswordChange, RoutePaths.PasswordChange],
+  [RouteNames.NotificationPreferences, RoutePaths.NotificationPreferences],
   [RouteNames.PersonalData, RoutePaths.PersonalData],
   [RouteNames.Authenticator, RoutePaths.Authenticator],
   [RouteNames.ConfirmAccountDeletion, RoutePaths.ConfirmAccountDeletion],
@@ -321,7 +322,8 @@ describe("application routes", () => {
     [RouteNames.PasswordChange, RoutePaths.PasswordChange],
     [RouteNames.EmailChange, RoutePaths.EmailChange],
     [RouteNames.Authenticator, RoutePaths.Authenticator],
-    [RouteNames.PersonalData, RoutePaths.PersonalData],
+    [RouteNames.NotificationPreferences, RoutePaths.NotificationPreferences],
+  [RouteNames.PersonalData, RoutePaths.PersonalData],
   ])("renders %s inside the common account navigation", async (name, path) => {
     // Arrange
     const route = getRoute(name);

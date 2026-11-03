@@ -2286,6 +2286,23 @@ et empêche les réponses tardives de réafficher le contenu. Aucun historique n
 mis en cache ou conservé dans un stockage du navigateur.
 # Production CI/CD
 
+## Notification preferences
+
+`/profile/notifications`, available through **Compte → Notifications**, edits
+the nine existing in-app notification kinds using the authenticated preferences
+API. All choices initially come from the server. Saving is explicit and uses
+the settings ETag. A refused stale write is merged field by field with the
+latest settings; an uncertain write is reconciled through a read without
+automatically submitting it again. Existing notification history and security
+emails remain independent of these choices.
+
+This page requires the backend notification-preferences migration and API, and
+the updated worker for scheduled reminders. Follow the backend's
+[migration and publication requirements](https://github.com/jenngllg/mon-kado/blob/codex/notification-preferences/docs/notification-preferences.md)
+before publishing these paired changes. Local browser checks use the real API
+in addition to the controlled failure/concurrency scenarios in
+`e2e/notificationPreferences.spec.js`.
+
 Production follows `main`, after the complete quality gate and the existing
 `production` environment approval. `develop` never publishes to the VPS. The
 `Deploy frontend main to VPS` workflow reuses the exact verified build and native

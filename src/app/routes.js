@@ -474,6 +474,19 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
       },
     },
     {
+      name: RouteNames.NotificationPreferences, path: RoutePaths.NotificationPreferences, title: "Mes notifications · MonKado",
+      render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
+        const [{ createNotificationPreferencesView }, { createNotificationPreferencesService }] = await Promise.all([
+          import("../features/notifications/notificationPreferencesView.js"),
+          import("../features/notifications/notificationPreferencesService.js"),
+        ]);
+        if (context.signal.aborted) throw createAbortError();
+        return createAccountLayout(createNotificationPreferencesView({
+          service: createNotificationPreferencesService(session), signal: context.signal,
+        }), RoutePaths.NotificationPreferences, session);
+      },
+    },
+    {
       name: RouteNames.PersonalData, path: RoutePaths.PersonalData, title: "Mes données personnelles · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
         const { createPersonalDataView } = await import("../features/privacy/personalDataView.js");

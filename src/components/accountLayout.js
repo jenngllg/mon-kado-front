@@ -6,6 +6,7 @@ import { createAccountIcon } from "./accountIcon.js";
 /** @type {ReadonlyArray<{label: string, href: string, icon: Parameters<typeof createAccountIcon>[0]}>} */
 const Categories = [
   { label: "Profil", href: RoutePaths.Profile, icon: "user" },
+  { label: "Notifications", href: RoutePaths.NotificationPreferences, icon: "bell" },
   { label: "Adresse e-mail", href: RoutePaths.EmailChange, icon: "email" },
   { label: "Mot de passe", href: RoutePaths.PasswordChange, icon: "password" },
   { label: "Données personnelles", href: RoutePaths.PersonalData, icon: "shield" },

@@ -12,6 +12,7 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  NOTIFICATION_PREFERENCES_VERSION_CONFLICT: { title: "Préférences modifiées", message: "Tes préférences ont été modifiées dans une autre fenêtre." },
   ACCOUNT_IMPERSONATION_READ_ONLY: {title:"Action protégée",message:"Cette opération est indisponible pendant la simulation."},
   ACCOUNT_IMPERSONATION_RESTRICTED: {title:"Action protégée",message:"La sécurité du compte et les fonctions d’administration sont indisponibles pendant la simulation."},
   ACCOUNT_IMPERSONATION_EXPIRED: {title:"Simulation terminée",message:"Reviens à ton compte pour continuer."},

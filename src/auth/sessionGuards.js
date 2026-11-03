@@ -3,7 +3,7 @@ import { ApiError } from "../api/apiError.js";
 import { isWishlistId } from "../features/wishlists/wishlistValidation.js";
 
 /** @type {Set<string>} */
-const ProtectedRoutes = new Set([RouteNames.AdminMembers, RouteNames.Activity, RouteNames.WishlistModeration, RouteNames.WishlistReportReview, RouteNames.ReportedWishlists, RouteNames.Authenticator, RouteNames.PersonalData, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.WishDetails, RouteNames.ListDetails, RouteNames.Reservations]);
+const ProtectedRoutes = new Set([RouteNames.AdminMembers, RouteNames.Activity, RouteNames.WishlistModeration, RouteNames.WishlistReportReview, RouteNames.ReportedWishlists, RouteNames.Authenticator, RouteNames.PersonalData, RouteNames.NotificationPreferences, RouteNames.Profile, RouteNames.PasswordChange, RouteNames.EmailChange, RouteNames.Lists, RouteNames.NewList, RouteNames.EditList, RouteNames.NewWish, RouteNames.EditWish, RouteNames.WishDetails, RouteNames.ListDetails, RouteNames.Reservations]);
 /** @type {Set<string>} */
 const AnonymousRoutes = new Set([RouteNames.Login, RouteNames.Register]);
 ProtectedRoutes.add(RouteNames.WishlistReportHistory);
@@ -62,7 +62,7 @@ export function getSafeReturnTo(target) {
     if (detailWish && isWishlistId(detailWish[1]) && isWishlistId(detailWish[2])) return path;
     const editWish = /^\/lists\/([^/]+)\/wishes\/([^/]+)\/edit$/.exec(path);
     if (editWish && isWishlistId(editWish[1]) && isWishlistId(editWish[2])) return path;
-    if (path === RoutePaths.Home || path === RoutePaths.ExtensionAdd || path === RoutePaths.Authenticator || path === RoutePaths.PersonalData || path === RoutePaths.Profile || path === RoutePaths.PasswordChange || path === RoutePaths.EmailChange || path === RoutePaths.Lists || path === RoutePaths.Reservations || path === RoutePaths.FollowedLists ||
+    if (path === RoutePaths.Home || path === RoutePaths.ExtensionAdd || path === RoutePaths.Authenticator || path === RoutePaths.PersonalData || path === RoutePaths.NotificationPreferences || path === RoutePaths.Profile || path === RoutePaths.PasswordChange || path === RoutePaths.EmailChange || path === RoutePaths.Lists || path === RoutePaths.Reservations || path === RoutePaths.FollowedLists ||
       (/^\/lists\/[^/]+$/.test(path) && /^\/lists\/[^/]+$/.test(decoded))) return path;
   } catch { /* Malformed destinations are never reflected. */ }
   return RoutePaths.Home;

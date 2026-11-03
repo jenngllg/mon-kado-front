@@ -1512,6 +1512,30 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/members/current/notification-preferences": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read current member notification preferences
+         * @description All nine in-app categories default to true. Reading defaults does not create a preference record. The strong ETag also represents the virtual default resource. Existing history and live authorization are unchanged.
+         */
+        readonly get: operations["GetNotificationPreferences"];
+        /**
+         * Update all current member notification preferences
+         * @description Applies to future in-app notification creation and grouping, including worker reminders. Does not remove history, override surprise-mode privacy, or disable security emails. Conditional insertion protects concurrent first saves.
+         */
+        readonly put: operations["UpdateNotificationPreferences"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/members/current/password": {
         readonly parameters: {
             readonly query?: never;
@@ -2808,6 +2832,17 @@ export interface components {
             readonly isVisibleInMemberSearch: boolean;
             readonly profileImageUrl: string | null;
         };
+        readonly NotificationPreferencesResponse: {
+            readonly groupInvitation: boolean;
+            readonly groupJoined: boolean;
+            readonly groupWishlistShared: boolean;
+            readonly occasionReminder: boolean;
+            readonly reservationUnavailable: boolean;
+            readonly sharingReminder: boolean;
+            readonly suggestionAdded: boolean;
+            readonly wishesAdded: boolean;
+            readonly wishReserved: boolean;
+        };
         readonly NotificationResponse: {
             readonly actorDisplayName: string | null;
             /** Format: date-time */
@@ -3217,6 +3252,17 @@ export interface components {
         readonly UpdateMemberProfileRequest: {
             readonly displayName?: string | null;
             readonly isVisibleInMemberSearch?: boolean | null;
+        };
+        readonly UpdateNotificationPreferencesRequest: {
+            readonly groupInvitation: boolean;
+            readonly groupJoined: boolean;
+            readonly groupWishlistShared: boolean;
+            readonly occasionReminder: boolean;
+            readonly reservationUnavailable: boolean;
+            readonly sharingReminder: boolean;
+            readonly suggestionAdded: boolean;
+            readonly wishesAdded: boolean;
+            readonly wishReserved: boolean;
         };
         readonly UpdateWishFavoriteRequest: {
             readonly isFavorite: boolean;
@@ -13154,6 +13200,104 @@ export interface operations {
             };
             /** @description 503ServiceUnavailable */
             readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly GetNotificationPreferences: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Complete member-private preferences */
+            readonly 200: {
+                headers: {
+                    /** @description Strong version of these settings only. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationPreferencesResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly UpdateNotificationPreferences: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Current strong ETag returned by the preferences GET. */
+                readonly "If-Match": string;
+                /** @description Authenticated signed double-submit CSRF token. */
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UpdateNotificationPreferencesRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Complete member-private preferences */
+            readonly 200: {
+                headers: {
+                    /** @description Strong version of these settings only. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationPreferencesResponse"];
+                };
+            };
+            /** @description Invalid body, CSRF token or entity tag */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Preferences were changed by another request */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match is required */
+            readonly 428: {
                 headers: {
                     readonly [name: string]: unknown;
                 };
