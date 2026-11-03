@@ -3,7 +3,8 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { createAlert, createButton, disposeComponent } from "../../components/index.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { createImagePlaceholder } from "../../components/imagePlaceholder.js";
-import { decodeWishImage, validateWishImageFile, WishImageValidationError } from "./wishImageValidation.js";
+import { decodeWishImage, WishImageValidationError } from "./wishImageValidation.js";
+import { prepareWishImageUpload } from "./prepareImageUpload.js";
 
 /** Selects and validates a local image before the wish is created.
  * @param {{onBusy: () => void}} options Parent control synchronization.
@@ -44,9 +45,9 @@ export function createWishImagePicker({ onBusy }) {
     const file = input.files?.[0]; if (!file || disabled || loading || disposed) return;
     loading = true; sync(); onBusy(); let localUrl = null;
     try {
-      await validateWishImageFile(file);
+      const prepared = await prepareWishImageUpload(file, { signal: controller.signal });
       if (disposed) return;
-      localUrl = URL.createObjectURL(file); await decodeWishImage(localUrl, controller.signal);
+      localUrl = URL.createObjectURL(prepared); await decodeWishImage(localUrl, controller.signal);
       if (disposed) return;
       discard(); selected = file; objectUrl = localUrl; localUrl = null;
       const image = document.createElement("img"); image.alt = "Image du souhait"; image.src = objectUrl; host.append(image);
