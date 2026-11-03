@@ -6,7 +6,12 @@ import { createApplicationShell } from "../src/app/applicationShell.js";
 import { createMemberSearchService } from "../src/features/members/memberSearchService.js";
 const id = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const url = `http://localhost:7000/api/v1/members/${id}/profile/image?imageId=019c52dd-56c1-7cc6-8a95-243f3a032e05`;
-afterEach(() => { for (const child of document.body.children) if (child instanceof HTMLElement) disposeComponent(child); document.body.replaceChildren(); });
+afterEach(() => { for (const child of document.body.children) if (child instanceof HTMLElement) disposeComponent(child); document.body.replaceChildren(); vi.restoreAllMocks(); });
+function desktopHeader() {
+  const media = window.matchMedia("(min-width: 80rem)");
+  vi.spyOn(media, "matches", "get").mockReturnValue(true);
+  vi.spyOn(window, "matchMedia").mockReturnValue(media);
+}
 describe("member avatars", () => {
   it("generates the same decorative symmetric motif for a canonical identity", () => {
     const first = createMemberAvatar({memberId:id,size:56});
@@ -27,22 +32,24 @@ describe("member avatars", () => {
     image.dispatchEvent(new Event('error')); image.dispatchEvent(new Event('load')); expect(onError).toHaveBeenCalledOnce(); expect(image.hidden).toBe(true);
     disposeComponent(avatar); image.dispatchEvent(new Event('error')); expect(onError).toHaveBeenCalledOnce(); expect(avatar.querySelector('img')).toBeNull();
   });
-  it("updates a shell avatar in place without stealing focus or closing mobile navigation", () => {
+  it("updates a desktop shell avatar in place without stealing focus or changing navigation state", () => {
+    desktopHeader();
     const shell = createApplicationShell({apiBaseUrl:'http://localhost:7000'}); document.body.append(shell.element);
     /** @type {import('../src/auth/sessionManager.js').SessionSnapshot} */
     const state = {status:'authenticated',user:{id,displayName:'Jenn',email:'test@example.test',isAdmin: false,profileImageUrl:url},etag:'"a"',issue:null,logoutPending:false};
     shell.setSession(state);
-    const link = /** @type {HTMLAnchorElement} */ (shell.element.querySelector('a[href="/profile"]')); link.focus();
+    const link = /** @type {HTMLElement} */ (shell.element.querySelector('.app-account-menu > summary')); link.focus();
     const menu = /** @type {HTMLButtonElement} */ (shell.element.querySelector('.app-menu-button')); menu.click();
     const previous = /** @type {HTMLImageElement} */ (link.querySelector('img'));
     shell.setSession({...state,user:{...state.user, id, displayName:'Autre nom', email:'test@example.test',isAdmin: false,profileImageUrl:null}});
     expect(document.activeElement).toBe(link); expect(menu.getAttribute('aria-expanded')).toBe('true');
-    expect(previous.hasAttribute('src')).toBe(false); expect(link.querySelector('svg')).not.toBeNull(); expect(link.textContent).toBe('Mon compte');
+    expect(previous.hasAttribute('src')).toBe(false); expect(link.querySelector('svg')).not.toBeNull(); expect(link.textContent).toBe('Compte');
     shell.setSession({...state,authenticationPending:true}); expect(link.querySelector('.member-avatar')).toBeNull();
     shell.setSession(state); expect(link.querySelector('img')).not.toBeNull();
     shell.setSession({...state,status:'anonymous',user:null}); expect(shell.element.querySelector('.member-avatar')).toBeNull();
   });
   it("clears an old account image before displaying the next member and ignores its late load", () => {
+    desktopHeader();
     const shell = createApplicationShell({apiBaseUrl:'http://localhost:7000'}); document.body.append(shell.element);
     /** @type {import('../src/auth/sessionManager.js').SessionSnapshot} */
     const state = {status:'authenticated',user:{id,displayName:'Jenn',email:'test@example.test',isAdmin: false,profileImageUrl:url},etag:'"a"',issue:null,logoutPending:false};

@@ -17,6 +17,7 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
   const wish = { id: wishId, wishlistId: listId, name: "Une théière", note: "Une note\nsur deux lignes.", url: "https://example.test/produit", price: 25, quantity: 3, isFavorite: false, position: 1, entityTag: '"wish-1"', imageUrl: /** @type {string | null} */ (null), reservedQuantity: null, availableQuantity: null, currentParticipantReservedQuantity: null };
   /** @type {string[]} */
   const unexpected = [];
+  const notificationStreams = new WeakSet();
   await context.route("**/*", async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -38,6 +39,13 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
     /** @param {number} status @param {string | null} code */
     const error = (status, code) => send(status, { statusCode: status, errorCode: code, title: null, message: null, validationErrors: null });
     if (method === "OPTIONS") return route.fulfill({ status: 204, headers: { ...headers, "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,PATCH,OPTIONS", "Access-Control-Allow-Headers": "Content-Type,Authorization,X-CSRF-TOKEN,X-Correlation-ID,X-MonKado-Share-Token,If-Match" } });
+    if (path === "/api/v1/notifications/events" && method === "GET") {
+      const page = request.frame().page();
+      // Subsequent connections stay pending, matching a quiet live stream.
+      if (notificationStreams.has(page)) return;
+      notificationStreams.add(page);
+      return route.fulfill({ status: 200, headers: { ...headers, "Content-Type": "text/event-stream" }, body: 'event: notifications\ndata: {"hasUnread":false}\n\n' });
+    }
     if (method === "GET" && /\/wishes\/[^/]+\/image(?:\/thumbnail)?$/.test(path) && url.searchParams.has("token")) {
       expect(request.headers()["x-monkado-share-token"]).toBeUndefined();
       return route.fulfill({status:200,headers:{...headers,"Content-Type":"image/png"},body:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jSeoAAAAASUVORK5CYII=","base64")});

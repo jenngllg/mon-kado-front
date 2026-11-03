@@ -56,7 +56,7 @@ describe("wishlist creation application integration", () => {
   });
   it("replaces creation with the real detail and emits one notice in the initiating shell", async () => {
     const app = setup(); await app.start(); const length = window.history.length;
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes");
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Listes");
     expect(document.activeElement).toBe(app.shell.outlet);
     const form = app.fillAndSend();
     await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Liste créée") === true);

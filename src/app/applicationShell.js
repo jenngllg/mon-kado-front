@@ -1,10 +1,12 @@
 import { createNotificationRegion, createButton, createLoadingState, disposeComponent } from "../components/index.js";
+import { createHeaderNotificationsMenu } from "../features/notifications/headerNotificationsMenu.js";
 import { addComponentEventListener, registerComponentCleanup } from "../components/componentLifecycle.js";
 import { createMemberAvatar } from "../components/memberAvatar.js";
 import { readProfilePhoto } from "../features/profile/profileImageService.js";
 import { hasAdminAccess } from "../features/admin/adminAccess.js";
 import { createHeaderMemberSearch } from "../features/members/headerMemberSearch.js";
 import { createHeaderAdminMenu } from "../components/headerAdminMenu.js";
+import { createHeaderNavigationMenu } from "../components/headerNavigationMenu.js";
 import {
   NavigationItems,
   RouteNames,
@@ -24,16 +26,18 @@ const AdminNavigationRoutes = new Set([RouteNames.ReportedWishlists, RouteNames.
  *   setSession: (state: import("../auth/sessionManager.js").SessionSnapshot) => void,
  *   setCurrentRoute: (route: import("../router/router.js").RouteSnapshot | null) => void,
  *   closeNavigation: () => void
+ *   setNotificationStatus: (hasUnread:boolean|null) => void
+ *   openNotifications: () => void
  * }>} ApplicationShell
  */
 
 /**
  * Creates the persistent application shell.
  *
- * @param {{onLogout?: () => void, apiBaseUrl?: string, onMemberSearch?: (query: string) => void}} [options] Session actions and trusted photo origin.
+ * @param {{onLogout?: () => void, apiBaseUrl?: string, onMemberSearch?: (query: string) => void, renderNotifications?: (signal:AbortSignal)=>HTMLElement}} [options] Session actions and trusted photo origin.
  * @returns {ApplicationShell} Application shell API.
  */
-export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", onMemberSearch = query => window.location.assign(`${RoutePaths.Members}?${new URLSearchParams({ q: query })}`) } = {}) {
+export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", onMemberSearch = query => window.location.assign(`${RoutePaths.Members}?${new URLSearchParams({ q: query })}`), renderNotifications = () => document.createElement("div") } = {}) {
   shellIdentifier += 1;
   const navigationIdentifier = `primary-navigation-${shellIdentifier}`;
   const element = document.createElement("div");
@@ -58,6 +62,10 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
   navigation.dataset.open = "false";
   navigation.setAttribute("aria-label", "Navigation principale");
   const memberSearch = createHeaderMemberSearch({ onSearch: onMemberSearch, onOpen: () => setNavigationOpen(false) });
+  const notificationHost = document.createElement("div");
+  notificationHost.className = "app-header-notifications";
+  notificationHost.hidden = true;
+  const wideHeader = window.matchMedia("(min-width: 80rem)");
 
   const navigationList = document.createElement("ul");
   navigationList.className = "app-navigation__list";
@@ -65,16 +73,37 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
   const navigationLinks = new Map();
   /** @type {ReturnType<typeof createHeaderAdminMenu> | null} */
   let adminMenu = null;
+  /** @type {ReturnType<typeof createHeaderNavigationMenu> | null} */
+  let accountMenu = null;
+  /** @type {HTMLElement[]} */ let inlineAccountRows = [];
+  /** @type {import("../auth/sessionManager.js").SessionSnapshot|null} */ let currentSession = null;
+  /** @type {ReturnType<typeof createHeaderNotificationsMenu> | null} */
+  let notificationsMenu = null;
 
   let navigationMode = "";
+  let notificationHasUnread = false;
+  /** @type {boolean|null} */ let notificationStatus = false;
   let avatarKey = "";
-  registerComponentCleanup(element, () => { avatarKey = ""; });
+  registerComponentCleanup(element, () => { avatarKey = ""; if (accountMenu && !accountMenu.element.isConnected) disposeComponent(accountMenu.element); });
   /** @type {import("../router/router.js").RouteSnapshot | null} */
   let currentRoute = null;
 
   navigation.append(navigationList);
-  headerContent.append(brand, memberSearch.element, menuButton, navigation);
+  const headerActions = document.createElement("div");
+  headerActions.className = "app-header__actions";
+  headerActions.append(memberSearch.element, notificationHost, menuButton);
+  headerContent.append(brand, headerActions, navigation);
   header.append(headerContent);
+  addComponentEventListener(element, wideHeader, "change", () => {
+    const restoreFocus = notificationsMenu?.element.contains(document.activeElement) ? notificationsMenu.trigger : null;
+    const restoreAccountFocus = accountMenu?.element.contains(document.activeElement) || inlineAccountRows.some(node => node.contains(document.activeElement));
+    notificationsMenu?.close();
+    accountMenu?.close();
+    placeHeaderActions();
+    if (currentSession) updateAvatar(currentSession);
+    restoreFocus?.focus({ preventScroll: true });
+    if (restoreAccountFocus) (wideHeader.matches ? accountMenu?.trigger : menuButton)?.focus({ preventScroll: true });
+  });
 
   const outlet = document.createElement("main");
   outlet.id = "main-content";
@@ -160,7 +189,7 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
 
       const target = event.target;
 
-      if (target instanceof Node && header.contains(target)) {
+      if (event.composedPath().includes(header) || (target instanceof Node && header.contains(target))) {
         return;
       }
 
@@ -176,7 +205,23 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
     setSession,
     setCurrentRoute,
     closeNavigation: () => setNavigationOpen(false),
+    setNotificationStatus,
+    openNotifications: () => { setNavigationOpen(false, { preserveNotifications: true }); notificationsMenu?.open(); },
   });
+
+  /** @param {boolean|null} hasUnread Null signals an interrupted live connection. */
+  function setNotificationStatus(hasUnread) {
+    notificationStatus = hasUnread;
+    if (hasUnread !== null) notificationHasUnread = hasUnread;
+    const link = notificationsMenu?.trigger;
+    if (!link) return;
+    let badge = link.querySelector(".notification-badge");
+    if (!badge) { badge = document.createElement("span"); badge.className = "notification-badge"; badge.setAttribute("aria-hidden", "true"); link.append(badge); }
+    /** @type {HTMLElement} */ (badge).hidden = !notificationHasUnread;
+    const unread = !/** @type {HTMLElement} */ (badge).hidden;
+    link.setAttribute("aria-label", `Notifications${unread ? " — non lues" : ""}${hasUnread === null ? " — actualisation indisponible" : ""}`);
+    if (hasUnread === null) link.setAttribute("title", "Actualisation interrompue, reconnexion en cours"); else link.removeAttribute("title");
+  }
 
   /**
    * Updates the navigation state after a committed route change.
@@ -189,6 +234,7 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
     memberSearch.close();
     memberSearch.element.classList.toggle("app-member-search--active", activeNavigationRoute === RouteNames.Members);
     adminMenu?.setActive(activeNavigationRoute !== null && AdminNavigationRoutes.has(activeNavigationRoute));
+    accountMenu?.setActive(activeNavigationRoute === RouteNames.Profile);
 
     for (const [routeName, link] of navigationLinks) {
       if (routeName === activeNavigationRoute) {
@@ -203,21 +249,30 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
 
   /** @param {import("../auth/sessionManager.js").SessionSnapshot} state Safe session snapshot. */
   function setSession(state) {
+    currentSession = state;
     const mode = state.status === "authenticated" ? "member" :
       ["initializing", "signingOut"].includes(state.status) ? "pending" : "anonymous";
-    const key = `${mode}:${hasAdminAccess(state)}`;
+    const key = `${mode}:${hasAdminAccess(state)}:${state.user?.id ?? ""}`;
     if (navigationMode === key) { updateAvatar(state); return; }
     navigationMode = key;
-    const restoreFocus = navigationList.contains(document.activeElement);
+    const restoreFocus = [navigationList, notificationHost].some(node => node.contains(document.activeElement));
+    disposeComponent(notificationHost);
+    notificationHost.replaceChildren();
+    notificationHost.hidden = true;
+    if (accountMenu && !accountMenu.element.isConnected) disposeComponent(accountMenu.element);
     disposeComponent(navigationList);
     adminMenu = null;
+    accountMenu = null;
+    inlineAccountRows = [];
+    notificationsMenu = null;
     navigationList.replaceChildren();
     navigationLinks.clear();
     for (const item of NavigationItems) {
+      if (item.routeName === RouteNames.Notifications) continue;
       if (item.routeName === RouteNames.Members) continue;
       if (AdminNavigationRoutes.has(item.routeName)) {
         if (mode === "member" && hasAdminAccess(state) && !adminMenu) {
-          adminMenu = createHeaderAdminMenu({ items: NavigationItems.filter(entry => AdminNavigationRoutes.has(entry.routeName)), onOpen: () => memberSearch.close() });
+          adminMenu = createHeaderAdminMenu({ items: NavigationItems.filter(entry => AdminNavigationRoutes.has(entry.routeName)), onOpen: () => { memberSearch.close(); accountMenu?.close(); notificationsMenu?.close(); } });
           navigationList.append(adminMenu.element);
           for (const [name, link] of adminMenu.links) navigationLinks.set(name, link);
         }
@@ -226,6 +281,19 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
       const isAccountAction = item.routeName === RouteNames.Login || item.routeName === RouteNames.Register;
       if (item.routeName !== RouteNames.Home &&
         (mode === "pending" || (mode === "member" ? isAccountAction : !isAccountAction))) continue;
+      if (mode === "member" && item.routeName === RouteNames.Profile) {
+        const logout = createButton({ label: "Se déconnecter", variant: "ghost", onClick: onLogout });
+        logout.classList.add("app-navigation__link");
+        accountMenu = createHeaderNavigationMenu({ label: item.label, className: "app-account-menu",
+          items: [{ ...item, label: "Paramètres" }], actions: [logout], onOpen: () => { memberSearch.close(); setNavigationOpen(false, { preserveAccount: true }); } });
+        accountMenu.element.classList.add("app-account-actions");
+        inlineAccountRows = Array.from(accountMenu.element.querySelector(".app-account-menu__links")?.querySelectorAll("li") ?? []);
+        notificationsMenu = createHeaderNotificationsMenu({ render: renderNotifications, onOpen: () => { memberSearch.close(); setNavigationOpen(false, { preserveNotifications: true }); } });
+        navigationList.append(accountMenu.element);
+        placeHeaderActions();
+        for (const [name, link] of accountMenu.links) navigationLinks.set(name, link);
+        continue;
+      }
       const listItem = document.createElement("li");
       const link = document.createElement("a");
       link.className = "app-navigation__link";
@@ -236,24 +304,23 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
       navigationList.append(listItem);
       navigationLinks.set(item.routeName, link);
     }
-    if (mode !== "anonymous") {
+    if (mode === "pending") {
       const item = document.createElement("li");
-      const action = mode === "member"
-        ? createButton({ label: "Se déconnecter", variant: "ghost", onClick: onLogout })
-        : createLoadingState({ label: state.status === "signingOut" ? "Déconnexion…" : "Vérification de la session…" });
-      if (mode === "member") action.classList.add("app-navigation__link");
+      const action = createLoadingState({ label: state.status === "signingOut" ? "Déconnexion…" : "Vérification de la session…" });
       item.append(action);
       navigationList.append(item);
     }
     setCurrentRoute(currentRoute);
     avatarKey = "";
     updateAvatar(state);
+    setNotificationStatus(notificationStatus);
     if (restoreFocus) brand.focus();
   }
 
   /** @param {import("../auth/sessionManager.js").SessionSnapshot} state Current identity, never persisted here. */
   function updateAvatar(state) {
-    const link = navigationLinks.get(RouteNames.Profile);
+    if (!wideHeader.matches) { avatarKey = ""; return; }
+    const link = accountMenu?.trigger;
     if (!link) { avatarKey = ""; return; }
     const member = state.status === "authenticated" && !state.logoutPending && !state.authenticationPending ? state.user : null;
     const photo = member ? readProfilePhoto(member.profileImageUrl, member.id, apiBaseUrl) : null;
@@ -266,11 +333,32 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
   }
 
   /**
-   * @param {boolean} open Whether the mobile navigation is open.
+   * Keeps compact account actions directly in navigation and notifications outside it.
    */
-  function setNavigationOpen(open) {
+  function placeHeaderActions() {
+    notificationHost.hidden = !notificationsMenu || wideHeader.matches;
+    if (wideHeader.matches) {
+      if (accountMenu) {
+        accountMenu.element.querySelector(".app-account-menu__links")?.append(...inlineAccountRows);
+        navigationList.append(accountMenu.element);
+      }
+      if (notificationsMenu) accountMenu?.element.prepend(notificationsMenu.element);
+    } else {
+      if (notificationsMenu) notificationHost.append(notificationsMenu.element);
+      accountMenu?.element.remove();
+      navigationList.append(...inlineAccountRows);
+    }
+  }
+
+  /**
+   * @param {boolean} open Whether the mobile navigation is open.
+   * @param {{preserveNotifications?:boolean,preserveAccount?:boolean}} [options] Keep a disclosure open while activating it.
+   */
+  function setNavigationOpen(open, { preserveNotifications = false, preserveAccount = false } = {}) {
     if (open) memberSearch.close();
     if (!open) adminMenu?.close();
+    if (!preserveAccount) accountMenu?.close();
+    if (!preserveNotifications) notificationsMenu?.close();
     navigation.dataset.open = String(open);
     menuButton.setAttribute("aria-expanded", String(open));
     menuButton.setAttribute(
@@ -304,9 +392,17 @@ function createMenuButton(navigationIdentifier) {
   button.setAttribute("aria-expanded", "false");
   button.setAttribute("aria-label", "Ouvrir le menu principal");
 
-  const icon = document.createElement("span");
-  icon.className = "app-menu-button__icon";
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.classList.add("app-menu-button__icon");
+  icon.setAttribute("viewBox", "0 0 24 24");
+  icon.setAttribute("fill", "none");
+  icon.setAttribute("stroke", "currentColor");
+  icon.setAttribute("stroke-width", "2");
   icon.setAttribute("aria-hidden", "true");
+  icon.setAttribute("focusable", "false");
+  const lines = document.createElementNS(icon.namespaceURI, "path");
+  lines.setAttribute("d", "M3 6h18M3 12h18M3 18h18");
+  icon.append(lines);
 
   const label = document.createElement("span");
   label.textContent = "Menu";

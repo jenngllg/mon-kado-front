@@ -69,6 +69,8 @@ describe("application shell", () => {
     const logout = /** @type {HTMLButtonElement} */ (shell.element.querySelector("button.app-navigation__link"));
     expect(logout.textContent).toBe("Se déconnecter");
     expect(logout.type).toBe("button");
+    expect(logout.closest(".app-account-menu")).toBeNull();
+    expect(logout.closest(".app-navigation")).not.toBeNull();
     expect(logout.hasAttribute("aria-current")).toBe(false);
     logout.click();
     expect(calls).toBe(1);
@@ -195,14 +197,14 @@ describe("application shell", () => {
     [RouteNames.Home, "Accueil"],
     [RouteNames.Members, "Rechercher un membre"],
     [RouteNames.MemberProfile, "Rechercher un membre"],
-    [RouteNames.Lists, "Mes listes"],
-    [RouteNames.FollowedLists, "Mes listes"],
-    [RouteNames.NewList, "Mes listes"],
-    [RouteNames.EditList, "Mes listes"],
-      [RouteNames.NewWish, "Mes listes"],
-      [RouteNames.EditWish, "Mes listes"],
-    [RouteNames.ListDetails, "Mes listes"],
-    [RouteNames.Reservations, "Mes réservations"],
+    [RouteNames.Lists, "Listes"],
+    [RouteNames.FollowedLists, "Listes"],
+    [RouteNames.NewList, "Listes"],
+    [RouteNames.EditList, "Listes"],
+      [RouteNames.NewWish, "Listes"],
+      [RouteNames.EditWish, "Listes"],
+    [RouteNames.ListDetails, "Listes"],
+    [RouteNames.Reservations, "Réservations"],
     [RouteNames.Login, "Connexion"],
     [RouteNames.LinkGoogle, "Connexion"],
     [RouteNames.ForgotPassword, "Connexion"],

@@ -10,6 +10,8 @@ Priority: explicit user decisions, original mockups, then this charter and share
 
 ## Visual language
 
+- Header/dashboard refinements approved on 3 November 2026: keep compact-header search, notification bell and menu equally spaced and visible outside collapsed navigation; place Paramètres and Se déconnecter directly inside the mobile/tablet menu, without an avatar. Desktop retains Compte and its avatar. Align compact search/notification panels beneath their triggers within the header gutters; wrap the three compact controls together when space requires it. Dashboard list covers fill the complete card height, flush to the left/top/bottom rounded edges; tablet upcoming occasions have their heading above equal-width columns, with separators only between the columns.
+
 - Keep 2rem of space between each dashboard section header and its cards, on desktop and mobile.
 
 - Dashboard list and group previews use compact horizontal clickable cards with an ivory-white surface, a thin border, rounded corners and a subtle shadow. Keep matching card heights across the two desktop columns, including when header actions wrap, and stack compact cards on mobile. Preserve cover and avatar dimensions. Upcoming occasions display the real list owner's name as plain text outside the occasion link, retaining the existing owner/group/followed access priority.

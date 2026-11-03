@@ -58,7 +58,7 @@ describe("manual gift creation integration", () => {
     const app = setup(); app.transport.state.refreshStatus = 401; await app.start(); expect(window.location.pathname).toBe("/login"); expect(new URLSearchParams(window.location.search).get("returnTo")).toBe(path); expect(app.state.reads).toBe(0); expect(app.state.writes).toBe(0);
   });
   it("returns to the fresh full collection, replaces history and notifies once", async () => {
-    const app = setup(); await app.start(); await ready(app); expect(app.shell.element.querySelector('nav [aria-current="page"]')?.textContent).toBe("Mes listes");
+    const app = setup(); await app.start(); await ready(app); expect(app.shell.element.querySelector('nav [aria-current="page"]')?.textContent).toBe("Listes");
     expect(document.activeElement).toBe(app.shell.outlet); const replace = vi.spyOn(window.history, "replaceState"); const form = app.fillAndSend();
     await until(app.shell.element, () => app.shell.outlet.querySelector(".wish-card") !== null && app.shell.notificationRegion.textContent.includes("Souhait ajouté"));
     expect(window.location.pathname).toBe(detail); expect(replace.mock.calls.some(call => String(call[2]).endsWith(detail))).toBe(true);

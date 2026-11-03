@@ -1,4 +1,5 @@
 import { createActivityView } from "../features/admin/activityView.js";
+import { createLoadingState } from "../components/index.js";
 import { createAdminMembersView } from "../features/admin/adminMembersView.js";
 import { withResourcePageTitle } from "./resourcePageTitle.js";
 import { createGroupsService } from "../features/groups/groupsService.js";
@@ -259,6 +260,10 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
           createReservation: createGroupWishReservation({ session, groupId, wishlistId, loadOne: wishes.loadOne, signal: context.signal }),
         });
       },
+    },
+    {
+      name: RouteNames.Notifications, path: RoutePaths.Notifications, title: "Notifications · MonKado",
+      render: () => createLoadingState({ label: "Chargement…" }),
     },
     {
       name: RouteNames.FollowedLists, path: RoutePaths.FollowedLists, title: "Listes suivies · MonKado",
@@ -630,6 +635,11 @@ export function createApplicationRoutes({ session, apiBaseUrl, sharingSignIn = {
       title: "MonKado · Les souhaits qui font vraiment plaisir",
       render: context => createSessionHomeView(session, { service: createDashboardService({ wishlists: createWishlistsService(session), groups: createGroupsService(session), subscriptions: createWishlistSubscriptionsService(session) }), signal: context.signal, apiBaseUrl }),
     }),
-    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked, onWishlistUpdated).map(route => Object.freeze({ ...route, beforeEnter: createSessionGuard(route.name, session) })),
+    ...createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWishlistCreated, onWishlistDeleted, apiBaseUrl, onWishCreated, onWishDeleted, sharing, sharingSignIn, onWishlistShareRevoked, onWishlistUpdated).map(route => {
+      const guard = createSessionGuard(route.name, session);
+      if (route.name !== RouteNames.Notifications) return Object.freeze({ ...route, beforeEnter: guard });
+      return Object.freeze({ ...route, beforeEnter: async (/** @type {import("../router/router.js").RouteContext} */ context) =>
+        await guard?.(context) ?? { redirectTo: "/?notifications=open", replace: true } });
+    }),
   ];
 }

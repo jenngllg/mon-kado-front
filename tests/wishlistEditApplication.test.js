@@ -58,7 +58,7 @@ describe("wishlist edit application integration", () => {
   });
   it("returns to the writable list after a confirmed update without retaining the editor in history", async () => {
     const app = setup(); await app.start(); await loaded(app);
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes listes"); expect(document.activeElement).toBe(app.shell.outlet);
+    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Listes"); expect(document.activeElement).toBe(app.shell.outlet);
     const length = window.history.length; app.send();
     await until(app.shell.outlet, () => app.shell.outlet.querySelector("h1")?.textContent === "Nouveau nom");
     expect(window.location.pathname).toBe(`/lists/${item.id}`); expect(window.history.length).toBe(length);

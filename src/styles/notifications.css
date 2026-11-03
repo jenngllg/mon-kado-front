@@ -1,0 +1,54 @@
+.app-account-actions { display:flex; align-items:flex-start; gap:.25rem; }
+.app-header-notifications { display:flex; align-items:center; }
+.app-header-notifications[hidden] { display:none; }
+@media (max-width:79.999rem) {
+  .app-header__content:has(.app-header-notifications:not([hidden])) { grid-template-columns:minmax(0, 1fr) auto auto auto; column-gap:var(--space-2); }
+}
+@media (max-width:24rem) {
+  .app-header__content:has(.app-header-notifications:not([hidden])) .app-brand { font-size:1.5rem; }
+}
+@media (max-width:22rem) {
+  .app-header__content:has(.app-header-notifications:not([hidden])) { column-gap:var(--space-1); }
+  .app-header__content:has(.app-header-notifications:not([hidden])) .app-brand { font-size:1.25rem; }
+}
+.app-notifications-link { position:relative; width:44px; height:44px; min-width:44px; padding:10px; justify-content:center; }
+.app-notifications-link svg { width:24px; height:24px; }
+.app-notifications-menu > summary { cursor:pointer; list-style:none; }
+.app-notifications-menu > summary::-webkit-details-marker { display:none; }
+.app-notifications-menu[open] > summary { background:var(--color-surface-muted); color:var(--color-text); }
+.app-notifications-menu > summary:focus-visible { outline:2px solid var(--color-focus-ring); outline-offset:2px; }
+.app-notifications-panel {
+  position:absolute; z-index:2; inset-inline-start:var(--header-panel-inline-start, var(--content-gutter)); top:calc(100% - var(--space-3));
+  width:min(28rem, calc(100vw - 2 * var(--content-gutter))); max-height:min(36rem, var(--notifications-available-height, 50dvh));
+  overflow-y:auto; overscroll-behavior:contain; padding:var(--space-4);
+  border:1px solid var(--color-border); border-radius:var(--radius-md);
+  background:var(--color-surface); box-shadow:var(--shadow-sm);
+}
+.app-navigation[data-open="true"]:has(.app-notifications-menu[open]) { overflow:visible; }
+.notifications-content h2 { margin:0; font-size:var(--font-size-xl); }
+.notifications-content h2::after { display:none; }
+.notifications-content { --flow-space:var(--space-3); }
+.notifications-content > [role="status"]:empty { display:none; }
+.notifications-heading { justify-content:space-between; flex-wrap:wrap; }
+.notifications-list { margin:0; }
+.app-notifications-panel .notifications-list { gap:0; }
+.app-notifications-panel .ui-button { font-size:var(--font-size-sm); }
+.app-notifications-panel .notification-item { border:0; border-radius:0; padding:var(--space-3) 0; background:transparent; }
+.app-notifications-panel .notification-item + .notification-item { border-block-start:1px solid var(--color-border); }
+.app-notifications-panel .notification-item--unread { border-inline-start:3px solid var(--color-accent); padding-inline-start:var(--space-3); }
+.app-notifications-panel .notification-item a { font-size:var(--font-size-md); line-height:var(--line-height-body); }
+@media (min-width:80rem) {
+  .app-notifications-menu { position:relative; }
+  .app-notifications-panel { inset-inline-start:auto; inset-inline-end:0; top:calc(100% + var(--space-2)); }
+}
+.notification-badge { position:absolute; top:6px; right:5px; width:.55rem; height:.55rem; border-radius:50%; background:var(--color-accent); box-shadow:0 0 0 2px var(--color-surface); }
+.notification-badge[hidden] { display:none; }
+.notifications-actions { justify-content:flex-end; flex-wrap:wrap; }
+.notifications-list { display:grid; gap:.75rem; padding:0; list-style:none; }
+.notification-item { display:grid; gap:.5rem; padding:1rem 1.25rem; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface); overflow-wrap:anywhere; }
+.notification-item--unread { border-inline-start:4px solid var(--color-accent); }
+.notification-item a { color:inherit; font-weight:var(--font-weight-regular); text-decoration:none; min-height:44px; display:flex; align-items:center; }
+.notification-item time, .notification-unread-label { font-size:.875rem; }
+.notification-unread-label { color:var(--color-accent-text); }
+.notification-item button { justify-self:start; }
+@media(max-width:36rem) { .notification-item { padding:1rem; } }

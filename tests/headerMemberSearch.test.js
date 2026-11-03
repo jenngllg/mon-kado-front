@@ -1,12 +1,18 @@
 // @vitest-environment happy-dom
-/* global document, KeyboardEvent, PointerEvent */
+/* global document, window, KeyboardEvent, PointerEvent */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHeaderMemberSearch } from "../src/features/members/headerMemberSearch.js";
 import { createApplicationShell } from "../src/app/applicationShell.js";
 import { disposeComponent } from "../src/components/index.js";
 
 /** @type {HTMLElement[]} */ const views = [];
-afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); });
+afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.replaceChildren(); vi.restoreAllMocks(); });
+function desktopViewport() {
+  const media = window.matchMedia("(min-width: 80rem)");
+  const matches = vi.spyOn(media, "matches", "get").mockReturnValue(true);
+  vi.spyOn(window, "matchMedia").mockReturnValue(media);
+  return { media, matches };
+}
 function setup() {
   const onSearch = vi.fn(), onOpen = vi.fn(), ui = createHeaderMemberSearch({ onSearch, onOpen });
   views.push(ui.element); document.body.append(ui.element);
@@ -16,6 +22,30 @@ function setup() {
   return { ...ui, onSearch, onOpen, input, trigger, submit };
 }
 describe("header member search", () => {
+  it("shows an enabled desktop field without a magnifier and keeps it visible after dismissal", () => {
+    desktopViewport(); const ui = setup();
+    expect(ui.trigger.hidden).toBe(true); expect(ui.input.disabled).toBe(false);
+    expect(ui.input.parentElement?.inert).toBe(false); expect(ui.onSearch).not.toHaveBeenCalled();
+    ui.input.focus(); expect(ui.onOpen).toHaveBeenCalledOnce();
+    ui.input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    document.body.click(); ui.close();
+    expect(ui.input.disabled).toBe(false); expect(ui.input.parentElement?.getAttribute("aria-hidden")).toBe("false");
+  });
+  it("submits directly from the desktop field and keeps it usable after navigation", () => {
+    desktopViewport(); const ui = setup(); ui.input.value = "a"; ui.submit();
+    expect(ui.input.getAttribute("aria-invalid")).toBe("true"); expect(ui.onSearch).not.toHaveBeenCalled();
+    ui.input.value = "  Camille#1234  "; ui.submit();
+    expect(ui.onSearch).toHaveBeenCalledExactlyOnceWith("Camille#1234");
+    expect(ui.input.value).toBe(""); expect(ui.input.disabled).toBe(false);
+    disposeComponent(ui.element); expect(ui.input.disabled).toBe(true);
+  });
+  it("preserves the draft across breakpoint changes and returns focus before collapsing", () => {
+    const { media, matches } = desktopViewport(); const ui = setup();
+    ui.input.value = "Camille"; ui.input.focus(); matches.mockReturnValue(false); media.dispatchEvent(new Event("change"));
+    expect(ui.input.disabled).toBe(true); expect(ui.trigger.hidden).toBe(false); expect(document.activeElement).toBe(ui.trigger);
+    matches.mockReturnValue(true); media.dispatchEvent(new Event("change"));
+    expect(ui.input.disabled).toBe(false); expect(ui.input.value).toBe("Camille"); expect(document.activeElement).toBe(ui.input); expect(ui.onSearch).not.toHaveBeenCalled();
+  });
   it("starts inert, opens only on explicit activation and focuses its labeled field", () => {
     const ui = setup();
     expect(ui.input.disabled).toBe(true); expect(ui.input.parentElement?.inert).toBe(true);

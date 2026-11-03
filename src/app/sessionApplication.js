@@ -15,6 +15,8 @@ import { createSharedWishlistContext } from "../features/sharing/sharedWishlistC
 import { createSharedSignInContinuation } from "../features/sharing/sharedSignInContinuation.js";
 import { captureExtensionProduct, readExtensionProduct } from "../features/extension/extensionProduct.js";
 import { installExtensionSessionBridge } from "../features/extension/extensionSessionBridge.js";
+import { createNotificationLive } from "../features/notifications/notificationLive.js";
+import { createNotificationsView } from "../features/notifications/notificationsView.js";
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
@@ -46,6 +48,16 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   let googleFlowRoute = RouteNames.GoogleReturn;
   const shell = createApplicationShell({ apiBaseUrl, onLogout: () => { void session.logout(); },
     onMemberSearch: query => { void router.navigate(`${RoutePaths.Members}?${new URLSearchParams({ q: query })}`); },
+    renderNotifications: signal => createNotificationsView({ session, signal, open: href => {
+      const target = new URL(href, window.location.origin);
+      if (target.origin !== window.location.origin) return;
+      shell.closeNavigation();
+      if (target.pathname.startsWith("/shared-wishlists/")) {
+        if (sharing.enter(target.pathname.split("/")[2], target.hash) === "ready") void router.navigate(target.pathname);
+        return;
+      }
+      void router.navigate(target.pathname + target.search);
+    } }),
   });
   const simulationBanner=document.createElement("aside");simulationBanner.className="cluster impersonation-banner";simulationBanner.hidden=true;
   const simulationLabel=document.createElement("strong");
@@ -199,6 +211,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     if (route?.name !== RouteNames.GoogleReturn && route?.name !== RouteNames.LinkGoogle) google.discardLinkContinuation();
     routeErrorVisible = false;
     shell.setCurrentRoute(route);
+    if (route.name === RouteNames.Home && route.searchParams.get("notifications") === "open" && session.getSnapshot().status === "authenticated") shell.openNotifications();
     renderFeedback();
     finishGoogle();
   });
@@ -213,6 +226,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     const current = router.getCurrentRoute();
     const lostAccess = previous.status === "authenticated" && state.status !== "authenticated";
     const gainedAccess = previous.status !== "authenticated" && state.status === "authenticated";
+    if (gainedAccess && current?.name === RouteNames.Home && current.searchParams.get("notifications") === "open") shell.openNotifications();
     // Public bearer access survives logout in memory; only reload continuity is discarded.
     if (lostAccess || (previous.user && state.user && previous.user.id !== state.user.id)) sharing.forgetContinuity();
     if (lostAccess) protectedViewEpoch++;
@@ -247,6 +261,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
     }
   });
   const removeGlobalErrors = installGlobalErrorHandlers({ target: window, presentError: router.presentError, reportError });
+  const disposeNotifications = createNotificationLive(session, shell.setNotificationStatus);
 
   return Object.freeze({
     shell, router, session,
@@ -267,6 +282,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       disposed = true;
       root.removeEventListener("monkado-impersonate",onImpersonate);
       disposeExtensionBridge();
+      disposeNotifications();
       passwordChangeNotice = false;
       googleDestination = null;
       removeGlobalErrors();

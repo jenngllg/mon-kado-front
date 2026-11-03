@@ -115,7 +115,7 @@ describe("session routes and shell", () => {
     const observe = predicate => predicate() ? Promise.resolve() : new Promise(resolve => { const observer = new MutationObserver(() => { if (predicate()) { observer.disconnect(); resolve(undefined); } }); observer.observe(app.shell.outlet, { childList: true, subtree: true, characterData: true }); });
     try {
       await app.start(); await observe(() => app.shell.outlet.textContent?.includes("Private gift") === true);
-      expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mes réservations");
+      expect(app.shell.element.querySelector('header a[aria-current="page"]')?.textContent).toBe("Réservations");
       await app.router.navigate("/"); await app.router.navigate("/reservations"); await observe(() => app.shell.outlet.textContent?.includes("Private gift") === true); expect(reads).toBe(2);
       await other.start(); delay = true; app.shell.outlet.querySelector("select")?.dispatchEvent(new Event("change")); await started.promise;
       await other.logout(); gate.resolve(); await observe(() => app.shell.outlet.textContent?.includes("Chargement de tes réservations") === false);
@@ -164,7 +164,7 @@ describe("session routes and shell", () => {
       await observe(() => app.shell.outlet.textContent?.includes("Ton profil est à jour.") === true);
       // Assert
       expect(app.session.getSnapshot().user?.displayName).toBe("Updated member");
-      expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
+      expect(app.shell.element.querySelector('header a[aria-current="page"]')?.textContent).toBe("Paramètres");
       await other.start(); delaySave = true; input.value = "Private draft";
       form.dispatchEvent(new Event("submit", { cancelable: true })); await saveEntered.promise;
       await other.logout(); saveGate.resolve();
@@ -199,7 +199,7 @@ describe("session routes and shell", () => {
     expect(app.shell.element.querySelector('nav a[href="/login"]')).toBeNull();
     gate.resolve(); await starting;
     expect(app.shell.outlet.textContent).toContain("Mon profil");
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
+    expect(app.shell.element.querySelector('header a[aria-current="page"]')?.textContent).toBe("Paramètres");
     expect(document.activeElement).toBe(app.shell.outlet);
   });
 
@@ -396,7 +396,7 @@ describe("authenticated password navigation", () => {
     const f = setupChange(); const app = mount("/profile", f.transport); await app.start();
     expect(app.shell.outlet.querySelector('a[href="/profile/password"]')?.textContent).toBe("Mot de passe");
     await app.router.navigate("/profile/password");
-    expect(app.shell.element.querySelector('nav a[aria-current="page"]')?.textContent).toBe("Mon compte");
+    expect(app.shell.element.querySelector('header a[aria-current="page"]')?.textContent).toBe("Paramètres");
     const historyLength = window.history.length; const fields = submitChange(app); await f.entered.promise;
     // Act
     f.gate.resolve(); await waitRoute(app, "/login");

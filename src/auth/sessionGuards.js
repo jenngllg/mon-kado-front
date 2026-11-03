@@ -9,6 +9,7 @@ const AnonymousRoutes = new Set([RouteNames.Login, RouteNames.Register]);
 ProtectedRoutes.add(RouteNames.WishlistReportHistory);
 ProtectedRoutes.add(RouteNames.WishlistModerationHistory);
 ProtectedRoutes.add(RouteNames.FollowedLists);
+ProtectedRoutes.add(RouteNames.Notifications);
 ProtectedRoutes.add(RouteNames.ExtensionAdd);
 for (const name of [RouteNames.Groups, RouteNames.Group, RouteNames.GroupEdit, RouteNames.GroupMember, RouteNames.GroupWishlist, RouteNames.GroupWish, RouteNames.GroupSuggestion]) ProtectedRoutes.add(name);
 

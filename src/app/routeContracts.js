@@ -1,5 +1,6 @@
 export const RouteNames = Object.freeze({
   Home: "home",
+  Notifications: "notifications",
   Members: "members",
   MemberProfile: "member-profile",
   Login: "login",
@@ -48,6 +49,7 @@ export const RouteNames = Object.freeze({
 
 export const RoutePaths = Object.freeze({
   Home: "/",
+  Notifications: "/notifications",
   Members: "/members",
   MemberProfile: "/members/:memberId",
   Login: "/login",
@@ -102,13 +104,14 @@ export const NavigationItems = Object.freeze([
   }),
   Object.freeze({ label: "Rechercher un membre", href: RoutePaths.Members, routeName: RouteNames.Members }),
   Object.freeze({
-    label: "Mes listes",
+    label: "Listes",
     href: RoutePaths.Lists,
     routeName: RouteNames.Lists,
   }),
-  Object.freeze({ label: "Mes groupes", href: RoutePaths.Groups, routeName: RouteNames.Groups }),
+  Object.freeze({ label: "Groupes", href: RoutePaths.Groups, routeName: RouteNames.Groups }),
+  Object.freeze({ label: "Notifications", href: RoutePaths.Notifications, routeName: RouteNames.Notifications }),
   Object.freeze({
-    label: "Mes réservations",
+    label: "Réservations",
     href: RoutePaths.Reservations,
     routeName: RouteNames.Reservations,
   }),
@@ -116,7 +119,7 @@ export const NavigationItems = Object.freeze([
   Object.freeze({ label: "Activité", href: RoutePaths.Activity, routeName: RouteNames.Activity }),
   Object.freeze({ label: "Comptes", href: RoutePaths.AdminMembers, routeName: RouteNames.AdminMembers }),
   Object.freeze({
-    label: "Mon compte",
+    label: "Compte",
     href: RoutePaths.Profile,
     routeName: RouteNames.Profile,
   }),
