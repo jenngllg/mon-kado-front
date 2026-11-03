@@ -1,3 +1,2 @@
-- Les pages chargent leur interface à l’ouverture : le JavaScript initial est réduit de plus de moitié.
-- Les images de l’accueil et du tableau de bord s’adaptent à leur taille d’affichage, en conservant les photographies et leur mise en page.
-- Une visite anonyme ne provoque plus de renouvellement de session inutile ni son erreur 401 dans la console.
+- Les couvertures des listes personnelles, suivies et des profils utilisent maintenant des images adaptées à leur taille, notamment les petites vignettes mobiles.
+- Les premières couvertures visibles se chargent dès l’ouverture ; les suivantes restent différées.

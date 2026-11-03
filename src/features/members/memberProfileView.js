@@ -6,7 +6,7 @@ import { createMemberAvatar } from "../../components/memberAvatar.js";
 import { formatMemberHandle } from "../../auth/memberHandle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { WishlistOccasions } from "../wishlists/wishlistValidation.js";
-import { wishlistArtwork } from "../wishlists/wishlistArtwork.js";
+import { wishlistArtwork, wishlistArtworkSources } from "../wishlists/wishlistArtwork.js";
 
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -44,10 +44,11 @@ export function createMemberProfileView({ memberId, load, signal, backHref = "/m
       if (!profile.wishlists.length) results.append(node("p", "Aucune liste partagée"));
       else {
         const cards = node("ul", ""); cards.className = "member-profile-lists"; cards.setAttribute("role", "list");
-        for (const list of profile.wishlists) {
+        for (const [index, list] of profile.wishlists.entries()) {
           const item = node("li", ""); item.className = "member-profile-list";
           const link = node("a", ""); link.href = list.shareHref; link.setAttribute("aria-label", list.name);
-          const art = node("img", ""); art.src = wishlistArtwork(list.occasion); art.alt = ""; art.width = 180; art.height = 180; art.loading = "lazy";
+          const art = node("img", ""); art.src = wishlistArtwork(list.occasion); art.alt = ""; art.width = 180; art.height = 180; art.loading = index < 2 ? "eager" : "lazy";
+          art.srcset = wishlistArtworkSources(list.occasion); art.sizes = "(max-width: 45rem) 36vw, min(18vw, 240px)"; art.decoding = "async";
           const content = node("div", ""); content.className = "member-profile-list__content flow";
           const occasion = node("span", WishlistOccasions[list.occasion]); occasion.className = "member-profile-list__occasion";
           content.append(occasion, node("h3", list.name));
@@ -55,7 +56,7 @@ export function createMemberProfileView({ memberId, load, signal, backHref = "/m
             const date = node("time", DateFormat.format(new Date(list.eventDate + "T00:00:00Z"))); date.dateTime = list.eventDate; content.append(date);
           }
           link.append(art, content); item.append(link); cards.append(item);
-          registerComponentCleanup(item, () => { link.removeAttribute("href"); art.removeAttribute("src"); });
+          registerComponentCleanup(item, () => { link.removeAttribute("href"); art.removeAttribute("src"); art.removeAttribute("srcset"); });
         }
         results.append(cards);
       }
