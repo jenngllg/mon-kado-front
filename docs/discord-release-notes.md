@@ -1,3 +1,3 @@
-- Une cloche donne accès à tes notifications et signale les nouvelles activités en temps réel.
-- Sur mobile et tablette, les notifications restent accessibles hors du menu ; Paramètres et Se déconnecter se trouvent directement dans le menu.
-- L’accueil affiche des occasions mieux alignées sur tablette et des images sur toute la hauteur des cartes de listes.
+- Les grosses images sont réduites avant leur envoi, sur les souhaits, les idées et les photos de profil ou de groupe.
+- Les idées surprises utilisent des miniatures plus légères dans les listes.
+- Après un enregistrement incertain, « Vérifier le souhait » permet de consulter le résultat sans le recréer.

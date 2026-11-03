@@ -3,6 +3,7 @@ import { isStrongEntityTag } from "../../api/entityTag.js";
 import { isCalendarDate, isWishlistId, isWishlistOccasion } from "../wishlists/wishlistValidation.js";
 import { isDisplayNameTag } from "../../auth/memberHandle.js";
 import { validateWishImageFile } from "../wishes/wishImageValidation.js";
+import { prepareImageUpload } from "../wishes/prepareImageUpload.js";
 
 /** @typedef {{id:string, name:string, ownerId:string, profileImageUrl:string|null, memberCount:number, createdAt:string, updatedAt:string|null}} Group */
 /** @typedef {{id:string, groupId:string, groupName:string, ownerDisplayName:string, memberId:string, displayName:string, displayNameTag:string, createdAt:string, expiresAt:string}} Invitation */
@@ -110,9 +111,10 @@ export function createGroupsService(session) {
       if (!isStrongEntityTag(etag)) throw new TypeError("Invalid version.");
       const path = `${groupPath(id)}/image`;
       if (signal.aborted) throw createAbortError();
-      const type = await validateWishImageFile(file);
+      const prepared = await prepareImageUpload(file, { maximumEdge: 512, signal });
+      const type = await validateWishImageFile(prepared);
       if (signal.aborted) throw createAbortError();
-      const formData = new FormData(); formData.append("image", new Blob([file], { type }), "group-profile-image");
+      const formData = new FormData(); formData.append("image", new Blob([prepared], { type }), "group-profile-image");
       const result = versioned(await request(path, { method: "PUT", formData, ifMatch: etag, signal }), 200);
       if (result.group.id !== id || result.group.profileImageUrl === null) throw invalid();
       return result;

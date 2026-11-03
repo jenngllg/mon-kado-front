@@ -212,7 +212,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
       if (selectedImage && uploadImage && loadWish) {
         try { created = await uploadImage(wishlistId, created.wish.id, selectedImage, { etag: created.etag, signal: lifetime.signal }); }
         catch (error) {
-          if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) presentImageFailure(error);
+          if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) presentImageFailure(error, created.wish.id);
           return;
         }
       }
@@ -227,8 +227,8 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
       if (!disposed) { busy = false; setButtonLoading(submit, false); status.textContent = ""; syncControls(); }
     }
   }
-  /** @param {unknown} error Image write failed after confirmed creation; never replay either write. */
-  function presentImageFailure(error) {
+  /** @param {unknown} error Image write failed after confirmed creation; never replay either write. @param {string} wishId Confirmed wish. */
+  function presentImageFailure(error, wishId) {
     const safe = toUserFacingError(error); let message = "Souhait ajouté. L’enregistrement de son image n’a pas pu être confirmé.";
     const details = [safe.message];
     if (error instanceof ApiError) {
@@ -240,7 +240,10 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
       else if (error.statusCode === 415 || error.errorCode === "WISH_IMAGE_UNSUPPORTED_FORMAT") details.push("L’image proposée ne peut pas être utilisée.");
       else if (error.errorCode === "WISH_IMAGE_INVALID") details.push("L’image proposée est invalide.");
     }
-    show({ variant: "warning", title: "Image à vérifier", message, detail: details.join(" ") }).focus();
+    const alert = show({ variant: "warning", title: "Image à vérifier", message, detail: details.join(" ") });
+    const href = RoutePaths.WishDetails.replace(":listId", wishlistId).replace(":wishId", wishId);
+    alert.querySelector(".ui-alert__content")?.append(createActionLink({ label: "Vérifier le souhait", href }));
+    alert.focus();
   }
   function focusFeedback() { /** @type {HTMLElement | null} */ (feedback.firstElementChild)?.focus(); }
   function notFound() {

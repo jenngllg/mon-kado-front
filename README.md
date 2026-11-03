@@ -2,6 +2,9 @@
 
 Frontend web de MonKado, construit avec JavaScript, les modules ES et Vite.
 
+Large images are prepared locally before upload, within the existing 15-second deadline.
+See [image preparation, compatibility and rollout](../mon-kado/docs/image-pipeline.md).
+
 ## Private groups and wish preferences
 
 The group overview, membership, invitations, owner name/photo editing and revocable

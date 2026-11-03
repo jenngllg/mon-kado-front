@@ -4,6 +4,7 @@ import { validateDisplayName } from "../../auth/displayNameValidation.js";
 import { isDisplayNameTag } from "../../auth/memberHandle.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { validateWishImageFile } from "../wishes/wishImageValidation.js";
+import { prepareImageUpload } from "../wishes/prepareImageUpload.js";
 
 /** @typedef {Readonly<{imageUrl: string | null, imageUnavailable: boolean}>} ProfilePhoto */
 /** @typedef {(file: Blob, options: {etag: string, signal: AbortSignal}) => Promise<Readonly<{displayName: string, displayNameTag?: string, etag: string}>>} UploadProfileImage */
@@ -34,10 +35,11 @@ export function createProfileImageService(session) {
   return {
     async uploadImage(file, { etag, signal }) {
       precondition(etag); if (signal.aborted) throw createAbortError();
-      const type = await validateWishImageFile(file);
+      const prepared = await prepareImageUpload(file, { maximumEdge: 512, signal });
+      const type = await validateWishImageFile(prepared);
       if (signal.aborted) throw createAbortError();
       const formData = new FormData();
-      formData.append("image", new Blob([file], { type }), "profile-image");
+      formData.append("image", new Blob([prepared], { type }), "profile-image");
       const response = await session.request(path, { method: "PUT", authentication: "required", formData, ifMatch: etag, signal });
       if (signal.aborted) throw createAbortError();
       const data = /** @type {Partial<import("../../api/generated/openapi.js").components["schemas"]["MemberProfileResponse"]> | null} */ (response.data);
