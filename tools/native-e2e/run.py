@@ -41,6 +41,11 @@ def child_database_url(parsed, name):
     return urlunsplit((parsed.scheme, parsed.netloc, "/" + name, parsed.query, ""))
 
 
+def listener_started(event):
+    """Recognize the listener event in both supported structured-log formats."""
+    return isinstance(event, dict) and event.get("eventId", event.get("EventId")) == 901
+
+
 def run(project, arguments=()):
     """Own the database and processes for exactly one Playwright invocation."""
     parsed, pg = database_configuration(os.environ.get("MONKADO_TEST_DATABASE_URL", ""))
@@ -110,7 +115,7 @@ def run(project, arguments=()):
             event = events.get(timeout=30)
             if event.get("ended"):
                 raise RuntimeError("NATIVE_API_STOPPED")
-            if event.get("eventId") == 901:
+            if listener_started(event):
                 break
         start("worker", service_environment)
         metadata = directory / "fixture.json"

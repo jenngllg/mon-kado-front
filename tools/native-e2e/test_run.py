@@ -1,10 +1,18 @@
 """Verify that the native browser fixture cannot target a real or foreign database."""
 import unittest
 from urllib.parse import urlsplit
-from run import child_database_url, database_configuration
+from run import child_database_url, database_configuration, listener_started
 
 
 class NativeDatabaseTests(unittest.TestCase):
+    def test_waits_for_the_listener_event_in_current_and_older_native_logs(self):
+        for event in ({"eventId": 901}, {"EventId": 901}):
+            with self.subTest(event=event):
+                self.assertTrue(listener_started(event))
+        for event in ({"eventId": 905}, {"ended": True}, {}, []):
+            with self.subTest(event=event):
+                self.assertFalse(listener_started(event))
+
     def test_refuses_non_test_or_non_loopback_configuration(self):
         for value in ("", "postgres://user@localhost/monkado", "postgres://user@db.example/app_test",
                       "https://user@localhost/app_test", "postgres://localhost/app_test", "postgres://user@localhost/app_test#secret",
