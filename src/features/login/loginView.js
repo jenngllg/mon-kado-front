@@ -34,6 +34,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   let busy = false;
   let googleBusy = false;
   let pending = false;
+  let identityRecoveryAttempted = false;
   let accepted = false;
   let twoFactorStarted = false;
   let summary = false;
@@ -222,8 +223,10 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
   /** @param {import("../../auth/sessionManager.js").SessionSnapshot} state Recoverable finalization or initial restoration. */
   function showSessionIssue(state) {
     if (state.issue !== null) showTranslated(state.issue);
-    if (state.status === "unavailable") {
-      feedback.append(createButton({ label: pending ? "Réessayer la vérification de session" : "Réessayer", variant: "secondary",
+    if (pending) {
+      if (!identityRecoveryAttempted) { identityRecoveryAttempted = true; queueMicrotask(() => { void retryIdentity(); }); }
+    } else if (state.status === "unavailable") {
+      feedback.append(createButton({ label: "Réessayer", variant: "secondary",
         onClick: () => { void retryIdentity(); } }));
     }
   }
@@ -258,7 +261,7 @@ export function createLoginView({ login, session, signal, passwordChanged = fals
       invalid.control.focus();
       return;
     }
-    busy = true;
+    identityRecoveryAttempted = false; busy = true;
     updateControls();
     try {
       await login({ email: fields[0].control.value, password: password.value, rememberMe: remember.checked }, { signal: lifetime.signal });

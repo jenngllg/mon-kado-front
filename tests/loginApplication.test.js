@@ -1,3 +1,4 @@
+import { recoverIdentityAfterOneFailure } from "./recoveryTestHelpers.js";
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from "vitest";
 import { createSessionApplication } from "../src/app/sessionApplication.js";
@@ -112,9 +113,11 @@ describe("login routing and session integration", () => {
     // Arrange
     const app = mount(); await app.start(); app.f.state.logoutStatus = 503;
     await app.session.logout(); app.f.state.identityStatus = 503;
-    const shown = visible(app.shell.outlet, "Réessayer la vérification de session");
+    const shown = visible(app.shell.outlet, "Service temporairement indisponible");
     // Act
     const fields = send(app); await shown;
+    await untilSession(app.session, state => state.status === "unavailable" && app.f.fetch.mock.calls.filter(([input]) => String(input).endsWith("/auth/sessions/current")).length >= 2);
+    await visible(app.shell.outlet, "Service temporairement indisponible");
     // Assert
     expect(fields[1].value).toBe("");
     expect(app.shell.sessionFeedback.textContent).toContain("Déconnexion serveur non confirmée");
@@ -124,20 +127,9 @@ describe("login routing and session integration", () => {
   });
 
   it("retries only identity and redirects once after finalization", async () => {
-    // Arrange
-    const app = mount("/login?returnTo=%2Freservations"); await app.start();
-    app.f.state.identityStatus = 503;
-    const shown = visible(app.shell.outlet, "Réessayer la vérification de session");
-    send(app); await shown;
-    app.f.state.identityStatus = 200;
-    const complete = routed(app, "home");
-    // Act
-    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Réessayer la vérification de session")?.click();
-    await complete;
-    // Assert
-    expect(app.f.posts()).toHaveLength(1);
-    expect(app.f.state.refreshCount).toBe(1);
-    expect(app.session.getSnapshot().status).toBe("authenticated");
+    const app=mount("/login?returnTo=%2Freservations");await app.start();app.f.state.identityStatus=503;recoverIdentityAfterOneFailure(app.f);
+    const complete=routed(app,"home");send(app);await complete;
+    expect(app.f.posts()).toHaveLength(1);expect(app.f.state.refreshCount).toBe(1);expect(app.session.getSnapshot().status).toBe("authenticated");
   });
 
   it("clears a form and opens the dashboard after another tab signs in", async () => {

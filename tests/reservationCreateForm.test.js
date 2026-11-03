@@ -15,8 +15,7 @@ function setup(options = {}) {
   const view = createReservationCreateForm({ available: 3, create, verify, onSaved, onUnavailable, onBusy, ...options }); views.push(view); document.body.append(view);
   const form = /** @type {HTMLFormElement} */ (view.querySelector("form")), input = /** @type {HTMLInputElement} */ (view.querySelector("input"));
   function submit() { form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); }
-  function reread() { [...view.querySelectorAll("button")].find(button => button.textContent === "Vérifier ma réservation")?.click(); }
-  return { view, create, verify, onSaved, onUnavailable, onBusy, form, input, submit, reread };
+  return { view, create, verify, onSaved, onUnavailable, onBusy, form, input, submit };
 }
 describe("reservation creation", () => {
   it("requires confirmation even when identification carries an immediate single-item intent", async () => {
@@ -83,8 +82,8 @@ describe("reservation creation", () => {
   it("does not replay an uncertain single-item reservation", async () => {
     const create = vi.fn(async () => { throw new ApiError({ kind: "network" }); });
     const ui = setup({ available: 1, singleItem: true, submitOnReady: true, create }); await settle();
-    ui.submit(); await settle(); expect(create).toHaveBeenCalledOnce();
-    expect(ui.view.textContent).toContain("ne peut pas être confirmée");
+    expect(create).toHaveBeenCalledOnce(); expect(ui.verify).toHaveBeenCalledOnce();
+    expect(ui.view.textContent).not.toContain("Vérifier ma réservation");
   });
   it("keeps multiple-item selection explicit after identification", async () => {
     const ui = setup({ submitOnReady: true }); await settle();
@@ -109,7 +108,7 @@ describe("reservation creation", () => {
   it("keeps a fully reserved wish blocked without offering a verification action on entry", async () => {
     const ui = setup({ available: 0 }); ui.submit(); await settle(); expect(ui.create).not.toHaveBeenCalled(); expect(ui.input.disabled).toBe(true); expect(ui.view.textContent).toContain("entièrement réservé");
     const reread = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Vérifier ma réservation");
-    expect(reread?.hidden).toBe(true); expect(ui.verify).not.toHaveBeenCalled();
+    expect(reread).toBeUndefined(); expect(ui.verify).not.toHaveBeenCalled();
   });
   it("locks concurrent submissions and permanently locks a confirmed creation", async () => {
     const gate = barrier(); const ui = setup(); ui.create.mockImplementation(async () => { await gate.promise; return {}; });
@@ -118,17 +117,16 @@ describe("reservation creation", () => {
   });
   it.each([409, 412, 428, 503])("requires explicit verification after failure %s", async statusCode => {
     const ui = setup(); ui.input.value = "2"; ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode })); ui.submit(); await settle();
-    expect(ui.input.value).toBe("2"); expect(ui.input.disabled).toBe(true); expect(ui.onBusy).toHaveBeenLastCalledWith(true); ui.submit(); expect(ui.create).toHaveBeenCalledOnce();
-    ui.verify.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.reread(); await settle(); expect(ui.input.disabled).toBe(true);
-    ui.reread(); await settle(); expect(ui.input.disabled).toBe(false); expect(ui.input.value).toBe("2"); expect(ui.create).toHaveBeenCalledOnce();
+    expect(ui.input.value).toBe("2"); expect(ui.input.disabled).toBe(false); expect(ui.onBusy).toHaveBeenLastCalledWith(false);
+    expect(ui.verify).toHaveBeenCalledOnce(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.view.textContent).not.toContain("Vérifier ma réservation");
   });
   it.each(["network", "timeout", "invalidResponse"])("never claims failure is certain for %s", async kind => {
-    const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: /** @type {import("../src/api/apiError.js").ApiErrorKind} */ (kind) })); ui.submit(); await settle();
-    expect(ui.view.textContent).toContain("ne peut pas être confirmée"); expect(ui.input.disabled).toBe(true); expect(ui.verify).not.toHaveBeenCalled();
+    const ui = setup(); ui.verify.mockRejectedValue(new ApiError({kind:"network"})); ui.create.mockRejectedValue(new ApiError({ kind: /** @type {import("../src/api/apiError.js").ApiErrorKind} */ (kind) })); ui.submit(); await settle();
+    expect(ui.input.disabled).toBe(true); expect(ui.verify).toHaveBeenCalledOnce(); expect(ui.create).toHaveBeenCalledOnce();
   });
   it("does not overwrite a reservation discovered during verification", async () => {
-    const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 428 })); ui.submit(); await settle();
-    ui.verify.mockResolvedValue({ available: 2, lookup: { state: "reserved", reservation: { id: "private", wishId: "private", etag: '"private"', quantity: 1 } } }); ui.reread(); await settle();
+    const ui = setup(); ui.verify.mockResolvedValue({ available: 2, lookup: { state: "reserved", reservation: { id: "private", wishId: "private", etag: '"private"', quantity: 1 } } });
+    ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 428 })); ui.submit(); await settle();
     expect(ui.form.hidden).toBe(true); expect(ui.input.value).toBe(""); expect(ui.view.innerHTML).not.toContain("private"); ui.submit(); expect(ui.create).toHaveBeenCalledOnce();
   });
   it("binds only quantity validation and preserves retry metadata", async () => {

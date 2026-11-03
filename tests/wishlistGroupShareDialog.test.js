@@ -52,14 +52,14 @@ describe("wishlist group visibility",()=>{
   it("preserves a conflicting draft, verifies explicitly and uses the fresh version",async()=>{
     const f=setup();await settle();f.checkbox(first).click();
     f.request.mockRejectedValueOnce(new ApiError({kind:"http",statusCode:412,errorCode:"WISHLIST_GROUP_VISIBILITY_VERSION_CONFLICT"}));
-    f.button("Enregistrer").click();await settle();expect(f.checkbox(first).checked).toBe(false);expect(f.button("Enregistrer").disabled).toBe(true);
-    expect(f.request).toHaveBeenCalledTimes(2);f.server.etag='"newer"';f.button("Vérifier la visibilité").click();await settle();
+    f.server.etag='"newer"';f.button("Enregistrer").click();await settle();expect(f.checkbox(first).checked).toBe(false);expect(f.button("Enregistrer").disabled).toBe(false);
+    expect(f.request).toHaveBeenCalledTimes(3);expect(f.view.textContent).not.toContain("Vérifier la visibilité");
     expect(f.checkbox(first).checked).toBe(false);expect(f.request.mock.calls.filter(([,options])=>options.method==="PUT")).toHaveLength(1);
     f.button("Enregistrer").click();await settle();expect(f.request).toHaveBeenLastCalledWith(expect.any(String),expect.objectContaining({ifMatch:'"newer"'}));
   });
   it("recovers a failed read without a mutation or duplicate controls",async()=>{
     const f=setup({fail:true});await settle();expect(f.button("Enregistrer").disabled).toBe(true);
-    f.button("Vérifier la visibilité").click();await settle();expect(f.view.querySelectorAll('input[type="checkbox"]')).toHaveLength(2);
+    expect(f.view.textContent).not.toContain("Vérifier la visibilité");expect(f.view.querySelectorAll('input[type="checkbox"]')).toHaveLength(0);
     expect(f.request.mock.calls.every(([,options])=>options.method==="GET")).toBe(true);
   });
   it("reports an empty membership set without writable controls",async()=>{
@@ -83,8 +83,7 @@ describe("wishlist group visibility",()=>{
   });
   it("does not restore a departed group's draft when verifying visibility",async()=>{
     const f=setup();await settle();f.checkbox(first).click();
-    f.request.mockRejectedValueOnce(new ApiError({kind:"http",statusCode:412}));f.button("Enregistrer").click();await settle();
-    f.server.groups=f.server.groups.filter(group=>group.groupId!==first);f.button("Vérifier la visibilité").click();await settle();
+    f.request.mockRejectedValueOnce(new ApiError({kind:"http",statusCode:412}));f.server.groups=f.server.groups.filter(group=>group.groupId!==first);f.button("Enregistrer").click();await settle();
     expect(f.view.querySelector(`input[value="${first}"]`)).toBeNull();expect(f.view.querySelectorAll('input[type="checkbox"]')).toHaveLength(1);
     expect(f.request.mock.calls.filter(([,options])=>options.method==="PUT")).toHaveLength(1);
   });

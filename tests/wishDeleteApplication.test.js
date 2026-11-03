@@ -98,8 +98,8 @@ describe("gift deletion integration", () => {
     expect(window.location.pathname).toBe(detail); expect(app.shell.outlet.querySelector(`button[aria-label="Supprimer le souhait « ${wish.name} »"]`)).toBeNull(); app.click("Supprimer"); expect(app.state.writes).toBe(1);
   });
   it.each([401, 403, 404, 409, 412, 428, 429, 503])("handles %s without retry, session mutation or duplicate shell errors", async status => {
-    const app = setup(); app.state.status = status; await app.start(); await ready(app); app.click("Supprimer");
-    await until(app.shell.outlet, () => status === 401 ? window.location.pathname === "/login" : app.shell.outlet.querySelector('dialog [role="alert"]') !== null);
+    const app = setup(); app.state.status = status; await app.start(); await ready(app); const reads = app.state.reads; app.click("Supprimer");
+    await until(app.shell.outlet, () => status === 401 ? window.location.pathname === "/login" : [412,428,503].includes(status) ? app.state.reads > reads && app.shell.outlet.querySelector('dialog[aria-busy="false"]') !== null : app.shell.outlet.querySelector('dialog [role="alert"]') !== null);
     expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toMatch(/ENGLISH_PRIVATE|BACKEND_PRIVATE/);
     if (status === 401) expect(app.session.getSnapshot().user).toBeNull();
     else { expect(app.session.getSnapshot().status).toBe("authenticated"); expect(app.shell.sessionFeedback.querySelector('[role="alert"]')).toBeNull(); }

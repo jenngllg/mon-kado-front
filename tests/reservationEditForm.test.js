@@ -42,17 +42,17 @@ describe("reservation quantity editing", () => {
   });
   it("keeps the draft through conflict and uses the rel read version only after explicit save", async () => {
     const ui = setup(); ui.edit("1"); ui.update.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 412 })); ui.submit(); await settle();
-    expect(ui.input.value).toBe("1"); expect(ui.input.disabled).toBe(true); ui.click("Vérifier ma réservation"); await settle();
+    expect(ui.input.value).toBe("1"); expect(ui.input.disabled).toBe(false); expect(ui.verify).toHaveBeenCalledOnce();
     expect(ui.input.value).toBe("1"); expect(ui.view.textContent).toContain("Quantité enregistrée : 2"); expect(ui.update).toHaveBeenCalledOnce();
     ui.submit(); await settle(); expect(ui.update).toHaveBeenLastCalledWith("1", '"new"', expect.any(AbortSignal));
   });
   it("can adopt the rel read value without writing", async () => {
-    const ui = setup(); ui.edit("1"); ui.update.mockRejectedValue(new ApiError({ kind: "timeout" })); ui.submit(); await settle(); ui.click("Vérifier ma réservation"); await settle();
+    const ui = setup(); ui.edit("1"); ui.update.mockRejectedValue(new ApiError({ kind: "timeout" })); ui.submit(); await settle();
     ui.edit("2"); ui.submit(); expect(ui.update).toHaveBeenCalledOnce();
   });
   it.each(["absent", "unrecognized"])("never recreates a reservation after lookup %s", async state => {
-    const ui = setup(); ui.edit("1"); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 })); ui.submit(); await settle();
-    ui.verify.mockResolvedValue({ available: 3, lookup: { state: /** @type {"absent" | "unrecognized"} */ (state) } }); ui.click("Vérifier ma réservation"); await settle();
+    const ui = setup(); ui.verify.mockResolvedValue({ available: 3, lookup: { state: /** @type {"absent" | "unrecognized"} */ (state) } });
+    ui.edit("1"); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 })); ui.submit(); await settle();
     expect(ui.view.querySelector("form")?.hidden).toBe(true); expect(ui.input.value).toBe(""); ui.submit(); expect(ui.update).toHaveBeenCalledOnce();
   });
 });

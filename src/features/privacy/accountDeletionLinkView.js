@@ -20,7 +20,7 @@ export function createAccountDeletionLinkView({ session, service, consumeFragmen
   const heading = document.createElement("h1"); heading.textContent = "Mon compte";
   view.append(heading, feedback, content);
   const lifetime = new AbortController();
-  let disposed = false, busy = false, completed = false;
+  let disposed = false, busy = false, completed = false, unconfirmed = false;
   /** @type {HTMLElement | null} */ let login = null;
   /** @type {string | null} */ let presentedUser = null;
   /** @type {HTMLDialogElement | null} */ let dialog = null;
@@ -44,6 +44,7 @@ export function createAccountDeletionLinkView({ session, service, consumeFragmen
   }
   function render() {
     if (disposed || busy || completed) return;
+    if (unconfirmed) { clearContent(); content.append(message("La suppression du compte n’a pas pu être confirmée.")); return; }
     if (token === null) {
       clearContent(); content.append(message("Ce lien est invalide ou n’est plus disponible. Demande un nouveau lien depuis ton compte."),
         createActionLink({ label: "Mes données personnelles", href: "/profile/data" })); return;
@@ -56,9 +57,7 @@ export function createAccountDeletionLinkView({ session, service, consumeFragmen
       login = createLoginView({ login: createLoginService(session), session, signal: lifetime.signal });
       const otherTab = createActionLink({ label: "Se connecter dans un autre onglet (Google disponible si activé)", href: "/login" });
       otherTab.target = "_blank"; otherTab.rel = "noopener noreferrer";
-      content.append(login, otherTab, createButton({ label: "J’ai terminé la connexion : vérifier ma session", variant: "secondary", onClick: () => {
-        void session.restore().catch(showError);
-      } }));
+      content.append(login, otherTab);
       return;
     }
     if (presentedUser === state.user.id) return;
@@ -116,11 +115,11 @@ export function createAccountDeletionLinkView({ session, service, consumeFragmen
       completed = true; token = null; clearContent();
       view.prepend(createBackLink({ label: "Retour à l’accueil", href: "/" }));
       content.append(createAlert({ title: "Compte supprimé", message: "La suppression a été confirmée. Tu n’as pas besoin de renvoyer le lien.", variant: "success" }));
-      if (result.sessionIssue) content.append(createAlert({ title: "Synchronisation à vérifier", message: "La suppression a réussi. Utilise le bandeau de session pour réessayer uniquement la synchronisation.", variant: "warning" }));
+      if (result.sessionIssue) content.append(createAlert({ title: "Synchronisation indisponible", message: "La suppression a réussi. ", variant: "warning" }));
     } catch (error) {
       showError(error);
       if (!disposed && error instanceof ApiError && error.kind === "http" && error.statusCode === 400) token = null;
-      else if (!disposed && !isAbortError(error)) feedback.append(message("Si le résultat est incertain, vérifie l’état du compte avant toute nouvelle tentative. Aucune confirmation n’est rejouée automatiquement."));
+      else if (!disposed && !isAbortError(error)) { token = null; unconfirmed = true; }
     } finally {
       if (!disposed) {
         const reopen = dialog?.open === true;

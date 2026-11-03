@@ -11,10 +11,10 @@ afterEach(() => { views.splice(0).forEach(disposeComponent); document.body.repla
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 /** @param {Partial<import("../src/features/sharing/memberWishlistParticipationSection.js").MemberParticipationOptions>} [overrides] Dependencies. */
 function setup(overrides = {}) {
-  const loadCurrentMember = vi.fn(/** @type {import("../src/features/sharing/wishlistParticipationService.js").LoadCurrentParticipant} */ (async () => null));
-  const joinMember = vi.fn(/** @type {import("../src/features/sharing/wishlistParticipationService.js").JoinMember} */ (async () => ({ ...participant, created: true })));
+  const loadCurrentMember = vi.fn(/** @type {import("../src/features/sharing/wishlistParticipationService.js").LoadCurrentParticipant} */ (overrides.loadCurrentMember ?? (async () => null)));
+  const joinMember = vi.fn(/** @type {import("../src/features/sharing/wishlistParticipationService.js").JoinMember} */ (overrides.joinMember ?? (async () => ({ ...participant, created: true }))));
   const onUnavailable = vi.fn();
-  const view = createMemberWishlistParticipationSection({ shareLinkId: id, displayName: "Compte actuel", loadCurrentMember, joinMember, onUnavailable, ...overrides }); views.push(view); document.body.append(view);
+  const view = createMemberWishlistParticipationSection({ shareLinkId: id, displayName: "Compte actuel", onUnavailable, ...overrides, loadCurrentMember, joinMember }); views.push(view); document.body.append(view);
   /** @param {string} label Action label. */ function button(label) { const found = [...view.querySelectorAll("button")].find(item => item.textContent === label); if (!found) throw Error(label); return found; }
   return { view, loadCurrentMember, joinMember, onUnavailable, button };
 }
@@ -67,7 +67,8 @@ describe("member participation", () => {
     const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); await settle(); expect(ui.joinMember).not.toHaveBeenCalled(); expect(ui.button("Poursuivre avec mon compte").disabled).toBe(false); ui.button("Poursuivre avec mon compte").click(); await settle(); expect(ui.joinMember).toHaveBeenCalledOnce(); expect(ui.button("Poursuivre avec mon compte").hidden).toBe(true);
   });
   it("keeps explicit attachment available after an uncertain result and lookup", async () => {
-    const ui = setup({ continueAfterSignIn: true, loadCurrentMember: async () => participant }); ui.joinMember.mockRejectedValueOnce(new ApiError({ kind: "network" })); await settle(); ui.button("Poursuivre avec mon compte").click(); await settle(); expect(ui.button("Poursuivre avec mon compte").disabled).toBe(true); ui.button("Vérifier ma participation").click(); await settle(); expect(ui.button("Poursuivre avec mon compte").disabled).toBe(false); expect(ui.joinMember).toHaveBeenCalledOnce();
+    const ui=setup({continueAfterSignIn:true,loadCurrentMember:async()=>participant});ui.joinMember.mockRejectedValueOnce(new ApiError({kind:"network"}));await settle();
+    ui.button("Poursuivre avec mon compte").click();await settle();expect(ui.button("Poursuivre avec mon compte").disabled).toBe(false);expect(ui.joinMember).toHaveBeenCalledOnce();expect(ui.loadCurrentMember).toHaveBeenCalledTimes(2);expect(ui.view.textContent).not.toContain("Vérifier ma participation");
   });
   it("reads first, shows the current identity without an input and never joins automatically", async () => {
     const ui = setup(); expect(ui.button("Participer avec mon compte").disabled).toBe(true); expect(ui.view.textContent).toContain("Vérification"); await settle(); expect(ui.view.querySelector("input")).toBeNull(); expect(ui.view.textContent).toContain("Compte actuel"); expect(ui.button("Participer avec mon compte").disabled).toBe(false); expect(ui.joinMember).not.toHaveBeenCalled();
@@ -80,10 +81,13 @@ describe("member participation", () => {
     const ui = setup({ joinMember: async () => { throw new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_OWNER_CANNOT_JOIN" }); } }); await settle(); ui.button("Participer avec mon compte").click(); await settle(); expect(ui.view.textContent).toContain("Tu ne peux pas participer à ta propre liste."); expect(ui.button("Participer avec mon compte").disabled).toBe(true); expect(document.activeElement?.getAttribute("role")).toBe("alert");
   });
   it.each(["network", "timeout", "invalidResponse", "http"])("requires a successful explicit lookup after an uncertain join %s", async kind => {
-    const ui = setup({ joinMember: async () => { throw new ApiError({ kind: /** @type {import("../src/api/apiError.js").ApiErrorKind} */ (kind), statusCode: kind === "http" ? 503 : null }); } }); await settle(); ui.button("Participer avec mon compte").click(); await settle(); expect(ui.button("Participer avec mon compte").disabled).toBe(true); ui.loadCurrentMember.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.button("Vérifier ma participation").click(); await settle(); expect(ui.button("Participer avec mon compte").disabled).toBe(true); ui.button("Réessayer").click(); await settle(); expect(ui.button("Participer avec mon compte").disabled).toBe(false);
+    const ui=setup({joinMember:async()=>{throw new ApiError({kind:/** @type {import("../src/api/apiError.js").ApiErrorKind} */(kind),statusCode:kind==="http"?503:null});}});await settle();
+    ui.loadCurrentMember.mockRejectedValueOnce(new ApiError({kind:"network"}));ui.button("Participer avec mon compte").click();await settle();
+    expect(ui.button("Participer avec mon compte").disabled).toBe(true);expect(ui.loadCurrentMember).toHaveBeenCalledTimes(2);expect(ui.joinMember).toHaveBeenCalledOnce();expect(ui.view.textContent).not.toContain("Vérifier ma participation");
   });
   it("recovers recognized participation without claiming creation or repeating POST", async () => {
-    const ui = setup(); ui.joinMember.mockRejectedValueOnce(new ApiError({ kind: "network" })); await settle(); ui.button("Participer avec mon compte").click(); await settle(); ui.loadCurrentMember.mockResolvedValueOnce(participant); ui.button("Vérifier ma participation").click(); await settle(); expect(ui.joinMember).toHaveBeenCalledOnce(); expect(ui.view.querySelector('[role="status"]')?.textContent).toBe(""); expect(ui.view.textContent).toContain("Tu participes à cette liste");
+    const ui=setup();await settle();ui.joinMember.mockRejectedValueOnce(new ApiError({kind:"network"}));ui.loadCurrentMember.mockResolvedValueOnce(participant);ui.button("Participer avec mon compte").click();await settle();
+    expect(ui.joinMember).toHaveBeenCalledOnce();expect(ui.view.querySelector('[role="status"]')?.textContent).toBe("");expect(ui.view.textContent).toContain("Tu participes à cette liste");
   });
   it.each([401, 403, 429])("keeps lookup failure %s local and blocks mutation", async statusCode => {
     const ui = setup({ loadCurrentMember: async () => { throw new ApiError({ kind: "http", statusCode, correlationId: "reference", retryAfterSeconds: 12 }); } }); await settle(); expect(ui.button("Participer avec mon compte").disabled).toBe(true); expect(ui.view.textContent).toContain("reference"); if (statusCode === 429) expect(ui.view.textContent).toContain("12"); expect(ui.onUnavailable).not.toHaveBeenCalled();

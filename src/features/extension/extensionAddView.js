@@ -74,8 +74,7 @@ export function createExtensionAddView({ lists, wishes, signal }) {
     } catch (error) {
       if (disposed || isAbortError(error)) return;
       if (!(error instanceof ApiError) || error.kind !== "http" || error.statusCode === null || error.statusCode >= 500) {
-        completed = true; message("L’ajout n’a pas pu être confirmé. Consulte ta liste avant de réessayer.");
-        section.append(createActionLink({ label: "Voir ma liste", href: `/lists/${listId}` }));
+        completed = true; message("L’ajout n’a pas pu être confirmé.");
       } else message(toUserFacingError(error).message);
     } finally { busy = false; sync(); }
   }

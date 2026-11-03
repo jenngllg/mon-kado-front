@@ -67,7 +67,7 @@ describe("gift editing integration", () => {
   });
   it.each([401, 403, 404, 409, 412, 413, 428, 429, 503])("handles %s without retries or duplicate shell errors", async status => {
     const app = setup(); app.state.status = status; if (status === 409) app.state.errorCode = "WISH_QUANTITY_BELOW_RESERVED";
-    await app.start(); await ready(app); app.send(); await until(app.shell.outlet, () => status === 401 ? window.location.pathname === "/login" : app.shell.outlet.querySelector('[role="alert"]') !== null);
+    await app.start(); await ready(app); const reads = app.state.reads; app.send(); await until(app.shell.outlet, () => status === 401 ? window.location.pathname === "/login" : [412,428,503].includes(status) ? app.state.reads > reads && app.shell.outlet.querySelector('form[aria-busy="false"]') !== null : app.shell.outlet.querySelector('[role="alert"]') !== null);
     expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toMatch(/ENGLISH_PRIVATE|BACKEND_PRIVATE/);
     if (status === 401) expect(app.session.getSnapshot().user).toBeNull();
     else { expect(app.session.getSnapshot().status).toBe("authenticated"); expect(app.shell.sessionFeedback.querySelector('[role="alert"]')).toBeNull(); }

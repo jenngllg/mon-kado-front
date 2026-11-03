@@ -64,15 +64,14 @@ export function createAdminMembersView(session,signal) {
     const controller=new AbortController();
     const cancel=createButton({label:"Annuler",variant:"secondary",onClick:()=>{if(!writing)modal.close();}});
     const submit=createButton({label:"Supprimer définitivement",variant:"danger",type:"submit",disabled:true});
-    const verify=createButton({label:"Vérifier la suppression",variant:"secondary",onClick:()=>{void load(true);}});verify.hidden=true;
-    editor.append(createFormField({label:"Référence de la demande",control:reference,required:true}),createFormField({label:`Recopie « ${handle(selected)} »`,control:confirmation,required:true}),actions);actions.append(cancel,submit,verify);modal.append(heading,warning,feedback,editor);view.append(modal);
+    editor.append(createFormField({label:"Référence de la demande",control:reference,required:true}),createFormField({label:`Recopie « ${handle(selected)} »`,control:confirmation,required:true}),actions);actions.append(cancel,submit);modal.append(heading,warning,feedback,editor);view.append(modal);
     registerComponentCleanup(modal,()=>controller.abort());
     addComponentEventListener(modal,modal,"close",()=>{closeDialog();});
     addComponentEventListener(modal,modal,"cancel",event=>{if(writing)event.preventDefault();});
     addComponentEventListener(modal,editor,"input",sync);
     addComponentEventListener(modal,editor,"submit",event=>{event.preventDefault();void erase();});
     modal.showModal();void load(false);
-    function sync(){submit.disabled=busy||!ready||uncertain||confirmation.value!==handle(selected)||!reference.value.trim();cancel.disabled=writing;verify.disabled=busy;reference.disabled=busy;confirmation.disabled=busy;}
+    function sync(){submit.disabled=busy||!ready||uncertain||confirmation.value!==handle(selected)||!reference.value.trim();cancel.disabled=writing;reference.disabled=busy;confirmation.disabled=busy;}
     /** @param {boolean} check Whether checking an uncertain mutation. */
     async function load(check){
       busy=true;sync();feedback.replaceChildren(createLoadingState({label:"Vérification du compte…"}));
@@ -81,7 +80,7 @@ export function createAdminMembersView(session,signal) {
         ready=handle(current)===handle(selected);
         feedback.replaceChildren();
         if(!ready)feedback.append(alert("Le pseudo a changé. Ferme cette fenêtre et actualise les comptes."));
-        else if(check){uncertain=false;verify.hidden=true;feedback.append(alert("Le compte existe encore. Vérifie la demande avant de confirmer à nouveau."));}
+        else if(check){uncertain=false;feedback.append(alert("Le compte existe encore. Vérifie la demande avant de confirmer à nouveau."));}
       }catch(error){
         if(controller.signal.aborted)return;
         ready=false;
@@ -98,7 +97,7 @@ export function createAdminMembersView(session,signal) {
         if(accessError(error)){closeDialog();clear(results);results.append(alert("Accès administrateur refusé. Reconnecte-toi avec la double authentification."));return;}
         uncertain=!(error instanceof ApiError)||error.kind!=="http"||error.statusCode===null||error.statusCode>=500;
         ready=false;
-        if(uncertain){verify.hidden=false;feedback.replaceChildren(alert("Résultat incertain. Vérifie la suppression avant toute nouvelle tentative."));}
+        if(uncertain){writing=false;await load(true);}
         else feedback.replaceChildren(alert(accessError(error)?"Accès refusé. Reconnecte-toi avec la double authentification.":"Suppression refusée. Ferme cette fenêtre et actualise les comptes."));
       }finally{busy=false;writing=false;sync();}
     }

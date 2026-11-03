@@ -83,14 +83,14 @@ describe("wishlist deletion integration", () => {
   });
   it("requires re-reading a concurrently changed list and explicitly confirming its new version", async () => {
     const app = setup(); await app.start(); await loaded(app); app.state.version = 2; app.state.name = "Version concurrente"; app.confirm();
-    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Cette liste a été modifiée ailleurs") === true); expect(app.state.reads).toBe(2);
-    [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === "Relire la liste")?.click(); await loaded(app);
+    await until(app.shell.outlet, () => app.shell.outlet.textContent?.includes("Version concurrente") === true); await loaded(app); expect(app.state.reads).toBe(3);
     expect(app.shell.outlet.textContent).toContain("Version concurrente"); expect(app.state.deletes).toBe(1); app.confirm();
     await until(app.shell.notificationRegion, () => app.shell.notificationRegion.textContent?.includes("Liste supprimée") === true); expect(app.tags).toEqual(['"v1"', '"v2"']);
   });
   it.each([401, 403, 404, 429, 503])("handles HTTP %s without retry or duplicated operation errors", async status => {
-    const app = setup(); app.state.status = status; await app.start(); await loaded(app); app.confirm();
+    const app = setup(); app.state.status = status; await app.start(); await loaded(app); const reads = app.state.reads; app.confirm();
     if (status === 401) await until(app.shell.outlet, () => window.location.pathname === "/login");
+    else if (status === 503) await until(app.shell.outlet, () => app.state.reads > reads && app.shell.outlet.querySelector('dialog[aria-busy="false"]') !== null);
     else await until(app.shell.outlet, () => app.shell.outlet.querySelector('dialog [role="alert"]') !== null);
     expect(app.state.deletes).toBe(1); expect(app.shell.outlet.textContent).not.toContain("PRIVATE_ENGLISH"); expect(app.shell.notificationRegion.textContent).not.toContain("Liste supprimée");
     if (status === 401) expect(app.session.getSnapshot().user).toBeNull();

@@ -36,13 +36,12 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
   const actions = element("div", ""); actions.className = "wishlist-form__actions cluster";
   const submit = createButton({ label: "Enregistrer", type: "submit" });
   const useVersion = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: useStored });
-  const reread = createButton({ label: "Relire le souhait", variant: "secondary", onClick: () => { void read(true); } });
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } });
   actions.append(submit, useVersion); form.append(actions);
   const destination = isWishlistId(wishlistId) ? withWishSort(RoutePaths.ListDetails.replace(":listId", wishlistId), returnSort) : RoutePaths.Lists;
   const imageSection = createWishImageSection({ onUpload: () => { sync(); }, onRemove: () => { void deleteImage(); } });
   const back = createBackLink({ label: "Retour à la liste", href: destination }); back.classList.add("page-back-link");
-  view.append(back, title, feedback, reread, retry, status, comparison, form);
+  view.append(back, title, feedback, retry, status, comparison, form);
   if (uploadImage && removeImage) form.append(imageNotice, imageSection.element, actions);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
   registerComponentCleanup(view, () => {
@@ -85,7 +84,6 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     submit.disabled = disposed || terminal || busy || blocked || suspended || (!changed() && !imageSection.getSelected());
     if (!busy) submit.textContent = "Enregistrer";
     useVersion.hidden = !decision; useVersion.disabled = disposed || terminal || busy || suspended;
-    reread.hidden = disposed || terminal || !base || !blocked; reread.disabled = busy;
     retry.hidden = disposed || terminal || base !== null || busy; retry.disabled = busy;
     form.setAttribute("aria-busy", String(busy));
     imageSection.update(base?.wish ?? null, disposed || busy || blocked || terminal, suspended);
@@ -111,7 +109,9 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       base = result; saved = true;
     } catch (error) { if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) imageFailure(error); }
     finally { if (!disposed) { busy = false; status.textContent = ""; sync(); } }
-    if (saved && !disposed) await imageSucceeded("Image enregistrée"); else if (!disposed) focusFeedback();
+    if (saved && !disposed) await imageSucceeded("Image enregistrée");
+    else if (!disposed && blocked && !terminal && !suspended) await read(true);
+    else if (!disposed) focusFeedback();
   }
   async function deleteImage() {
     if (!removeImage || !base || disposed || busy || blocked || suspended || terminal) return;
@@ -127,12 +127,13 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) imageFailure(error);
     } finally { if (!disposed) { busy = false; sync(); } }
     if (removed && !disposed) { await imageSucceeded("Image supprimée"); imageSection.title.focus(); }
+    else if (!disposed && blocked && !terminal && !suspended) await read(true);
     else if (!disposed) focusFeedback();
   }
   /** @param {unknown} error Safe image operation failure. */
   function imageFailure(error) {
     if (error instanceof ApiError && error.errorCode === "WISH_IMAGE_NOT_FOUND") {
-      blocked = true; show({ title: "Image indisponible", message: "Relis le souhait pour vérifier son image actuelle." }); return;
+      blocked = true; show({ title: "Image indisponible", message: "Les informations à jour sont temporairement indisponibles." }); return;
     }
     if (error instanceof ApiError && error.statusCode === 404) { notFound(false); return; }
     if (error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED") { lockSuspended(); return; }
@@ -144,8 +145,8 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) details.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
     let message = translated.message;
     if (error instanceof WishImageValidationError) message = error.message;
-    else if (conflict) message = "Ce souhait a été modifié ailleurs. Ta sélection et tes saisies sont conservées. Relis le souhait avant de continuer.";
-    else if (uncertain) message = "La modification de l’image ne peut pas être confirmée. Relis le souhait avant de réessayer.";
+    else if (conflict) message = "Ce souhait a été modifié ailleurs. Ta sélection et tes saisies sont conservées. ";
+    else if (uncertain) message = "La modification de l’image ne peut pas être confirmée. ";
     else if (error instanceof ApiError) {
       if (error.statusCode === 413) message = "L’image ne doit pas dépasser 10 Mio.";
       else if (error.errorCode === "WISH_IMAGE_UNSUPPORTED_FORMAT" || error.statusCode === 415) message = "Format d’image non pris en charge : JPEG, PNG ou WebP non animé uniquement.";
@@ -219,7 +220,10 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
       base = saved; editor.reset(saved.values); decision = false; clearComparison();
       textSaved = true;
     } catch (error) {
-      if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) failure(error);
+      if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) {
+        failure(error);
+        if (blocked && !terminal && !suspended) { busy = false; await read(true); }
+      }
     } finally {
       if (!disposed) {
         busy = false; setButtonLoading(submit, false); status.textContent = textSaved ? "Souhait enregistré." : ""; sync();
@@ -242,7 +246,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     if (error instanceof ApiError && (error.statusCode === 412 || error.statusCode === 428 || error.validationErrors.some(item => item.propertyName === "ifMatch"))) {
       blocked = true; decision = false; clearComparison();
       show({ title: error.statusCode === 412 ? "Ce souhait a été modifié ailleurs" : "Actualisation nécessaire",
-        message: "Ta saisie est conservée. Relis le souhait avant de décider des modifications à enregistrer." }); return;
+        message: "Ta saisie est conservée. " }); return;
     }
     const uncertain = !(error instanceof ApiError) || error.kind !== "http" || (error.statusCode !== null && error.statusCode >= 500);
     if (uncertain) { blocked = true; decision = false; clearComparison(); technical(error, true); return; }
@@ -263,7 +267,7 @@ export function createWishEditView({ wishlistId, wishId, loadWishlist, loadOne, 
     const correlationId = error instanceof ApiError ? error.correlationId : translated.correlationId;
     if (correlationId) detail.push(`Référence : ${correlationId}`);
     if (error instanceof ApiError && error.statusCode === 429 && translated.retryAfterSeconds !== null) detail.push(`Réessaie dans ${translated.retryAfterSeconds} seconde(s).`);
-    if (uncertain) detail.push("L’enregistrement de ton souhait ne peut pas être confirmé. Relis le souhait avant de réessayer.");
+    if (uncertain) detail.push("L’enregistrement de ton souhait ne peut pas être confirmé. ");
     show({ title: error instanceof ApiError && error.statusCode === 413 ? "Informations trop volumineuses" : translated.title,
       message: error instanceof ApiError && error.statusCode === 413 ? WishPayloadTooLarge : translated.message, detail: detail.join(" ") || null });
   }

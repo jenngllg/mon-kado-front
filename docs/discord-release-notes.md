@@ -1,2 +1,3 @@
-- La création d’un souhait poursuit automatiquement vers la liste lorsque son image a bien été enregistrée malgré une réponse interrompue.
-- Le bouton « Vérifier le souhait » est supprimé : aucune vérification manuelle n’est demandée et le souhait n’est jamais créé en double.
+- Les résultats incertains sont relus automatiquement dans les parcours de souhaits, listes, groupes, réservations, abonnements et connexion, sans répéter les enregistrements.
+- Les boutons de vérification ou de relecture technique sont supprimés ; les saisies sont conservées et les confirmations sensibles restent explicites.
+- Si l’accès temporaire à une image expire, son chargement est rétabli automatiquement sur les listes personnelles et partagées, sans recharger les autres informations.

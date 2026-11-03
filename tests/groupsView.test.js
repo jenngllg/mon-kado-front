@@ -100,8 +100,7 @@ describe("group overview", () => {
     f.request.mockImplementationOnce(async () => { await gate.promise; throw new ApiError({ kind: "network" }); });
     const accept = button(f.view, "Accepter"); accept.click(); accept.click();
     expect(f.request.mock.calls.filter(call => call[1].method === "POST")).toHaveLength(1);
-    gate.resolve(); await settle(); expect(f.view.textContent).toContain("Vérifie l’état du groupe");
-    button(f.view, "Vérifier le groupe").click(); await settle();
+    gate.resolve(); await settle(); expect(f.view.textContent).not.toContain("Vérifier le groupe");
     expect(f.request.mock.calls.filter(call => call[1].method === "POST")).toHaveLength(1);
   });
   it("keeps a failed creation blocked until explicit verification, without automatic retry", async () => {
@@ -110,7 +109,7 @@ describe("group overview", () => {
     f.request.mockRejectedValueOnce(new ApiError({ kind: "timeout" }));
     f.view.querySelector("dialog form")?.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
     expect(button(f.view, "Créer").disabled).toBe(true);
-    expect(f.view.querySelector("dialog")?.textContent).toContain("vérifier l’état du groupe");
+    expect(f.view.querySelector("dialog")?.textContent).toContain("n’a pas pu être confirmée");
     button(f.view, "Annuler").click(); await settle(); expect(f.view.querySelector("dialog")).toBeNull();
     expect(f.request.mock.calls.filter(call => call[1].method === "POST")).toHaveLength(1);
   });

@@ -17,7 +17,7 @@ export function openGroupPhotoDialog({ parent, trigger, service, group, etag, ap
   const actions = document.createElement("div"); actions.className = "cluster";
   const lifetime = new AbortController(), combined = AbortSignal.any([signal, lifetime.signal]);
   let pending = false, blocked = false, disposed = false;
-  const photo = readGroupPhoto(group.profileImageUrl, group.id, apiBaseUrl);
+  let photo = readGroupPhoto(group.profileImageUrl, group.id, apiBaseUrl);
   const save = createButton({ label: "Enregistrer", onClick: () => { void commit(false); } });
   const editor = createProfileImageSection({ saveAction: save, onChange: () => { if (!pending) { disposeComponent(feedback); feedback.replaceChildren(); } sync(); }, onRemove: () => { void commit(true); } });
   const closeButton = createButton({ label: "Fermer", variant: "secondary", onClick: close });
@@ -58,7 +58,15 @@ export function openGroupPhotoDialog({ parent, trigger, service, group, etag, ap
       feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" }));
       blocked = !(error instanceof ApiError && error.kind === "http" && error.statusCode !== null && [400, 413, 415, 422].includes(error.statusCode));
       if (blocked) {
-        const message = document.createElement("p"); message.textContent = "Ferme cette fenêtre pour vérifier la photo enregistrée avant de recommencer."; feedback.append(message);
+        try {
+          const fresh = await service.loadOne(group.id, { signal: combined });
+          if (combined.aborted) return;
+          if (fresh.group.id !== group.id) throw new ApiError({ kind: "invalidResponse" });
+          // A renewed signed URL does not prove that a replacement image was saved.
+          const changed = remove && fresh.group.profileImageUrl === null;
+          group = fresh.group; etag = fresh.etag; photo = readGroupPhoto(group.profileImageUrl, group.id, apiBaseUrl); blocked = false;
+          if (changed) { pending = false; close(); await onSaved(); }
+        } catch (readError) { if (!combined.aborted && !isAbortError(readError)) { disposeComponent(feedback); feedback.replaceChildren(createAlert({ ...toUserFacingError(readError), variant: "error" })); } }
       }
     } finally { pending = false; sync(); }
   }

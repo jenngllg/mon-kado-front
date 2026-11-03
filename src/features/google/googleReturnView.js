@@ -1,5 +1,5 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
-import { createBackLink, createAlert, createButton, createLoadingState, disposeComponent } from "../../components/index.js";
+import { createBackLink, createAlert, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { RoutePaths } from "../../app/routeContracts.js";
@@ -17,7 +17,7 @@ export function createGoogleReturnView({ google, session, consumeFragment, signa
   view.className = "google-return-view flow";
   const lifetime = new AbortController();
   let disposed = false;
-  let busy = false;
+  let recoveryAttempted = false;
   registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); });
   if (signal) {
     addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });
@@ -30,7 +30,7 @@ export function createGoogleReturnView({ google, session, consumeFragment, signa
     showLoading();
     // Only the coordinated operation retains the binding; retries never re-submit it.
     void finish(google.complete(handoff, { signal: lifetime.signal }));
-  } catch (error) { busy = false; failure(error); }
+  } catch (error) { failure(error); }
   return view;
 
   /** @param {Promise<import("../../auth/sessionManager.js").SessionSnapshot>} operation Session finalization. */
@@ -47,7 +47,7 @@ export function createGoogleReturnView({ google, session, consumeFragment, signa
         else if (error instanceof ApiError && error.statusCode === 409 && error.errorCode === "GOOGLE_ACCOUNT_LINK_REQUIRED") onLinkRequired();
         else failure(error);
       }
-    } finally { busy = false; }
+    }
   }
 
   /** @param {unknown} error Safe error input. */
@@ -63,11 +63,10 @@ export function createGoogleReturnView({ google, session, consumeFragment, signa
     alert.tabIndex = -1;
     view.replaceChildren(alert);
     if (session.getSnapshot().authenticationPending) {
-      view.append(createButton({ label: "Réessayer la vérification de session", variant: "secondary", onClick: () => {
-        if (busy || disposed) return;
-        showLoading();
-        void finish(session.restore());
-      } }));
+      if (!recoveryAttempted) {
+        recoveryAttempted = true;
+        queueMicrotask(() => { if (!disposed) { showLoading(); void finish(session.restore()); } });
+      }
     } else if (error instanceof ApiError && (error.kind === "network" || error.kind === "timeout")) {
       const uncertainty = document.createElement("p");
       uncertainty.textContent = "Le résultat de la connexion ne peut pas être confirmé. Tu peux recommencer explicitement depuis la page de connexion.";
@@ -78,7 +77,6 @@ export function createGoogleReturnView({ google, session, consumeFragment, signa
   }
 
   function showLoading() {
-    busy = true;
     for (const child of view.children) if (child instanceof HTMLElement) disposeComponent(child);
     const title = document.createElement("h1");
     title.textContent = "Connexion avec Google";

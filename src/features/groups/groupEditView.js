@@ -39,9 +39,8 @@ export function createGroupEditView({ service, groupId, apiBaseUrl, signal, navi
   } }); comparison.append(stored, reset);
   const cancel = createActionLink({ label: "Annuler", href: `/groups/${groupId}` }); cancel.classList.add("ui-button", "ui-button--secondary");
   const actions = node("div", "", "cluster"); actions.append(cancel, submit);
-  const verify = createButton({ label: "Vérifier le groupe", variant: "secondary", onClick: () => { void read(true); } }); verify.hidden = true;
   form.append(editor.element, undo, field, comparison, actions);
-  view.append(back, title, feedback, loading, verify, form);
+  view.append(back, title, feedback, loading, form);
   addComponentEventListener(view, name, "input", () => { name.setCustomValidity(""); if (!blocked) clearFeedback(); sync(); });
   addComponentEventListener(view, form, "submit", event => { event.preventDefault(); void save(); });
   addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true });
@@ -61,8 +60,6 @@ export function createGroupEditView({ service, groupId, apiBaseUrl, signal, navi
     undo.hidden = !removing; undo.disabled = busy || blocked;
     submit.disabled = busy || blocked || terminal || !changed() || editor.isPending();
     reset.disabled = busy || blocked;
-    verify.disabled = busy; verify.hidden = !blocked || terminal || busy;
-    verify.textContent = base ? "Vérifier le groupe" : "Réessayer";
     for (const link of [back, cancel]) {
       if (busy) { link.removeAttribute("href"); link.setAttribute("aria-disabled", "true"); link.tabIndex = -1; }
       else { link.href = `/groups/${groupId}`; link.removeAttribute("aria-disabled"); link.removeAttribute("tabindex"); }
@@ -126,7 +123,7 @@ export function createGroupEditView({ service, groupId, apiBaseUrl, signal, navi
       blocked = !(error instanceof ApiError && error.kind === "http" && [400, 409, 413, 415, 422].includes(error.statusCode ?? 0));
       fail(error);
       if (!terminal && nameSaved) feedback.append(node("p", "Le nom est enregistré. La photo n’a pas pu être enregistrée."));
-      if (!terminal && blocked) feedback.append(node("p", "Vérifie les informations enregistrées avant de recommencer. Ton brouillon est conservé."));
+      if (!terminal && blocked) { busy = false; await read(true); }
     } finally { busy = false; sync(); }
   }
 }

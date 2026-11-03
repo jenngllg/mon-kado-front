@@ -40,13 +40,12 @@ async function select(dialog) {
   dialog.querySelector(".profile-photo-crop img")?.dispatchEvent(new Event("load"));await settle();
 }
 describe("group creation with a photo",()=>{
-  it("keeps a failed photo verification blocked and permits a later explicit verification",async()=>{
+  it("stops safely when automatic photo recovery fails without replaying either write",async()=>{
     const f=setup();await select(f.dialog);f.service.uploadImage.mockRejectedValueOnce(new ApiError({kind:"timeout"}));
-    f.submit();await settle();f.service.loadOne.mockRejectedValueOnce(new ApiError({kind:"network"}));
-    f.button("Vérifier le groupe").click();await settle();expect(f.button("Enregistrer la photo").disabled).toBe(true);
+    f.service.loadOne.mockRejectedValueOnce(new ApiError({kind:"network"}));f.submit();await settle();expect(f.button("Enregistrer la photo").disabled).toBe(true);
     expect(f.service.create).toHaveBeenCalledOnce();expect(f.service.uploadImage).toHaveBeenCalledOnce();
-    f.button("Vérifier le groupe").click();await settle();expect(f.button("Enregistrer la photo").disabled).toBe(false);
-    expect(f.service.loadOne).toHaveBeenCalledTimes(2);expect(f.navigate).not.toHaveBeenCalled();
+    f.submit();await settle();expect(f.service.loadOne).toHaveBeenCalledOnce();expect(f.navigate).not.toHaveBeenCalled();
+    expect(f.dialog.textContent).not.toContain("Vérifier le groupe");
   });
   it("keeps the crop local, then creates once and uploads with the returned group version",async()=>{
     const f=setup();await select(f.dialog);
@@ -69,14 +68,13 @@ describe("group creation with a photo",()=>{
   it("verifies an uncertain committed upload without recreating the group or replaying the upload",async()=>{
     const f=setup();await select(f.dialog);f.service.uploadImage.mockRejectedValueOnce(new ApiError({kind:"timeout"}));
     f.service.loadOne.mockResolvedValueOnce({group:photo,etag:'"saved"'});
-    f.submit();await settle();expect(f.dialog.textContent).toContain("Le groupe est créé.");f.submit();await settle();
+    f.submit();await settle();
     expect(f.service.create).toHaveBeenCalledOnce();expect(f.service.uploadImage).toHaveBeenCalledOnce();
-    f.button("Vérifier le groupe").click();await settle();expect(f.service.loadOne).toHaveBeenCalledOnce();expect(f.navigate).toHaveBeenCalledWith(`/groups/${id}`);expect(f.service.uploadImage).toHaveBeenCalledOnce();
+    expect(f.service.loadOne).toHaveBeenCalledOnce();expect(f.navigate).toHaveBeenCalledWith(`/groups/${id}`);expect(f.service.uploadImage).toHaveBeenCalledOnce();
   });
   it("retries only the photo after verification, using the current version and preserved crop",async()=>{
     const f=setup();await select(f.dialog);f.service.uploadImage.mockRejectedValueOnce(new ApiError({kind:"http",statusCode:415}));
-    f.submit();await settle();expect(f.button("Enregistrer la photo").disabled).toBe(true);expect(f.name.disabled).toBe(true);
-    f.button("Vérifier le groupe").click();await settle();expect(f.button("Enregistrer la photo").disabled).toBe(false);
+    f.submit();await settle();expect(f.name.disabled).toBe(true);expect(f.button("Enregistrer la photo").disabled).toBe(false);
     f.submit();await settle();expect(f.service.create).toHaveBeenCalledOnce();expect(f.service.uploadImage).toHaveBeenCalledTimes(2);
     expect(f.service.uploadImage).toHaveBeenLastCalledWith(id,expect.any(Blob),{etag:'"fresh"',signal:expect.any(AbortSignal)});
   });

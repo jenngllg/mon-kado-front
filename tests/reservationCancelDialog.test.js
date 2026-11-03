@@ -21,7 +21,6 @@ describe("reservation cancellation dialog", () => {
     ui.load.mockResolvedValue({ name: "Souhait", lookup: { state: "reserved", reservation: { id: "id", wishId: "wish", quantity, etag: '"fresh"' } } });
     ui.cancel.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
     ui.button("Confirmer l’annulation").click(); await settle();
-    ui.button("Relire ma réservation").click(); await settle();
     const status = /** @type {HTMLElement} */ (ui.dialog.querySelector('[role="status"]'));
     expect(status.textContent).toBe(quantity > 1 ? `Quantité réservée : ${quantity}.` : "");
     expect(status.hidden).toBe(quantity === 1);
@@ -44,14 +43,14 @@ describe("reservation cancellation dialog", () => {
   });
   it.each([412, 428, 503])("requires a fresh decision after %s", async statusCode => {
     const ui = setup(); await settle(); ui.cancel.mockRejectedValue(new ApiError({ kind: "http", statusCode }));
-    ui.button("Confirmer l’annulation").click(); await settle(); expect(ui.button("Confirmer l’annulation").disabled).toBe(true); expect(ui.button("Conserver ma réservation").disabled).toBe(false);
-    expect(document.activeElement?.getAttribute("role")).toBe("alert"); ui.button("Relire ma réservation").click(); await settle();
+    ui.button("Confirmer l’annulation").click(); await settle(); expect(ui.button("Conserver ma réservation").disabled).toBe(false);
+    expect(ui.dialog.textContent).not.toContain("Relire ma réservation");
     expect(ui.cancel).toHaveBeenCalledOnce(); expect(ui.load).toHaveBeenCalledTimes(2); expect(ui.button("Confirmer l’annulation").disabled).toBe(false);
   });
-  it("does not attribute absence after an uncertain result to the attempted DELETE", async () => {
-    const ui = setup(); await settle(); ui.cancel.mockRejectedValue(new ApiError({ kind: "timeout" })); ui.button("Confirmer l’annulation").click(); await settle();
-    expect(ui.dialog.textContent).toContain("ne peut pas être confirmée"); ui.load.mockResolvedValue({ name: "gift", lookup: { state: "absent" } }); ui.button("Relire ma réservation").click(); await settle();
-    expect(ui.dialog.textContent).toContain("Cela ne confirme pas"); expect(ui.button("Confirmer l’annulation").disabled).toBe(true); expect(ui.onClose).not.toHaveBeenCalled();
+  it("continues when a fresh read confirms no reservation remains after an uncertain DELETE", async () => {
+    const ui = setup(); await settle(); ui.cancel.mockRejectedValue(new ApiError({ kind: "timeout" }));
+    ui.load.mockResolvedValue({ name: "gift", lookup: { state: "absent" } }); ui.button("Confirmer l’annulation").click(); await settle();
+    expect(ui.cancel).toHaveBeenCalledOnce(); expect(ui.load).toHaveBeenCalledTimes(2); expect(ui.onClose).toHaveBeenCalledWith(true);
   });
   it("closes with Escape before sending", async () => {
     const ui = setup(); await settle(); ui.dialog.dispatchEvent(new Event("cancel", { cancelable: true })); expect(ui.onClose).toHaveBeenCalledWith(false); expect(ui.cancel).not.toHaveBeenCalled();

@@ -200,16 +200,15 @@ export function createGroupSuggestionsView({ service, ownerName, signal, creatio
   /** @param {unknown} error Failure. */
   function errorText(error) {
     if (error instanceof ApiError && error.errorCode === "GROUP_SUGGESTION_RESERVED") return "Cette idée est réservée : elle ne peut pas être modifiée ou supprimée.";
-    if (error instanceof ApiError && error.statusCode === 412) return "Cette idée a changé. Actualise-la avant de recommencer.";
-    if (error instanceof ApiError && error.statusCode === 409) return "Cette réservation ou cette idée a changé. Actualise la liste avant de recommencer.";
-    return "L’opération n’a pas pu être confirmée. Actualise les idées pour vérifier le résultat.";
+    if (error instanceof ApiError && error.statusCode === 412) return "Cette idée a changé. ";
+    if (error instanceof ApiError && error.statusCode === 409) return "Cette réservation ou cette idée a changé. ";
+    return "L’opération n’a pas pu être confirmée. ";
   }
-  /** @param {{modal:HTMLDialogElement,close:()=>void}} shell Dialog. @param {HTMLElement} host Feedback. @param {unknown} error Failure. */
-  function failed(shell, host, error, prefix = "") {
+  /** @param {HTMLElement} host Feedback. @param {unknown} error Failure. */
+  function failed( host, error, prefix = "") {
     if (disposed || isAbortError(error)) return;
     host.textContent = prefix + errorText(error);
-    const verify = createButton({label:"Actualiser les idées",variant:"secondary",onClick:() => { shell.close(); if (detailId) void readDetail(); else void refresh(); }});
-    host.append(document.createTextNode(" "),verify);
+    if (detailId) void readDetail(); else if (!creationOnly) void refresh();
   }
   function completed() { closeDialog(); if (detailId) { void readDetail(); return; } add.focus(); if (creationOnly) feedback.textContent = "Idée proposée dans les listes sélectionnées."; else void refresh(); }
 
@@ -321,10 +320,10 @@ export function createGroupSuggestionsView({ service, ownerName, signal, creatio
             if (disposed || !shell.modal.isConnected) return;
             if (result.complete && result.outcomes.every(outcome => outcome.state === "saved")) { completed(); return; }
             saving = false; shell.setBusy(false); cancel.disabled = false;
-            status.textContent = result.uncertain ? "Un ajout ne peut pas être confirmé. Vérifie la liste concernée avant tout nouvel ajout." : "Résultat des ajouts :";
+            status.textContent = result.uncertain ? "Un ajout ne peut pas être confirmé. " : "Résultat des ajouts :";
             for (const outcome of result.outcomes) {
               const line = document.createElement("p");
-              line.textContent = `${outcome.destination.name} — ${outcome.destination.groupName} : ${{saved:"idée ajoutée",imageUnconfirmed:"idée ajoutée, image à vérifier",refused:"ajout refusé",uncertain:"ajout à vérifier",notSent:"ajout non envoyé"}[outcome.state]}. `;
+              line.textContent = `${outcome.destination.name} — ${outcome.destination.groupName} : ${{saved:"idée ajoutée",imageUnconfirmed:"idée ajoutée, image non confirmée",refused:"ajout refusé",uncertain:"ajout non confirmé",notSent:"ajout non envoyé"}[outcome.state]}. `;
               const link = document.createElement("a"); link.href = outcome.destination.href; link.textContent = "Voir la liste"; line.append(link); status.append(line);
             }
             submit.disabled = result.uncertain || !result.retryable;
@@ -340,7 +339,7 @@ export function createGroupSuggestionsView({ service, ownerName, signal, creatio
         } catch (error) {
           saving=false; shell.setBusy(false); cancel.disabled=false; shared.syncQuantityControls();
           if (error instanceof WishImageValidationError) { status.textContent=error.message; submit.disabled=choose.disabled=file.disabled=false; return; }
-          failed(shell,status,error,saved ? "L’idée a été enregistrée ; l’image n’a pas été confirmée. " : "");
+          failed(status,error,saved ? "L’idée a été enregistrée ; l’image n’a pas été confirmée. " : "");
         }
       })();
     });
@@ -354,7 +353,7 @@ export function createGroupSuggestionsView({ service, ownerName, signal, creatio
     const cancel = createButton({label:"Annuler",variant:"secondary",onClick:shell.close});
     const confirm = createButton({label:"Supprimer",onClick:() => {
       cancel.disabled=confirm.disabled=true; shell.setBusy(true);
-      void service.remove(item.id,item.entityTag,lifetime.signal).then(() => { if (detailId) { closeDialog(); navigate(listHref); } else completed(); }).catch(error => { shell.setBusy(false); cancel.disabled=false; failed(shell,status,error); });
+      void service.remove(item.id,item.entityTag,lifetime.signal).then(() => { if (detailId) { closeDialog(); navigate(listHref); } else completed(); }).catch(error => { shell.setBusy(false); cancel.disabled=false; failed(status,error); });
     }});
     const actions = document.createElement("div"); actions.className="cluster"; actions.append(cancel,confirm); shell.modal.append(message,status,actions);
   }
@@ -386,7 +385,7 @@ export function createGroupSuggestionsView({ service, ownerName, signal, creatio
             const keep=createButton({label:"Conserver ma réservation",variant:"secondary",onClick:() => { shell.close(); openReservation(fresh); }});
             const cancel=createButton({label:"Confirmer l’annulation",onClick:() => {
               keep.disabled=cancel.disabled=true; shell.setBusy(true);
-              void service.cancel(item.id,reservation.etag,lifetime.signal).then(completed).catch(error => {shell.setBusy(false);keep.disabled=false;failed(shell,status,error);});
+              void service.cancel(item.id,reservation.etag,lifetime.signal).then(completed).catch(error => {shell.setBusy(false);keep.disabled=false;failed(status,error);});
             }});
             const row=document.createElement("div"); row.className="cluster"; row.append(keep,cancel); content.append(question,status,row);
           }}));
@@ -397,9 +396,9 @@ export function createGroupSuggestionsView({ service, ownerName, signal, creatio
           if (!Number.isInteger(count) || count < 1 || count > available) { setFormFieldValidation(field,`Choisis une quantité entre 1 et ${available}.`); return; }
           for (const button of actions.querySelectorAll("button")) button.disabled=true;
           shell.setBusy(true);
-          void service.reserve(item.id,count,reservation?.etag ?? null,lifetime.signal).then(completed).catch(error => {shell.setBusy(false);close.disabled=false;failed(shell,status,error);});
+          void service.reserve(item.id,count,reservation?.etag ?? null,lifetime.signal).then(completed).catch(error => {shell.setBusy(false);close.disabled=false;failed(status,error);});
         });
-      } catch (error) { shell.setBusy(false); content.replaceChildren(); failed(shell,content,error); }
+      } catch (error) { shell.setBusy(false); content.replaceChildren(); failed(content,error); }
     })();
   }
 }

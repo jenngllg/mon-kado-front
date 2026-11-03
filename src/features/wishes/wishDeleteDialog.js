@@ -30,10 +30,9 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
   const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: () => { if (!deleting) dialog.close(); } });
   const confirm = createButton({ label: imageOnly ? "Supprimer l’image" : "Supprimer", variant: "danger", onClick: () => { void deleteWish(); } });
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } });
-  const reread = createButton({ label: "Relire le souhait", variant: "secondary", onClick: () => { void read(true); } });
   const back = createBackLink({ label: "Retour à la liste", href: isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists, contextual: false }); back.hidden = true;
   const actions = element("div", ""); actions.className = "cluster wishlist-form__actions"; actions.append(cancel, confirm);
-  content.append(back, title, warning, feedback, status, retry, reread, actions); dialog.append(content);
+  content.append(back, title, warning, feedback, status, retry, actions); dialog.append(content);
   addComponentEventListener(dialog, dialog, "cancel", event => { if (deleting) event.preventDefault(); });
   addComponentEventListener(dialog, dialog, "close", () => { disposeComponent(dialog); dialog.remove(); });
   registerComponentCleanup(dialog, () => {
@@ -67,7 +66,6 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
     cancel.disabled = disposed || deleting;
     cancel.textContent = terminal || completed ? "Fermer" : "Annuler";
     retry.hidden = disposed || busy || terminal || completed || current !== null;
-    reread.hidden = disposed || terminal || completed || !blocked || current === null; reread.disabled = busy;
     dialog.setAttribute("aria-busy", String(busy));
   }
   /** @param {WishUnavailable} state Safe status only; never a new editor version. */
@@ -113,7 +111,10 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
     if (dialog.open) title.focus();
     try { await remove(wishlistId, wishId, { etag: current.etag, signal: lifetime.signal }); }
     catch (error) {
-      if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) { failure(error, true, false); focusError(); }
+      if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) {
+        failure(error, true, false); focusError();
+        if (blocked && !terminal && !(error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED")) { busy = false; deleting = false; await read(true); }
+      }
       return;
     } finally { if (!disposed) { busy = false; deleting = false; setButtonLoading(confirm, false); status.textContent = ""; sync(); } }
     if (disposed || lifetime.signal.aborted) return;
@@ -122,7 +123,7 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
     try { await onDeleted(); }
     catch { if (!disposed) show({ title: successTitle, message: imageOnly ? "La suppression est confirmée. Reviens au souhait pour actualiser ses informations." : "Ton souhait est supprimé, mais le retour à la liste a échoué. Utilise le lien ci-dessous.", variant: "success" }).focus(); }
   }
-  function imageMissing() { blocked = true; onRevalidationRequired(); show({ title: "Image indisponible", message: "Relis le souhait pour vérifier son image actuelle." }); }
+  function imageMissing() { blocked = true; onRevalidationRequired(); show({ title: "Image indisponible", message: "Les informations à jour sont temporairement indisponibles." }); }
   /** @param {unknown} error Failure. @param {boolean} mutation A DELETE may have reached the server. @param {boolean} parent Reading the list. */
   function failure(error, mutation, parent) {
     if (imageOnly && error instanceof ApiError && error.errorCode === "WISH_IMAGE_NOT_FOUND") { imageMissing(); return; }
@@ -130,14 +131,14 @@ export function createWishDeleteDialog({ wishlistId, wishId, loadWishlist, loadO
     if (error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED") { unavailable("suspended"); return; }
     if (error instanceof ApiError && (error.statusCode === 412 || error.statusCode === 428 || error.validationErrors.some(item => item.propertyName === "ifMatch"))) {
       blocked = true; onRevalidationRequired(); show({ title: "Actualisation nécessaire", message: error.statusCode === 412 ?
-        "Ce souhait a été modifié ailleurs. Relis ses informations avant de confirmer à nouveau sa suppression." : "Relis le souhait avant de confirmer à nouveau sa suppression." }); return;
+        "Ce souhait a été modifié ailleurs. " : "Les informations à jour sont temporairement indisponibles." }); return;
     }
     const translated = toUserFacingError(error); const detail = [];
     const correlationId = error instanceof ApiError ? error.correlationId : translated.correlationId;
     if (correlationId) detail.push(`Référence : ${correlationId}`);
     if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) detail.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
     if (mutation && (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode !== null && error.statusCode >= 500))) {
-      blocked = true; onRevalidationRequired(); detail.push(imageOnly ? "La modification de l’image ne peut pas être confirmée. Relis le souhait avant de réessayer." : "La suppression de ton souhait ne peut pas être confirmée. Relis le souhait avant de réessayer.");
+      blocked = true; onRevalidationRequired(); detail.push(imageOnly ? "La modification de l’image ne peut pas être confirmée. " : "La suppression de ton souhait ne peut pas être confirmée. ");
     }
     show({ title: translated.title, message: translated.message, detail: detail.join(" ") || null });
   }

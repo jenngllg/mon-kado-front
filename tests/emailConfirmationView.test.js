@@ -112,10 +112,9 @@ describe("email confirmation view", () => {
     // Act / Assert
     expect(view.textContent).toContain(text); expect(view.textContent).not.toMatch(/secret-fixture|private technical/);
     expect(confirm).toHaveBeenCalledOnce();
-    expect(view.querySelectorAll(".cluster > button")).toHaveLength(2);
-    click(view, "Réessayer"); await settle();
-    expect(confirm).toHaveBeenCalledTimes(2);
-    expect(view.querySelector("h1")?.textContent).toBe("Adresse e-mail confirmée");
+    expect(view.querySelectorAll(".cluster > button")).toHaveLength(1);
+    expect([...view.querySelectorAll("button")].some(button=>button.textContent==="Réessayer")).toBe(false);
+    expect(confirm).toHaveBeenCalledOnce();
   });
   it("cleans retry handlers when abandoning a recoverable link", async () => {
     // Arrange

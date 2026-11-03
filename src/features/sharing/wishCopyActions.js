@@ -138,8 +138,8 @@ export function createWishCopyActions({ loadLists, copy, signal, onUnavailable, 
         }
         feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" }));
         if (uncertain) {
-          const warning = document.createElement("p"); warning.textContent = `L’ajout ne peut pas être confirmé dans « ${current.name} ». Consulte ta liste avant de réessayer.`;
-          feedback.append(warning, createActionLink({ label: "Consulter ma liste", href: `/lists/${current.id}` }));
+          const warning = document.createElement("p"); warning.textContent = `L’ajout n’a pas pu être confirmé dans « ${current.name} ».`;
+          feedback.append(warning);
         } else {
           const failure = document.createElement("p"); failure.textContent = `Le souhait n’a pas été ajouté à « ${current.name} ».`; feedback.append(failure);
         }

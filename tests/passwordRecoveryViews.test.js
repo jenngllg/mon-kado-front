@@ -171,7 +171,7 @@ describe("password reset view", () => {
     await send(f.view);
     // Assert
     expect(f.view.querySelector("h1")?.textContent).toBe("Mot de passe réinitialisé");
-    expect(f.view.textContent).toContain("synchronisation à vérifier"); expect(f.view.querySelector("form")).toBeNull();
+    expect(f.view.textContent).toContain("synchronisation indisponible"); expect(f.view.querySelector("form")).toBeNull();
     expect(f.view.textContent).toContain("sync-reference"); expect(f.resetPassword).toHaveBeenCalledOnce();
   });
   it("aborts and scrubs an unmounted view without displaying a late result", async () => {

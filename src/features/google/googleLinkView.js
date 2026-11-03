@@ -21,6 +21,7 @@ export function createGoogleLinkView({ continuation, session, signal, onDestinat
   let disposed = false;
   let busy = false;
   let accepted = false;
+  let identityRecoveryAttempted = false;
   let invalidated = false;
   let dirty = false;
   let checked = false;
@@ -175,7 +176,7 @@ export function createGoogleLinkView({ continuation, session, signal, onDestinat
       showFeedback({ ...state.issue, detail: details.join(" ") || null });
     }
     feedback.prepend(acceptedMessage);
-    feedback.append(createButton({ label: "Réessayer la vérification de session", variant: "secondary", onClick: () => { void retryIdentity(); } }));
+    if (!identityRecoveryAttempted) { identityRecoveryAttempted = true; queueMicrotask(() => { void retryIdentity(); }); }
   }
   async function retryIdentity() {
     if (busy || disposed || invalidated || !accepted) return;

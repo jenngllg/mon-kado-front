@@ -57,9 +57,9 @@ export function createEmailConfirmationView({ confirm, resend, consumeFragment, 
       const actions = document.createElement("div");
       actions.className = "cluster";
       actions.append(
-        createButton({ label: "Réessayer", onClick: () => { void confirmAddress(); } }),
         createButton({ label: "Demander un nouveau lien", variant: "secondary", onClick: () => showResend() }),
       );
+      credentials = null;
       replaceConfirmationContent(view, confirmationText("h1", "Confirmer ton adresse e-mail"),
         createConfirmationError(error), actions, createConfirmationLinks());
     } finally { pending = false; }

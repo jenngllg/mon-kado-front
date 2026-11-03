@@ -111,7 +111,7 @@ export function createReportedWishlistsView({ load, loadReports, signal }) {
       if (error instanceof ApiError && error.statusCode === 404) {
         closeReports(); const row = region.parentElement; if (row) { disposeComponent(row); row.remove(); }
         const alert = createAlert({ title: "Liste introuvable", message: "Cette liste ne peut plus être consultée.", variant: "error" }); alert.tabIndex = -1;
-        results.prepend(alert, createButton({ label: "Recharger les résultats", variant: "secondary", onClick: () => { void read(true); } })); alert.focus();
+        await read(true);
       } else { const alert = errorAlert(error); region.append(alert, createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void readReports(true); } })); alert.focus(); }
     } finally { if (!disposed && region === expanded && reportReading === operation) region.setAttribute("aria-busy", "false"); }
   }

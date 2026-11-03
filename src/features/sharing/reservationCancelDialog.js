@@ -17,13 +17,12 @@ export function createReservationCancelDialog({ load, cancel, onInvalidate, onUn
   const feedback = document.createElement("div");
   const keep = createButton({ label: "Conserver ma réservation", variant: "secondary", onClick: () => { if (!mutating) finish(false); } });
   const confirm = createButton({ label: "Confirmer l’annulation", variant: "danger", onClick: () => { void execute(true); } });
-  const reread = createButton({ label: "Relire ma réservation", variant: "secondary", onClick: () => { void execute(false); } });
   const actions = document.createElement("div"); actions.className = "cluster wishlist-form__actions"; actions.append(keep, confirm);
-  dialog.append(title, status, feedback, reread, actions);
+  dialog.append(title, status, feedback, actions);
   const lifetime = new AbortController();
-  let disposed = false, busy = false, mutating = false, blocked = true, completed = false, version = "";
+  let disposed = false, busy = false, mutating = false, blocked = true, completed = false, reconciling = false, version = "";
   function clear() { disposeComponent(feedback); feedback.replaceChildren(); }
-  function sync() { confirm.disabled = disposed || busy || blocked || completed; keep.disabled = mutating; reread.disabled = busy; reread.hidden = !blocked || completed; status.hidden = !status.textContent; dialog.setAttribute("aria-busy", String(busy)); }
+  function sync() { confirm.disabled = disposed || busy || blocked || completed; keep.disabled = mutating; status.hidden = !status.textContent; dialog.setAttribute("aria-busy", String(busy)); }
   /** @param {boolean} success Confirmed cancellation only. */
   function finish(success) { if (disposed) return; disposeComponent(dialog); onClose(success); }
   addComponentEventListener(dialog, dialog, "cancel", event => { event.preventDefault(); if (!mutating) finish(false); });
@@ -46,9 +45,10 @@ export function createReservationCancelDialog({ load, cancel, onInvalidate, onUn
         completed = true; finish(true); return;
       }
       const current = await load(lifetime.signal); if (disposed) return;
+      if (reconciling && current.lookup.state === "absent") { completed = true; finish(true); return; }
       if (current.lookup.state !== "reserved") {
         version = ""; title.textContent = "Réservation indisponible";
-        status.textContent = "Aucune réservation n’est reconnue pour toi sur ce souhait. Cela ne confirme pas le résultat d’une tentative précédente.";
+        status.textContent = "Aucune réservation n’est disponible pour toi sur ce souhait.";
         onInvalidate(); title.focus(); return;
       }
       version = current.lookup.reservation.etag; blocked = false;
@@ -63,11 +63,10 @@ export function createReservationCancelDialog({ load, cancel, onInvalidate, onUn
       if (error instanceof ApiError && error.correlationId) details.push(`Référence : ${error.correlationId}`);
       if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) details.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
       if (mutation) {
-        if (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode ?? 500) >= 500) message = "L’annulation de ta réservation ne peut pas être confirmée. Relis ta réservation avant de réessayer.";
-        else if (error.statusCode === 404) message = "Réservation indisponible. Relis ta réservation avant de continuer.";
-        else message = "Relis ta réservation avant de confirmer à nouveau son annulation.";
+        message = "L’annulation de ta réservation n’a pas pu être confirmée.";
       }
       const alert = createAlert({ ...translated, message, detail: details.join(" ") || null, variant: "error" }); alert.tabIndex = -1; feedback.append(alert); alert.focus();
+      if (mutation) { busy = false; mutating = false; reconciling = true; await execute(false); }
     } finally { busy = false; mutating = false; if (!disposed) sync(); }
   }
 }

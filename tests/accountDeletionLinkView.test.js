@@ -166,28 +166,14 @@ describe("account deletion browser flow", () => {
     expect(view.textContent).not.toContain("Compte supprimé"); expect(view.textContent).not.toContain("private-canary");
   });
   it("reports a failed explicit session verification without exposing its cause", async () => {
-    // Arrange
-    const f = accountDeletionFixture(); disposals.push(() => f.session.dispose()); f.state.refreshStatus = 401; await f.session.start();
-    const restore = vi.fn(async () => { throw new Error("private-canary"); });
-    const view = createAccountDeletionLinkView({ session: { ...f.session, restore }, service: f.service, consumeFragment: () => `#token=${DeletionToken}` }); document.body.append(view);
-    // Act
-    button(view, "J’ai terminé la connexion : vérifier ma session").click();
-    await vi.waitFor(() => expect(view.querySelector('[role="alert"].ui-alert--error')).not.toBeNull());
-    // Assert
-    expect(view.textContent).not.toContain("private-canary"); expect(f.posts()).toHaveLength(0); expect(restore).toHaveBeenCalledOnce();
+    const f=accountDeletionFixture();disposals.push(()=>f.session.dispose());f.state.refreshStatus=401;await f.session.start();const restore=vi.fn(async()=>{throw new Error("private-canary");});
+    const view=createAccountDeletionLinkView({session:{...f.session,restore},service:f.service,consumeFragment:()=>`#token=${DeletionToken}`});document.body.append(view);
+    expect(view.textContent).not.toContain("vérifier ma session");expect(view.textContent).not.toContain("private-canary");expect(f.posts()).toHaveLength(0);expect(restore).not.toHaveBeenCalled();
   });
   it("verifies an explicit sign-in from another tab without sending the deletion proof", async () => {
-    // Arrange
-    const { root, state, posts } = await mount(true);
-    const link = /** @type {HTMLAnchorElement} */ (root.querySelector('a[target="_blank"]'));
-    expect(link.rel).toBe("noopener noreferrer");
-    state.refreshStatus = 200;
-    // Act
-    button(root, "J’ai terminé la connexion : vérifier ma session").click();
-    await vi.waitFor(() => expect(root.textContent).toContain("Suppression définitive"));
-    // Assert
-    expect(posts()).toHaveLength(0); expect(root.innerHTML).not.toContain(DeletionToken);
-    expect(button(root, "Supprimer définitivement mon compte").disabled).toBe(true);
+    const {root,state,posts,hub}=await mount(true);const link=/** @type {HTMLAnchorElement} */(root.querySelector('a[target="_blank"]'));expect(link.rel).toBe("noopener noreferrer");state.refreshStatus=200;
+    const other=accountDeletionFixture(hub);disposals.push(()=>other.session.dispose());await other.session.establishSession(async()=>({data:other.state.token,status:200,metadata:{etag:null,location:null,correlationId:"fixture",retryAfterSeconds:null}}));
+    await vi.waitFor(()=>expect(root.textContent).toContain("Suppression définitive"));expect(posts()).toHaveLength(0);expect(root.innerHTML).not.toContain(DeletionToken);expect(button(root,"Supprimer définitivement mon compte").disabled).toBe(true);
   });
   it("preserves the current member confirmation during an identity refresh", async () => {
     // Arrange
@@ -207,7 +193,7 @@ describe("account deletion browser flow", () => {
     // Act
     accept(root); await vi.waitFor(() => expect(root.textContent).toContain("Compte supprimé"));
     // Assert
-    expect(root.textContent).toContain("Synchronisation à vérifier"); expect(root.textContent).not.toContain("private-canary");
+    expect(root.textContent).toContain("Synchronisation indisponible"); expect(root.textContent).not.toContain("private-canary");
     expect(posts()).toHaveLength(1); expect(root.querySelector('input[type="checkbox"]')).toBeNull();
   });
   it("consumes the fragment before HTTP and keeps the authenticated confirmation inert until explicit consent", async () => {
@@ -259,20 +245,17 @@ describe("account deletion browser flow", () => {
     // Assert
     expect(root.textContent).toContain("Ce lien est invalide"); expect(posts()).toHaveLength(0);
   });
+  it.each([false,true])("keeps an aborted confirmation inert without reopening a detached page: %s",async detached=>{
+    const f=accountDeletionFixture();disposals.push(()=>f.session.dispose());await f.session.start();const gate=barrier();
+    const confirm=vi.fn(async()=>{await gate.promise;throw createAbortError();});
+    const view=createAccountDeletionLinkView({session:f.session,service:{...f.service,confirm},consumeFragment:()=>`#token=${DeletionToken}`});document.body.append(view);
+    accept(view);if(detached)view.remove();gate.resolve();await vi.waitFor(()=>expect(view.getAttribute("aria-busy")).toBe("false"));
+    expect(confirm).toHaveBeenCalledOnce();expect(view.querySelector("dialog")?.open).toBe(!detached);expect(button(view,"Supprimer définitivement mon compte").disabled).toBe(true);disposeComponent(view);
+  });
   it("does not replay a failed confirmation and requires renewed explicit consent", async () => {
-    // Arrange
-    const { root, operation, posts } = await mount(); operation.status = 503;
-    operation.body = { statusCode: 503, title: "private", message: DeletionToken, errorCode: null, validationErrors: null };
-    // Act
-    accept(root); await vi.waitFor(() => expect(root.textContent).toContain("Aucune confirmation n’est rejouée automatiquement"));
-    // Assert
-    expect(posts()).toHaveLength(1); expect(root.textContent).not.toContain(DeletionToken);
-    expect(button(root, "Supprimer définitivement mon compte").disabled).toBe(true);
-    // Act
-    operation.status = 204; operation.body = null; accept(root);
-    await vi.waitFor(() => expect(root.textContent).toContain("Compte supprimé"));
-    // Assert
-    expect(posts()).toHaveLength(2);
+    const {root,operation,posts}=await mount();operation.status=503;operation.body={statusCode:503,title:"private",message:DeletionToken,errorCode:null,validationErrors:null};
+    accept(root);await vi.waitFor(()=>expect(root.textContent).toContain("La suppression du compte n’a pas pu être confirmée."));
+    expect(posts()).toHaveLength(1);expect(root.textContent).not.toContain(DeletionToken);expect(root.querySelector('input[type="checkbox"]')).toBeNull();expect(root.textContent).not.toContain("vérifie l’état du compte");
   });
   it("erases a proof rejected by the backend and offers a fresh request", async () => {
     // Arrange

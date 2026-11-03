@@ -181,14 +181,13 @@ function createFrame(title, signal) {
     if (busy || blocked || disposed || combined.aborted) return;
     busy = true; controls(true); clear(feedback);
     try { await mutation(); if (combined.aborted) return; busy = false; await read(); if (!disposed) heading.focus(); }
-    catch (error) { if (!isAbortError(error) && !combined.aborted) { blocked = true; show(error, true); } }
+    catch (error) { if (!isAbortError(error) && !combined.aborted) { blocked = true; show(error, true); busy = false; await read(); } }
     finally { busy = false; if (!disposed) controls(false); }
   }
   /** @param {unknown} error @param {boolean} [mutation] */
   function show(error, mutation = false) {
     clear(feedback); feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" }));
-    if (mutation) feedback.append(node("p", "Vérifie l’état du groupe avant de recommencer."));
-    feedback.append(createButton({ label: mutation ? "Vérifier le groupe" : "Réessayer", variant: "secondary", onClick: () => { void read(); } }));
+    if (!mutation) feedback.append(createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(); } }));
   }
   /** @param {boolean} loading */
   function controls(loading) {
@@ -230,7 +229,7 @@ function openDialog(frame, trigger, { title, label, description, name, danger = 
       if (frame.signal.aborted || isAbortError(error)) return;
       feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" }));
       blocked = !(error instanceof ApiError && error.kind === "http" && error.statusCode !== null && [400,403,409].includes(error.statusCode));
-      if (blocked) feedback.append(node("p", "Ferme cette fenêtre pour vérifier l’état du groupe avant de recommencer."));
+      if (blocked) await frame.read();
     } finally { pending = false; cancel.disabled = false; submit.disabled = blocked; input.disabled = false; }
   }
   addComponentEventListener(dialog, input, "input", () => input.setCustomValidity(""));

@@ -47,9 +47,9 @@ describe("administrative member deletion view",()=>{
     const f=fixture({erase:http(status)});await open(f);confirm(f);button(f.view,"Supprimer définitivement").click();await vi.waitFor(()=>expect(f.view.textContent).toContain("Suppression refusée"));expect(button(f.view,"Supprimer définitivement").disabled).toBe(true);button(f.view,"Annuler").click();expect(f.view.querySelector("dialog")).toBeNull();
   });
   it.each([true,false])("checks an uncertain result before allowing another write (deleted: %s)",async erased=>{
-    const f=fixture({erase:new Error("lost response")});await open(f);confirm(f);button(f.view,"Supprimer définitivement").click();await vi.waitFor(()=>expect(f.view.textContent).toContain("Résultat incertain"));expect(button(f.view,"Supprimer définitivement").disabled).toBe(true);
-    f.state.erased=erased;button(f.view,"Vérifier la suppression").click();await vi.waitFor(()=>expect(f.view.textContent).toContain(erased?"Suppression vérifiée":"Le compte existe encore"));
-    expect(f.request.mock.calls.filter(([,options])=>options?.method==="POST")).toHaveLength(1);
+    const f=fixture({erase:new Error("lost response")});await open(f);confirm(f);f.state.erased=erased;button(f.view,"Supprimer définitivement").click();
+    await vi.waitFor(()=>expect(f.view.textContent).toContain(erased?"Suppression vérifiée":"Le compte existe encore"));
+    expect(f.view.textContent).not.toContain("Vérifier la suppression"); expect(f.request.mock.calls.filter(([,options])=>options?.method==="POST")).toHaveLength(1);
     if(!erased){expect(button(f.view,"Supprimer définitivement").disabled).toBe(false);button(f.view,"Annuler").click();}
   });
   it.each([401,404,503])("disables deletion when the fresh identity check returns %s",async status=>{

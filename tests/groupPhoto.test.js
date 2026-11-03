@@ -45,6 +45,24 @@ async function select(parent) {
 }
 
 describe("private group photos", () => {
+  it.each([false,true])("finishes an uncertain photo command when the current photo confirms its result, removal=%s",async remove=>{
+    const ui=setup();if(!remove)await select(ui.parent);
+    ui.request.mockRejectedValueOnce(new ApiError({kind:"timeout"})).mockResolvedValueOnce(response({...group,profileImageUrl:remove?null:url.replace("grant_1-2","fresh")}));
+    ui.button(remove?"Supprimer la photo":"Enregistrer").click();await settle();
+    expect(ui.request).toHaveBeenCalledTimes(2);expect(ui.onSaved).toHaveBeenCalledTimes(remove?1:0);expect(ui.parent.querySelector("dialog")===null).toBe(remove);
+  });
+  it.each([new ApiError({kind:"network"}),new DOMException("Cancelled","AbortError")])("keeps a failed photo read local without replaying a write: %s",async error=>{
+    const ui=setup();await select(ui.parent);ui.request.mockRejectedValueOnce(new ApiError({kind:"timeout"}));vi.spyOn(ui.service,"loadOne").mockRejectedValue(error);
+    ui.button("Enregistrer").click();await settle();expect(ui.button("Enregistrer").disabled).toBe(true);expect(ui.onSaved).not.toHaveBeenCalled();expect(ui.request).toHaveBeenCalledOnce();
+  });
+  it("rejects a different group in an automatic photo read",async()=>{
+    const ui=setup();await select(ui.parent);ui.request.mockRejectedValueOnce(new ApiError({kind:"timeout"}));vi.spyOn(ui.service,"loadOne").mockResolvedValue({group:{...group,id:"019c52dd-56c1-7cc6-8a95-243f3a032e05"},etag:'"fresh"'});
+    ui.button("Enregistrer").click();await settle();expect(ui.button("Enregistrer").disabled).toBe(true);expect(ui.onSaved).not.toHaveBeenCalled();
+  });
+  it("ignores an automatic photo read that completes after leaving the group",async()=>{
+    const ui=setup();await select(ui.parent);const gate=barrier();ui.request.mockRejectedValueOnce(new ApiError({kind:"timeout"}));vi.spyOn(ui.service,"loadOne").mockImplementation(async()=>{await gate.promise;return {group,etag:'"fresh"'};});
+    ui.button("Enregistrer").click();await settle();ui.controller.abort();gate.resolve();await settle();expect(ui.onSaved).not.toHaveBeenCalled();expect(ui.parent.querySelector("dialog")).toBeNull();
+  });
   it("renders a decorative avatar and rejects foreign origins, parents, credentials and malformed grants", () => {
     expect(readGroupPhoto(url, id, base)).toEqual({ imageUrl: url, imageUnavailable: false });
     expect(readGroupPhoto(null, id, base).imageUnavailable).toBe(false);
@@ -76,10 +94,10 @@ describe("private group photos", () => {
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "http", statusCode: 412 })])("blocks replay after uncertain or conflicting photo writes %#", async error => {
     const ui = setup(); await select(ui.parent); ui.request.mockRejectedValueOnce(error);
-    ui.button("Enregistrer").click(); await settle(); ui.button("Enregistrer").click();
-    expect(ui.request).toHaveBeenCalledOnce(); expect(ui.button("Enregistrer").disabled).toBe(true);
+    ui.button("Enregistrer").click(); await settle();
+    expect(ui.request).toHaveBeenCalledTimes(2); expect(ui.button("Enregistrer").disabled).toBe(false);
     expect(ui.parent.querySelector(".profile-photo-crop")).not.toBeNull();
-    ui.button("Fermer").click(); expect(ui.onSaved).toHaveBeenCalledOnce();
+    ui.button("Fermer").click(); expect(ui.onSaved).not.toHaveBeenCalled();
   });
   it("retains a rejected photo draft for correction without pretending success", async () => {
     const ui = setup(); await select(ui.parent); ui.request.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 415 }));

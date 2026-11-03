@@ -131,14 +131,10 @@ for (const failure of ["conflict", "uncertain", "duplicate"]) {
     await expect(panel.getByRole("button", { name: "Réserver ce souhait", exact: true })).toHaveAccessibleDescription("Mode surprise : quelqu’un a peut-être déjà réservé ce souhait.");
     if (failure === "duplicate") api.owner.reserved = 1;
     await panel.getByRole("button", { name: "Réserver ce souhait", exact: true }).click();
-    await expect(panel.getByRole("alert")).toBeVisible();
-    await expect(panel.getByRole("button", { name: "Réserver ce souhait", exact: true })).toBeDisabled();
-    expect(api.owner.writes).toBe(1); expect(api.owner.reads).toBe(1);
-    if (failure === "duplicate") {
-      await panel.getByRole("button", { name: "Vérifier ma réservation" }).click();
-      await expect(panel).toContainText("Tu as réservé 1 exemplaire");
-      expect(api.owner.writes).toBe(1);
-    }
+    await expect(panel.getByRole("button", {name:"Vérifier ma réservation"})).toHaveCount(0);
+    if (failure === "duplicate") await expect(panel).toContainText("Tu as réservé 1 exemplaire");
+    else await expect(panel.getByRole("button",{name:"Réserver ce souhait",exact:true})).toBeEnabled();
+    expect(api.owner.writes).toBe(1); expect(api.owner.reads).toBe(failure === "duplicate" ? 3 : 2);
     expect(api.unexpected).toEqual([]);
   });
 }

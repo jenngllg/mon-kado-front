@@ -121,9 +121,8 @@ test("pointer drop, pointer cancellation and explicit conflict recovery", async 
   await page.keyboard.press("Escape"); await page.mouse.up(); await expect(editor.locator("h3").first()).toHaveText(api.names[2]);
   api.reorder.conflict = true; await editor.getByRole("button", { name: "Enregistrer", exact: true }).click();
   // Assert
-  await expect(editor.getByRole("alert")).toContainText("Actualisation nécessaire"); expect(api.reorder.writes).toBe(1);
-  await expect(editor.getByRole("button", { name: "Enregistrer", exact: true })).toBeDisabled();
-  expect(api.reorder.images).toBe(images); await editor.getByRole("button", { name: "Relire les souhaits", exact: true }).click();
+  await expect(editor.getByRole("button",{name:"Relire les souhaits",exact:true})).toHaveCount(0);
+  expect(api.reorder.images).toBe(images);
   await expect(editor.getByText("Ton ordre proposé", { exact: true })).toBeVisible(); expect(api.reorder.writes).toBe(1);
   await editor.getByRole("button", { name: "Annuler", exact: true }).click(); await expect(editor).toHaveCount(0);
   expect(api.unexpected).toEqual([]);

@@ -154,7 +154,7 @@ describe("create wishlist form", () => {
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("presents uncertain results honestly without retry", async error => {
     const ui = setup(); ui.create.mockRejectedValue(error); ui.fill(); ui.send(); await settle();
-    expect(ui.view.textContent).toContain("La création de ta liste ne peut pas être confirmée. Consulte Mes listes avant de réessayer.");
+    expect(ui.view.textContent).toContain("La création de ta liste n’a pas pu être confirmée.");
     expect(document.activeElement).toBe(ui.view.querySelector('[role="alert"]')); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields[3].value).toContain("multiligne");
   });
   it.each([401, 403, 429])("presents HTTP %s with correlation and rate-limit delay without retry", async statusCode => {

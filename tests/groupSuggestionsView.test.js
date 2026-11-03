@@ -216,7 +216,7 @@ describe("private group ideas", () => {
     expect(ui.service.create).toHaveBeenCalledOnce(); expect(ui.service.uploadImage).toHaveBeenCalledOnce();
     expect(button(modal,"Proposer").disabled).toBe(true);
     expect(modal.textContent).toContain("L’idée a été enregistrée ; l’image n’a pas été confirmée");
-    button(modal,"Actualiser les idées").click(); await settle();
+    expect(modal.textContent).not.toContain("Actualiser les idées"); await settle();
     expect(ui.service.create).toHaveBeenCalledOnce(); expect(ui.service.list).toHaveBeenCalledTimes(2);
   });
   it("reads a fresh idea before reserving and sends the chosen quantity", async () => {
@@ -294,7 +294,7 @@ describe("private group ideas", () => {
     button(ui.view,"Supprimer").click(); const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     button(modal,"Supprimer").click(); await settle();
     expect(modal.textContent).toContain("Cette idée a changé"); expect(button(modal,"Supprimer").disabled).toBe(true);
-    button(modal,"Actualiser les idées").click(); await settle(); expect(ui.service.remove).toHaveBeenCalledOnce();
+    expect(modal.textContent).not.toContain("Actualiser les idées"); await settle(); expect(ui.service.remove).toHaveBeenCalledOnce();
   });
   it("confirms cancellation with the freshly read reservation version", async () => {
     const reserved={...suggestion,reservedQuantity:1,currentParticipantReservedQuantity:1};
@@ -327,7 +327,7 @@ describe("private group ideas", () => {
     button(ui.view,"Réserver").click(); await settle();
     const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     expect(modal.textContent).toContain("L’opération n’a pas pu être confirmée");
-    button(modal,"Actualiser les idées").click(); await settle(); expect(ui.service.reserve).not.toHaveBeenCalled();
+    expect(modal.textContent).not.toContain("Actualiser les idées"); await settle(); expect(ui.service.reserve).not.toHaveBeenCalled();
   });
   it("prevents a reservation when the last copy was taken while opening the dialog",async()=>{
     const full={...suggestion,reservedQuantity:2};
@@ -341,7 +341,7 @@ describe("private group ideas", () => {
     const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     modal.querySelector("form")?.dispatchEvent(new Event("submit",{cancelable:true}));await settle();
     expect(modal.textContent).toContain("L’opération n’a pas pu être confirmée");expect(ui.service.reserve).toHaveBeenCalledOnce();
-    button(modal,"Actualiser les idées").click();await settle();expect(ui.service.list).toHaveBeenCalledTimes(2);expect(ui.service.reserve).toHaveBeenCalledOnce();
+    expect(modal.textContent).not.toContain("Actualiser les idées");await settle();expect(ui.service.list).toHaveBeenCalledTimes(2);expect(ui.service.reserve).toHaveBeenCalledOnce();
   });
   it("does not repeat an uncertain cancellation and allows the participant to verify it",async()=>{
     const reserved={...suggestion,reservedQuantity:1,currentParticipantReservedQuantity:1},current={id:other,wishId:id,quantity:1,etag:'"00000002"'};
@@ -349,7 +349,7 @@ describe("private group ideas", () => {
     await settle();button(ui.view,"Ma réservation").click();await settle();const modal=/** @type {HTMLDialogElement} */ (ui.view.querySelector("dialog"));
     button(modal,"Annuler ma réservation").click();button(modal,"Confirmer l’annulation").click();await settle();
     expect(ui.service.cancel).toHaveBeenCalledOnce();expect(modal.textContent).toContain("L’opération n’a pas pu être confirmée");
-    button(modal,"Actualiser les idées").click();await settle();expect(ui.service.cancel).toHaveBeenCalledOnce();
+    expect(modal.textContent).not.toContain("Actualiser les idées");await settle();expect(ui.service.cancel).toHaveBeenCalledOnce();
   });
   it("shows only available information for a gift with no link, price or note",async()=>{
     const idea={...suggestion,note:null,url:null,price:null,quantity:1,currentParticipantReservedQuantity:1,reservedQuantity:1};

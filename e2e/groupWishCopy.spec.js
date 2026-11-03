@@ -104,7 +104,7 @@ for (const failure of ["network", "revoked"]) {
       await expect(page.getByRole("heading", { name: "Liste indisponible", exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Je le veux aussi !", exact: true })).toHaveCount(0);
     } else {
-      await expect(dialog.getByRole("link", { name: "Consulter ma liste", exact: true })).toHaveAttribute("href", `/lists/${listId}`);
+      await expect(dialog.getByRole("link", { name: "Consulter ma liste", exact: true })).toHaveCount(0);
       await expect(dialog.getByRole("button", { name: "Ajouter", exact: true })).toBeHidden();
     }
     expect(api.copy.writes).toBe(1); expect(api.unexpected).toEqual([]);

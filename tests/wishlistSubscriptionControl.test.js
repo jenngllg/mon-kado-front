@@ -11,9 +11,9 @@ function setup() {
   const controller = new AbortController();
   const options = { shareLinkId: "link", loadCurrent: vi.fn(/** @type {import("../src/features/subscriptions/wishlistSubscriptionsService.js").LoadCurrentSubscription} */ (async () => null)), subscribe: vi.fn(async () => subscription), remove: vi.fn(/** @type {import("../src/features/subscriptions/wishlistSubscriptionsService.js").RemoveSubscription} */ (async () => {})), signal: controller.signal, onUnavailable: vi.fn() };
   const view = createWishlistSubscriptionControl(options); globalThis.document.body.append(view);
-  const action = view.querySelector("button"); const retry = view.querySelectorAll("button")[1];
-  if (!action || !retry) throw new Error("Missing controls");
-  return { view, action, retry, ...options, controller };
+  const action = view.querySelector("button");
+  if (!action) throw new Error("Missing control");
+  return { view, action, ...options, controller };
 }
 describe("explicit follow control", () => {
   it("reads on mount, never follows automatically, then follows and unfollows explicitly", async () => {
@@ -24,18 +24,16 @@ describe("explicit follow control", () => {
     f.action.click(); await settle(); expect(f.remove).toHaveBeenCalledWith("subscription", expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(f.action.getAttribute("aria-pressed")).toBe("false"); disposeComponent(f.view);
   });
-  it("requires explicit verification after ambiguous writes instead of replaying", async () => {
+  it("reads an ambiguous result automatically without replaying the subscription", async () => {
     const f = setup(); await settle(); f.subscribe.mockRejectedValueOnce(new ApiError({ kind: "network" }));
-    f.action.click(); await settle();
-    expect(f.action.disabled).toBe(true); expect(f.retry.hidden).toBe(false);
-    f.action.click(); expect(f.subscribe).toHaveBeenCalledOnce();
-    f.loadCurrent.mockResolvedValueOnce(subscription); f.retry.click(); await settle();
+    f.loadCurrent.mockResolvedValueOnce(subscription); f.action.click(); await settle();
+    expect(f.loadCurrent).toHaveBeenCalledTimes(2); expect(f.view.querySelectorAll("button")).toHaveLength(1);
     expect(f.action.getAttribute("aria-pressed")).toBe("true"); expect(f.subscribe).toHaveBeenCalledOnce(); disposeComponent(f.view);
   });
   it("ignores late reads after disposal and aborts the supplied transport signal", async () => {
     const gate = barrier(), f = setup(); await settle();
     f.loadCurrent.mockImplementationOnce(async () => { await gate.promise; return subscription; });
-    f.subscribe.mockRejectedValueOnce(new ApiError({ kind: "network" })); f.action.click(); await settle(); f.retry.click();
+    f.subscribe.mockRejectedValueOnce(new ApiError({ kind: "network" })); f.action.click(); await settle();
     const call = f.loadCurrent.mock.calls.at(-1); if (!call) throw new Error("Missing read");
     const passedSignal = call[1].signal; f.controller.abort(); gate.resolve(); await settle();
     expect(passedSignal.aborted).toBe(true); expect(f.action.disabled).toBe(true); expect(f.view.textContent).not.toContain("stale");

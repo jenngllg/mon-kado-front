@@ -278,7 +278,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     }
     showFeedback({ variant: saved ? "warning" : "error",
       title: saved ? "Modifications enregistrées, actualisation impossible" : translated.title,
-      message: saved ? "L’enregistrement a réussi. Réessaie uniquement l’actualisation du profil. " + translated.message : translated.message,
+      message: saved ? "L’enregistrement a réussi. Le profil est temporairement indisponible. " + translated.message : translated.message,
       detail: details.join(" ") || null });
   }
 
@@ -342,10 +342,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       } else showTechnicalError(error);
       if (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode ?? 500) >= 500) {
         needsRead = true;
-        const translated = toUserFacingError(error);
-        showFeedback({ variant: "error", title: "Enregistrement à vérifier", message: "La modification du profil ne peut pas être confirmée. Relis le profil avant de réessayer.",
-          detail: translated.correlationId ? "Référence : " + translated.correlationId : null });
-        feedback.append(createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void readProfile("conflict"); } }));
+        await readProfile("conflict");
       }
       updateControls();
       if (fieldError !== null) input.focus();
@@ -398,8 +395,7 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
     } catch (error) {
       if (!active() || isAbortError(error)) return;
       needsRead = true; photoNeedsRead = true;
-      photoMessage(photoNotice ? "La modification a réussi. Réessaie uniquement la lecture du profil." : "Relis le profil avant de modifier sa photo.", error);
-      photoFeedback.append(createButton({ label: "Relire le profil", variant: "secondary", onClick: () => { void readPhoto(mode === "confirm" ? "recover" : mode); } }));
+      photoMessage(photoNotice ? "La modification a réussi. Le profil est temporairement indisponible." : "La photo du profil est temporairement indisponible.", error);
     } finally { if (active()) { busy = false; photoBusy = false; updateControls(); } }
   }
 
@@ -425,14 +421,14 @@ export function createProfileView({ load, save, uploadImage, removeImage, decode
       let message = "";
       if (precondition || uncertain || missing) {
         needsRead = true; photoNeedsRead = true;
-        message = precondition ? "Ton profil a été modifié ailleurs. Relis le profil avant de confirmer à nouveau la modification de ta photo."
-          : missing ? "La photo est indisponible. Relis le profil pour vérifier son état."
-            : "La modification de ta photo ne peut pas être confirmée. Relis ton profil avant de réessayer.";
+        message = precondition ? "Ton profil a été modifié ailleurs. "
+          : missing ? "La photo est indisponible. "
+            : "La modification de ta photo ne peut pas être confirmée. ";
       } else if (api?.statusCode === 413) message = "La photo ne doit pas dépasser 10 Mio.";
       else if (api?.statusCode === 415 || api?.errorCode === "ACCOUNT_PROFILE_IMAGE_UNSUPPORTED_FORMAT") message = "Format de photo non pris en charge : JPEG, PNG ou WebP non animé uniquement.";
       else if (api?.errorCode === "ACCOUNT_PROFILE_IMAGE_INVALID") message = "Photo invalide : image lisible de 40 millions de pixels maximum.";
       photoMessage(message, error);
-      if (photoNeedsRead) photoFeedback.append(createButton({ label: "Relire le profil", variant: "secondary", onClick: () => { void readPhoto("recover"); } }));
+      if (photoNeedsRead) { busy = false; photoBusy = false; await readPhoto("recover"); }
     } finally { if (active()) { busy = false; photoBusy = false; updateControls(); } }
   }
 

@@ -18,7 +18,6 @@ export function createEmailChangeConfirmationView({ confirmChange, consumeFragme
   const lifetime = new AbortController();
   let disposed = false;
   let busy = false;
-  let retry = false;
   const feedback = textElement("div", "");
   feedback.tabIndex = -1;
   feedback.hidden = true;
@@ -67,8 +66,8 @@ export function createEmailChangeConfirmationView({ confirmChange, consumeFragme
       credentials = null;
       const content = [textElement("h1", "Adresse e-mail modifiée"),
         textElement("p", "Connecte-toi avec ta nouvelle adresse e-mail."), createConfirmationLinks()];
-      if (result.sessionIssue !== null) content.push(createAlert({ variant: "warning", title: "Adresse modifiée, synchronisation à vérifier",
-        message: "Le changement a réussi. Utilise l’action Réessayer du bandeau de session pour reprendre uniquement la synchronisation, sans confirmer à nouveau le lien.",
+      if (result.sessionIssue !== null) content.push(createAlert({ variant: "warning", title: "Adresse modifiée, synchronisation indisponible",
+        message: "Le changement a réussi. ",
         detail: result.sessionIssue.correlationId ? `Référence : ${result.sessionIssue.correlationId}` : null }));
       replaceConfirmationContent(view, ...content);
     } catch (error) {
@@ -82,17 +81,16 @@ export function createEmailChangeConfirmationView({ confirmChange, consumeFragme
         feedback.hidden = false;
         feedback.append(createConfirmationError(error));
         if (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode ?? 0) >= 500) {
-          feedback.append(textElement("p", "Impossible de confirmer le résultat. Ton adresse a peut-être été modifiée. Tu peux réessayer, te connecter ou demander un nouveau changement."));
+          feedback.append(textElement("p", "Impossible de confirmer le résultat. Ton adresse a peut-être été modifiée."));
         }
-        retry = true;
+        if (!(error instanceof ApiError && error.kind === "http" && error.statusCode === 429)) credentials = null;
         feedback.focus();
       }
     } finally {
       if (!disposed) {
         busy = false;
         setButtonLoading(confirm, false);
-        const label = confirm.querySelector(".ui-button__label");
-        if (retry && label) label.textContent = "Réessayer la confirmation";
+        confirm.disabled = credentials === null;
         view.setAttribute("aria-busy", "false");
         status.hidden = true;
         status.textContent = "";

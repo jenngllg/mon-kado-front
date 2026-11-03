@@ -24,9 +24,8 @@ export function openGroupCreateDialog({ parent, trigger, service, signal, naviga
   const editor = createProfileImageSection({ saveAction: submit, cancelLabel: "Retirer la sélection", onRemove: () => editor.clearSelection(), onChange: () => { if (!disposed) sync(); } });
   editor.title.textContent = "Photo du groupe"; editor.title.classList.remove("visually-hidden");
   const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: close });
-  const verify = createButton({ label: "Vérifier le groupe", variant: "secondary", onClick: () => { void verifyPhoto(); } }); verify.hidden = true;
   const actions = document.createElement("div"); actions.className = "cluster"; actions.append(cancel, submit);
-  form.append(field, editor.element, feedback, verify, actions); dialog.append(title, form);
+  form.append(field, editor.element, feedback, actions); dialog.append(title, form);
   addComponentEventListener(dialog, form, "submit", event => { event.preventDefault(); void save(); });
   addComponentEventListener(dialog, name, "input", () => name.setCustomValidity(""));
   addComponentEventListener(dialog, dialog, "cancel", event => { event.preventDefault(); close(); });
@@ -45,7 +44,6 @@ export function openGroupCreateDialog({ parent, trigger, service, signal, naviga
     submit.disabled = pending || blocked || editor.isPending() || (!!created && !editor.getSelected());
     setLabel(submit, created ? "Enregistrer la photo" : "Créer");
     setLabel(cancel, created ? "Ouvrir le groupe" : "Annuler");
-    verify.hidden = !created || !blocked; verify.disabled = pending;
   }
   function close() {
     if (pending || disposed) return;
@@ -74,7 +72,7 @@ export function openGroupCreateDialog({ parent, trigger, service, signal, naviga
   function showError(error) {
     disposeComponent(feedback); feedback.replaceChildren(createAlert({ ...toUserFacingError(error), variant: "error" }));
     const notice = document.createElement("p");
-    notice.textContent = created ? "Le groupe est créé. La photo n’a pas pu être confirmée. Vérifie le groupe avant de réessayer." : "Ferme cette fenêtre pour vérifier l’état du groupe avant de recommencer.";
+    notice.textContent = created ? "Le groupe est créé. L’enregistrement de la photo n’a pas pu être confirmé." : "La création du groupe n’a pas pu être confirmée.";
     if (created || blocked) feedback.append(notice);
   }
   async function save() {
@@ -94,6 +92,7 @@ export function openGroupCreateDialog({ parent, trigger, service, signal, naviga
       if (!active() || isAbortError(error)) return;
       blocked = !!created || !(error instanceof ApiError && error.kind === "http" && error.statusCode !== null && [400,403,409].includes(error.statusCode));
       showError(error);
+      if (created && blocked) { pending = false; await verifyPhoto(); }
     } finally { pending = false; sync(); }
   }
 }

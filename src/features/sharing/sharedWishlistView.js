@@ -6,6 +6,7 @@ import { populateWishlistSummary } from "../wishlists/wishlistSummary.js";
 import { createWishlistPortrait, populateWishlistContext } from "../wishlists/wishlistContext.js";
 import { createMemberAvatar } from "../../components/memberAvatar.js";
 import { createWishGalleryCard } from "../wishes/wishGalleryCard.js";
+import { createWishImageRecovery } from "../wishes/wishImageRecovery.js";
 import { reorderWishGallery } from "../wishes/wishGalleryOrdering.js";
 import { createWishSortControl } from "../wishes/wishSortControl.js";
 import { hasVisibleAvailability, sortWishes, withWishSort } from "../wishes/wishSorting.js";
@@ -51,10 +52,9 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
   filterControls.append(filterLabel);
   const toolbar = element("div", ""); toolbar.className = "section-toolbar";
   const sorting = createWishSortControl({ initialSort, onChange: value => { onSortChange(value); sortRenderedWishes(); } });
-  const retryImages = createButton({ label: "Réessayer les images", variant: "secondary", onClick: () => { void read(true); } });
-  retryImages.hidden = true;
+
   const heading = element("h2", "Les souhaits de cette liste"); heading.className = "visually-hidden";
-  toolbar.append(heading, filterControls, sorting.element, retryImages);
+  toolbar.append(heading, filterControls, sorting.element);
   gifts.append(toolbar, results, suggestions); gifts.hidden = true;
   const counts = element("div", ""); counts.className = "wishlist-context-stats";
   details.append(title); information.append(details, counts); layout.append(information, gifts);
@@ -80,10 +80,12 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
     availableOnly = filter.checked; void read(true, true);
   });
   const lifetime = new AbortController();
+  const imageRecovery = createWishImageRecovery({ signal: lifetime.signal,
+    load: async signal => (await load(shareLinkId, { signal, availableOnly })).wishes, onUnavailable: unavailable });
   const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, onUnavailable: unavailable,
     onBusy: value => { copying = value; filter.disabled = value || busy || terminal; sorting.select.disabled = value || busy || terminal; reportButton.disabled = value; } }) : null;
   if (copyActions) view.append(copyActions.element);
-  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); closeReservation(); closeReport(); clearPortrait(); clear(subscriptionActions); disposeComponent(reportButton); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; clear(details); clear(counts); clear(results); clear(suggestions); title.textContent = ""; gifts.hidden = true; retryImages.hidden = true; filter.disabled = true; filter.checked = false; availableOnly = false; });
+  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); closeReservation(); closeReport(); clearPortrait(); clear(subscriptionActions); disposeComponent(reportButton); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; clear(details); clear(counts); clear(results); clear(suggestions); title.textContent = ""; gifts.hidden = true; filter.disabled = true; filter.checked = false; availableOnly = false; });
   if (signal) { addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true }); if (signal.aborted) disposeComponent(view); }
   if (accessSignal && !disposed) { addComponentEventListener(view, accessSignal, "abort", unavailable, { once: true }); if (accessSignal.aborted) unavailable(); }
   if (!disposed) void read(false);
@@ -111,7 +113,7 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
     if (disposed || busy || terminal || copying || reservationDialog) return;
     closeReport(); clearPortrait(); clear(subscriptionActions); reportButton.hidden = true;
     view.classList.remove("shared-wishlist-view--empty"); toolbar.hidden = false;
-    busy = true; currentList = null; retryImages.hidden = true; sorting.select.disabled = true; clear(details); clear(counts); clear(results); clear(suggestions); gifts.hidden = filterControls.hidden; filter.disabled = true;
+    busy = true; currentList = null; sorting.select.disabled = true; clear(details); clear(counts); clear(results); clear(suggestions); gifts.hidden = filterControls.hidden; filter.disabled = true;
     title.textContent = "Liste de souhaits partagée"; details.setAttribute("aria-busy", "true"); details.append(title, createLoadingState({ label: "Chargement de la liste…" }));
     try {
       const list = await load(shareLinkId, { signal: lifetime.signal, availableOnly });
@@ -144,7 +146,7 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
       toolbar.hidden = emptyList;
       if (emptyList) clear(counts);
       gifts.hidden = false; filterControls.hidden = hiddenAvailability;
-      currentList = list;
+      currentList = list; imageRecovery.reset();
       if (createSuggestions && list.canReserve !== false && currentUserId && list.ownerId !== currentUserId) {
         const section = createSuggestions({ownerName:list.ownerDisplayName,signal:lifetime.signal,returnSort:()=>sorting.value()});
         suggestions.append(section);
@@ -186,13 +188,16 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
     }
     else {
       const cards = element("ul", ""); cards.className = "wish-grid wish-grid--gallery"; cards.setAttribute("role", "list");
-      renderInfiniteWishGallery(results, cards, sortWishes(currentList.wishes, sorting.value()), wish => createWishGalleryCard(wish, true, {
+      renderInfiniteWishGallery(results, cards, sortWishes(currentList.wishes, sorting.value()), wish => {
+        const card = createWishGalleryCard(wish, true, {
         row: true, personalReservedQuantity: personalReservations.get(wish.id),
         reservationQuantities: { reservedQuantity: wish.reservedQuantity, availableQuantity: wish.availableQuantity },
         copyButton: copyActions?.button(wish.id, true),
         ...(loadOne && createReservation && currentList?.canReserve !== false ? { onReserve: trigger => openReservation(wish, trigger) } : {}),
         detailHref: withWishSort(`${listPath}/wishes/${wish.id}${memberOriginQuery(fromMemberId)}`, sorting.value()),
-        onImageError: () => { if (!disposed && !terminal) retryImages.hidden = false; } }));
+        onImageError: () => { void imageRecovery.recover(wish.id, card); } });
+        return card;
+      });
     }
   }
   function sortRenderedWishes() {
@@ -202,7 +207,7 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
   }
   function unavailable() {
     if (disposed || terminal) return;
-    terminal = true; lifetime.abort(); closeReservation(); closeReport(); clearPortrait(); clear(subscriptionActions); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; reservationStatus.textContent = ""; clear(details); clear(counts); details.append(title); clear(results); clear(suggestions); gifts.hidden = true; retryImages.hidden = true;
+    terminal = true; lifetime.abort(); closeReservation(); closeReport(); clearPortrait(); clear(subscriptionActions); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; reservationStatus.textContent = ""; clear(details); clear(counts); details.append(title); clear(results); clear(suggestions); gifts.hidden = true;
     title.textContent = groupId ? "Liste indisponible" : "Lien de partage indisponible";
     details.append(element("p", groupId ? "Cette liste n’est plus accessible dans ce groupe." : "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
     title.focus();

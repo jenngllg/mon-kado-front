@@ -30,14 +30,13 @@ export function createWishlistModerationView({ wishlistId, load, update, signal 
   const reset = createButton({ label: "Annuler", variant: "secondary", onClick: () => { if (!busy && !blocked && baseline) { reason.value = baseline.suspensionReason ?? ""; clearValidation(); sync(); } } });
   const actions = node("div", ""); actions.className = "cluster"; actions.append(save, reactivate, reset); form.append(field, actions);
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } });
-  const reload = createButton({ label: "Relire l’état de la liste", variant: "secondary", onClick: () => { void read(true); } });
   const adopt = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: () => { if (reread && !busy) { accept(reread); title.focus(); sync(); } } });
   const keep = createButton({ label: "Conserver ma proposition", variant: "secondary", onClick: () => {
     if (!reread || busy) return;
     baseline = reread; reread = null; blocked = false; comparison.hidden = true; comparison.replaceChildren(); announcement.textContent = "Proposition conservée. Confirme à nouveau ta décision."; sync();
     (intent === "reactivate" && baseline.isSuspended ? reactivate : save).focus();
   } });
-  const recovery = node("div", ""); recovery.className = "cluster"; recovery.append(retry, reload, adopt, keep);
+  const recovery = node("div", ""); recovery.className = "cluster"; recovery.append(retry, adopt, keep);
   view.append(header, announcement, feedback, record, comparison, form, recovery);
   const lifetime = new AbortController();
   let disposed = false, terminal = false, busy = false, blocked = false, checked = false, dirty = false;
@@ -83,8 +82,8 @@ export function createWishlistModerationView({ wishlistId, load, update, signal 
     const unchanged = (reason.value.trim() || null) === baseline?.suspensionReason;
     save.disabled = locked || unchanged; reactivate.disabled = locked; reactivate.hidden = !baseline?.isSuspended;
     reset.disabled = locked || unchanged;
-    retry.hidden = !!baseline || busy; reload.hidden = !blocked || busy; adopt.hidden = !reread; keep.hidden = !reread;
-    for (const button of [retry, reload, adopt, keep]) button.disabled = busy;
+    retry.hidden = !!baseline || busy; adopt.hidden = !reread; keep.hidden = !reread;
+    for (const button of [retry, adopt, keep]) button.disabled = busy;
   }
   /** @param {boolean} explicit User recovery. */
   async function read(explicit) {
@@ -155,7 +154,8 @@ export function createWishlistModerationView({ wishlistId, load, update, signal 
       const uncertain = !api || api.kind !== "http" || (api.statusCode ?? 0) >= 500;
       if (conflict || uncertain) {
         blocked = true; reread = null;
-        showError(error, conflict ? "La liste a été modifiée ailleurs. Ta saisie est conservée. Relis son état avant de confirmer à nouveau ta décision." : "La modification de la suspension ne peut pas être confirmée. Relis l’état de la liste avant de réessayer.");
+        showError(error, conflict ? "La liste a été modifiée ailleurs. Ta saisie est conservée. " : "La modification de la suspension ne peut pas être confirmée. ");
+        busy = false; await read(true);
       } else {
         showError(error);
         if (api?.validationErrors.some(item => item.propertyName === "reason")) { checked = true; setFormFieldValidation(field, ModerationReasonMessage); reason.disabled = false; reason.focus(); }

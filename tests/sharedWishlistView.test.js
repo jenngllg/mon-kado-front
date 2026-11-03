@@ -163,32 +163,17 @@ describe("shared wishlist presentation", () => {
     expect(select.value).toBe("availableFirst"); expect(load).toHaveBeenCalledTimes(2);
   });
   it("offers explicit image recovery with fresh grants after a long-open page, without automatic reads", async () => {
-    // Arrange
-    vi.useFakeTimers();
-    const ui = setup(); await settle();
-    const image = ui.view.querySelector("img");
-    const retry = ui.button("Réessayer les images");
-    expect(retry.hidden).toBe(true);
-    vi.advanceTimersByTime(6 * 60 * 1000);
-    // Act
-    image?.dispatchEvent(new Event("error"));
-    expect(retry.hidden).toBe(false); expect(ui.load).toHaveBeenCalledOnce();
-    ui.load.mockImplementation(async () => ({ ...list, wishes: [{ ...list.wishes[0], imageUrl: "https://api.test/image?token=FRESH" }] }));
-    retry.click(); retry.click(); await settle();
-    // Assert
-    expect(ui.load).toHaveBeenCalledTimes(2);
-    expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("https://api.test/image?token=FRESH&size=thumbnail");
-    expect(retry.hidden).toBe(true); expect(document.activeElement).toBe(ui.view.querySelector("h1"));
+    vi.useFakeTimers(); const ui = setup(); await settle(); const image = ui.view.querySelector("img");
+    vi.advanceTimersByTime(6*60*1000); ui.load.mockImplementation(async () => ({...list, name:"Changed elsewhere", wishes:[{...list.wishes[0],imageUrl:"https://api.test/image?token=FRESH"}]}));
+    image?.dispatchEvent(new Event("error")); await settle();
+    expect(ui.load).toHaveBeenCalledTimes(2); expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("https://api.test/image?token=FRESH&size=thumbnail");
+    expect(ui.view.textContent).not.toContain("Réessayer les images"); expect(ui.view.textContent).not.toContain("Changed elsewhere");
+    ui.view.querySelector("img")?.dispatchEvent(new Event("error")); await settle(); expect(ui.load).toHaveBeenCalledTimes(2);
   });
   it("does not revive images or offer recovery after the share context is lost", async () => {
-    // Arrange
-    const access = new AbortController(); const ui = setup({ accessSignal: access.signal }); await settle();
-    const image = ui.view.querySelector("img"); const retry = ui.button("Réessayer les images");
-    image?.dispatchEvent(new Event("error")); expect(retry.hidden).toBe(false);
-    // Act
-    access.abort(); retry.click(); image?.dispatchEvent(new Event("error")); await settle();
-    // Assert
-    expect(retry.hidden).toBe(true); expect(ui.load).toHaveBeenCalledOnce(); expect(ui.view.querySelector("img")).toBeNull();
+    const access = new AbortController(); const ui = setup({accessSignal:access.signal}); await settle(); const image=ui.view.querySelector("img");
+    image?.dispatchEvent(new Event("error")); access.abort(); image?.dispatchEvent(new Event("error")); await settle();
+    expect(ui.load).toHaveBeenCalledTimes(2); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.textContent).not.toContain("Réessayer les images");
   });
   it("normalizes hidden availability sorting without inferring from desired quantities", async () => {
     // Arrange
