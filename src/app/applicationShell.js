@@ -3,7 +3,7 @@ import { createHeaderNotificationsMenu } from "../features/notifications/headerN
 import { addComponentEventListener, registerComponentCleanup } from "../components/componentLifecycle.js";
 import { createMemberAvatar } from "../components/memberAvatar.js";
 import { readProfilePhoto } from "../features/profile/profileImageService.js";
-import { hasAdminAccess } from "../features/admin/adminAccess.js";
+import { hasAdminAccess } from "../features/admin/adminEligibility.js";
 import { createHeaderMemberSearch } from "../features/members/headerMemberSearch.js";
 import { createHeaderAdminMenu } from "../components/headerAdminMenu.js";
 import { createHeaderNavigationMenu } from "../components/headerNavigationMenu.js";
