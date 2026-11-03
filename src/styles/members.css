@@ -9,8 +9,9 @@
 }
 .member-search-result > a > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .member-profile-view { max-width: 72rem; margin-inline: auto; }
-.member-profile-header { display: flex; align-items: center; gap: var(--space-4); }
+.member-profile-header { display: flex; flex-wrap: nowrap; align-items: center; justify-content: center; gap: var(--space-4); }
 .member-profile-header h1 { overflow-wrap: anywhere; min-width: 0; }
+.member-profile-view > .flow { margin-block-start: var(--space-5); }
 .member-profile-lists { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-6); }
 .member-profile-list { border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; background: var(--color-surface); }
 .member-profile-list > a { display: grid; grid-template-columns: 36% minmax(0, 1fr); min-height: 11rem; height: 100%; color: var(--color-text); }

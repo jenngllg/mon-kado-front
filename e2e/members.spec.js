@@ -117,6 +117,16 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 360, height: 800
     await page.setViewportSize(viewport);
     await page.goto(profilePath);
     await expect(page.getByRole("heading", { name: "Camille", exact: true })).toBeFocused();
+    const alignment = await page.locator(".member-profile-header").evaluate(header => {
+      const avatar = /** @type {HTMLElement} */ (header.querySelector(".member-avatar"));
+      const title = /** @type {HTMLElement} */ (header.querySelector("h1"));
+      const a = avatar.getBoundingClientRect(), t = title.getBoundingClientRect(), h = header.getBoundingClientRect();
+      const underline = Number.parseFloat(globalThis.getComputedStyle(title).paddingBottom);
+      return { sameRow: a.right <= t.left, verticalOffset: Math.abs(a.y + a.height / 2 - (t.y + (t.height - underline) / 2)), centerOffset: Math.abs((a.left + t.right) / 2 - (h.left + h.width / 2)) };
+    });
+    expect(alignment.sameRow).toBe(true);
+    expect(alignment.verticalOffset).toBeLessThan(2);
+    expect(alignment.centerOffset).toBeLessThan(2);
     const list = page.getByRole("link", { name: /Anniversaire — test navigateur/ });
     await expect(list).toBeVisible();
     await page.keyboard.press("Tab");
