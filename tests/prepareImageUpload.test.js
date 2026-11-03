@@ -1,0 +1,65 @@
+// @vitest-environment happy-dom
+/* global document, HTMLImageElement, HTMLCanvasElement */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { prepareImageUpload } from "../src/features/wishes/prepareImageUpload.js";
+
+const signature = [137,80,78,71,13,10,26,10];
+const signal = new AbortController().signal;
+const prepared = new Blob([new Uint8Array(signature)], {type:"image/png"});
+const source = () => new Blob([new Uint8Array(signature), new Uint8Array(400_000)], {type:"image/png"});
+let load = true;
+/** @type {HTMLImageElement | undefined} */ let image;
+beforeEach(() => {
+  load = true;
+  vi.stubGlobal("Image", function () {
+    image = document.createElement("img");
+    const selected = image;
+    queueMicrotask(() => { if (load) selected.dispatchEvent(new Event("load")); });
+    return selected;
+  });
+  vi.stubGlobal("URL", class extends URL { static createObjectURL = vi.fn(() => "blob:local-preparation"); static revokeObjectURL = vi.fn(); });
+  vi.spyOn(HTMLImageElement.prototype,"naturalWidth","get").mockReturnValue(4000);
+  vi.spyOn(HTMLImageElement.prototype,"naturalHeight","get").mockReturnValue(3000);
+  vi.spyOn(HTMLCanvasElement.prototype,"getContext").mockReturnValue(/** @type {CanvasRenderingContext2D} */ (/** @type {unknown} */ ({drawImage:vi.fn()})));
+  vi.spyOn(HTMLCanvasElement.prototype,"toBlob").mockImplementation(callback => callback(prepared));
+});
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+describe("local image preparation", () => {
+  it("keeps small files unchanged without allocating a decoder", async () => {
+    const result=await prepareImageUpload(prepared,{maximumEdge:1600,signal});
+    expect(result).toBe(prepared);expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+  it.each([1600,512])("bounds large images to %s pixels and releases pixels and object URLs", async maximumEdge => {
+    /** @type {number[][]} */ const dimensions=[];
+    vi.mocked(HTMLCanvasElement.prototype.toBlob).mockImplementation(/** @this {HTMLCanvasElement} */ function (callback) {dimensions.push([this.width,this.height]);callback(prepared);});
+    const result=await prepareImageUpload(source(),{maximumEdge,signal});
+    expect(result).toBe(prepared);expect(dimensions).toEqual([[maximumEdge,maximumEdge*3/4]]);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:local-preparation");expect(image?.hasAttribute("src")).toBe(false);
+  });
+  it("cancels before preparation without accessing the file", async () => {
+    await expect(prepareImageUpload(source(),{maximumEdge:1600,signal:AbortSignal.abort()})).rejects.toMatchObject({name:"AbortError"});
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+  it("cancels a pending decode and revokes its object URL", async () => {
+    load=false;const controller=new AbortController();
+    /** @type {() => void} */ let started;
+    const decoding = new Promise(resolve => { started = () => resolve(undefined); });
+    vi.mocked(URL.createObjectURL).mockImplementation(()=>{started();return "blob:local-preparation";});
+    const request=prepareImageUpload(source(),{maximumEdge:1600,signal:controller.signal});
+    const rejected=expect(request).rejects.toMatchObject({name:"AbortError"});
+    await decoding;
+    controller.abort();await rejected;expect(URL.revokeObjectURL).toHaveBeenCalledOnce();
+  });
+  it("rejects excessive pixels before drawing", async () => {
+    vi.spyOn(HTMLImageElement.prototype,"naturalWidth","get").mockReturnValue(20000);
+    await expect(prepareImageUpload(source(),{maximumEdge:1600,signal})).rejects.toThrow("40 millions");
+    expect(HTMLCanvasElement.prototype.getContext).not.toHaveBeenCalled();expect(URL.revokeObjectURL).toHaveBeenCalledOnce();
+  });
+  it.each(["acTL","ANIM"])("rejects animated %s sources before flattening", async tag => {
+    const png=tag==="acTL";
+    const bytes=png ? [...signature,0,0,0,0,...new TextEncoder().encode(tag),0,0,0,0] : [82,73,70,70,4,0,0,0,87,69,66,80,...new TextEncoder().encode(tag),0,0,0,0];
+    await expect(prepareImageUpload(new Blob([new Uint8Array(bytes)]),{maximumEdge:1600,signal})).rejects.toThrow("animées");
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+});

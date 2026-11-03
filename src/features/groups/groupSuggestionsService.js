@@ -3,6 +3,8 @@ import { isStrongEntityTag } from "../../api/entityTag.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { projectReservation } from "../sharing/giftReservationService.js";
 import { parseWishPrice, validateWishField } from "../wishes/wishValidation.js";
+import { prepareImageUpload } from "../wishes/prepareImageUpload.js";
+import { validateWishImageFile } from "../wishes/wishImageValidation.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GroupSuggestionResponse"]} Suggestion */
 /** @typedef {{name:string,note:string,url:string,price:string,quantity:string}} SuggestionValues */
@@ -76,7 +78,7 @@ export function createGroupSuggestionsService(session, { groupId, wishlistId }) 
       if (response.status !== 204 || response.data !== null) throw new ApiError({kind:"invalidResponse"});
     },
     async uploadImage(/** @type {string} */ id, /** @type {Blob} */ file, /** @type {string} */ etag, /** @type {AbortSignal} */ signal) {
-      check(signal); const formData = new FormData(); formData.append("image", file, "suggestion-image");
+      check(signal); const prepared = await prepareImageUpload(file, { maximumEdge: 1600, signal }); check(signal); const formData = new FormData(); formData.append("image", prepared, "suggestion-image");
       const response = await session.request(`${path(id)}/image`, {method:"PUT",authentication:"required",csrf:true,ifMatch:etag,formData,signal}); check(signal);
       if (response.status !== 200) throw new ApiError({kind:"invalidResponse"});
       if (!isStrongEntityTag(response.metadata.etag)) throw new ApiError({kind:"invalidResponse"});
@@ -89,15 +91,18 @@ export function createGroupSuggestionsService(session, { groupId, wishlistId }) 
       if (response.status !== 204 || response.data !== null || !isStrongEntityTag(response.metadata.etag)) throw new ApiError({kind:"invalidResponse"});
       return response.metadata.etag;
     },
-    async image(/** @type {string} */ id, /** @type {AbortSignal} */ signal) {
-      check(signal); const response = await session.request(`${path(id)}/image`, {authentication:"required",signal}); check(signal);
+    async image(/** @type {string} */ id, /** @type {AbortSignal} */ signal, { thumbnail = false } = {}) {
+      check(signal); const response = await session.request(`${path(id)}/image/content${thumbnail ? "?size=thumbnail" : ""}`, {authentication:"required",signal}); check(signal);
       const value = /** @type {{content?:unknown}|null} */ (response.data);
       if (response.status !== 200 || !value || typeof value.content !== "string" || value.content.length > 13981016 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value.content)) throw new ApiError({kind:"invalidResponse"});
       try {
         const raw = atob(value.content); const bytes = Uint8Array.from(raw, char => char.charCodeAt(0));
-        if (bytes.length < 12 || bytes.length > 10485760 || String.fromCharCode(...bytes.subarray(0,4)) !== "RIFF" || String.fromCharCode(...bytes.subarray(8,12)) !== "WEBP") throw new Error("Invalid image");
-        return new Blob([bytes], {type:"image/webp"});
-      } catch { throw new ApiError({kind:"invalidResponse"}); }
+        if (bytes.length < 12 || bytes.length > 10485760) throw new Error("Invalid image");
+        const image = new Blob([bytes]);
+        const type = await validateWishImageFile(image);
+        check(signal);
+        return new Blob([bytes], {type});
+      } catch { check(signal); throw new ApiError({kind:"invalidResponse"}); }
     },
     async reservation(/** @type {string} */ id, /** @type {AbortSignal} */ signal) {
       check(signal);

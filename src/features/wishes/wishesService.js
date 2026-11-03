@@ -3,6 +3,7 @@ import { isStrongEntityTag } from "../../api/entityTag.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { createWishPayload, safeHttpUrl } from "./wishValidation.js";
 import { validateWishImageFile } from "./wishImageValidation.js";
+import { prepareImageUpload } from "./prepareImageUpload.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionResponse"]} WishCollectionResponse */
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["WishCollectionItemResponse"] & {reservedQuantity?:number|null,availableQuantity?:number|null}} WishCollectionItemResponse */
@@ -67,12 +68,13 @@ export function createWishesService(session, { apiBaseUrl }) {
   }, uploadImage: async (wishlistId, wishId, file, { etag, signal }) => {
     const path = itemPath(wishlistId, wishId) + "/image";
     if (!isStrongEntityTag(etag)) throw new ApiError({ kind: "http", statusCode: 428 });
-    const mediaType = await validateWishImageFile(file);
+    const prepared = await prepareImageUpload(file, { maximumEdge: 1600, signal });
+    const mediaType = await validateWishImageFile(prepared);
     const formData = new FormData();
     // OpenAPI represents the binary multipart member as a string, not a runtime model.
     /** @type {keyof import("../../api/generated/openapi.js").paths["/api/v1/wishlists/{wishlistId}/wishes/{wishId}/image"]["put"]["requestBody"]["content"]["multipart/form-data"]} */
     const imageField = "image";
-    formData.append(imageField, file, "image." + mediaType.split("/")[1]);
+    formData.append(imageField, prepared, "image." + mediaType.split("/")[1]);
     const response = await session.request(path, { method: "PUT", authentication: "required", formData, ifMatch: etag, signal });
     const result = editable(response, wishlistId, wishId, base);
     if (!result.wish.imageUrl) throw new ApiError({ kind: "invalidResponse", statusCode: response.status, correlationId: response.metadata.correlationId });

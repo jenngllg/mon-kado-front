@@ -13,6 +13,17 @@ function response(data,status=200,etag=tag,location=null) {return {data,status,m
 function setup(request) {return createGroupSuggestionsService({request:/** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */ (request)},{groupId,wishlistId});}
 
 describe("group suggestion transport",()=>{
+  it.each([
+    {type:"image/png",bytes:[137,80,78,71,13,10,26,10,0,0,0,0]},
+    {type:"image/jpeg",bytes:[255,216,255,0,0,0,0,0,0,0,0,0]},
+    {type:"image/webp",bytes:[82,73,70,70,0,0,0,0,87,69,66,80]},
+  ])("recognizes $type in an authorized gallery thumbnail",async({type,bytes})=>{
+    const request=vi.fn().mockResolvedValue(response({content:btoa(String.fromCharCode(...bytes))}));
+    const service=setup(request),signal=new AbortController().signal;
+    const image=await service.image(id,signal,{thumbnail:true});
+    expect(image.type).toBe(type);
+    expect(request).toHaveBeenCalledExactlyOnceWith(`${base}/${id}/image/content?size=thumbnail`,{authentication:"required",signal});
+  });
   it("sends validated creation fields with authenticated CSRF and verifies the new location",async()=>{
     const request=vi.fn(async()=>response(idea,201,tag,`${base}/${id}`)), service=setup(request), signal=new AbortController().signal;
     expect(await service.create(values,signal)).toMatchObject({id,name:"Un livre"});
@@ -68,7 +79,7 @@ describe("group suggestion transport",()=>{
   it("reads images only over authenticated group requests and checks WebP content",async()=>{
     const content=btoa("RIFF0000WEBP"), request=vi.fn(async()=>response({content})), service=setup(request), signal=new AbortController().signal;
     expect((await service.image(id,signal)).type).toBe("image/webp");
-    expect(request).toHaveBeenCalledWith(`${base}/${id}/image`,{authentication:"required",signal});
+    expect(request).toHaveBeenCalledWith(`${base}/${id}/image/content`,{authentication:"required",signal});
     request.mockResolvedValueOnce(response({content:btoa("not an image")}));
     await expect(service.image(id,signal)).rejects.toMatchObject({kind:"invalidResponse"});
   });
@@ -79,7 +90,7 @@ describe("group suggestion transport",()=>{
     const service=setup(request),signal=new AbortController().signal;
     await service.update(id,values,tag,signal);
     expect(request).toHaveBeenLastCalledWith(`${base}/${id}`,expect.objectContaining({method:"PUT",ifMatch:tag,csrf:true}));
-    const uploaded=await service.uploadImage(id,new Blob(["image"]),tag,signal);
+    const uploaded=await service.uploadImage(id,new Blob([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])],{type:"image/png"}),tag,signal);
     expect(uploaded.hasImage).toBe(true);
     expect(request).toHaveBeenLastCalledWith(`${base}/${id}/image`,expect.objectContaining({method:"PUT",formData:expect.any(FormData),ifMatch:tag}));
     expect(await service.removeImage(id,uploaded.entityTag,signal)).toBe('"00000003"');
@@ -91,7 +102,7 @@ describe("group suggestion transport",()=>{
       .mockRejectedValueOnce(new ApiError({kind:"http",statusCode:404,errorCode:"GROUP_SUGGESTION_NOT_FOUND"}))
       .mockResolvedValueOnce(response({id:groupId,wishId:id,quantity:1},201));
     const service=setup(request),signal=new AbortController().signal;
-    await expect(service.uploadImage(id,new Blob(["x"]),tag,signal)).rejects.toMatchObject({kind:"invalidResponse"});
+    await expect(service.uploadImage(id,new Blob([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])], {type:"image/png"}),tag,signal)).rejects.toMatchObject({kind:"invalidResponse"});
     await expect(service.remove(id,tag,signal)).rejects.toMatchObject({kind:"invalidResponse"});
     await expect(service.reservation(id,signal)).rejects.toMatchObject({errorCode:"GROUP_SUGGESTION_NOT_FOUND"});
     await expect(service.reserve(id,2,null,signal)).rejects.toMatchObject({kind:"invalidResponse"});
@@ -101,8 +112,8 @@ describe("group suggestion transport",()=>{
       .mockResolvedValueOnce(response(null,204,null)).mockResolvedValueOnce(response({content:"***"}))
       .mockResolvedValueOnce(response({id:groupId,wishId:id,quantity:1})).mockResolvedValueOnce(response(null,200));
     const service=setup(request),signal=new AbortController().signal;
-    await expect(service.uploadImage(id,new Blob(["x"]),tag,signal)).rejects.toMatchObject({kind:"invalidResponse"});
-    await expect(service.uploadImage(id,new Blob(["x"]),tag,signal)).rejects.toMatchObject({kind:"invalidResponse"});
+    await expect(service.uploadImage(id,new Blob([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])], {type:"image/png"}),tag,signal)).rejects.toMatchObject({kind:"invalidResponse"});
+    await expect(service.uploadImage(id,new Blob([new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0])], {type:"image/png"}),tag,signal)).rejects.toMatchObject({kind:"invalidResponse"});
     await expect(service.removeImage(id,tag,signal)).rejects.toMatchObject({kind:"invalidResponse"});
     await expect(service.image(id,signal)).rejects.toMatchObject({kind:"invalidResponse"});
     const reservation=await service.reserve(id,1,tag,signal); expect(reservation.quantity).toBe(1);

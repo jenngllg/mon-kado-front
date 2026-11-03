@@ -196,7 +196,7 @@ describe("private group ideas", () => {
     vi.spyOn(URL,"createObjectURL").mockReturnValue("blob:private-suggestion"); const revoke=vi.spyOn(URL,"revokeObjectURL").mockImplementation(()=>{});
     const image=vi.fn(async()=>new Blob(["image"]));
     const ui=setup({list:vi.fn(async()=>[{...suggestion,hasImage:true}]),image}); await settle();
-    expect(image).toHaveBeenCalledExactlyOnceWith(id,expect.any(AbortSignal));
+    expect(image).toHaveBeenCalledExactlyOnceWith(id,expect.any(AbortSignal),{thumbnail:true});
     expect(ui.view.querySelector(".group-suggestions__media img")?.getAttribute("src")).toBe("blob:private-suggestion");
     ui.controller.abort(); expect(revoke).toHaveBeenCalledWith("blob:private-suggestion"); expect(ui.view.querySelector("img")).toBeNull();
   });

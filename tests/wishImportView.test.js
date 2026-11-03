@@ -93,6 +93,8 @@ describe("inline creation and image saving", () => {
     expect(ui.form.getAttribute("aria-busy")).toBe("false");
     expect(ui.form.querySelector('[type="submit"]')?.hasAttribute("disabled")).toBe(true);
     expect(ui.view.textContent).toContain("Image à vérifier");
+    const verify = [...ui.view.querySelectorAll("a")].find(link => link.textContent === "Vérifier le souhait");
+    expect(verify?.getAttribute("href")).toBe(`/lists/${id}/wishes/${wishId}`);
     expect(ui.view.querySelector("h1")?.textContent).toBe("Ajouter un souhait");
     expect(ui.view.querySelector(".wish-import-completion")).toBeNull();
     expect(ui.onCreated).not.toHaveBeenCalled(); expect(ui.loadWish).not.toHaveBeenCalled();

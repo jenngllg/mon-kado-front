@@ -102,7 +102,7 @@ export function createGroupSuggestionsView({ service, ownerName, signal, creatio
         while (!disposed && current === generation && next < pendingImages.length) {
           const entry = pendingImages[next++];
           try {
-            const blob = await service.image(entry.item.id, lifetime.signal);
+            const blob = await service.image(entry.item.id, lifetime.signal, { thumbnail: true });
             if (disposed || current !== generation) return;
             const objectURL = URL.createObjectURL(blob); objectURLs.add(objectURL);
             const image = document.createElement("img"); image.src = objectURL; image.alt = ""; image.loading = "lazy";

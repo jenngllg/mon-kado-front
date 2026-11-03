@@ -1148,6 +1148,26 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/suggestions/{suggestionId}/image/content": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read a normalized image or gallery thumbnail for a group suggestion
+         * @description Requires current membership, an active group-visible list, and a member other than its owner. Suggestions and their images are visible only in their original group. Authors can change unreserved suggestions; reservations use a serialized capacity check.
+         */
+        readonly get: operations["GetGroupSuggestionImageContent"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/groups/{groupId}/wishlists/{wishlistId}/suggestions/{suggestionId}/reservations/current": {
         readonly parameters: {
             readonly query?: never;
@@ -2702,6 +2722,10 @@ export interface components {
             readonly profileImageUrl: string | null;
             /** Format: date-time */
             readonly updatedAt: string | null;
+        };
+        readonly GroupSuggestionImageContentResponse: {
+            /** @description Normalized JPEG, PNG or legacy WebP bytes. */
+            readonly content: string;
         };
         readonly GroupSuggestionImageResponse: {
             readonly content: string;
@@ -10895,6 +10919,104 @@ export interface operations {
                     readonly [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Request rejected */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 429: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly GetGroupSuggestionImageContent: {
+        readonly parameters: {
+            readonly query?: {
+                readonly size?: "thumbnail";
+            };
+            readonly header?: never;
+            readonly path: {
+                readonly groupId: string;
+                readonly suggestionId: string;
+                readonly wishlistId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["GroupSuggestionImageContentResponse"];
+                };
             };
             /** @description Request rejected */
             readonly 400: {
