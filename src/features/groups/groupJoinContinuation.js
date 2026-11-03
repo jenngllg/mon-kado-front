@@ -4,7 +4,7 @@ import { normalizeGroupCode } from "./groupsService.js";
 const StorageKey = "monkado.group-join.v1";
 const Lifetime = 30 * 60_000;
 
-/** Retains one explicit invitation across authentication in this tab, never in auth URLs.
+/** Retains one invitation across reload and explicit authentication in this tab, never in auth URLs.
  * @param {{storage?: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null, now?: () => number}} [options] Private tab continuity.
  */
 export function createGroupJoinContinuation({ storage = null, now = Date.now } = {}) {
@@ -29,15 +29,19 @@ export function createGroupJoinContinuation({ storage = null, now = Date.now } =
   function persist() {
     try { storage?.setItem(StorageKey, JSON.stringify(current)); } catch { /* Continue in memory in restricted browsers. */ }
   }
+  /** @param {string} path Exact invitation. @param {string} code Supplied fragment or input. @param {boolean} pending Explicit authentication return. */
+  function retain(path, code, pending) {
+    clear();
+    const normalized = normalizeGroupCode(code.replace(/^#/, ""));
+    if (!validPath(path) || (code && !normalized)) return;
+    current = { path, code: normalized ?? "", expiresAt: now() + Lifetime, pending };
+    persist();
+  }
   return Object.freeze({
+    /** @param {string} path Current invitation pathname. @param {string} code Incoming fragment, retained without requesting an authentication return. */
+    remember(path, code) { retain(path, code, false); },
     /** @param {string} path Current invitation pathname. @param {string} code Explicitly supplied code. */
-    prepare(path, code) {
-      clear();
-      const normalized = normalizeGroupCode(code.replace(/^#/, ""));
-      if (!validPath(path) || (code && !normalized)) return;
-      current = { path, code: normalized ?? "", expiresAt: now() + Lifetime, pending: true };
-      persist();
-    },
+    prepare(path, code) { retain(path, code, true); },
     /** @returns {string|null} One authentication return, retaining the code for the join page. */
     takeDestination() {
       const selected = read();

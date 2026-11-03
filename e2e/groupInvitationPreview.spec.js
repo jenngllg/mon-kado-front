@@ -35,7 +35,9 @@ for (const width of [390, 1440]) {
     expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.window.innerWidth)).toBe(true);
     await page.screenshot({path:testInfo.outputPath(`group-invitation-${width}.png`),fullPage:true});
     await page.goto(`/groups/join/${id}`);
-    await expect(preview).toBeVisible(); await expect(page.getByRole("button",{name:"Voir le groupe",exact:true})).toBeVisible();
+    await expect(preview).toBeVisible();
+    await expect(page.getByLabel("Code du groupe",{exact:false})).toHaveValue(code);
+    await expect(page.getByRole("button",{name:"Rejoindre le groupe",exact:true})).toBeDisabled();
     revoked=true;
     await page.goto(`/groups/join/${id}#${code}`);
     await expect(preview).toHaveCount(0);

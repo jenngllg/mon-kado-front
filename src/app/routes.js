@@ -149,28 +149,24 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.GroupJoin, path: RoutePaths.GroupJoin, title: "Rejoindre un groupe · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        let pendingFragment = context.consumeFragment();
-        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const path = RoutePaths.GroupJoin;
+        const fragment = context.consumeFragment();
+        if (fragment) groupJoin.remember(path, fragment);
         const { createGroupJoinView } = await import("../features/groups/groupJoinView.js");
         if (context.signal.aborted) throw createAbortError();
-        const path = RoutePaths.GroupJoin;
-        const fragment = takeFragment();
-        if (fragment) groupJoin.clear();
-        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, code: fragment || groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
+        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, code: groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
           onAuthenticate: code => groupJoin.prepare(path, code), onJoined: groupJoin.clear });
       },
     },
     {
       name: RouteNames.GroupInvitation, path: RoutePaths.GroupInvitation, title: "Invitation au groupe · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        let pendingFragment = context.consumeFragment();
-        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const path = RoutePaths.GroupInvitation.replace(":groupId", context.params.groupId);
+        const fragment = context.consumeFragment();
+        if (fragment) groupJoin.remember(path, fragment);
         const { createGroupJoinView } = await import("../features/groups/groupJoinView.js");
         if (context.signal.aborted) throw createAbortError();
-        const path = RoutePaths.GroupInvitation.replace(":groupId", context.params.groupId);
-        const fragment = takeFragment();
-        if (fragment) groupJoin.clear();
-        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, groupId: context.params.groupId, code: fragment || groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
+        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, groupId: context.params.groupId, code: groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
           onAuthenticate: code => groupJoin.prepare(path, code), onJoined: groupJoin.clear });
       },
     },
