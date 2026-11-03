@@ -92,14 +92,38 @@ describe("inline creation and image saving", () => {
     expect(ui.form.hidden).toBe(false); expect(ui.form.dataset.creationStep).toBe("details");
     expect(ui.form.getAttribute("aria-busy")).toBe("false");
     expect(ui.form.querySelector('[type="submit"]')?.hasAttribute("disabled")).toBe(true);
-    expect(ui.view.textContent).toContain("Image à vérifier");
-    const verify = [...ui.view.querySelectorAll("a")].find(link => link.textContent === "Vérifier le souhait");
-    expect(verify?.getAttribute("href")).toBe(`/lists/${id}/wishes/${wishId}`);
+    expect(ui.view.textContent).toContain("Image indisponible");
+    expect(ui.view.querySelector(".ui-alert a, .ui-alert button")).toBeNull();
     expect(ui.view.querySelector("h1")?.textContent).toBe("Ajouter un souhait");
     expect(ui.view.querySelector(".wish-import-completion")).toBeNull();
-    expect(ui.onCreated).not.toHaveBeenCalled(); expect(ui.loadWish).not.toHaveBeenCalled();
+    expect(ui.onCreated).not.toHaveBeenCalled();
+    expect(ui.loadWish).toHaveBeenCalledTimes(error.kind !== "http" || error.statusCode === null || error.statusCode >= 500 ? 1 : 0);
     await ui.submit(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
     expect(ui.view.querySelector('a[aria-disabled="true"]')).toBeNull();
+  });
+  it.each([
+    new ApiError({ kind: "timeout" }), new ApiError({ kind: "network" }),
+    new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 }),
+  ])("continues automatically when an uncertain image response hid a successful save %#", async error => {
+    const ui = setup(); await settle(); await ui.selectImage();
+    const confirmed = created(); const saved = { ...confirmed, wish: { ...confirmed.wish, imageUrl: "/saved-photo" } };
+    ui.loadWish.mockResolvedValue(saved); ui.uploadImage.mockRejectedValue(error); await ui.submit();
+    expect(ui.loadWish).toHaveBeenCalledExactlyOnceWith(id, wishId, { signal: ui.uploadImage.mock.calls[0][3].signal });
+    expect(ui.onCreated).toHaveBeenCalledExactlyOnceWith(saved);
+    expect(ui.view.textContent).not.toContain("Image indisponible");
+    await ui.submit(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
+  });
+  it.each(["failure", "departure"])("preserves the confirmed wish after reconciliation %s", async outcome => {
+    const gate = barrier(); const ui = setup(); await settle(); await ui.selectImage();
+    ui.uploadImage.mockRejectedValue(new ApiError({ kind: "timeout" }));
+    ui.loadWish.mockImplementation(async () => { await gate.promise; throw new Error("private"); });
+    await ui.submit();
+    if (outcome === "departure") disposeComponent(ui.view);
+    gate.resolve(); await settle();
+    expect(ui.onCreated).not.toHaveBeenCalled(); expect(ui.view.textContent).not.toContain("private");
+    if (outcome === "failure") expect(ui.view.textContent).toContain("Image indisponible");
+    else expect(ui.view.textContent).not.toContain("Image indisponible");
+    await ui.submit(); expect(ui.create).toHaveBeenCalledOnce(); expect(ui.uploadImage).toHaveBeenCalledOnce();
   });
   it.each(["success", "failure", "abort"])("ignores an image %s after departure", async outcome => {
     const gate = barrier(); const ui = setup(); await settle(); await ui.selectImage();
