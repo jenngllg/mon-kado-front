@@ -81,11 +81,12 @@ export function createWishlistReportDialog({ shareLinkId, wishlistName, report, 
   function show(options) { disposeComponent(feedback); feedback.replaceChildren(); const alert = createAlert(options); alert.tabIndex = -1; feedback.append(alert); return alert; }
   function sync() {
     form.setAttribute("aria-busy", String(busy)); reason.disabled = details.disabled = cancel.disabled = submit.disabled = busy || completed;
+    submit.disabled ||= uncertain;
     cancel.textContent = uncertain ? "Fermer" : "Annuler";
-    submit.textContent = busy ? "Envoi du signalement…" : uncertain ? "Réessayer l’envoi" : "Envoyer le signalement";
+    submit.textContent = busy ? "Envoi du signalement…" : "Envoyer le signalement";
   }
   async function send() {
-    if (disposed || busy || completed) return;
+    if (disposed || busy || completed || uncertain) return;
     deferred = null;
     const errors = fields.map(field => validate(field.name));
     const invalid = fields.find((_, index) => errors[index] !== null);
@@ -115,7 +116,7 @@ export function createWishlistReportDialog({ shareLinkId, wishlistName, report, 
           setFormFieldValidation(known.element, known.name === "reason" ? "Choisis un motif de signalement." : ReportDetailsMessage); field ??= known;
         }
         show({ title: "Informations à vérifier", message: unknown ? "Certaines informations n’ont pas été acceptées. Vérifie tes saisies." : "Vérifie les champs indiqués avant de continuer.", detail, variant: "error" });
-      } else if (uncertain) show({ title: "Envoi non confirmé", message: "L’envoi de ton signalement ne peut pas être confirmé. Il a peut-être été reçu. Réessayer peut envoyer un doublon.", detail, variant: "error" });
+      } else if (uncertain) show({ title: "Envoi non confirmé", message: "L’envoi de ton signalement n’a pas pu être confirmé.", detail, variant: "error" });
       else if (error instanceof ApiError && error.statusCode === 413) show({ title: "Précisions trop volumineuses", message: ReportTooLargeMessage, detail, variant: "error" });
       else {
         show({ ...translated, detail, variant: "error" });

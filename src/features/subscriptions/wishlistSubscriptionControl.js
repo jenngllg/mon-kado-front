@@ -14,13 +14,12 @@ export function createWishlistSubscriptionControl({ shareLinkId, loadCurrent, su
   const feedback = document.createElement("div");
   const action = createButton({ label: "Suivre", variant: "secondary", onClick: () => { void run(true); } });
   action.classList.add("wishlist-subscription-action");
-  const retry = createButton({ label: "Vérifier l’abonnement", variant: "secondary", onClick: () => { void run(false); } }); retry.hidden = true;
-  host.append(action, status, feedback, retry);
+  host.append(action, status, feedback);
   const lifetime = new AbortController();
   const combined = AbortSignal.any([signal, lifetime.signal]);
   /** @type {import("./wishlistSubscriptionsService.js").WishlistSubscription | null} */ let current = null;
   let disposed = false, busy = false, known = false, owner = false;
-  registerComponentCleanup(host, () => { disposed = true; lifetime.abort(); current = null; status.textContent = ""; disposeComponent(feedback); feedback.replaceChildren(); action.disabled = true; retry.disabled = true; });
+  registerComponentCleanup(host, () => { disposed = true; lifetime.abort(); current = null; status.textContent = ""; disposeComponent(feedback); feedback.replaceChildren(); action.disabled = true; });
   addComponentEventListener(host, signal, "abort", () => disposeComponent(host), { once: true });
   if (signal.aborted) disposeComponent(host);
   else void run(false);
@@ -31,12 +30,12 @@ export function createWishlistSubscriptionControl({ shareLinkId, loadCurrent, su
     action.setAttribute("aria-label", label); applyActionIcon(action, "bell", label);
     action.setAttribute("aria-pressed", String(!!current));
     action.disabled = busy || !known || owner; action.hidden = owner;
-    retry.disabled = busy; host.setAttribute("aria-busy", String(busy));
+    host.setAttribute("aria-busy", String(busy));
   }
   /** @param {boolean} mutation Explicit user command, never derived from navigation. */
   async function run(mutation) {
     if (disposed || busy || (mutation && (!known || owner))) return;
-    busy = true; retry.hidden = true; disposeComponent(feedback); feedback.replaceChildren(); controls();
+    busy = true; disposeComponent(feedback); feedback.replaceChildren(); controls();
     try {
       if (!mutation) current = await loadCurrent(shareLinkId, { signal: combined });
       else if (current) {
@@ -52,10 +51,10 @@ export function createWishlistSubscriptionControl({ shareLinkId, loadCurrent, su
       if (api?.errorCode === "WISHLIST_SUBSCRIPTION_SELF") { owner = true; return; }
       if (api?.statusCode === 404 && api.errorCode !== "WISHLIST_SUBSCRIPTION_NOT_FOUND") { onUnavailable(); return; }
       // Never replay a write whose commit could have happened despite a network failure.
-      known = false; retry.hidden = false;
+      known = false;
       const translated = toUserFacingError(error);
-      feedback.append(createAlert({ ...translated, variant: "error",
-        ...(mutation ? { message: "Vérifie ton abonnement avant de réessayer." } : {}) }));
+      feedback.append(createAlert({ ...translated, variant: "error" }));
+      if (mutation) { busy = false; await run(false); }
     } finally {
       busy = false;
       if (!disposed) controls();

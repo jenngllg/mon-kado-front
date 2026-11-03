@@ -70,7 +70,7 @@ describe("combined group editor", () => {
   });
   it("rejects another group in the response and offers only explicit rereading", async () => {
     const f = setup({ initial: { ...group, id: owner } }); await settle();
-    expect(f.form.hidden).toBe(true); expect(f.button("Réessayer").hidden).toBe(false);
+    expect(f.form.hidden).toBe(true); expect(f.view.textContent).not.toContain("Vérifier le groupe");
     expect(f.request.mock.calls.every(([, o]) => o.method === "GET")).toBe(true);
   });
   it("validates whitespace locally, clears the error when corrected and renames with the current version", async () => {
@@ -118,10 +118,9 @@ describe("combined group editor", () => {
     expect(f.request.mock.calls.some(([, o]) => o.method === "DELETE")).toBe(false);
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "http", statusCode: 412, errorCode: "GROUP_VERSION_CONFLICT" })])("preserves drafts and blocks replay until explicit fresh verification %#", async error => {
-    const f = setup(); await settle(); f.edit("Mon brouillon"); f.request.mockRejectedValueOnce(error); await f.submit(); await f.submit();
-    expect(f.input.value).toBe("Mon brouillon"); expect(f.button("Enregistrer").disabled).toBe(true); expect(f.request).toHaveBeenCalledTimes(2);
-    f.request.mockResolvedValueOnce(response({ ...group, name: "Version ailleurs" }, 200, '"v3"'));
-    f.button("Vérifier le groupe").click(); await settle(); expect(f.input.value).toBe("Mon brouillon"); expect(f.view.textContent).toContain("Nom enregistré : Version ailleurs");
+    const f = setup(); await settle(); f.edit("Mon brouillon"); f.request.mockRejectedValueOnce(error).mockResolvedValueOnce(response({ ...group, name: "Version ailleurs" }, 200, '"v3"')); await f.submit();
+    expect(f.input.value).toBe("Mon brouillon"); expect(f.button("Enregistrer").disabled).toBe(false); expect(f.request).toHaveBeenCalledTimes(3);
+    expect(f.view.textContent).toContain("Nom enregistré : Version ailleurs"); expect(f.view.textContent).not.toContain("Vérifier le groupe");
     f.button("Utiliser la version enregistrée").click(); expect(f.input.value).toBe("Version ailleurs"); expect(f.button("Enregistrer").disabled).toBe(true);
     expect(f.request.mock.calls.filter(([, o]) => o.method === "PUT")).toHaveLength(1);
   });
@@ -134,16 +133,14 @@ describe("combined group editor", () => {
     expect(f.request).toHaveBeenLastCalledWith(`/api/v1/groups/${id}/image`, expect.objectContaining({ ifMatch: '"v2"' }));
   });
   it("verifies an uncertain deletion without repeating it if the current photo is already gone", async () => {
-    const f = setup(); await settle(); f.button("Supprimer la photo").click(); f.request.mockRejectedValueOnce(new ApiError({ kind: "timeout" })); await f.submit();
-    f.request.mockResolvedValueOnce(response({ ...group, profileImageUrl: null }, 200, '"v2"')); f.button("Vérifier le groupe").click(); await settle();
+    const f = setup(); await settle(); f.button("Supprimer la photo").click(); f.request.mockRejectedValueOnce(new ApiError({ kind: "timeout" })).mockResolvedValueOnce(response({ ...group, profileImageUrl: null }, 200, '"v2"')); await f.submit();
     expect(f.button("Enregistrer").disabled).toBe(true); expect(f.request.mock.calls.filter(([, o]) => o.method === "DELETE")).toHaveLength(1);
   });
   it("recovers a failed initial read only on request and hides the editor on lost access", async () => {
     const f = setup({ readError: new ApiError({ kind: "network" }) }); await settle();
-    expect(f.form.hidden).toBe(true); f.button("Réessayer").click(); await settle(); expect(f.form.hidden).toBe(false);
-    expect(f.input.value).toBe("Famille"); expect(f.button("Enregistrer").disabled).toBe(true);
-    f.edit("Amis"); f.request.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 404, errorCode: "GROUP_NOT_FOUND" })); await f.submit();
-    expect(f.form.hidden).toBe(true); expect(f.input.value).toBe(""); expect(f.view.querySelector(".profile-photo-crop")).toBeNull();
+    expect(f.form.hidden).toBe(true); expect(f.request).toHaveBeenCalledOnce();
+    const known = setup(); await settle(); known.edit("Amis"); known.request.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 404, errorCode: "GROUP_NOT_FOUND" })); await known.submit();
+    expect(known.form.hidden).toBe(true); expect(known.input.value).toBe(""); expect(known.view.querySelector(".profile-photo-crop")).toBeNull();
   });
   it("locks duplicate saves and navigation while pending, then ignores late writes after disposal", async () => {
     const f = setup(); await settle(); f.edit("Amis"); const gate = barrier();

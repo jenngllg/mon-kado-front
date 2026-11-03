@@ -46,18 +46,12 @@ describe("owner reservation presentation", () => {
     const ui = setup(); await vi.waitFor(() => expect(ui.view.querySelector("form")).not.toBeNull()); ui.reservations.loadCurrent.mockClear(); ui.reservations.create.mockRejectedValue(new ApiError({ kind: "http", statusCode: 428 }));
     ui.reservations.loadCurrent.mockResolvedValue({ state: "reserved", reservation });
     submit(ui.view);
-    await vi.waitFor(() => expect(ui.view.querySelector('[role="alert"]')).not.toBeNull());
-    expect(ui.reservations.loadCurrent).not.toHaveBeenCalled();
-    const verify = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Vérifier ma réservation");
-    verify?.click();
     await vi.waitFor(() => expect(ui.view.textContent).toContain("Tu as réservé 1 exemplaire"));
+    expect(ui.reservations.loadCurrent).toHaveBeenCalledTimes(2); expect(ui.view.textContent).not.toContain("Vérifier ma réservation");
     expect(ui.reservations.create).toHaveBeenCalledOnce(); expect(ui.reservations.update).not.toHaveBeenCalled();
   });
   it("verifies only after an uncertain write without automatically replaying it", async () => {
     const ui = setup(); await vi.waitFor(() => expect(ui.view.querySelector("form")).not.toBeNull()); ui.reservations.loadCurrent.mockClear(); ui.reservations.create.mockRejectedValue(new Error("offline")); submit(ui.view);
-    await vi.waitFor(() => expect(ui.view.querySelector('[role="alert"]')).not.toBeNull());
-    expect(ui.view.querySelector('button[type="submit"]')?.hasAttribute("disabled")).toBe(true);
-    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Vérifier ma réservation")?.click();
     await vi.waitFor(() => expect(ui.reservations.loadCurrent).toHaveBeenCalledOnce());
     await vi.waitFor(() => expect(ui.view.querySelector('button[type="submit"]')?.hasAttribute("disabled")).toBe(false));
     expect(ui.reservations.create).toHaveBeenCalledOnce();
@@ -109,8 +103,6 @@ describe("owner reservation presentation", () => {
     ui.reservations.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
     await vi.waitFor(() => expect(ui.view.querySelector("input")).not.toBeNull());
     const input = /** @type {HTMLInputElement} */ (ui.view.querySelector("input")); input.value = "2"; input.dispatchEvent(new Event("input")); submit(ui.view);
-    await vi.waitFor(() => expect(ui.view.querySelector('[role="alert"]')).not.toBeNull());
-    [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Vérifier ma réservation")?.click();
     await vi.waitFor(() => expect(ui.view.textContent).toContain("Quantité enregistrée : 1"));
     expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.reservations.update).toHaveBeenCalledOnce();
   });

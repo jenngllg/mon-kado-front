@@ -277,24 +277,19 @@ describe("profile editor", () => {
     new ApiError({ kind: "network" }),
   ])("preserves mounted inputs and presents technical failures safely", async error => {
     // Arrange
-    const { view, input, form, save } = mount(); await settle(); save.mockRejectedValue(error);
+    const { view, input, form, load, save } = mount(); await settle(); save.mockRejectedValue(error); if(error.kind !== "http" || (error.statusCode ?? 0) >= 500) load.mockRejectedValue(new ApiError({kind:"network",correlationId:error.correlationId}));
     // Act
     edit(input, "Draft"); await submit(form);
     // Assert
     expect(input.value).toBe("Draft"); expect(save).toHaveBeenCalledOnce();
     expect(view.querySelector('[role="alert"]')).not.toBeNull();
     if (error.statusCode === 429) expect(view.textContent).toContain("Réessaie dans 7 seconde(s).");
-    if (error.correlationId) expect(view.textContent).toContain("Référence : support-id");
+    if (error.correlationId && error.kind === "http") expect(view.textContent).toContain("Référence : support-id");
   });
   it("requires a read before another write after an invalid response", async () => {
-    // Arrange
-    const { view, input, form, save } = mount(); await settle();
-    save.mockRejectedValue(new ApiError({ kind: "invalidResponse", statusCode: 200 }));
-    // Act
-    edit(input, "Draft"); await submit(form); await submit(form);
-    // Assert
-    expect(save).toHaveBeenCalledOnce(); expect(button(view, "Enregistrer").disabled).toBe(true);
-    button(view, "Réessayer").click(); await settle(); expect(input.value).toBe("Draft");
+    const { view,input,form,load,save }=mount(); await settle(); save.mockRejectedValue(new ApiError({kind:"invalidResponse",statusCode:200}));
+    edit(input,"Draft"); await submit(form);
+    expect(save).toHaveBeenCalledOnce(); expect(load).toHaveBeenCalledTimes(2); expect(input.value).toBe("Draft"); expect(view.textContent).not.toContain("Relire le profil");
   });
   it.each(["read", "write"])("cleans inputs and ignores late %s responses idempotently", async operation => {
     // Arrange

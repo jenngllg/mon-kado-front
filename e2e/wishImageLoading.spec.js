@@ -12,11 +12,12 @@ const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control
 async function imageApi(context, owner, failure = 0) {
   const api = await controlledApi(context); api.state.authenticated = owner;
   const path = owner ? `/wishlists/${listId}/wishes` : sharedPath;
-  const state = { reads: 0, images: 0, revoked: false };
+  const state = { reads: 0, images: 0, revoked: false, revokeOnImageFailure: false };
   const wishes = [wishId, "019c52dd-56c1-7cc6-8a95-243f3a032e11"].map((id, index) => ({ ...api.wish, id, name: index === 0 ? "Alpha" : "Beta", position: index + 1 }));
   await context.route(`**/api/v1${path}/**/image?*`, route => {
     state.images++;
     const fail = failure && state.reads === 1 && new URL(route.request().url()).pathname.includes(wishId);
+    if (fail && state.revokeOnImageFailure) state.revoked = true;
     return route.fulfill({ status: fail ? failure : 200, headers: { ...headers, "Content-Type": fail ? "application/json" : "image/webp" }, body: fail ? "{}" : photo });
   });
   await context.route(`**/api/v1${path}`, route => {
@@ -59,20 +60,19 @@ for (const owner of [true, false]) {
 for (const owner of [true, false]) {
 for (const failure of [429, 404]) {
   for (const width of [390, 1440]) {
-    test(`${owner ? "owner" : "shared"} image ${failure} recovers explicitly with fresh grants at ${width}px`, async ({ page, context }, testInfo) => {
+    test(`${owner ? "owner" : "shared"} image ${failure} recovers automatically with fresh grants at ${width}px`, async ({ page, context }, testInfo) => {
       // Arrange
       await page.setViewportSize({ width, height: 1600 });
       const transport = await imageApi(context, owner, failure);
       await page.goto(transport.route);
       const retry = page.getByRole("button", { name: "Réessayer les images", exact: true });
-      await expect(retry).toBeVisible();
-      await expect(page.getByRole("img", { name: "Image indisponible", exact: true })).toHaveCount(1);
+      await expect(retry).toHaveCount(0);
+      await expect(page.locator(".wish-grid img")).toHaveCount(2);
       const select = page.getByRole("combobox", { name: "Trier par", exact: true });
       await select.selectOption("nameDesc");
-      expect(transport.state.reads).toBe(1);
+      expect(transport.state.reads).toBe(2);
       await page.locator(owner ? ".wishlist-details-view" : ".shared-wishlist-view").screenshot({ path: testInfo.outputPath("image-recovery.png") });
       // Act
-      await retry.click();
       // Assert
       const images = page.locator(".wish-grid img");
       await expect(images).toHaveCount(2);
@@ -118,12 +118,10 @@ test("manual owner reordering preserves loaded photos after six minutes without 
 
 test("image recovery on a revoked share clears the gallery rather than renewing access", async ({ page, context }) => {
   // Arrange
-  const transport = await imageApi(context, false, 404);
+  const transport = await imageApi(context, false, 404); transport.state.revokeOnImageFailure = true;
   await page.goto(transport.route);
   const retry = page.getByRole("button", { name: "Réessayer les images", exact: true });
-  await expect(retry).toBeVisible(); transport.state.revoked = true;
-  // Act
-  await retry.click();
+  // Recovery observes revoked access directly; no manual refresh occurs.
   // Assert
   await expect(page.getByRole("heading", { name: "Lien de partage indisponible", exact: true })).toBeVisible();
   await expect(page.locator(".wish-card, .wish-grid img")).toHaveCount(0);

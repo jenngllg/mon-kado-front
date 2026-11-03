@@ -64,7 +64,7 @@ export function createMemberWishlistParticipationSection({ displayName, shareLin
       if (api?.statusCode === 404) { onUnavailable(); return; }
       let message = null;
       if (mutation && (!api || ["network", "timeout", "invalidResponse"].includes(api.kind) || (api.statusCode ?? 0) >= 500)) {
-        mustRead = true; message = "Ta participation ne peut pas être confirmée. Vérifie ta participation avant de réessayer."; lookup("Vérifier ma participation");
+        mustRead = true; busy = false; await run(false, true); return;
       } else if (api?.statusCode === 409 && api.errorCode === "WISHLIST_OWNER_CANNOT_JOIN") {
         owner = true; message = "Tu ne peux pas participer à ta propre liste.";
       } else {

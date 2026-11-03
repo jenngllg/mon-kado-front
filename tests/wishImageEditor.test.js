@@ -73,9 +73,9 @@ describe("wish image saved with the page", () => {
     // Arrange
     const ui = setup(); await settle(); await select(ui.view); ui.uploadImage.mockRejectedValue(error);
     // Act
-    ui.send(); await settle(); ui.send();
+    ui.send(); await settle();
     // Assert
-    expect(ui.uploadImage).toHaveBeenCalledOnce();
+    expect(ui.loadOne).toHaveBeenCalledTimes(2); expect(ui.uploadImage).toHaveBeenCalledOnce();
     expect(ui.view.querySelector('img[src^="blob:"]')).not.toBeNull();
   });
   it("ignores late decoding after disposal", async () => {

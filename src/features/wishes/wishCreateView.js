@@ -1,7 +1,7 @@
 import { ApiError, isAbortError } from "../../api/apiError.js";
 import { RoutePaths } from "../../app/routeContracts.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
-import { createBackLink, createActionLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
+import { createBackLink, createAlert, createButton, createLoadingState, disposeComponent, setButtonLoading, setFormFieldValidation } from "../../components/index.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 import { createWishForm } from "./wishForm.js";
@@ -230,7 +230,7 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
       if (disposed || lifetime.signal.aborted) return;
       try { await onCreated(created); }
       catch {
-        if (!disposed && !lifetime.signal.aborted) show({ title: "Souhait ajouté", message: "Ton souhait est ajouté, mais l’ouverture de la liste a échoué. Utilise la flèche de retour.", variant: "success" }).focus();
+        if (!disposed && !lifetime.signal.aborted) show({ title: "Souhait ajouté", message: "Ton souhait est ajouté, mais l’ouverture de la liste a échoué.", variant: "success" }).focus();
       }
     } catch (error) {
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) presentFailure(error, true);
@@ -270,12 +270,11 @@ export function createWishCreateView({ wishlistId, loadOne, create, onCreated, s
     if (error instanceof ApiError && error.correlationId) details.push(`Référence : ${error.correlationId}`);
     if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) details.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
     const uncertain = mutation && (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode !== null && error.statusCode >= 500));
-    if (uncertain) details.push("L’ajout de ton souhait ne peut pas être confirmé. Consulte ta liste avant de réessayer.");
+    if (uncertain) { completed = true; details.push("L’ajout de ton souhait n’a pas pu être confirmé."); }
     let message = translated.message; let heading = translated.title;
     if (error instanceof ApiError && error.statusCode === 413) { heading = "Informations trop volumineuses"; message = WishPayloadTooLarge; }
     if (error instanceof ApiError && error.errorCode === "WISH_LIMIT_REACHED") { heading = "Limite de souhaits atteinte"; message = "Cette liste a atteint le nombre maximal de souhaits."; }
     const alert = show({ title: heading, message, detail: details.join(" ") || null });
-    if (uncertain) feedback.append(createActionLink({ label: "Consulter ma liste", href: destination }));
     let firstInvalid = null;
     if (mutation && error instanceof ApiError) for (const validation of error.validationErrors) {
       const field = fields.find(field => field.name === validation.propertyName);

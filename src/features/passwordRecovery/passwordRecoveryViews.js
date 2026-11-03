@@ -74,8 +74,8 @@ export function createResetPasswordView({ resetPassword, consumeFragment, signal
         credentials = null;
         /** @type {HTMLElement[]} */
         const content = [textElement("p", "Tu peux maintenant te connecter avec ton nouveau mot de passe."), links(false)];
-        if (sessionIssue !== null) content.push(createAlert({ variant: "warning", title: "Mot de passe enregistré, synchronisation à vérifier",
-          message: "La réinitialisation a réussi, mais la synchronisation des sessions n’a pas pu être confirmée. Utilise l’action Réessayer du bandeau de session ; elle ne renverra pas le mot de passe.",
+        if (sessionIssue !== null) content.push(createAlert({ variant: "warning", title: "Mot de passe enregistré, synchronisation indisponible",
+          message: "La réinitialisation a réussi, mais la synchronisation des sessions n’a pas pu être confirmée. ",
           detail: sessionIssue.correlationId ? `Référence : ${sessionIssue.correlationId}` : null }));
         replaceContent(view, "Mot de passe réinitialisé", content, true);
         sessionIssue = null;

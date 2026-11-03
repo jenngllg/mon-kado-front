@@ -92,13 +92,11 @@ describe("owner share section", () => {
     expect(ui.view.textContent).toContain("Lien de partage renouvelé"); expect(document.activeElement).toBe(ui.view.querySelector("h2")); expect(ui.copyText).not.toHaveBeenCalled();
   });
   it("cannot bypass renewal reread by closing the modal or invoking a hidden creation button", async () => {
-    const renew = vi.fn(async () => { throw new ApiError({ kind: "http", statusCode: 412 }); }); const load = vi.fn(async () => link);
-    const ui = setup({ load, renew }); await settle(); ui.button("Renouveler le lien").click();
-    /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("dialog button")].find(b => b.textContent === "Renouveler le lien")).click(); await settle();
-    ui.button("Annuler").click(); expect(ui.button("Renouveler le lien").hidden).toBe(true); expect(ui.input.value).toBe("");
-    ui.button("Créer le lien de partage").click(); expect(ui.create).not.toHaveBeenCalled(); ui.button("Renouveler le lien").click(); expect(ui.view.querySelector("dialog")).toBeNull();
-    load.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.reload(); await settle(); expect(ui.button("Renouveler le lien").hidden).toBe(true);
-    ui.reload(); await settle(); expect(ui.input.value).toBe(link.shareUrl); expect(renew).toHaveBeenCalledOnce();
+    const renew=vi.fn(async()=>{throw new ApiError({kind:"http",statusCode:412});});const load=vi.fn(async()=>link);
+    const ui=setup({load,renew});await settle();ui.button("Renouveler le lien").click();
+    /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("dialog button")].find(b=>b.textContent==="Renouveler le lien")).click();await settle();
+    ui.button("Annuler").click();expect(ui.input.value).toBe(link.shareUrl);expect(load).toHaveBeenCalledTimes(2);expect(renew).toHaveBeenCalledOnce();
+    ui.button("Créer le lien de partage").click();expect(ui.create).not.toHaveBeenCalled();
   });
   it("loads without creating or changing initial focus, then creates only once and exposes a labelled readonly link", async () => {
     const ui = setup(); expect(ui.view.textContent).toContain("Chargement du lien"); expect(ui.create).not.toHaveBeenCalled(); await settle();

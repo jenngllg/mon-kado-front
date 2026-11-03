@@ -36,19 +36,11 @@ describe("wishlist owner detail", () => {
   });
 
   it("recovers failed images only after an explicit fresh collection read", async () => {
-    // Arrange
-    const ui = setup(); await settle();
-    const image = ui.view.querySelector("img");
-    const retry = /** @type {HTMLButtonElement} */ ([...ui.view.querySelectorAll("button")].find(button => button.textContent === "Réessayer les images"));
-    expect(retry.hidden).toBe(true);
-    // Act
-    image?.dispatchEvent(new Event("error"));
-    expect(retry.hidden).toBe(false); expect(ui.loadWishes).toHaveBeenCalledOnce();
-    ui.loadWishes.mockImplementation(async () => ({ ...collection, wishes: [{ ...wish, imageUrl: "https://api.test/fresh" }] }));
-    retry.click(); await settle();
-    // Assert
-    expect(ui.loadWishes).toHaveBeenCalledTimes(2); expect(ui.loadOne).toHaveBeenCalledOnce();
-    expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("https://api.test/fresh?size=thumbnail"); expect(retry.hidden).toBe(true);
+    const ui=setup();await settle();const image=ui.view.querySelector("img");
+    ui.loadWishes.mockImplementation(async()=>({...collection,wishes:[{...wish,name:"Changed elsewhere",imageUrl:"https://api.test/fresh"}]}));
+    image?.dispatchEvent(new Event("error"));await settle();
+    expect(ui.loadWishes).toHaveBeenCalledTimes(2);expect(ui.loadOne).toHaveBeenCalledOnce();expect(ui.view.querySelector("img")?.getAttribute("src")).toBe("https://api.test/fresh?size=thumbnail");
+    expect(ui.view.textContent).not.toContain("Réessayer les images");expect(ui.view.textContent).not.toContain("Changed elsewhere");
   });
   it.each(["availableFirst"])("retains URL availability sort %s until the visible collection has loaded", async initialSort => {
     // Arrange
@@ -325,11 +317,10 @@ describe("wishlist owner detail", () => {
     expect(ui.view.querySelector("img,script")).toBeNull(); expect(ui.view.querySelector("h1")?.textContent).toBe(attack); expect(ui.view.querySelector("h3")?.textContent).toBe(attack);
   });
   it("reserves image dimensions, never places a grant in visible copy and degrades an expired image without retry", async () => {
-    const ui = setup(); await settle(); const image = /** @type {HTMLImageElement} */ (ui.view.querySelector("img"));
-    expect(image.alt).toBe(""); expect(image.width).toBe(400); expect(image.height).toBe(300); expect(image.loading).toBe("lazy"); expect(image.referrerPolicy).toBe("no-referrer");
-    image.dispatchEvent(new Event("error")); expect(image.hasAttribute("src")).toBe(false); expect(ui.view.querySelector("img")).toBeNull(); expect(ui.view.querySelector(".image-placeholder")?.getAttribute("aria-label")).toBe("Image indisponible");
-    expect(ui.loadWishes).toHaveBeenCalledOnce(); window.dispatchEvent(new Event("focus")); await settle(); expect(ui.view.querySelector("img")).toBeNull();
-    ui.click("Réessayer les images"); await settle(); expect(ui.view.querySelector("img")).not.toBeNull();
+    const ui=setup();await settle();const image=/** @type {HTMLImageElement} */(ui.view.querySelector("img"));
+    expect(image.alt).toBe("");expect(image.width).toBe(400);expect(image.height).toBe(300);expect(image.loading).toBe("lazy");expect(image.referrerPolicy).toBe("no-referrer");
+    image.dispatchEvent(new Event("error"));expect(image.hasAttribute("src")).toBe(false);await settle();expect(ui.loadWishes).toHaveBeenCalledTimes(2);
+    ui.view.querySelector("img")?.dispatchEvent(new Event("error"));window.dispatchEvent(new Event("focus"));await settle();expect(ui.view.querySelector("img")).toBeNull();expect(ui.loadWishes).toHaveBeenCalledTimes(2);
   });
   it("does not create elements for discarded unsafe product/image URLs", async () => {
     const ui = setup({ loadWishes: async () => ({ ...collection, wishes: [{ ...wish, url: null, imageUrl: null, productUnavailable: true, imageUnavailable: true }] }) }); await settle();

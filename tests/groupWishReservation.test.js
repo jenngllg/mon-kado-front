@@ -47,7 +47,7 @@ describe("group reservation controls", () => {
     const f = setup(); await settle();
     f.request.mockRejectedValueOnce(new ApiError({ kind: "timeout" }));
     f.view.querySelector("form")?.dispatchEvent(new Event("submit", { cancelable: true })); await settle();
-    button(f.view, "Vérifier ma réservation").click(); await settle();
+    expect(f.view.textContent).not.toContain("Vérifier ma réservation");
     expect(f.loadOne).toHaveBeenCalledOnce(); expect(f.onVerified).toHaveBeenCalledWith(wish);
     expect(f.request.mock.calls.filter(call => call[1].method === "PUT")).toHaveLength(1);
   });

@@ -31,12 +31,11 @@ export function createWishlistReportReviewView({ wishlistId, reportId, loadOne, 
   const save = createButton({ label: "Enregistrer", type: "submit" });
   editor.form.append(save);
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } });
-  const reload = createButton({ label: "Relire le signalement", variant: "secondary", onClick: () => { void read(true); } });
   const adopt = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: () => {
     if (disposed || terminal || busy || !reread) return;
     accept(reread); announcement.textContent = "Version enregistrée utilisée"; title.focus(); sync();
   } });
-  const recovery = node("div", ""); recovery.className = "cluster"; recovery.append(retry, reload, adopt);
+  const recovery = node("div", ""); recovery.className = "cluster"; recovery.append(retry, adopt);
   view.append(header, announcement, feedback, content, comparison, editor.form, recovery);
   addComponentEventListener(view, editor.form, "submit", event => { event.preventDefault(); editor.discardDeferredBlur(); void submit(); });
   registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); erase(); view.replaceChildren(); });
@@ -66,8 +65,8 @@ export function createWishlistReportReviewView({ wishlistId, reportId, loadOne, 
     editor.form.hidden = !baseline;
     editor.form.setAttribute("aria-busy", String(busy));
     for (const field of editor.fields) field.control.disabled = busy || !baseline;
-    retry.hidden = baseline !== null || busy; reload.hidden = !blocked || busy; adopt.hidden = !reread; adopt.disabled = busy;
-    reload.disabled = busy; retry.disabled = busy;
+    retry.hidden = baseline !== null || busy; adopt.hidden = !reread; adopt.disabled = busy;
+    retry.disabled = busy;
   }
   /** @param {boolean} explicit Recovery focus. */
   async function read(explicit) {
@@ -127,7 +126,8 @@ export function createWishlistReportReviewView({ wishlistId, reportId, loadOne, 
       const uncertain = !api || api.kind !== "http" || (api.statusCode ?? 0) >= 500;
       if (precondition || uncertain) {
         blocked = true; reread = null; comparison.replaceChildren(); comparison.hidden = true;
-        showError(error, precondition ? "Le signalement a été modifié ailleurs. Ta saisie est conservée. Relis le signalement avant de décider des modifications à enregistrer." : "Le traitement du signalement ne peut pas être confirmé. Relis le signalement avant de réessayer.");
+        showError(error, precondition ? "Le signalement a été modifié ailleurs. Ta saisie est conservée. " : "Le traitement du signalement ne peut pas être confirmé. ");
+        busy = false; await read(true);
       } else {
         const known = api?.validationErrors.filter(item => item.propertyName === "status" || item.propertyName === "reviewNote") ?? [];
         for (const item of known) { const field = editor.fields.find(field => field.name === item.propertyName); if (field) { field.checked = true; field.error = field.name === "status" ? "Choisis un statut de signalement." : ReportDetailsMessage; setFormFieldValidation(field.element, field.error); } }

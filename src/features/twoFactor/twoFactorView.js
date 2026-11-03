@@ -18,6 +18,7 @@ export function createTwoFactorView({ session, signal, onAuthenticated = () => {
   const feedback = document.createElement("div"); feedback.tabIndex = -1;
   const lifetime = new AbortController();
   let disposed = false, busy = false, recovering = false, configured = false, authenticatedNotified = false;
+  let identityRecoveryAttempted = false;
   /** @type {readonly string[] | null} */ let codes = null;
   view.append(heading, feedback, content);
   let unsubscribe = () => {};
@@ -45,8 +46,11 @@ export function createTwoFactorView({ session, signal, onAuthenticated = () => {
     }
     if (state.authenticationPending) {
       clearContent(); codes = null;
-      content.append(text("p", "L’authentification a été acceptée. La vérification de la session reste à terminer."),
-        createButton({ label: "Vérifier ma session", onClick: () => { void execute(async () => { await session.restore(); }); } }));
+      content.append(text("p", "Finalisation de ta connexion…"));
+      if (!identityRecoveryAttempted) {
+        identityRecoveryAttempted = true;
+        queueMicrotask(() => { if (!disposed) void execute(async () => { await session.restore(); }); });
+      } else content.replaceChildren(text("p", "La connexion n’a pas pu être finalisée."));
       return;
     }
     if (!state.twoFactor || !session.secondFactor) {

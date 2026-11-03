@@ -56,8 +56,9 @@ describe("report confirmation", () => {
     gate.resolve(); await settle(); expect(ui.onReported).toHaveBeenCalledOnce(); expect(ui.onClose).toHaveBeenCalledOnce(); expect(ui.details.value).toBe("");
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("retains the draft and warns about duplicates before explicit retry", async error => {
-    const ui = setup(); ui.report.mockRejectedValueOnce(error); ui.fill(); ui.submit.click(); await settle(); expect(ui.details.value).toBe("Pourquoi"); expect(ui.dialog.textContent).toContain("doublon"); expect(ui.submit.textContent).toBe("Réessayer l’envoi"); expect(document.activeElement?.getAttribute("role")).toBe("alert"); expect(ui.report).toHaveBeenCalledOnce();
-    ui.submit.click(); await settle(); expect(ui.report).toHaveBeenCalledTimes(2); expect(ui.onReported).toHaveBeenCalledOnce();
+    const ui = setup(); ui.report.mockRejectedValueOnce(error); ui.fill(); ui.submit.click(); await settle();
+    expect(ui.details.value).toBe("Pourquoi"); expect(ui.dialog.textContent).toContain("n’a pas pu être confirmé"); expect(ui.submit.disabled).toBe(true);
+    ui.submit.click(); await settle(); expect(ui.report).toHaveBeenCalledOnce(); expect(ui.onReported).not.toHaveBeenCalled();
   });
   it.each([401, 403, 413, 429])("keeps operation failures local: %s", async statusCode => {
     const ui = setup(); ui.report.mockRejectedValue(new ApiError({ kind: "http", statusCode, correlationId: "ref", retryAfterSeconds: 5 })); ui.fill(); ui.submit.click(); await settle(); expect(ui.onUnavailable).not.toHaveBeenCalled(); expect(ui.details.value).toBe("Pourquoi"); expect(ui.submit.disabled).toBe(false); expect(ui.onReported).not.toHaveBeenCalled();

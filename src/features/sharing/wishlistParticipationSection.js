@@ -89,7 +89,7 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
     const correlation = error instanceof ApiError ? error.correlationId : translated.correlationId;
     if (correlation) extra.push(`Référence : ${correlation}`);
     if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) extra.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
-    const alert = createAlert({ ...translated, ...(message ? { title: "Participation à vérifier", message } : {}), detail: extra.join(" ") || null, variant: "error" });
+    const alert = createAlert({ ...translated, ...(message ? { title: "Participation indisponible", message } : {}), detail: extra.join(" ") || null, variant: "error" });
     alert.tabIndex = -1; feedback.hidden = false; feedback.append(alert); if (focus) alert.focus();
   }
   /** @param {boolean} explicit User initiated. */
@@ -120,7 +120,8 @@ export function createWishlistParticipationSection({ shareLinkId, loadCurrent, j
       if (disposed || isAbortError(error)) return;
       const api = error instanceof ApiError ? error : null;
       if (!api || ["network", "timeout", "invalidResponse"].includes(api.kind) || (api.statusCode ?? 0) >= 500) {
-        mustRead = true; failure(error, true, "Ta participation ne peut pas être confirmée. Vérifie ta participation avant de réessayer."); lookupAction("Vérifier ma participation");
+        mustRead = true; loading(false); await read(true);
+        if (!disposed && !mustRead && !joined) failure(error, true, "La participation n’a pas pu être confirmée.");
       } else if (api.errorCode === "WISHLIST_PARTICIPANT_LIMIT_REACHED") failure(error, true, "Cette liste a atteint le nombre maximal de participants.");
       else {
         failure(error, true);

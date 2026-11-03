@@ -70,50 +70,50 @@ describe("wishlist deletion confirmation", () => {
     expect(ui.confirm.disabled).toBe(true); expect(ui.cancel.disabled).toBe(true); const cancelEvent = new Event("cancel", { cancelable: true }); ui.view.dispatchEvent(cancelEvent); expect(cancelEvent.defaultPrevented).toBe(true);
     expect(ui.view.textContent).toContain("Suppression de ta liste…"); expect(ui.view.textContent).toContain("Liste privée"); expect(ui.onDeleted).not.toHaveBeenCalled();
     gate.resolve(); await settle(); expect(ui.onDeleted).toHaveBeenCalledOnce(); expect(ui.view.textContent).not.toContain("Liste privée"); expect(ui.view.textContent).toContain("Liste supprimée");
-    ui.confirm.click(); ui.button("Relire la liste").click(); expect(ui.remove).toHaveBeenCalledOnce(); expect(ui.loadOne).toHaveBeenCalledOnce();
+    ui.confirm.click(); expect(ui.remove).toHaveBeenCalledOnce(); expect(ui.loadOne).toHaveBeenCalledOnce();
   });
   it("never reopens a confirmed deletion when navigation rejects", async () => {
     const ui = setup(); await settle(); ui.onDeleted.mockRejectedValue(new Error("private")); ui.confirm.click(); await settle();
     expect(ui.view.textContent).toContain("Ta liste est supprimée, mais le retour à Mes listes a échoué."); expect(ui.view.textContent).not.toContain("private");
     ui.confirm.click(); expect(ui.remove).toHaveBeenCalledOnce(); expect(document.activeElement?.textContent).toContain("Liste supprimée");
   });
-  it("requires manual read and a new click across repeated conflicts, showing the latest name and ETag", async () => {
-    const ui = setup(); await settle(); await failDeletion(ui, new ApiError({ kind: "http", statusCode: 412, errorCode: "WISHLIST_VERSION_CONFLICT" }));
-    expect(ui.button("Relire la liste").compareDocumentPosition(ui.confirm) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
-    expect(ui.view.textContent).toContain("Cette liste a été modifiée ailleurs. Relis ses informations avant de confirmer à nouveau sa suppression."); expect(document.activeElement).toBe(ui.view.querySelector('[role="alert"]'));
-    expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.confirm.disabled).toBe(true);
+  it("reads automatically and requires a new business confirmation across repeated conflicts, showing the latest name and ETag", async () => {
+    const ui = setup(); await settle(); ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
     for (const etag of ['"v2"', '"v3"']) {
-      ui.loadOne.mockResolvedValue({ ...original, wishlist: { ...original.wishlist, name: `Nom ${etag}` }, etag }); ui.button("Relire la liste").click(); await settle();
-      expect(document.activeElement).toBe(ui.view.querySelector("h2")); expect(ui.view.textContent).toContain(`Nom ${etag}`); const count = ui.remove.mock.calls.length;
-      await settle(); expect(ui.remove).toHaveBeenCalledTimes(count); ui.confirm.click(); await settle(); expect(ui.remove.mock.calls.at(-1)?.[1].etag).toBe(etag);
+      ui.loadOne.mockResolvedValue({ ...original, wishlist: { ...original.wishlist, name: `Nom ${etag}` }, etag });
+      ui.confirm.click(); await settle();
+      expect(ui.view.textContent).toContain(`Nom ${etag}`); expect(ui.confirm.disabled).toBe(false);
     }
-    expect(ui.onDeleted).not.toHaveBeenCalled();
+    expect(ui.remove).toHaveBeenCalledTimes(2); expect(ui.remove.mock.calls[1][1].etag).toBe('"v2"');
+    expect(ui.onDeleted).not.toHaveBeenCalled(); expect(ui.view.textContent).not.toContain("Relire la liste");
   });
   it("keeps deletion blocked after failed re-read, serializes retry clicks and focuses its alert", async () => {
-    const ui = setup(); await settle(); await failDeletion(ui, new ApiError({ kind: "http", statusCode: 412 })); const gate = barrier();
+    const ui = setup(); await settle(); const gate = barrier();
     ui.loadOne.mockImplementation(async () => { await gate.promise; throw new ApiError({ kind: "network" }); });
-    ui.button("Relire la liste").click(); ui.button("Relire la liste").click(); expect(ui.loadOne).toHaveBeenCalledTimes(2); gate.resolve(); await settle();
+    ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 })); ui.confirm.click(); await settle();
+    ui.confirm.click(); expect(ui.loadOne).toHaveBeenCalledTimes(2); gate.resolve(); await settle();
     expect(ui.confirm.disabled).toBe(true); expect(ui.remove).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(ui.view.querySelector('[role="alert"]'));
   });
   it.each([new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "ENGLISH" }] }),
     new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503, correlationId: "support" })])("blocks uncertain/precondition failures until a read succeeds", async error => {
-    const ui = setup(); await settle(); await failDeletion(ui, error); expect(ui.confirm.disabled).toBe(true); expect(ui.button("Relire la liste").hidden).toBe(false); expect(ui.view.textContent).not.toContain("ENGLISH");
-    if (error.kind !== "http" || error.statusCode === 503) expect(ui.view.textContent).toContain("La suppression ne peut pas être confirmée. Relis la liste avant de réessayer.");
-    if (error.statusCode === 503) expect(ui.view.textContent).toContain("Référence : support");
-    ui.confirm.click(); expect(ui.remove).toHaveBeenCalledOnce(); ui.button("Relire la liste").click(); await settle(); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).toHaveBeenCalledOnce();
+    const ui = setup(); await settle(); const gate = barrier();
+    ui.loadOne.mockImplementation(async () => { await gate.promise; return original; });
+    await failDeletion(ui, error); expect(ui.confirm.disabled).toBe(true); expect(ui.loadOne).toHaveBeenCalledTimes(2);
+    expect(ui.view.textContent).not.toContain("Relire la liste"); ui.confirm.click(); expect(ui.remove).toHaveBeenCalledOnce();
+    gate.resolve(); await settle(); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).toHaveBeenCalledOnce();
   });
   it.each(["initial", "mutation", "re-read"])("never interprets a 404 during %s as deletion success", async phase => {
     const missing = new ApiError({ kind: "http", statusCode: 404 }); const gate = barrier();
     const ui = setup({}, phase === "initial" ? gate.promise.then(() => { throw missing; }) : original);
     if (phase === "initial") gate.resolve(); else { await settle(); if (phase === "mutation") await failDeletion(ui, missing);
-      else { await failDeletion(ui, new ApiError({ kind: "network" })); ui.loadOne.mockRejectedValue(missing); ui.button("Relire la liste").click(); } }
+      else { ui.loadOne.mockRejectedValue(missing); await failDeletion(ui, new ApiError({ kind: "network" })); } }
     await settle(); expect(ui.view.textContent).toContain("Liste introuvable"); expect(ui.view.textContent).not.toContain("Liste supprimée"); expect(ui.view.textContent).not.toContain("Liste privée"); expect(ui.confirm.disabled).toBe(true); expect(ui.onDeleted).not.toHaveBeenCalled();
   });
   it.each([true, false])("refuses a suspended list found during initial read (%s) or DELETE", async initial => {
     const ui = setup({}, initial ? { ...original, wishlist: { ...original.wishlist, isSuspended: true } } : original); await settle();
-    if (!initial) await failDeletion(ui, new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" }));
+    if (!initial) { ui.loadOne.mockResolvedValue({ ...original, wishlist: { ...original.wishlist, isSuspended: true } }); await failDeletion(ui, new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); }
     expect(ui.view.textContent).toContain("Liste suspendue"); expect(ui.view.textContent).toContain("Consultation uniquement"); expect(ui.confirm.disabled).toBe(true);
-    ui.loadOne.mockResolvedValue(original); ui.button("Relire la liste").click(); await settle(); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).toHaveBeenCalledTimes(initial ? 0 : 1);
+    expect(ui.remove).toHaveBeenCalledTimes(initial ? 0 : 1); expect(ui.view.textContent).not.toContain("Relire la liste");
   });
   it.each(["", "not-guid", "00000000-0000-0000-0000-000000000000"])("refuses route %s without a read", async wishlistId => {
     const ui = setup({ wishlistId }); await settle(); expect(ui.loadOne).not.toHaveBeenCalled(); expect(ui.view.textContent).toContain("Liste introuvable"); expect(ui.confirm.disabled).toBe(true);

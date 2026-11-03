@@ -224,9 +224,9 @@ describe("login form", () => {
     app.emit({ status: "unavailable", issue: toUserFacingError(failure) });
     gate.resolve(); await Promise.resolve(); await Promise.resolve();
     const retry = [...app.view.querySelectorAll("button")].find(button => button.textContent === "Réessayer la vérification de session");
-    expect(retry).toBeDefined();
+    expect(retry).toBeUndefined();
     expect(app.view.querySelector('[role="status"]')?.hasAttribute("hidden")).toBe(false);
-    retry?.click(); await Promise.resolve(); await Promise.resolve();
+    await Promise.resolve(); await Promise.resolve();
     expect(app.session.restore).toHaveBeenCalledOnce();
     expect(app.login).toHaveBeenCalledOnce();
   });

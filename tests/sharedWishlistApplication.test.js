@@ -323,9 +323,8 @@ describe("public shared gift integration", () => {
     quantity.value = "2"; quantity.dispatchEvent(new Event("input", { bubbles: true }));
     const click = (/** @type {string} */ text) => [...app.shell.outlet.querySelectorAll("button")].find(button => button.textContent === text)?.click();
     // Act
-    click(label); await observe(() => app.shell.outlet.querySelector('[role="alert"]') !== null);
     const reads = state.detailReads; const lookups = state.reservationReads;
-    click("Vérifier ma réservation"); await observe(() => !quantity.disabled);
+    click(label); await observe(() => state.detailReads === reads + 1 && !quantity.disabled);
     // Assert
     expect(state.detailReads).toBe(reads + 1); expect(state.reservationReads).toBe(lookups + 1);
     expect(state.reservationWrites).toBe(1); expect(quantity.value).toBe("2");

@@ -51,10 +51,8 @@ describe("followed lists gallery", () => {
     f.remove.mockRejectedValueOnce(new ApiError({ kind: "network" }));
     const action = f.view.querySelector(".wishlist-card__actions button"); if (!(action instanceof globalThis.HTMLButtonElement)) throw new Error("Missing action");
     action.click(); await settle();
-    expect(action.disabled).toBe(true); expect(f.view.textContent).toContain("Vérifier les listes suivies");
-    const verify = [...f.view.querySelectorAll("button")].find(button => button.textContent === "Vérifier les listes suivies");
-    if (!verify) throw new Error("Missing verification");
-    verify.click(); await settle(); expect(f.remove).toHaveBeenCalledOnce(); expect(f.load).toHaveBeenCalledTimes(2); disposeComponent(f.view);
+    expect(f.view.textContent).not.toContain("Vérifier les listes suivies");
+    expect(f.view.querySelectorAll(".wishlist-card")).toHaveLength(1); expect(f.remove).toHaveBeenCalledOnce(); expect(f.load).toHaveBeenCalledTimes(2); disposeComponent(f.view);
   });
   it("clears private links and ignores late data after account lifetime ends", async () => {
     const gate = barrier(), f = setup(); await settle();

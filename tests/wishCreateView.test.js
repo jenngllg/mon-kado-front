@@ -135,8 +135,8 @@ describe("manual gift creation view", () => {
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), ...[500, 503].map(statusCode => new ApiError({ kind: "http", statusCode }))])("keeps uncertain results honest and only retries on explicit submit", async error => {
     const ui = setup(); ui.create.mockRejectedValue(error); await settle(); ui.fill(); ui.send(); await settle();
-    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields[0].value).toBe(" Souhait 🎁 "); expect(ui.view.textContent).toContain("L’ajout de ton souhait ne peut pas être confirmé. Consulte ta liste avant de réessayer.");
-    expect(ui.view.querySelector('[role="alert"]')).toBe(document.activeElement); expect(ui.view.querySelectorAll(`a[href="/lists/${id}"]`)).toHaveLength(2); ui.send(); await settle(); expect(ui.create).toHaveBeenCalledTimes(2);
+    expect(ui.create).toHaveBeenCalledOnce(); expect(ui.fields[0].value).toBe(" Souhait 🎁 "); expect(ui.view.textContent).toContain("L’ajout de ton souhait n’a pas pu être confirmé.");
+    expect(ui.view.querySelector('[role="alert"]')).toBe(document.activeElement); expect(ui.view.querySelectorAll(`a[href="/lists/${id}"]`)).toHaveLength(1); ui.send(); await settle(); expect(ui.create).toHaveBeenCalledOnce();
   });
   it.each([400, 401, 403, 409, 413, 429])("presents safe HTTP %s with retained inputs and no retry", async statusCode => {
     const ui = setup(); ui.create.mockRejectedValue(new ApiError({ kind: "http", statusCode, correlationId: "support-fixture", retryAfterSeconds: 7 })); await settle(); ui.fill(); ui.send(); await settle();

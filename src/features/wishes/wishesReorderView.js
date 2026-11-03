@@ -39,9 +39,8 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
   const bar = node("div", ""); bar.className = "cluster wish-reorder-actions"; bar.append(cancelButtons[0], saveButtons[0]);
   const introduction = node("div", ""); introduction.className = "wish-reorder-introduction"; introduction.append(title, help);
   const toolbar = node("div", ""); toolbar.className = "wish-reorder-toolbar"; toolbar.append(introduction, bar);
-  const reread = createButton({ label: "Relire les souhaits", variant: "secondary", onClick: () => { void read(true); } });
   const adopt = createButton({ label: "Utiliser l’ordre enregistré", variant: "secondary", onClick: useLatest });
-  view.append(toolbar, feedback, reread, comparison, adopt, status, keyboardHelp, grid);
+  view.append(toolbar, feedback, comparison, adopt, status, keyboardHelp, grid);
   const stopDrag = installWishReorderDrag(view, grid, { enabled: canMove, move: (id, index) => move(id, index, cards.get(id)?.handle) });
   const stopMovement = () => { stopDrag(); finishKeyboard(false); };
   addComponentEventListener(view, grid, "pointerdown", () => finishKeyboard(false));
@@ -82,7 +81,6 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
     help.textContent = keyboardMove ? "Flèches pour déplacer · Entrée pour déposer · Échap pour annuler" : "Glisse les souhaits pour changer leur ordre.";
     for (const button of saveButtons) { button.disabled = !canMove() || !changed(); button.textContent = decision ? "Enregistrer mon ordre" : "Enregistrer"; }
     for (const button of cancelButtons) { button.disabled = disposed || busy; button.textContent = completed ? "Retour aux souhaits" : "Annuler"; }
-    reread.hidden = disposed || terminal || completed || (!needsRead && base !== null); reread.disabled = busy;
     adopt.hidden = disposed || completed || terminal || !latest; adopt.disabled = busy || suspended || (latest?.wishes.length ?? 0) > 1000;
     adopt.textContent = differentMembership ? "Repartir de la collection actualisée" : "Utiliser l’ordre enregistré";
     draft.forEach((id, index) => {
@@ -220,7 +218,10 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
       completed = true; blocked = true; base = null; latest = null; draft = []; cards.clear(); clear(grid); clear(comparison); comparison.hidden = true;
       show({ title: "Ordre des souhaits enregistré", message: "L’enregistrement est confirmé.", variant: "success" });
     } catch (error) {
-      if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) { failure(error, true); focusError(); }
+      if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) {
+        failure(error, true); focusError();
+        if (needsRead && !terminal && !suspended && !(error instanceof ApiError && (error.statusCode === 413 || error.validationErrors.some(item => item.propertyName?.startsWith("wishIds"))))) { busy = false; await read(true); }
+      }
     } finally { if (!disposed) { busy = false; status.textContent = ""; sync(); } }
     if (completed && !disposed) await leave(true);
   }
@@ -242,9 +243,9 @@ export function createWishesReorderView({ wishlistId, loadWishlist, loadWishes, 
     if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) detail.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
     const invalidOrder = error instanceof ApiError && (error.statusCode === 413 || error.validationErrors.some(item => item.propertyName?.startsWith("wishIds")));
     show({ title: precondition ? "Actualisation nécessaire" : translated.title,
-      message: precondition ? "La collection a été modifiée ailleurs. Ton ordre est conservé. Relis les souhaits avant de continuer." :
-        uncertain ? "L’enregistrement de l’ordre ne peut pas être confirmé. Relis les souhaits avant de réessayer." :
-        invalidOrder ? "L’ordre complet ne peut pas être envoyé. Relis les souhaits ; aucun envoi partiel ne sera effectué." : translated.message,
+      message: precondition ? "La collection a été modifiée ailleurs. Ton ordre est conservé. " :
+        uncertain ? "L’enregistrement de l’ordre ne peut pas être confirmé. " :
+        invalidOrder ? "L’ordre complet ne peut pas être envoyé. " : translated.message,
       detail: detail.join(" ") || null });
     if (invalidOrder) { blocked = true; needsRead = true; }
   }

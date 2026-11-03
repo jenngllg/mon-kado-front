@@ -81,8 +81,7 @@ test('the API denies administrators without a currently verified factor',async({
 test('an uncertain deletion is verified without replaying the command',async({page,context})=>{
   const {state}=await setup(context,{uncertain:true});await page.goto('/admin/members');await page.getByRole('button',{name:/Supprimer le compte de Nathalie/}).click();
   const dialog=page.getByRole('dialog');await dialog.getByLabel(/Référence/).fill('SUPPORT-42');await dialog.getByLabel(/Recopie/).fill('Nathalie et Christian #5696');await dialog.getByRole('button',{name:'Supprimer définitivement'}).click();
-  await expect(dialog.getByRole('alert')).toContainText('Résultat incertain');await expect(dialog.getByRole('button',{name:'Supprimer définitivement'})).toBeDisabled();expect(state.writes).toBe(1);
-  await dialog.getByRole('button',{name:'Vérifier la suppression'}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('status').filter({hasText:'Suppression vérifiée'})).toBeVisible();expect(state.writes).toBe(1);
+  await expect(dialog).toHaveCount(0);await expect(page.getByRole('status').filter({hasText:'Suppression vérifiée'})).toBeVisible();expect(state.writes).toBe(1);
 });
 test('empty results and failed reads can recover explicitly',async({page,context})=>{
   const {state}=await setup(context);state.fail=true;await page.goto('/admin/members');await expect(page.getByRole('alert')).toContainText('Impossible de charger');state.fail=false;state.empty=true;

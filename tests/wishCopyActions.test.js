@@ -134,8 +134,8 @@ describe("shared wish copies", () => {
   it.each([new Error("network"), new ApiError({ kind: "http", statusCode: 503 }), new ApiError({ kind: "invalidResponse", statusCode: 201 })])("never replays an uncertain copy %s", async error => {
     const copy = vi.fn(async () => { throw error; });
     const ui = setup({ copy }); await settle(); ui.trigger.click(); await settle(); submit(); await settle();
-    expect(modal().textContent).toContain("L’ajout ne peut pas être confirmé");
-    expect(modal().querySelector("a")?.getAttribute("href")).toBe(`/lists/${listId}`);
+    expect(modal().textContent).toContain("L’ajout n’a pas pu être confirmé");
+    expect(modal().textContent).not.toContain("Consulter ma liste"); expect(modal().querySelector("a")).toBeNull();
     submit(); expect(copy).toHaveBeenCalledOnce(); command("Fermer").click();
   });
   it.each(["SHARED_WISH_NOT_FOUND", "GROUP_WISHLIST_NOT_FOUND"])("reports a revoked source %s and closes the modal", async errorCode => {

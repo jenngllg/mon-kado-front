@@ -255,9 +255,19 @@ describe("second-factor continuation UI", () => {
     f.session.restore.mockImplementation(async () => { f.emit({ status: "authenticated", authenticationPending: false }); return f.session.getSnapshot(); });
     const view = f.mount();
     // Act
-    button(view, "Vérifier ma session").click(); await vi.waitFor(() => expect(f.onAuthenticated).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(f.onAuthenticated).toHaveBeenCalledOnce());
     // Assert
+    expect(view.textContent).not.toContain("Vérifier ma session");
     expect(f.session.restore).toHaveBeenCalledOnce(); expect(f.session.secondFactor.complete).not.toHaveBeenCalled();
+  });
+  it("stops after one unsuccessful identity read without asking for manual verification", async () => {
+    const f=fixture();f.emit({status:"unavailable",authenticationPending:true,twoFactor:undefined});const view=f.mount();
+    await vi.waitFor(()=>expect(view.textContent).toContain("La connexion n’a pas pu être finalisée."));
+    f.emit({status:"unavailable"});expect(f.session.restore).toHaveBeenCalledOnce();expect(view.querySelector("button")).toBeNull();
+  });
+  it("cancels a queued identity read when the continuation is disposed", async () => {
+    const f=fixture();f.emit({status:"unavailable",authenticationPending:true,twoFactor:undefined});const view=f.mount();disposeComponent(view);
+    await Promise.resolve();expect(f.session.restore).not.toHaveBeenCalled();
   });
   it("clears a staged QR and code when the proof expires", async () => {
     // Arrange

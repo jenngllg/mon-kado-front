@@ -1,3 +1,4 @@
+import { recoverIdentityAfterOneFailure } from "./recoveryTestHelpers.js";
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createGoogleLinkView } from "../src/features/google/googleLinkView.js";
@@ -115,19 +116,9 @@ describe("Google link proof form", () => {
     expect(password.value).toBe("short"); expect(submit.disabled).toBe(false); expect(f.linkPosts()).toHaveLength(1);
   });
   it("separates successful linking from failed identity verification and retries only the latter", async () => {
-    // Arrange
-    const { f, view, password, submit, visibility, onAuthenticated } = await mount(); enter(password, "secret"); visibility.click(); f.state.identityStatus = 503;
-    // Act
-    submit.click(); await vi.waitFor(() => expect(view.textContent).toContain("Compte Google associé. La vérification de ta session"));
-    // Assert
-    expect(password.value).toBe(""); expect(password.type).toBe("password"); expect(view.querySelector("form")?.hidden).toBe(true);
-    expect(view.textContent).toContain("Service temporairement indisponible");
-    // Act
-    f.state.identityStatus = 200;
-    [...view.querySelectorAll("button")].find(b => b.textContent === "Réessayer la vérification de session")?.click();
-    await vi.waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1));
-    // Assert
-    expect(f.linkPosts()).toHaveLength(1);
+    const {f,view,password,submit,visibility,onAuthenticated}=await mount();enter(password,"secret");visibility.click();f.state.identityStatus=503;recoverIdentityAfterOneFailure(f);
+    submit.click();await vi.waitFor(()=>expect(onAuthenticated).toHaveBeenCalledOnce());
+    expect(password.value).toBe("");expect(password.type).toBe("password");expect(view.querySelector("form")?.hidden).toBe(true);expect(f.linkPosts()).toHaveLength(1);expect(view.textContent).not.toContain("Réessayer la vérification de session");
   });
   it.each(["GOOGLE_ACCOUNT_LINK_CONFLICT", "GOOGLE_AUTHENTICATION_FAILED"])("erases and removes the form after terminal %s", async errorCode => {
     // Arrange

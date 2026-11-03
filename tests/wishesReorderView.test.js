@@ -106,31 +106,27 @@ describe("complete card reorder editor", () => {
     expect(ui.reorder).not.toHaveBeenCalled();
   });
   it("compares successive same-membership conflicts without replacing the proposed order or automatically writing", async () => {
-    const ui = setup(); await settle(); ui.move(0, "ArrowRight"); ui.reorder.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISH_ORDER_VERSION_CONFLICT" }));
-    ui.click("Enregistrer"); await settle(); expect(ui.buttons("Enregistrer")[0].disabled).toBe(true);
-    ui.loadWishes.mockResolvedValue(collection([ids[2], ids[0], ids[1]], '"c2"')); ui.click("Relire les souhaits"); await settle();
-    expect(ui.order()).toEqual([ids[1], ids[0], ids[2]]); expect(ui.view.textContent).toContain("Ordre enregistré"); expect(ui.reorder).toHaveBeenCalledTimes(1);
-    ui.click("Enregistrer mon ordre"); await settle(); expect(ui.reorder.mock.calls[1][2].etag).toBe('"c2"');
-    ui.loadWishes.mockResolvedValue(collection(ids, '"c3"')); ui.click("Relire les souhaits"); await settle(); ui.click("Utiliser l’ordre enregistré");
-    expect(ui.order()).toEqual(ids); expect(ui.buttons("Enregistrer")[0].disabled).toBe(true);
+    const ui = setup(); await settle(); ui.move(0,"ArrowRight"); ui.reorder.mockRejectedValue(new ApiError({kind:"http",statusCode:412}));
+    ui.loadWishes.mockResolvedValue(collection([ids[2],ids[0],ids[1]], '"c2"')); ui.click("Enregistrer"); await settle();
+    expect(ui.order()).toEqual([ids[1],ids[0],ids[2]]); expect(ui.view.textContent).toContain("Ordre enregistré"); expect(ui.reorder).toHaveBeenCalledOnce();
+    ui.loadWishes.mockResolvedValue(collection(ids, '"c3"')); ui.click("Enregistrer mon ordre"); await settle(); expect(ui.reorder.mock.calls[1][2].etag).toBe('"c2"');
+    ui.click("Utiliser l’ordre enregistré"); expect(ui.order()).toEqual(ids); expect(ui.buttons("Enregistrer")[0].disabled).toBe(true);
   });
   it("blocks membership changes until explicitly abandoning the old permutation", async () => {
-    const ui = setup(); await settle(); ui.move(0, "ArrowRight"); ui.reorder.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISH_ORDER_CONFLICT" })); ui.click("Enregistrer"); await settle();
-    ui.loadWishes.mockResolvedValue(collection([ids[0], ids[2]], '"new"')); ui.click("Relire les souhaits"); await settle();
+    const ui = setup(); await settle(); ui.move(0, "ArrowRight"); ui.reorder.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISH_ORDER_CONFLICT" })); ui.loadWishes.mockResolvedValue(collection([ids[0], ids[2]], '"new"')); ui.click("Enregistrer"); await settle();
     expect(ui.order()).toEqual([ids[1], ids[0], ids[2]]); expect(ui.buttons("Enregistrer")[0].disabled).toBe(true); expect(ui.view.textContent).toContain("Souhait 2");
     ui.click("Repartir de la collection actualisée"); expect(ui.order()).toEqual([ids[0], ids[2]]); ui.move(0, "ArrowRight"); expect(ui.reorder).toHaveBeenCalledTimes(1);
   });
   it("does not offer an actionable restart when the refreshed collection exceeds the limit", async () => {
-    const ui = setup(); await settle(); ui.move(0, "ArrowRight"); ui.reorder.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 })); ui.click("Enregistrer"); await settle();
+    const ui = setup(); await settle(); ui.move(0, "ArrowRight"); ui.reorder.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
     const many = Array.from({ length: 1001 }, (_, i) => `019c52dd-56c1-7cc6-8a95-${String(i).padStart(12, "0")}`);
-    ui.loadWishes.mockResolvedValue(collection(many)); ui.click("Relire les souhaits"); await settle();
+    ui.loadWishes.mockResolvedValue(collection(many)); ui.click("Enregistrer"); await settle();
     expect(ui.buttons("Repartir de la collection actualisée")[0].disabled).toBe(true); expect(ui.buttons("Enregistrer")[0].disabled).toBe(true); expect(ui.view.textContent).toContain("1 000"); expect(ui.reorder).toHaveBeenCalledTimes(1);
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 }), new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "PRIVATE" }] })])("keeps a draft blocked after ambiguous/precondition failure %# and failed reread", async error => {
-    const ui = setup(); await settle(); ui.move(0, "ArrowRight"); ui.reorder.mockRejectedValue(error); ui.click("Enregistrer"); await settle();
-    expect(ui.buttons("Enregistrer")[0].disabled).toBe(true); expect(ui.view.textContent).not.toContain("PRIVATE");
-    ui.loadWishes.mockRejectedValue(new ApiError({ kind: "network" })); ui.click("Relire les souhaits"); await settle(); expect(ui.order()).toEqual([ids[1], ids[0], ids[2]]); expect(ui.buttons("Enregistrer")[0].disabled).toBe(true);
-    ui.loadWishes.mockResolvedValue(collection([ids[1], ids[0], ids[2]])); ui.click("Relire les souhaits"); await settle(); expect(ui.view.textContent).toContain("déjà enregistré"); expect(ui.reorder).toHaveBeenCalledTimes(1);
+    const ui = setup(); await settle(); ui.move(0,"ArrowRight"); ui.loadWishes.mockRejectedValue(new ApiError({kind:"network"})); ui.reorder.mockRejectedValue(error); ui.click("Enregistrer"); await settle();
+    expect(ui.order()).toEqual([ids[1],ids[0],ids[2]]); expect(ui.buttons("Enregistrer")[0].disabled).toBe(true); expect(ui.view.textContent).not.toContain("PRIVATE");
+    expect(ui.loadWishes).toHaveBeenCalledTimes(2); expect(ui.reorder).toHaveBeenCalledOnce(); expect(ui.view.textContent).not.toContain("Relire les souhaits");
   });
   it.each([401, 403, 413, 429])("presents HTTP %s safely and without retry", async statusCode => {
     const ui = setup(); await settle(); ui.move(0, "ArrowRight"); ui.reorder.mockRejectedValue(new ApiError({ kind: "http", statusCode, correlationId: "support", retryAfterSeconds: 7 })); ui.click("Enregistrer"); await settle();
@@ -142,7 +138,7 @@ describe("complete card reorder editor", () => {
   it("requires a valid reread after suspension and retains only the mounted draft", async () => {
     const ui = setup(); await settle(); ui.move(0, "ArrowRight"); ui.reorder.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); ui.click("Enregistrer"); await settle();
     expect(ui.order()).toEqual([ids[1], ids[0], ids[2]]); expect(ui.handles().every(handle => handle.hasAttribute("disabled"))).toBe(true);
-    ui.click("Relire les souhaits"); await settle(); expect(ui.buttons("Enregistrer mon ordre")[0].disabled).toBe(false);
+    expect(ui.loadWishes).toHaveBeenCalledOnce(); expect(ui.reorder).toHaveBeenCalledOnce(); expect(ui.view.textContent).not.toContain("Relire les souhaits");
   });
   it("disables all controls during PATCH and never replays success after callback failure", async () => {
     const gate = barrier(); const ui = setup({ reorder: async () => { await gate.promise; return { wishes: [], etag: '"next"' }; }, onSaved: async () => { throw new Error("PRIVATE"); } }); await settle(); ui.move(0, "ArrowRight"); ui.click("Enregistrer");
@@ -152,7 +148,7 @@ describe("complete card reorder editor", () => {
   it.each(["read", "write"])("aborts %s and ignores late replies after disposal", async phase => {
     const gate = barrier(); const abort = new AbortController(); const ui = setup({ signal: abort.signal }); await settle();
     if (phase === "write") { ui.reorder.mockImplementation(async () => { await gate.promise; return { wishes: [], etag: '"next"' }; }); ui.move(0, "ArrowRight"); ui.click("Enregistrer"); }
-    else { ui.loadWishes.mockImplementation(async () => { await gate.promise; return collection(); }); ui.reorder.mockRejectedValue(new ApiError({ kind: "network" })); ui.move(0, "ArrowRight"); ui.click("Enregistrer"); await settle(); ui.click("Relire les souhaits"); }
+    else { ui.loadWishes.mockImplementation(async () => { await gate.promise; return collection(); }); ui.reorder.mockRejectedValue(new ApiError({ kind: "network" })); ui.move(0, "ArrowRight"); ui.click("Enregistrer"); await settle(); }
     abort.abort(); disposeComponent(ui.view); gate.resolve(); await settle(); expect(ui.order()).toEqual([]); expect(ui.onSaved).not.toHaveBeenCalled(); expect(ui.view.textContent).not.toContain("Souhait 1");
   });
   it("handles already aborted input and ignores explicit cancellation", async () => {

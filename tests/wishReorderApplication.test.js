@@ -68,8 +68,8 @@ describe("reordering in the protected list detail", () => {
     await until(app.shell.outlet, () => app.shell.outlet.querySelectorAll(".wish-card").length === 3); expect(app.state.writes).toBe(1);
   });
   it.each([401, 403, 404, 409, 412, 413, 428, 429, 503])("handles %s without shell duplication or retries", async status => {
-    const app = setup(); await ready(app); app.state.status = status; if (status === 409) app.state.code = "WISH_ORDER_CONFLICT"; app.move(0, "ArrowRight"); app.click("Enregistrer");
-    await until(app.shell.outlet, () => status === 401 ? window.location.pathname === "/login" : app.shell.outlet.querySelector('.wish-reorder-view [role="alert"]') !== null);
+    const app = setup(); await ready(app); const reads = app.state.reads; app.state.status = status; if (status === 409) app.state.code = "WISH_ORDER_CONFLICT"; app.move(0, "ArrowRight"); app.click("Enregistrer");
+    await until(app.shell.outlet, () => status === 401 ? window.location.pathname === "/login" : [412,428,503].includes(status) ? app.state.reads > reads && app.shell.outlet.querySelector('.wish-reorder-view[aria-busy="false"]') !== null : app.shell.outlet.querySelector('.wish-reorder-view [role="alert"]') !== null);
     expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toContain("PRIVATE_BACKEND"); expect(app.shell.sessionFeedback.querySelector('[role="alert"]')).toBeNull();
     if (status !== 401) expect(app.session.getSnapshot().status).toBe("authenticated");
   });

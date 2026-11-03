@@ -30,10 +30,9 @@ export function createWishlistDeleteDialog({ wishlistId, loadOne, remove, onDele
   const back = createActionLink({ label: "Retour à Mes listes", href: RoutePaths.Lists }); back.hidden = true;
   const confirm = createButton({ label: "Supprimer", variant: "danger", onClick: () => { void deleteWishlist(); } });
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
-  const reread = createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void read(true); } }); reread.hidden = true;
   actions.append(cancel, confirm); confirmation.append(warning);
   const content = textElement("div", ""); content.className = "flow";
-  content.append(question, confirmation, feedback, status, retry, reread, back, actions); view.append(content);
+  content.append(question, confirmation, feedback, status, retry, back, actions); view.append(content);
   addComponentEventListener(view, view, "cancel", event => { if (deleting) event.preventDefault(); });
   addComponentEventListener(view, view, "close", () => { disposeComponent(view); view.remove(); });
   registerComponentCleanup(view, () => {
@@ -60,7 +59,6 @@ export function createWishlistDeleteDialog({ wishlistId, loadOne, remove, onDele
     confirmation.hidden = current === null || terminal || completed;
     confirm.disabled = busy || blocked || current === null || terminal || completed;
     retry.hidden = current !== null || busy || terminal || completed;
-    reread.hidden = current === null || !blocked || terminal || completed; reread.disabled = busy;
     question.tabIndex = busy ? 0 : -1;
     confirm.hidden = terminal || completed;
     cancel.disabled = deleting;
@@ -99,6 +97,7 @@ export function createWishlistDeleteDialog({ wishlistId, loadOne, remove, onDele
     catch (error) {
       if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) {
         presentFailure(error, true); focusFeedback();
+        if (blocked && !terminal && !(error instanceof ApiError && error.errorCode === "WISHLIST_SUSPENDED")) { busy = false; deleting = false; await read(true); }
       }
       return;
     } finally { if (!disposed) { busy = false; deleting = false; setButtonLoading(confirm, false); status.textContent = ""; syncControls(); } }
@@ -128,14 +127,14 @@ export function createWishlistDeleteDialog({ wishlistId, loadOne, remove, onDele
     if (error instanceof ApiError && (error.statusCode === 412 || error.statusCode === 428 || error.validationErrors.some(item => item.propertyName === "ifMatch"))) {
       blocked = true;
       show({ title: "Actualisation nécessaire", message: error.statusCode === 412 ?
-        "Cette liste a été modifiée ailleurs. Relis ses informations avant de confirmer à nouveau sa suppression." :
-        "Relis les informations de la liste avant de confirmer à nouveau sa suppression." }); return;
+        "Cette liste a été modifiée ailleurs. " :
+        "Les informations à jour sont temporairement indisponibles." }); return;
     }
     const translated = toUserFacingError(error); const details = [];
     if (translated.correlationId) details.push(`Référence : ${translated.correlationId}`);
     if (error instanceof ApiError && error.statusCode === 429 && translated.retryAfterSeconds !== null) details.push(`Réessaie dans ${translated.retryAfterSeconds} seconde(s).`);
     const uncertain = mutation && (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode !== null && error.statusCode >= 500));
-    if (uncertain) { blocked = true; details.push("La suppression ne peut pas être confirmée. Relis la liste avant de réessayer."); }
+    if (uncertain) { blocked = true; details.push("La suppression ne peut pas être confirmée. "); }
     show({ title: translated.title, message: translated.message, detail: details.join(" ") || null });
   }
 }

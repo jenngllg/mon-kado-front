@@ -151,6 +151,13 @@ export function createWishlistView({ create, onCreated, groups, signal, now = ()
         await groups.setWishlistVisibility(created.wishlist.id, current.visibility.groups.map(group => ({ groupId: group.groupId, isVisible: selectedGroups.has(group.groupId) })), { etag: current.etag, signal: lifetime.signal });
       } catch (error) {
         if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) {
+          try {
+            const latest = await groups.wishlistVisibility(created.wishlist.id, { signal: lifetime.signal });
+            if (disposed || lifetime.signal.aborted) return;
+            if (latest.visibility.groups.every(group => group.isVisible === selectedGroups.has(group.groupId)) && [...selectedGroups].every(id => latest.visibility.groups.some(group => group.groupId === id))) {
+              await onCreated(created); return;
+            }
+          } catch { if (disposed || lifetime.signal.aborted) return; }
           showFeedback({ title: "Liste créée", message: "Ta liste est créée, mais la visibilité dans les groupes n’a pas pu être confirmée. Vérifie-la depuis ta liste." });
           openCreated.href = `${RoutePaths.Lists}/${created.wishlist.id}`; openCreated.hidden = false; openCreated.focus();
         }
@@ -186,7 +193,7 @@ export function createWishlistView({ create, onCreated, groups, signal, now = ()
       if (translated.correlationId) details.push(`Référence : ${translated.correlationId}`);
       if (error instanceof ApiError && error.statusCode === 429 && translated.retryAfterSeconds !== null) details.push(`Réessaie dans ${translated.retryAfterSeconds} seconde(s).`);
       const uncertain = !(error instanceof ApiError) || error.kind !== "http" || (error.statusCode !== null && error.statusCode >= 500);
-      if (uncertain) details.push("La création de ta liste ne peut pas être confirmée. Consulte Mes listes avant de réessayer.");
+      if (uncertain) { completed = true; details.push("La création de ta liste n’a pas pu être confirmée."); }
       showFeedback({ title: translated.title, message: translated.message, detail: details.join(" ") || null });
     }
     // Re-enable controls before focusing the first invalid field.

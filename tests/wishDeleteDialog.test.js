@@ -70,7 +70,7 @@ describe("native gift deletion dialog", () => {
     const ui = setup({ loadWishlist: async () => ({ ...list, wishlist: { ...list.wishlist, surpriseMode: false } }), loadOne }); await settle();
     ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
     // Act
-    ui.confirm.click(); await settle(); loadOne.mockResolvedValue({ ...gift, wish: { ...gift.wish, reservedQuantity: 0 } }); ui.click("Relire le souhait"); await settle();
+    loadOne.mockResolvedValue({ ...gift, wish: { ...gift.wish, reservedQuantity: 0 } }); ui.confirm.click(); await settle();
     // Assert
     expect(ui.dialog.textContent).not.toContain("réservé"); expect(ui.dialog.hasAttribute("aria-describedby")).toBe(false); expect(ui.remove).toHaveBeenCalledTimes(1); expect(ui.confirm.disabled).toBe(false);
   });
@@ -107,18 +107,19 @@ describe("native gift deletion dialog", () => {
     const ui = setup({ onDeleted: async () => { throw new Error("navigation"); } }); await settle(); ui.confirm.click(); await settle();
     expect(ui.dialog.textContent).toContain("Souhait supprimé"); expect(ui.dialog.textContent).toContain("le retour à la liste a échoué"); expect(ui.dialog.querySelector('a[href^="/lists/"]')?.hasAttribute("hidden")).toBe(false); ui.confirm.click(); expect(ui.remove).toHaveBeenCalledTimes(1);
   });
-  it("requires rereads and fresh explicit confirmation across successive conflicts", async () => {
-    const ui = setup(); await settle(); ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISH_VERSION_CONFLICT" })); ui.confirm.click(); await settle();
-    expect(ui.confirm.disabled).toBe(true); ui.confirm.click(); expect(ui.remove).toHaveBeenCalledTimes(1);
-    ui.loadOne.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.click("Relire le souhait"); await settle(); expect(ui.confirm.disabled).toBe(true);
-    ui.loadOne.mockResolvedValue(stored("Version deux", '"two"')); ui.click("Relire le souhait"); await settle(); expect(ui.dialog.textContent).toContain("Version deux"); expect(document.activeElement).toBe(ui.dialog.querySelector("h2")); expect(ui.remove).toHaveBeenCalledTimes(1);
-    ui.confirm.click(); await settle(); expect(ui.remove.mock.calls[1][2].etag).toBe('"two"'); expect(ui.confirm.disabled).toBe(true);
-    ui.loadOne.mockResolvedValue(stored("Version trois", '"three"')); ui.click("Relire le souhait"); await settle(); ui.remove.mockResolvedValue(); ui.confirm.click(); await settle(); expect(ui.remove.mock.calls[2][2].etag).toBe('"three"'); expect(ui.onDeleted).toHaveBeenCalledTimes(1);
+  it("reads automatically before fresh explicit confirmation across successive conflicts", async () => {
+    const ui = setup(); await settle(); ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
+    ui.loadOne.mockResolvedValue(stored("Version deux", '"two"')); ui.confirm.click(); await settle();
+    expect(ui.dialog.textContent).toContain("Version deux"); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).toHaveBeenCalledOnce();
+    ui.loadOne.mockResolvedValue(stored("Version trois", '"three"')); ui.confirm.click(); await settle();
+    expect(ui.remove.mock.calls[1][2].etag).toBe('"two"'); expect(ui.dialog.textContent).toContain("Version trois");
+    ui.remove.mockResolvedValue(); ui.confirm.click(); await settle(); expect(ui.remove.mock.calls[2][2].etag).toBe('"three"'); expect(ui.onDeleted).toHaveBeenCalledOnce();
   });
   it.each([new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 500 }), new ApiError({ kind: "http", statusCode: 503 }), new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "PRIVATE" }] })])("blocks ambiguous or precondition failure %# until reread", async error => {
-    const ui = setup(); await settle(); ui.remove.mockRejectedValue(error); ui.confirm.click(); await settle(); expect(ui.confirm.disabled).toBe(true); expect(ui.cancel.disabled).toBe(false); expect(ui.dialog.querySelector('[role="alert"]')).toBe(document.activeElement);
-    if (error.kind !== "http" || (error.statusCode ?? 0) >= 500) expect(ui.dialog.textContent).toContain("ne peut pas être confirmée");
-    ui.loadOne.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 })); ui.click("Relire le souhait"); await settle(); expect(ui.onDeleted).not.toHaveBeenCalled(); expect(ui.dialog.textContent).toContain("Souhait introuvable"); expect(ui.dialog.textContent).not.toContain("Souhait supprimé");
+    const ui = setup(); await settle(); ui.loadOne.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
+    ui.remove.mockRejectedValue(error); ui.confirm.click(); await settle();
+    expect(ui.loadOne).toHaveBeenCalledTimes(2); expect(ui.remove).toHaveBeenCalledOnce(); expect(ui.confirm.disabled).toBe(true);
+    expect(ui.onDeleted).not.toHaveBeenCalled(); expect(ui.dialog.textContent).toContain("Souhait introuvable"); expect(ui.dialog.textContent).not.toContain("Souhait supprimé");
   });
   it.each([401, 403, 409, 429])("shows HTTP %s safely without retries and restores cancellation", async statusCode => {
     const ui = setup(); await settle(); ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode, correlationId: "support-fixture", retryAfterSeconds: 9 })); ui.confirm.click(); await settle();
@@ -130,9 +131,9 @@ describe("native gift deletion dialog", () => {
     expect(ui.onUnavailable).toHaveBeenCalledExactlyOnceWith(phase === "list" ? "wishlistMissing" : "wishMissing"); expect(ui.confirm.hidden).toBe(true); expect(ui.onDeleted).not.toHaveBeenCalled(); expect(ui.dialog.querySelectorAll("dd")).toHaveLength(0);
   });
   it("reports suspension without giving the editor a replacement version, and requires a valid reread", async () => {
-    const ui = setup(); await settle(); ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); ui.confirm.click(); await settle();
+    const ui = setup(); await settle(); ui.loadWishlist.mockResolvedValue({ ...list, wishlist: { ...list.wishlist, isSuspended: true } }); ui.remove.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); ui.confirm.click(); await settle();
     expect(ui.onUnavailable).toHaveBeenCalledExactlyOnceWith("suspended"); expect(ui.dialog.textContent).toContain("Consultation uniquement"); expect(ui.confirm.disabled).toBe(true);
-    ui.click("Relire le souhait"); await settle(); expect(ui.confirm.disabled).toBe(false); expect(ui.remove).toHaveBeenCalledTimes(1); expect(ui.onUnavailable).toHaveBeenCalledTimes(1);
+    expect(ui.remove).toHaveBeenCalledOnce(); expect(ui.loadOne).toHaveBeenCalledOnce(); expect(ui.dialog.textContent).not.toContain("Relire le souhait");
   });
   it("blocks initial suspension and weak returned preconditions", async () => {
     const ui = setup({ loadWishlist: async () => ({ ...list, wishlist: { ...list.wishlist, isSuspended: true } }) }); await settle(); expect(ui.confirm.disabled).toBe(true); expect(ui.onUnavailable).toHaveBeenCalledWith("suspended");

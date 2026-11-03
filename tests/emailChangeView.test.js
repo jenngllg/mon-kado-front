@@ -274,8 +274,8 @@ describe("explicit public email change confirmation", () => {
     expect(confirm).toHaveBeenCalledOnce(); expect(f.view.textContent).not.toContain("PRIVATE ENGLISH");
     if (kind === "network" || kind === "timeout") expect(f.view.textContent).toContain("Ton adresse a peut-être été modifiée");
     if (kind === "limited") expect(f.view.textContent).toContain("17 seconde(s)");
-    button(f.view, "Réessayer la confirmation").click(); await settle();
-    expect(confirm).toHaveBeenCalledTimes(2); expect(f.view.textContent).toContain("Adresse e-mail modifiée");
+    const action=button(f.view,"Confirmer ma nouvelle adresse e-mail");expect(f.view.textContent).not.toContain("Réessayer la confirmation");
+    action.click();await settle();expect(confirm).toHaveBeenCalledTimes(kind==="limited"?2:1);if(kind==="limited")expect(f.view.textContent).toContain("Adresse e-mail modifiée");else expect(action.disabled).toBe(true);
   });
   it("preserves business success when synchronization fails without offering another confirmation", async () => {
     // Arrange
@@ -283,7 +283,7 @@ describe("explicit public email change confirmation", () => {
     // Act
     await f.send();
     // Assert
-    expect(f.view.querySelector("h1")?.textContent).toBe("Adresse e-mail modifiée"); expect(f.view.textContent).toContain("synchronisation à vérifier");
+    expect(f.view.querySelector("h1")?.textContent).toBe("Adresse e-mail modifiée"); expect(f.view.textContent).toContain("synchronisation indisponible");
     expect(f.view.textContent).toContain("sync-ref"); expect(f.view.querySelector("button")).toBeNull();
   });
   it("ignores cancellation and late results without displaying secrets", async () => {

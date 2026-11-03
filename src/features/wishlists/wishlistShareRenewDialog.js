@@ -24,9 +24,8 @@ export function createWishlistShareRenewDialog({ wishlistId, etag, load, renew, 
   const status = document.createElement("p"); status.setAttribute("role", "status");
   const cancel = createButton({ label: "Annuler", variant: "secondary", onClick: () => { if (!mutating) finish(false); } });
   const confirm = createButton({ label: "Renouveler le lien", variant: "danger", onClick: () => { void execute(true); } });
-  const reread = createButton({ label: "Relire le lien", variant: "secondary", onClick: () => { void execute(false); } });
   const actions = document.createElement("div"); actions.className = "cluster wishlist-form__actions"; actions.append(cancel, confirm);
-  dialog.append(title, warning, feedback, status, reread, actions);
+  dialog.append(title, warning, feedback, status, actions);
   const lifetime = new AbortController();
   let disposed = false; let busy = false; let mutating = false; let completed = false; let blocked = !isStrongEntityTag(etag);
   let version = etag;
@@ -40,13 +39,13 @@ export function createWishlistShareRenewDialog({ wishlistId, etag, load, renew, 
     addComponentEventListener(dialog, signal, "abort", () => disposeComponent(dialog), { once: true });
     if (signal.aborted) disposeComponent(dialog);
   }
-  sync(); return dialog;
+  sync(); if (blocked && !disposed) void execute(false); return dialog;
 
   function clear() { disposeComponent(feedback); feedback.replaceChildren(); }
   function sync() {
     dialog.setAttribute("aria-busy", String(busy)); title.tabIndex = busy ? 0 : -1;
     cancel.disabled = disposed || mutating; confirm.disabled = disposed || busy || blocked || completed;
-    reread.hidden = !blocked || completed; reread.disabled = disposed || busy;
+
   }
   /** @param {boolean} renewed Confirmed result. */
   function finish(renewed) {
@@ -78,20 +77,22 @@ export function createWishlistShareRenewDialog({ wishlistId, etag, load, renew, 
       if (error instanceof ApiError && error.statusCode === 429 && error.retryAfterSeconds !== null) details.push(`Réessaie dans ${error.retryAfterSeconds} seconde(s).`);
       if (mutation) {
         if (error instanceof ApiError && (error.statusCode === 412 || error.statusCode === 428 || error.validationErrors.some(value => value.propertyName === "ifMatch"))) {
-          message = "Le lien de partage a été modifié ailleurs. Relis le lien avant de confirmer à nouveau son renouvellement.";
+          message = "Le lien de partage a été modifié ailleurs. ";
         } else if (error instanceof ApiError && error.errorCode === "WISHLIST_SHARE_LINK_NOT_FOUND") message = "Lien de partage indisponible";
-        else if (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode ?? 500) >= 500) message = "Le renouvellement du lien ne peut pas être confirmé. Relis le lien avant de réessayer.";
-        else details.push("Relis le lien avant de renouveler à nouveau.");
+        else if (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode ?? 500) >= 500) message = "Le renouvellement du lien ne peut pas être confirmé. ";
+        else details.push("Les informations à jour sont temporairement indisponibles.");
       }
       const alert = createAlert({ title: translated.title, message, detail: details.join(" ") || null, variant: "error" }); alert.tabIndex = -1;
-      feedback.append(alert); alert.focus(); return;
+      feedback.append(alert); alert.focus();
+      if (mutation && (!(error instanceof ApiError) || error.kind !== "http" || error.statusCode === null || error.statusCode >= 500 || [412,428].includes(error.statusCode) || error.errorCode === "WISHLIST_SHARE_LINK_NOT_FOUND" || error.validationErrors.some(item => item.propertyName === "ifMatch"))) { busy = false; mutating = false; await execute(false); }
+      return;
     } finally { busy = false; mutating = false; if (!disposed) sync(); }
     if (disposed) return;
     status.textContent = "";
     if (mutation && result) {
       completed = true; version = ""; sync();
       try { onRenewed(result); }
-      catch { status.textContent = "Lien de partage renouvelé. Actualise le lien pour le retrouver."; cancel.textContent = "Fermer"; return; }
+      catch { status.textContent = "Lien de partage renouvelé. "; cancel.textContent = "Fermer"; return; }
       finish(true);
     } else {
       version = result?.etag ?? ""; blocked = !result; onRead(result ?? null);

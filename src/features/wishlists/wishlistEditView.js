@@ -31,7 +31,6 @@ export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = 
   const { form, fields, surpriseMode } = editor; form.hidden = true;
   const actions = textElement("div", ""); actions.className = "wishlist-form__footer";
   const submit = createButton({ label: "Enregistrer", type: "submit" });
-  const reread = createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void read(true); } }); reread.hidden = true;
   const useVersion = createButton({ label: "Utiliser la version enregistrée", variant: "secondary", onClick: useStored }); useVersion.hidden = true;
   const retry = createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(true); } }); retry.hidden = true;
   const surpriseControl = surpriseMode.closest(".wishlist-surprise-control");
@@ -39,7 +38,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = 
   const commands = textElement("div", ""); commands.className = "wishlist-form__actions cluster";
   commands.append(submit, useVersion); actions.append(commands); form.append(actions);
   const back = createBackLink({ label: "Retour à la liste", href: isWishlistId(wishlistId) ? RoutePaths.ListDetails.replace(":listId", wishlistId) : RoutePaths.Lists });
-  view.append(back, title, feedback, status, retry, reread, comparison, form);
+  view.append(back, title, feedback, status, retry, comparison, form);
   addComponentEventListener(form, form, "submit", event => { event.preventDefault(); void save(); });
   registerComponentCleanup(view, () => {
     disposed = true; lifetime.abort(); base = null; editor.reset(); clearFeedback(); clearComparison(); status.textContent = "";
@@ -80,8 +79,6 @@ export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = 
     surpriseMode.disabled = busy || suspended || terminal;
     submit.disabled = busy || blocked || suspended || terminal || !hasChanges();
     submit.textContent = "Enregistrer";
-    reread.hidden = !blocked || base === null || terminal;
-    reread.disabled = busy;
     useVersion.hidden = !decision; useVersion.disabled = busy;
     retry.hidden = base !== null || busy || terminal;
     form.setAttribute("aria-busy", String(busy));
@@ -154,7 +151,10 @@ export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = 
       show({ title: "Modifications enregistrées", message: saved.wishlist.isSuspended ? "Liste suspendue — Consultation uniquement" : "Les informations de ta liste sont à jour.", variant: "success" });
       await onSaved(saved);
     } catch (error) {
-      if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) presentFailure(error);
+      if (!disposed && !lifetime.signal.aborted && !isAbortError(error)) {
+        presentFailure(error);
+        if (blocked && !terminal) { busy = false; await read(true); }
+      }
     } finally {
       if (!disposed) {
         busy = false; setButtonLoading(submit, false); status.textContent = ""; syncControls();
@@ -180,7 +180,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = 
       blocked = true; decision = false; clearComparison();
       const conflict = error.statusCode === 412;
       show({ title: conflict ? "Cette liste a été modifiée ailleurs" : error.errorCode === "WISHLIST_SUSPENDED" ? "Liste suspendue" : "Actualisation nécessaire",
-        message: "Ta saisie est conservée. Relis la liste avant de décider des modifications à enregistrer." }); return;
+        message: "Ta saisie est conservée. " }); return;
     }
     if (!(error instanceof ApiError) || error.kind !== "http" || (error.statusCode !== null && error.statusCode >= 500)) {
       blocked = true; decision = false; clearComparison(); presentTechnical(error, true); return;
@@ -205,7 +205,7 @@ export function createWishlistEditView({ wishlistId, loadOne, update, onSaved = 
     const translated = toUserFacingError(error); const details = [];
     if (translated.correlationId) details.push(`Référence : ${translated.correlationId}`);
     if (error instanceof ApiError && error.statusCode === 429 && translated.retryAfterSeconds !== null) details.push(`Réessaie dans ${translated.retryAfterSeconds} seconde(s).`);
-    if (uncertain) details.push("L’enregistrement ne peut pas être confirmé. Relis la liste avant de réessayer.");
+    if (uncertain) details.push("L’enregistrement ne peut pas être confirmé. ");
     show({ title: translated.title, message: translated.message, detail: details.join(" ") || null });
   }
 }

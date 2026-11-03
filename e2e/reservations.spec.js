@@ -33,10 +33,9 @@ test("reserve, preserve a draft after conflict, then explicitly cancel in the na
   await quantity.fill("3");
   api.state.reservationVersion++;
   await page.getByRole("button", { name: "Enregistrer la quantité", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Vérifier ma réservation", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vérifier ma réservation", exact: true })).toHaveCount(0);
   await expect(quantity).toHaveValue("3");
   expect(api.state.reservations).toBe(2);
-  await page.getByRole("button", { name: "Vérifier ma réservation", exact: true }).click();
   await expect(page.getByText(/Quantité enregistrée : 2/)).toBeVisible();
   expect(api.state.reservations).toBe(2);
   await Promise.all([

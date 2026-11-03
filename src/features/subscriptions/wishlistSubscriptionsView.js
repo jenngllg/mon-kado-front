@@ -77,8 +77,8 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
   function showError(error, uncertain) {
     clear(feedback);
     feedback.append(createAlert({ ...toUserFacingError(error), variant: "error",
-      ...(uncertain ? { message: "Vérifie tes listes suivies avant de réessayer." } : {}) }));
-    feedback.append(createButton({ label: uncertain ? "Vérifier les listes suivies" : "Réessayer", variant: "secondary", onClick: () => { void read(); } }));
+      ...(uncertain ? { message: "La modification de tes listes suivies n’a pas pu être confirmée." } : {}) }));
+    if (!uncertain) feedback.append(createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(); } }));
   }
   /** @param {import("./wishlistSubscriptionsService.js").WishlistSubscription} item Revalidated summary. */
   function card(item) {
@@ -103,15 +103,15 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
       content.append(date);
     }
     const actions = node("div", ""); actions.className = "wishlist-card__actions";
-    const unfollow = createButton({ label: "Ne plus suivre", variant: "secondary", onClick: () => { void unsubscribe(item, unfollow); } });
+    const unfollow = createButton({ label: "Ne plus suivre", variant: "secondary", onClick: () => { void unsubscribe(item); } });
     unfollow.setAttribute("aria-label", `Ne plus suivre « ${item.name} »`); applyActionIcon(unfollow, "bell", "Ne plus suivre");
     unfollow.setAttribute("aria-pressed", "true"); actions.append(unfollow);
     card.append(cover, content, actions);
     registerComponentCleanup(card, () => { link.removeAttribute("href"); cover.removeAttribute("src"); });
     return card;
   }
-  /** @param {import("./wishlistSubscriptionsService.js").WishlistSubscription} item Target. @param {HTMLButtonElement} trigger Explicit command. */
-  async function unsubscribe(item, trigger) {
+  /** @param {import("./wishlistSubscriptionsService.js").WishlistSubscription} item Target. */
+  async function unsubscribe(item) {
     if (disposed || busy) return;
     busy = true; clear(feedback); controls();
     try {
@@ -122,10 +122,7 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
     } catch (error) {
       if (disposed || isAbortError(error) || combined.aborted) return;
       if (error instanceof ApiError && error.statusCode === 404) { busy = false; await read(); return; }
-      showError(error, true);
-      // Keep mutations disabled until an explicit fresh read resolves the uncertainty.
-      trigger.focus();
-      for (const button of results.querySelectorAll("button")) button.disabled = true;
+      busy = false; await read();
     } finally {
       busy = false;
       if (!disposed) { previous.disabled = page <= 1; next.disabled = page >= pages; results.setAttribute("aria-busy", "false"); }

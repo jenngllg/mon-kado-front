@@ -1,3 +1,4 @@
+import { createWishImageRecovery } from "../wishes/wishImageRecovery.js";
 import { createWishGalleryCard } from "../wishes/wishGalleryCard.js";
 import { reorderWishGallery } from "../wishes/wishGalleryOrdering.js";
 import { createWishSortControl } from "../wishes/wishSortControl.js";
@@ -63,11 +64,12 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   const giftToolbar = element("div", ""); giftToolbar.className = "section-toolbar wishlist-details-toolbar";
   const giftActions = element("div", ""); giftActions.className = "section-toolbar__actions";
   const sorting = createWishSortControl({ initialSort, onChange: value => { onSortChange(value); sortRenderedGifts(); } });
-  const retryImages = createButton({ label: "Réessayer les images", variant: "secondary", onClick: () => { void readGifts(true); } });
-  retryImages.hidden = true;
-  giftActions.append(sorting.element, retryImages); giftToolbar.append(heading, giftActions, actions);
+
+  giftActions.append(sorting.element); giftToolbar.append(heading, giftActions, actions);
   gifts.append(giftToolbar, personalNotice, results, reorderHost); layout.append(information, gifts); view.append(header, title, notice, layout);
   const lifetime = new AbortController();
+  const imageRecovery = createWishImageRecovery({ signal: lifetime.signal,
+    load: async signal => (await loadWishes(wishlistId, { signal })).wishes, onUnavailable: notFound });
   const audience = groups?.wishlistVisibility ? createWishlistAudience({ load: groups.wishlistVisibility.bind(groups, wishlistId), signal: lifetime.signal }) : null;
   if (audience) { audience.element.hidden = true; view.insertBefore(audience.element, notice); }
   let copying = false;
@@ -84,7 +86,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   /** @type {import("./wishlistsService.js").CreatedWishlist | null} */ let list = null;
   /** @type {import("../wishes/wishesService.js").WishCollection | null} */ let collection = null;
   registerComponentCleanup(view, () => {
-    disposed = true; lifetime.abort(); giftRead?.abort(); giftRead = null; list = null; collection = null; retryImages.hidden = true;
+    disposed = true; lifetime.abort(); giftRead?.abort(); giftRead = null; list = null; collection = null;
     closeShare(); clear(reorderHost); clear(notice); clear(actions); clear(listContent); clear(summary); clear(results); title.textContent = ""; gifts.hidden = true;
   });
   if (signal) {
@@ -156,7 +158,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
 
   function enterReorder() {
     if (!reorder || disposed || busy || favoritePending || terminal || reordering || copying || !list || list.wishlist.isSuspended || list.wishlist.isArchived || sorting.value() !== "listOrder" || !collection || collection.wishes.length < 2) return;
-    reordering = true; header.hidden = true; organize.hidden = true; retryImages.hidden = true; updateSorting(); clear(notice); notice.hidden = true;
+    reordering = true; header.hidden = true; organize.hidden = true; updateSorting(); clear(notice); notice.hidden = true;
     clear(results); results.hidden = true; renderList(); reorderHost.hidden = false;
     reorderHost.append(createWishesReorderView({ wishlistId, loadWishlist: loadOne, loadWishes, reorder, signal: lifetime.signal,
       onSaved: exitReorder, onCancel: exitReorder }));
@@ -196,7 +198,6 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
     if (item.isSuspended) {
       listContent.append(createAlert({ title: "Liste suspendue", message: "Consultation uniquement", variant: "warning" }));
       if (share) listContent.append(element("p", "Partage indisponible — Liste suspendue"));
-      listContent.append(createButton({ label: "Relire la liste", variant: "secondary", onClick: () => { void readList(true); } }));
     }
     else if (!reordering) {
       /** @type {HTMLElement[]} */ const secondary = [];
@@ -252,7 +253,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
   /** @param {boolean} explicit Explicit retry or refresh. */
   async function readGifts(explicit) {
     if (disposed || busy || favoritePending || terminal || reordering || copying || !listLoaded) return;
-    busy = true; collection = null; organize.hidden = true; retryImages.hidden = true; gifts.hidden = false; sorting.select.disabled = true;
+    busy = true; collection = null; organize.hidden = true; gifts.hidden = false; sorting.select.disabled = true;
     results.setAttribute("aria-busy", "true"); clear(results);
     results.append(createLoadingState({ label: "Chargement de tes souhaits…" }));
     const operation = new AbortController(); giftRead = operation;
@@ -268,7 +269,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
         clear(personalNotice); personalNotice.hidden = !failed;
         if (failed) personalNotice.append(createAlert({ title: "Réservations indisponibles", message: "Certaines de tes réservations n’ont pas pu être vérifiées.", variant: "error" }));
       }
-      collection = loaded; updateSorting(); onSortChange(sorting.value()); renderGifts();
+      collection = loaded; imageRecovery.reset(); updateSorting(); onSortChange(sorting.value()); renderGifts();
       if (explicit) heading.focus();
     } catch (error) {
       if (disposed || terminal || operation.signal.aborted || isAbortError(error)) return;
@@ -300,17 +301,17 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
       }
       else {
         const cards = element("ul", ""); cards.className = "wish-grid wish-grid--gallery"; cards.setAttribute("role", "list");
-        renderInfiniteWishGallery(results, cards, sortWishes(collection.wishes, sorting.value()), item => createWishGalleryCard(item, list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true, {
+        renderInfiniteWishGallery(results, cards, sortWishes(collection.wishes, sorting.value()), item => { const card = createWishGalleryCard(item, list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true, {
           returnSort: sorting.value(), personalReservedQuantity: personalReservations.get(item.id),
           copyButton: copyActions && !list?.wishlist.isSuspended && !list?.wishlist.isArchived ? copyActions.button(item.id, true) : undefined,
-          onImageError: () => { if (!disposed && !terminal && !reordering) retryImages.hidden = false; },
+          onImageError: () => { if (!disposed && !terminal && !reordering) void imageRecovery.recover(item.id, card); },
           favoriteButton: favorite && !list?.wishlist.isSuspended && !list?.wishlist.isArchived ? createWishFavoriteButton({ wish: item, ...favorite, signal: lifetime.signal,
             onBusy: pending => { favoritePending += pending ? 1 : -1; organize.disabled = favoritePending > 0; updateSorting(); },
             onUpdated: async () => { await readGifts(false); },
             onError: error => { const translated = toUserFacingError(error); clear(notice); notice.hidden = false; notice.append(createAlert({ ...translated, variant: "error" })); },
           }) : undefined,
           onDelete: deletion ? trigger => deleteWish(item.id, trigger) : undefined,
-        }));
+        }); return card; });
       }
       updateOrganize();
   }
@@ -323,7 +324,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
     organize.hidden = !collection || !reorder || sorting.value() !== "listOrder" || list?.wishlist.isSuspended === true || list?.wishlist.isArchived === true || collection.wishes.length < 2;
   }
   function notFound() {
-    terminal = true; lifetime.abort(); giftRead?.abort(); giftRead = null; list = null; collection = null; listLoaded = false; retryImages.hidden = true;
+    terminal = true; lifetime.abort(); giftRead?.abort(); giftRead = null; list = null; collection = null; listLoaded = false;
     if (audience) audience.element.hidden = true;
     closeShare(); clear(reorderHost); clear(notice); clear(actions); organize.hidden = true;
     clear(summary); title.textContent = "Liste introuvable"; clear(listContent); clear(results); gifts.hidden = true; information.hidden = false;

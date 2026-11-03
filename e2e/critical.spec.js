@@ -69,8 +69,8 @@ test("an uncertain guest participation requires verification before another POST
   await page.getByRole("link", { name: "Voir le souhait « Une théière »", exact: true }).click();
   await page.getByRole("textbox", { name: /Nom d’affichage/ }).fill("Invité test");
   await page.getByRole("button", { name: "Continuer", exact: true }).click();
-  await expect(page.getByText("Ta participation ne peut pas être confirmée. Vérifie ta participation avant de réessayer.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Vérifier ma participation", exact: true })).toBeVisible();
+  await expect(page.getByText("La participation n’a pas pu être confirmée.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vérifier ma participation", exact: true })).toHaveCount(0);
   expect(api.state.joins).toBe(1);
   await expect(page.getByRole("textbox", { name: /Nom d’affichage/ })).toHaveValue("Invité test");
   expect(api.unexpected).toEqual([]);

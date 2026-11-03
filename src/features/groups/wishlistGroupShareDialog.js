@@ -36,8 +36,7 @@ export function createWishlistGroupSharePanel({ service, wishlistId, signal, onC
   const actions = document.createElement("div"); actions.className = "cluster";
   const close = createButton({ label: "Fermer", variant: "secondary", onClick: finish });
   const save = createButton({ label: "Enregistrer", type: "submit" });
-  const verify = createButton({ label: "Vérifier la visibilité", variant: "secondary", onClick: () => { void read(true); } }); verify.hidden = true;
-  actions.append(close, save); form.append(groups, status, feedback, verify, actions); dialog.append(title, help, form);
+  actions.append(close, save); form.append(groups, status, feedback, actions); dialog.append(title, help, form);
   const lifetime = new AbortController(), combined = AbortSignal.any([signal, lifetime.signal]);
   let disposed = false, pending = false, reading = false, blocked = true;
   /** @type {Awaited<ReturnType<typeof service.wishlistVisibility>>|null} */ let base = null;
@@ -57,7 +56,6 @@ export function createWishlistGroupSharePanel({ service, wishlistId, signal, onC
     collect(); dialog.setAttribute("aria-busy", String(pending || reading)); close.disabled = pending; onBusy(pending);
     for (const input of groups.querySelectorAll("input")) input.disabled = pending || reading || blocked;
     save.disabled = pending || reading || blocked || !base?.visibility.groups.some(group => choices.get(group.groupId) !== group.isVisible);
-    verify.hidden = !blocked || reading; verify.disabled = pending;
   }
   function render() {
     disposeComponent(groups); groups.replaceChildren(); if (!base) return;
@@ -94,6 +92,7 @@ export function createWishlistGroupSharePanel({ service, wishlistId, signal, onC
       if (!combined.aborted && !isAbortError(error)) {
         blocked = true; feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" }));
         if (error instanceof ApiError && error.statusCode === 401) { base = null; choices.clear(); disposeComponent(groups); groups.replaceChildren(); }
+        else { pending = false; await read(true); }
       }
     } finally { pending = false; sync(); }
   }

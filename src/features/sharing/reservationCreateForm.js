@@ -31,7 +31,6 @@ export function createReservationCreateForm({ available, create, verify, onSaved
   const submit = createButton({ label: editing ? "Enregistrer la quantité" : confirmation ? "Confirmer la réservation" : singleItem ? "Je réserve ce cadeau" : "Réserver ce souhait", type: "submit" });
   if (compact && !editing && !confirmation) { submit.setAttribute("aria-label", submit.textContent ?? "Réserver ce souhait"); submit.textContent = "Réserver"; form.classList.add("reservation-create-form--compact"); }
   const comparison = document.createElement("p"); comparison.hidden = true;
-  const reread = createButton({ label: "Vérifier ma réservation", variant: "secondary", onClick: () => { void check(); } }); reread.hidden = true;
   const actions = document.createElement("div"); actions.className = "cluster wishlist-form__actions";
   const cancel = onCancel ? createButton({ label: "Annuler", variant: "secondary", onClick: onCancel }) : null;
   if (cancel) actions.append(cancel);
@@ -42,14 +41,14 @@ export function createReservationCreateForm({ available, create, verify, onSaved
     const quantity = document.createElement("p"); quantity.className = "reservation-confirmation-quantity";
     quantity.textContent = "Quantité : 1"; form.append(quantity);
   }
-  form.append(actions); root.append(status, feedback, form, reread);
+  form.append(actions); root.append(status, feedback, form);
   const lifetime = new AbortController();
   let disposed = false, busy = false, blocked = available === 0, done = false, touched = false, dirty = false;
   /** @type {HTMLButtonElement | null} */ let pressed = null;
   let deferred = false;
   function validate() { touched = true; const error = validateReservationQuantity(input.value, available); setFormFieldValidation(field, error); return error; }
   function controls() {
-    input.disabled = busy || blocked || done; submit.disabled = busy || blocked || done || (!!reference && Number(input.value) === reference.quantity); reread.disabled = busy;
+    input.disabled = busy || blocked || done; submit.disabled = busy || blocked || done || (!!reference && Number(input.value) === reference.quantity);
     if (cancel) cancel.disabled = busy;
     decrease.disabled = input.disabled || !Number.isInteger(Number(input.value)) || Number(input.value) <= 1;
     increase.disabled = input.disabled || !Number.isInteger(Number(input.value)) || Number(input.value) >= Number(input.max);
@@ -100,7 +99,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
       if (editing && reference) await editing.update(input.value, reference.etag, lifetime.signal);
       else await create(input.value, lifetime.signal);
       if (disposed) return;
-      done = true; input.value = ""; form.hidden = true; reread.hidden = true; status.textContent = editing ? "Réservation modifiée" : "Réservation enregistrée";
+      done = true; input.value = ""; form.hidden = true; status.textContent = editing ? "Réservation modifiée" : "Réservation enregistrée";
     } catch (error) {
       if (disposed || isAbortError(error)) return;
       status.textContent = "";
@@ -108,15 +107,16 @@ export function createReservationCreateForm({ available, create, verify, onSaved
       const validation = error instanceof ApiError && error.validationErrors.some(value => value.propertyName === "quantity");
       const uncertain = !(error instanceof ApiError) || error.kind !== "http" || (error.statusCode ?? 500) >= 500;
       const conflict = error instanceof ApiError && ([409, 412, 428, 401, 404].includes(error.statusCode ?? 0) || error.validationErrors.some(value => value.propertyName === "ifMatch"));
-      if (uncertain || conflict) { blocked = true; reread.hidden = false; }
-      failure(error, uncertain ? "Ta réservation ne peut pas être confirmée. Vérifie ta réservation avant de réessayer." : conflict ? "La réservation ou la disponibilité a changé. Vérifie ta réservation avant de réessayer." : null);
+      if (uncertain || conflict) blocked = true;
+      failure(error, uncertain ? "Ta réservation n’a pas pu être confirmée." : conflict ? "La réservation ou la disponibilité a changé." : null);
+      if (uncertain || conflict) { busy = false; await check(); }
       if (validation) {
         setFormFieldValidation(field, ReservationQuantityMessage);
         if (!blocked) { busy = false; controls(); input.focus(); }
       }
     } finally { if (!disposed) { busy = false; controls(); } }
     if (done && !disposed) {
-      try { onSaved(); } catch { status.textContent = `${editing ? "Réservation modifiée" : "Réservation enregistrée"}. Actualise le souhait pour retrouver les informations à jour.`; }
+      try { onSaved(); } catch { status.textContent = editing ? "Réservation modifiée" : "Réservation enregistrée"; }
     }
   }
   async function check() {
@@ -124,26 +124,29 @@ export function createReservationCreateForm({ available, create, verify, onSaved
     busy = true; controls(); clearFeedback(); status.textContent = "Vérification de ta réservation…";
     try {
       const current = await verify(lifetime.signal); if (disposed) return;
+      if (current.lookup.state === "reserved" && current.lookup.reservation.quantity === Number(input.value)) {
+        done = true; input.value = ""; form.hidden = true; status.textContent = editing ? "Réservation modifiée" : "Réservation enregistrée"; return;
+      }
       if (editing) {
         if (current.lookup.state !== "reserved") {
           blocked = true; form.hidden = true; input.value = ""; reference = null;
-          status.textContent = "Ta réservation n’est plus reconnue. Actualise le souhait avant de continuer.";
+          status.textContent = "Cette réservation n’est plus disponible.";
           status.tabIndex = -1; status.focus(); return;
         }
         reference = current.lookup.reservation; available = current.available + reference.quantity;
-        input.max = String(Math.min(100, available)); blocked = false; form.hidden = false; reread.hidden = true;
+        input.max = String(Math.min(100, available)); blocked = false; form.hidden = false;
         comparison.textContent = `Quantité enregistrée : ${reference.quantity}. Ta saisie est conservée. Enregistrer la quantité remplacera cette valeur.`;
         comparison.hidden = false; status.textContent = "Vérification terminée. Choisis la quantité à conserver.";
         validate(); comparison.tabIndex = -1; comparison.focus(); return;
       }
       available = current.available; input.max = String(Math.min(100, available));
       blocked = current.lookup.state !== "absent" || available === 0;
-      status.textContent = current.lookup.state === "reserved" ? "Une réservation est déjà reconnue. Actualise le souhait pour la consulter." :
+      status.textContent = current.lookup.state === "reserved" ? "Tu as déjà une réservation sur ce souhait." :
         current.lookup.state === "unrecognized" ? "Ta participation n’est plus reconnue. Retourne à la liste pour participer." :
           available === 0 ? "Ce souhait est entièrement réservé." : "Vérification terminée. Tu peux confirmer à nouveau ta réservation.";
       if (current.lookup.state !== "absent") { form.hidden = true; input.value = ""; }
       else { form.hidden = false; validate(); }
-      reread.hidden = !blocked; status.tabIndex = -1; status.focus();
+      status.tabIndex = -1; status.focus();
     } catch (error) {
       if (disposed || isAbortError(error)) return;
       blocked = true; status.textContent = "";

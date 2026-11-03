@@ -1,3 +1,4 @@
+import { recoverIdentityAfterOneFailure } from "./recoveryTestHelpers.js";
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createLoginView } from "../src/features/login/loginView.js";
@@ -95,16 +96,9 @@ describe("safe Google return states", () => {
     expect(view.innerHTML).toBe(html); expect(onAuthenticated).not.toHaveBeenCalled(); expect(f.posts()).toHaveLength(1);
   });
   it("retries only identity after acceptance and preserves the safe reference", async () => {
-    // Arrange
-    const f = setup(); await f.google.start(StartOptions); f.state.identityStatus = 503; const onAuthenticated = vi.fn();
-    const view = createGoogleReturnView({ google: f.google, session: f.session, consumeFragment: () => `#flow=${Flow}`,
-      onDestination: vi.fn(), onAuthenticated, onLinkRequired: vi.fn() }); document.body.append(view);
-    await visible(view, "Réessayer la vérification de session"); await Promise.resolve();
-    // Act
-    f.state.identityStatus = 200; button(view, "Réessayer la vérification de session").click();
-    await vi.waitFor(() => expect(onAuthenticated).toHaveBeenCalledTimes(1));
-    // Assert
-    expect(f.posts()).toHaveLength(1); expect(f.state.refreshCount).toBe(0); expect(view.textContent).not.toContain(Flow);
+    const f=setup();await f.google.start(StartOptions);f.state.identityStatus=503;recoverIdentityAfterOneFailure(f);const onAuthenticated=vi.fn();
+    const view=createGoogleReturnView({google:f.google,session:f.session,consumeFragment:()=>`#flow=${Flow}`,onDestination:vi.fn(),onAuthenticated,onLinkRequired:vi.fn()});document.body.append(view);
+    await vi.waitFor(()=>expect(onAuthenticated).toHaveBeenCalledOnce());expect(f.posts()).toHaveLength(1);expect(f.state.refreshCount).toBe(0);expect(view.textContent).not.toContain(Flow);expect(view.textContent).not.toContain("Réessayer la vérification de session");
   });
   it("presents Retry-After without re-submitting a 429", async () => {
     // Arrange

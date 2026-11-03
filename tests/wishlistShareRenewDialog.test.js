@@ -23,19 +23,18 @@ describe("share renewal confirmation", () => {
   it("requires a fresh decision after every successive conflict", async () => {
     const ui = setup(); ui.renew.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
     for (let attempt = 0; attempt < 2; attempt++) {
+      ui.load.mockResolvedValue({ ...link, etag: `"read-${attempt}"` });
       ui.button("Renouveler le lien").click(); await settle(); expect(ui.renew).toHaveBeenCalledTimes(attempt + 1);
-      ui.load.mockResolvedValue({ ...link, etag: `"read-${attempt}"` }); ui.button("Relire le lien").click(); await settle();
       expect(ui.renew).toHaveBeenCalledTimes(attempt + 1); expect(ui.button("Renouveler le lien").disabled).toBe(false);
     }
     expect(ui.renew.mock.calls[1][1].etag).toBe('"read-0"'); expect(ui.onRenewed).not.toHaveBeenCalled();
   });
   it("allows cancellation during reread without publishing its late response", async () => {
-    const ui = setup(); ui.renew.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 })); ui.button("Renouveler le lien").click(); await settle();
-    const gate = barrier(); ui.load.mockImplementation(async () => { await gate.promise; return link; }); ui.button("Relire le lien").click(); ui.button("Annuler").click(); gate.resolve(); await settle();
+    const ui = setup(); ui.renew.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 })); const gate = barrier(); ui.load.mockImplementation(async () => { await gate.promise; return link; }); ui.button("Renouveler le lien").click(); await settle(); ui.button("Annuler").click(); gate.resolve(); await settle();
     expect(ui.load.mock.calls[0][1].signal.aborted).toBe(true); expect(ui.onRead).not.toHaveBeenCalled(); expect(ui.onClose).toHaveBeenCalledExactlyOnceWith(false);
   });
-  it("blocks unusable initial ETags without a request", () => {
-    const ui = setup({ etag: 'W/"weak"' }); ui.button("Renouveler le lien").click(); expect(ui.renew).not.toHaveBeenCalled(); expect(ui.button("Relire le lien").hidden).toBe(false);
+  it("reads a usable version automatically before allowing a mutation", async () => {
+    const ui = setup({ etag: 'W/"weak"' }); ui.button("Renouveler le lien").click(); expect(ui.renew).not.toHaveBeenCalled(); await settle(); expect(ui.load).toHaveBeenCalledOnce(); expect(ui.button("Renouveler le lien").disabled).toBe(false);
   });
   it("opens with accessible consequences but no HTTP or secret", () => {
     const ui = setup(); expect(ui.load).not.toHaveBeenCalled(); expect(ui.renew).not.toHaveBeenCalled();
@@ -54,21 +53,25 @@ describe("share renewal confirmation", () => {
     expect(ui.button("Annuler").disabled).toBe(true); const escape = new Event("cancel", { cancelable: true }); ui.dialog.dispatchEvent(escape); expect(escape.defaultPrevented).toBe(true); expect(ui.dialog.open).toBe(true);
     gate.resolve(); await settle(); expect(ui.onRenewed).toHaveBeenCalledExactlyOnceWith(link); expect(ui.onClose).toHaveBeenCalledExactlyOnceWith(true); expect(ui.load).not.toHaveBeenCalled();
   });
-  it.each([new ApiError({ kind: "http", statusCode: 412 }), new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "PRIVATE" }] }), new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("requires an explicit reread and another click after failure", async error => {
+  it.each([new ApiError({ kind: "http", statusCode: 412 }), new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "PRIVATE" }] }), new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("reads failures automatically and uses the fresh version only after another business confirmation", async error => {
     const ui = setup(); ui.renew.mockRejectedValue(error); ui.button("Renouveler le lien").click(); await settle();
-    expect(ui.button("Renouveler le lien").disabled).toBe(true); expect(ui.button("Annuler").disabled).toBe(false); expect(document.activeElement?.getAttribute("role")).toBe("alert");
-    ui.load.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.button("Relire le lien").click(); await settle(); expect(ui.button("Renouveler le lien").disabled).toBe(true);
-    ui.button("Relire le lien").click(); await settle(); expect(ui.onRead).toHaveBeenCalledExactlyOnceWith(link); expect(ui.renew).toHaveBeenCalledOnce(); expect(document.activeElement).toBe(ui.dialog.querySelector("h2"));
+    expect(ui.button("Renouveler le lien").disabled).toBe(false); expect(ui.button("Annuler").disabled).toBe(false);
+    expect(ui.onRead).toHaveBeenCalledExactlyOnceWith(link); expect(ui.renew).toHaveBeenCalledOnce(); expect(ui.load).toHaveBeenCalledOnce();
+    expect(ui.dialog.textContent).not.toContain("Relire le lien");
     ui.renew.mockResolvedValue(link); ui.button("Renouveler le lien").click(); await settle(); expect(ui.renew.mock.calls[1][1].etag).toBe('"new"'); expect(ui.onRenewed).toHaveBeenCalledOnce();
+  });
+  it("keeps mutations blocked when the automatic read fails", async () => {
+    const ui = setup(); ui.load.mockRejectedValue(new ApiError({ kind: "network" })); ui.renew.mockRejectedValue(new ApiError({ kind: "timeout" }));
+    ui.button("Renouveler le lien").click(); await settle(); ui.button("Renouveler le lien").click();
+    expect(ui.renew).toHaveBeenCalledOnce(); expect(ui.load).toHaveBeenCalledOnce(); expect(ui.button("Renouveler le lien").disabled).toBe(true); expect(ui.onRead).not.toHaveBeenCalled();
   });
   it.each([401, 403, 429])("normalizes %s without exposing backend data and requires reread", async statusCode => {
     const ui = setup(); ui.renew.mockRejectedValue(new ApiError({ kind: "http", statusCode, correlationId: "fixture", retryAfterSeconds: 7 })); ui.button("Renouveler le lien").click(); await settle();
     expect(ui.onUnavailable).not.toHaveBeenCalled(); expect(ui.button("Renouveler le lien").disabled).toBe(true); expect(ui.dialog.textContent).toContain("fixture"); if (statusCode === 429) expect(ui.dialog.textContent).toContain("7 seconde(s)");
   });
   it("requires GET absence before returning to creation after a missing-link PUT", async () => {
-    const ui = setup(); ui.renew.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_SHARE_LINK_NOT_FOUND" })); ui.button("Renouveler le lien").click(); await settle();
-    expect(ui.dialog.textContent).toContain("Lien de partage indisponible"); expect(ui.onRead).not.toHaveBeenCalled(); expect(ui.onUnavailable).not.toHaveBeenCalled();
-    ui.load.mockResolvedValue(null); ui.button("Relire le lien").click(); await settle(); expect(ui.onRead).toHaveBeenCalledExactlyOnceWith(null); expect(ui.onClose).toHaveBeenCalledExactlyOnceWith(false);
+    const ui = setup(); ui.load.mockResolvedValue(null); ui.renew.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_SHARE_LINK_NOT_FOUND" })); ui.button("Renouveler le lien").click(); await settle();
+    expect(ui.onUnavailable).not.toHaveBeenCalled(); expect(ui.onRead).toHaveBeenCalledExactlyOnceWith(null); expect(ui.onClose).toHaveBeenCalledExactlyOnceWith(false);
   });
   it.each([[404, null, "wishlistMissing"], [409, "WISHLIST_SUSPENDED", "suspended"]])("closes and forwards unavailable state %s", async (status, code, state) => {
     const ui = setup(); ui.renew.mockRejectedValue(new ApiError({ kind: "http", statusCode: Number(status), errorCode: typeof code === "string" ? code : null })); ui.button("Renouveler le lien").click(); await settle(); expect(ui.onUnavailable).toHaveBeenCalledExactlyOnceWith(state); expect(ui.dialog.isConnected).toBe(false);

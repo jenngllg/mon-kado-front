@@ -61,7 +61,9 @@ describe("reported wishlist queue", () => {
     const ui = setup(1, 3); await settle(); expect(ui.load).toHaveBeenCalledOnce(); ui.button("Rejoindre la dernière page").click(); await settle(); expect(ui.load).toHaveBeenCalledTimes(2);
   });
   it("removes an inaccessible row without hiding the whole queue", async () => {
-    const ui = setup(); ui.loadReports.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 })); await settle(); ui.button("Voir les signalements").click(); await settle(); expect(ui.view.textContent).toContain("Liste introuvable"); expect(ui.view.textContent).not.toContain("Camille"); expect(ui.button("Recharger les résultats")).toBeTruthy();
+    const ui = setup(); ui.loadReports.mockRejectedValue(new ApiError({kind:"http",statusCode:404})); await settle();
+    ui.load.mockResolvedValue({items:[],currentPage:1,totalPages:0,totalCount:0}); ui.button("Voir les signalements").click(); await settle();
+    expect(ui.load).toHaveBeenCalledTimes(2); expect(ui.view.textContent).not.toContain("Camille"); expect(ui.view.textContent).not.toContain("Recharger les résultats");
   });
   it.each([false, true])("withdraws every private datum on 403, detail=%s", async detail => {
     const ui = setup(); if (detail) ui.loadReports.mockRejectedValue(new ApiError({ kind: "http", statusCode: 403 })); else ui.load.mockRejectedValue(new ApiError({ kind: "http", statusCode: 403 }));

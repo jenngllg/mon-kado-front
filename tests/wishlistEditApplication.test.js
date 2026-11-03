@@ -67,8 +67,9 @@ describe("wishlist edit application integration", () => {
     await app.router.navigate("/"); await app.router.navigate(path); await loaded(app); expect(app.state.reads).toBe(3);
   });
   it.each([401, 403, 429, 503])("never replays HTTP %s, expiring only 401 and not duplicating failures in the shell", async status => {
-    const app = setup(); app.state.status = status; await app.start(); await loaded(app); app.send();
+    const app = setup(); app.state.status = status; await app.start(); await loaded(app); const reads = app.state.reads; app.send();
     if (status === 401) await until(app.shell.outlet, () => window.location.pathname === "/login");
+    else if (status === 503) await until(app.shell.outlet, () => app.state.reads > reads && app.shell.outlet.querySelector('form[aria-busy="false"]') !== null);
     else await until(app.shell.outlet, () => app.shell.outlet.querySelector('[role="alert"]') !== null);
     expect(app.state.writes).toBe(1); expect(app.shell.outlet.textContent).not.toContain("Private English");
     if (status === 401) expect(app.session.getSnapshot().user).toBeNull();

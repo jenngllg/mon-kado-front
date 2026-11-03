@@ -55,8 +55,7 @@ describe("gift editor", () => {
     surprise.click(); secondHand.click(); expect(ui.submit.disabled).toBe(false);
     ui.update.mockRejectedValueOnce(new ApiError({ kind: "http", statusCode: 412 })); ui.send(); await settle();
     expect(ui.update).toHaveBeenCalledExactlyOnceWith(id, wishId, expect.objectContaining({ isSurprise: true, acceptsSecondHand: true }), { etag: '"gift"', signal: expect.any(AbortSignal) });
-    expect(surprise.checked).toBe(true); expect(secondHand.checked).toBe(true); expect(surprise.disabled).toBe(true);
-    ui.click("Relire le souhait"); await settle(); expect(surprise.checked).toBe(true); expect(secondHand.checked).toBe(true);
+    expect(surprise.checked).toBe(true); expect(secondHand.checked).toBe(true); expect(surprise.disabled).toBe(false); expect(surprise.checked).toBe(true); expect(secondHand.checked).toBe(true);
     ui.click("Utiliser la version enregistrée"); expect(surprise.checked).toBe(false); expect(secondHand.checked).toBe(false);
   });
   it("keeps entered details when changing a link and saves the link", async () => {
@@ -105,27 +104,18 @@ describe("gift editor", () => {
     ui.input(0, "Encore"); ui.send(); await settle(); expect(operation.mock.calls[1][3].etag).toBe('"new"');
   });
   it("preserves all draft fields across repeated conflicts, failed reads and explicit decisions", async () => {
-    const ui = setup(); await settle(); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412, errorCode: "WISH_VERSION_CONFLICT" }));
-    const draft = ["Mon nom", "Note\nprivée", "https://example.test/original", "14,20", "3", "Vert", "M"]; draft.forEach((value, index) => ui.input(index, value)); ui.send(); await settle();
-    expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(draft); ui.send(); expect(ui.update).toHaveBeenCalledTimes(1);
-    const reread = [...ui.view.querySelectorAll("button")].find(button => button.textContent === "Relire le souhait");
-    expect((reread?.compareDocumentPosition(ui.fields[0]) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    ui.loadOne.mockRejectedValueOnce(new ApiError({ kind: "network" })); ui.click("Relire le souhait"); await settle(); expect(ui.submit.disabled).toBe(true); expect(ui.fields.map(field => field.value)).toEqual(draft);
-    ui.loadOne.mockResolvedValue(stored("Autre onglet", '"conflict-2"')); ui.click("Relire le souhait"); await settle();
-    expect(ui.view.textContent).toContain("Version enregistrée"); expect(ui.view.textContent).toContain("Autre onglet"); expect(ui.fields.map(field => field.value)).toEqual(draft); expect(ui.update).toHaveBeenCalledTimes(1);
-    const comparison = ui.view.querySelector(".wish-edit-view__comparison");
-    expect(comparison?.querySelector("h2")?.textContent).toBe("Version enregistrée");
-    expect(comparison?.querySelectorAll("dt")).toHaveLength(9);
-    expect(comparison?.querySelectorAll("dd")).toHaveLength(9);
-    expect(comparison?.contains(ui.form)).toBe(false);
-    ui.click("Enregistrer"); await settle(); expect(ui.update.mock.calls[1][3].etag).toBe('"conflict-2"'); expect(ui.submit.disabled).toBe(true);
-    ui.loadOne.mockResolvedValue(stored("Version finale", '"conflict-3"')); ui.click("Relire le souhait"); await settle(); ui.click("Utiliser la version enregistrée");
-    expect(ui.fields.map(field => field.value)).toEqual([...Object.values(stored("Version finale").values), "", ""]); expect(ui.submit.disabled).toBe(true); expect(ui.update).toHaveBeenCalledTimes(2); expect(ui.loadWishlist).toHaveBeenCalledTimes(4);
+    const ui = setup(); await settle(); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 412 }));
+    const draft = ["Mon nom", "Note\nprivée", "https://example.test/original", "14,20", "3", "Vert", "M"]; draft.forEach((value,index) => ui.input(index,value));
+    ui.loadOne.mockResolvedValue(stored("Autre onglet", '"conflict-2"')); ui.send(); await settle();
+    expect(ui.fields.map(field => field.value)).toEqual(draft); expect(ui.update).toHaveBeenCalledOnce(); expect(ui.view.textContent).toContain("Autre onglet");
+    const comparison = ui.view.querySelector(".wish-edit-view__comparison"); expect(comparison?.querySelectorAll("dt")).toHaveLength(9); expect(comparison?.querySelectorAll("dd")).toHaveLength(9); expect(comparison?.contains(ui.form)).toBe(false);
+    ui.loadOne.mockResolvedValue(stored("Version finale", '"conflict-3"')); ui.send(); await settle(); expect(ui.update.mock.calls[1][3].etag).toBe('"conflict-2"');
+    expect(ui.fields.map(field => field.value)).toEqual(draft); ui.click("Utiliser la version enregistrée");
+    expect(ui.fields.map(field => field.value)).toEqual([...Object.values(stored("Version finale").values), "", ""]); expect(ui.submit.disabled).toBe(true); expect(ui.loadWishlist).toHaveBeenCalledTimes(3);
   });
   it.each([new ApiError({ kind: "http", statusCode: 428 }), new ApiError({ kind: "http", statusCode: 400, validationErrors: [{ propertyName: "ifMatch", errorMessage: "ENGLISH" }] }), new ApiError({ kind: "network" }), new ApiError({ kind: "timeout" }), new ApiError({ kind: "invalidResponse" }), new ApiError({ kind: "http", statusCode: 503 })])("blocks after uncertain or precondition failure %#", async error => {
-    const ui = setup(); await settle(); ui.update.mockRejectedValue(error); ui.input(0, "Conserver"); ui.send(); await settle(); ui.send();
-    expect(ui.submit.disabled).toBe(true); expect(ui.fields[0].value).toBe("Conserver"); expect(ui.update).toHaveBeenCalledTimes(1); expect(ui.view.textContent).toContain("Relire le souhait");
-    if (error.kind !== "http" || error.statusCode === 503) expect(ui.view.textContent).toContain("ne peut pas être confirmé");
+    const ui = setup(); await settle(); ui.update.mockRejectedValue(error); ui.loadOne.mockRejectedValue(new ApiError({kind:"network"})); ui.input(0,"Conserver"); ui.send(); await settle(); ui.send();
+    expect(ui.submit.disabled).toBe(true); expect(ui.fields[0].value).toBe("Conserver"); expect(ui.update).toHaveBeenCalledOnce(); expect(ui.loadOne).toHaveBeenCalledTimes(2); expect(ui.view.textContent).not.toContain("Relire le souhait");
   });
   it("explains a quantity refusal without revealing reservations, retaining every field and session", async () => {
     const ui = setup(); await settle(); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISH_QUANTITY_BELOW_RESERVED" })); ui.input(4, "1"); ui.send(); await settle();
@@ -143,10 +133,8 @@ describe("gift editor", () => {
   });
   it("loads suspended gifts as read-only and requires a fresh valid reread to resume", async () => {
     const parent = vi.fn(async () => ({ ...list, wishlist: { ...list.wishlist, isSuspended: true } })); const ui = setup({ loadWishlist: parent }); await settle();
-    expect(ui.form.hidden).toBe(false); expect(ui.fields.every(field => field.readOnly && !field.disabled)).toBe(true); expect(ui.view.textContent).toContain("Consultation uniquement"); ui.send(); expect(ui.update).not.toHaveBeenCalled();
-    ui.fields[0].focus(); expect(document.activeElement).toBe(ui.fields[0]);
-    parent.mockResolvedValue(list); ui.click("Relire le souhait"); await settle(); expect(ui.fields.every(field => !field.disabled && !field.readOnly)).toBe(true); expect(parent).toHaveBeenCalledTimes(2);
-    ui.input(0, "Préserver"); ui.update.mockRejectedValue(new ApiError({ kind: "http", statusCode: 409, errorCode: "WISHLIST_SUSPENDED" })); ui.send(); await settle(); expect(ui.fields[0].value).toBe("Préserver"); expect(ui.fields.every(field => field.readOnly && !field.disabled)).toBe(true);
+    expect(ui.form.hidden).toBe(false); expect(ui.fields.every(field => field.readOnly && !field.disabled)).toBe(true); expect(ui.view.textContent).toContain("Consultation uniquement");
+    ui.send(); expect(ui.update).not.toHaveBeenCalled(); ui.fields[0].focus(); expect(document.activeElement).toBe(ui.fields[0]); expect(parent).toHaveBeenCalledOnce(); expect(ui.view.textContent).not.toContain("Relire le souhait");
   });
   it.each(["list", "gift", "update"])("removes fields and data for a missing %s", async source => {
     const failure = new ApiError({ kind: "http", statusCode: 404 }); const ui = setup(source === "list" ? { loadWishlist: async () => { throw failure; } } : source === "gift" ? { loadOne: async () => { throw failure; } } : {}); await settle();

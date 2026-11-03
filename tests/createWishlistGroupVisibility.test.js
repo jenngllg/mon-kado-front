@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { createWishlistView } from "../src/features/wishlists/createWishlistView.js";
 import { disposeComponent } from "../src/components/index.js";
 import { ApiError } from "../src/api/apiError.js";
+import { barrier } from "./sessionTestHelpers.js";
 
 const listId = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 const groupId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
@@ -43,6 +44,18 @@ it("keeps the created list accessible and never creates it again when visibility
   expect(view.querySelector('a[href="/lists/' + listId + '"]')).not.toBeNull();
   ui.form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await settle();
   expect(ui.create).toHaveBeenCalledOnce(); expect(ui.onCreated).not.toHaveBeenCalled();
+});
+it("continues automatically when an uncertain group-visibility write is already saved",async()=>{
+  const ui=setup();ui.groups.setWishlistVisibility.mockImplementation(async()=>{
+    ui.groups.wishlistVisibility.mockResolvedValue({visibility:{groups:[{groupId,name:"Famille",isVisible:true}]},etag:'"fresh"'});throw new ApiError({kind:"timeout"});
+  });await chooseGroup(ui);
+  expect(ui.create).toHaveBeenCalledOnce();expect(ui.groups.setWishlistVisibility).toHaveBeenCalledOnce();expect(ui.groups.wishlistVisibility).toHaveBeenCalledTimes(2);expect(ui.onCreated).toHaveBeenCalledOnce();
+});
+it.each([false,true])("keeps a confirmed list without replay when the visibility read fails or outlives the page: %s",async leave=>{
+  const ui=setup(),gate=barrier();ui.groups.setWishlistVisibility.mockImplementation(async()=>{
+    ui.groups.wishlistVisibility.mockImplementation(async()=>{await gate.promise;throw new ApiError({kind:"network"});});throw new ApiError({kind:"timeout"});
+  });await chooseGroup(ui);if(leave)disposeComponent(view);gate.resolve();await settle();
+  expect(ui.create).toHaveBeenCalledOnce();expect(ui.groups.setWishlistVisibility).toHaveBeenCalledOnce();expect(ui.onCreated).not.toHaveBeenCalled();
 });
 it("allows private creation without a visibility write when no group is selected", async () => {
   const ui = setup(true); await settle();
