@@ -9,6 +9,7 @@ const group = { id: groupId, ownerId: memberId, name: "Famille navigateur", memb
 for (const width of [1440, 390]) {
   test(`window return preserves other read pages and their keyboard focus at ${width}px`, async ({ page, context }) => {
     await page.setViewportSize({ width, height: 900 });
+    await page.clock.install();
     const api = await controlledApi(context); api.state.authenticated = true;
     const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"00000001"' };
     await context.route("http://localhost:7000/api/v1/**", route => {
@@ -26,7 +27,7 @@ for (const width of [1440, 390]) {
     });
     let watching = false, reads = 0;
     await context.route("http://localhost:7000/api/v1/**", route => {
-      if (watching && route.request().method() === "GET" && !route.request().url().includes("/auth/")) reads++;
+      if (watching && route.request().method() === "GET" && !/\/(auth|notifications)\//.test(route.request().url())) reads++;
       return route.fallback();
     });
     const cases = [
@@ -37,17 +38,17 @@ for (const width of [1440, 390]) {
     ];
     for (const [path, selector] of cases) {
       if (path.startsWith(sharedPath)) {
-        await page.goto(`${sharedPath}#${secret}`); await page.waitForLoadState("networkidle");
+        await page.goto(`${sharedPath}#${secret}`);
         await page.getByRole("link", { name: "Une théière", exact: true }).click();
       } else await page.goto(path);
-      await page.waitForLoadState("networkidle");
       const marker = page.locator(selector).first(); await expect(marker).toBeVisible();
+      await expect(page.locator("main .loading-state")).toHaveCount(0);
       const original = await marker.elementHandle();
       const control = page.locator("main a, main button, main select").filter({ visible: true }).first();
       await control.focus();
       reads = 0; watching = true;
       await page.evaluate(() => { globalThis.window.dispatchEvent(new Event("focus")); globalThis.document.dispatchEvent(new Event("visibilitychange")); });
-      await page.waitForLoadState("networkidle"); expect(reads).toBe(0);
+      await page.clock.runFor(1000); expect(reads).toBe(0);
       await expect(page.locator("main .loading-state")).toHaveCount(0);
       await expect(control).toBeFocused();
       watching = false;

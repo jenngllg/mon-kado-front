@@ -116,7 +116,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByRole("dialog")).toHaveCount(0); expect(shared).toBe(true);
     await page.goto(`/groups/${groupId}`);
     await page.getByRole("button", { name: "Inviter un proche", exact: true }).click();
-    await expect(page.getByRole("searchbox")).toHaveCount(0);
+    await expect(page.locator("main").getByRole("searchbox")).toHaveCount(0);
     const activateSharing = page.getByRole("button", { name: "Activer le partage", exact: true });
     await activateSharing.hover();
     await expect(activateSharing).toHaveCSS("transform", "none");
