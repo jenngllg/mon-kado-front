@@ -21,6 +21,13 @@ function deferred() {
 }
 
 describe("owned wishlists view", () => {
+  it("loads the first row of covers eagerly and defers later entries", async () => {
+    const items = Array.from({ length: 5 }, (_, index) => ({ ...item, id: `019c52dd-56c1-7cc6-8a95-243f3a032e1${index}` }));
+    const view = mount({ load: async () => items }); await Promise.resolve();
+    const images = [...view.querySelectorAll(".wishlist-card__cover")];
+    expect(images.map(image => image.getAttribute("loading"))).toEqual(["eager", "eager", "eager", "eager", "lazy"]);
+    expect(images.every(image => image.getAttribute("srcset")?.includes("800w"))).toBe(true);
+  });
   it("opens one confirmation, cancels safely and returns focus to the card action", async () => {
     const loadOne = vi.fn(async () => ({ wishlist: { ...item, message: null }, etag: '"current"' })), remove = vi.fn(async () => {});
     const view = mount({ load: async () => [item], loadOne, remove }); await Promise.resolve();

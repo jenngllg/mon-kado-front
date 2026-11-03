@@ -5,7 +5,7 @@ import { createActionLink, createAlert, createButton, createEmptyState, createLo
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { WishlistOccasions as OccasionLabels } from "./wishlistValidation.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
-import { wishlistArtwork } from "./wishlistArtwork.js";
+import { wishlistArtwork, wishlistArtworkSources, WishlistCardArtworkSizes } from "./wishlistArtwork.js";
 import { createWishlistDeleteDialog } from "./wishlistDeleteDialog.js";
 import { createWishlistOverviewToolbar } from "./wishlistOverviewToolbar.js";
 
@@ -83,7 +83,7 @@ export function createWishlistsView({ load, loadOne, remove, isArchived = false,
         const collection = textElement("ul", "");
         collection.className = "wishlists-grid";
         collection.setAttribute("role", "list");
-        for (const item of items) collection.append(createCard(item, openDeletion));
+        for (const [index, item] of items.entries()) collection.append(createCard(item, openDeletion, index));
         show(collection);
       }
       if (focus) title.focus();
@@ -109,15 +109,17 @@ export function createWishlistsView({ load, loadOne, remove, isArchived = false,
 
 /** @param {import("./wishlistsService.js").Wishlist} item Validated, minimal read model.
  * @param {(id: string, trigger: HTMLButtonElement) => void} onDelete Open confirmation.
+ * @param {number} index Position in the current overview; the first row loads eagerly.
  * @returns {HTMLLIElement} A semantic card; only its action is interactive.
  */
-function createCard(item, onDelete) {
+function createCard(item, onDelete, index) {
   const card = textElement("li", "");
   card.className = "wishlist-card";
   const cover = document.createElement("img");
   cover.className = "wishlist-card__cover";
   cover.src = wishlistArtwork(item.occasion);
-  cover.alt = ""; cover.loading = "lazy"; cover.width = 400; cover.height = 500;
+  cover.srcset = wishlistArtworkSources(item.occasion); cover.sizes = WishlistCardArtworkSizes; cover.decoding = "async";
+  cover.alt = ""; cover.loading = index < 4 ? "eager" : "lazy"; cover.width = 400; cover.height = 500;
   const content = textElement("div", "");
   content.className = "wishlist-card__content";
   const occasion = textElement("p", OccasionLabels[item.occasion]);

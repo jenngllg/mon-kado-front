@@ -6,7 +6,8 @@ Page views are loaded through native dynamic imports on navigation. Session guar
 still run before rendering; canceled navigations discard late modules, and private
 URL fragments are consumed synchronously before a module request. The initial
 build loads about 91 KiB of compressed JavaScript instead of 206 KiB. Occasion
-artwork uses 200/400/800-pixel browser-selected sources while preserving the
+artwork across home, dashboard, personal/followed overviews and member profiles uses
+200/400/800-pixel browser-selected sources while preserving the
 original photographs and layout.
 
 Session restoration reads `hasSessionCookie` from the public, uncached

@@ -3,7 +3,7 @@ import { addComponentEventListener, registerComponentCleanup } from "../../compo
 import { createActionLink, createAlert, createButton, createEmptyState, createLoadingState, disposeComponent } from "../../components/index.js";
 import { applyActionIcon } from "../../components/actionIcon.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
-import { wishlistArtwork } from "../wishlists/wishlistArtwork.js";
+import { wishlistArtwork, wishlistArtworkSources, WishlistCardArtworkSizes } from "../wishlists/wishlistArtwork.js";
 import { WishlistOccasions } from "../wishlists/wishlistValidation.js";
 import { createWishlistOverviewToolbar } from "../wishlists/wishlistOverviewToolbar.js";
 
@@ -60,7 +60,7 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
       if (!result.items.length) results.append(createEmptyState({ title: "Tu ne suis encore aucune liste.", message: "Ouvre la liste publique d’un proche et choisis « Suivre » pour la retrouver ici." }));
       else {
         const grid = node("ul", ""); grid.className = "wishlists-grid"; grid.setAttribute("role", "list");
-        for (const item of result.items) grid.append(card(item));
+        for (const [index, item] of result.items.entries()) grid.append(card(item, index));
         results.append(grid);
       }
       pagination.hidden = pages < 2;
@@ -80,11 +80,13 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
       ...(uncertain ? { message: "La modification de tes listes suivies n’a pas pu être confirmée." } : {}) }));
     if (!uncertain) feedback.append(createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(); } }));
   }
-  /** @param {import("./wishlistSubscriptionsService.js").WishlistSubscription} item Revalidated summary. */
-  function card(item) {
+  /** @param {import("./wishlistSubscriptionsService.js").WishlistSubscription} item Revalidated summary.
+   * @param {number} index Position in the current overview. */
+  function card(item, index) {
     const card = node("li", ""); card.className = "wishlist-card";
     const cover = document.createElement("img"); cover.className = "wishlist-card__cover";
-    cover.src = wishlistArtwork(item.occasion); cover.alt = ""; cover.loading = "lazy"; cover.width = 400; cover.height = 500;
+    cover.src = wishlistArtwork(item.occasion); cover.srcset = wishlistArtworkSources(item.occasion); cover.sizes = WishlistCardArtworkSizes; cover.decoding = "async";
+    cover.alt = ""; cover.loading = index < 4 ? "eager" : "lazy"; cover.width = 400; cover.height = 500;
     const content = node("div", ""); content.className = "wishlist-card__content";
     const heading = node("h2", "");
     const link = createActionLink({ label: item.name, href: item.shareHref }); link.classList.add("wishlist-card__open");
@@ -107,7 +109,7 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
     unfollow.setAttribute("aria-label", `Ne plus suivre « ${item.name} »`); applyActionIcon(unfollow, "bell", "Ne plus suivre");
     unfollow.setAttribute("aria-pressed", "true"); actions.append(unfollow);
     card.append(cover, content, actions);
-    registerComponentCleanup(card, () => { link.removeAttribute("href"); cover.removeAttribute("src"); });
+    registerComponentCleanup(card, () => { link.removeAttribute("href"); cover.removeAttribute("src"); cover.removeAttribute("srcset"); });
     return card;
   }
   /** @param {import("./wishlistSubscriptionsService.js").WishlistSubscription} item Target. */

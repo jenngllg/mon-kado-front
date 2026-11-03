@@ -23,6 +23,9 @@ import otherIcon from "../../assets/design/other-icon.webp";
 const ResponsiveArtwork = Object.freeze({ birthday: [birthday200, birthday400], christmas: [christmas200, christmas400],
   wedding: [wedding200, wedding400], birth: [birth200, birth400], other: [other200, other400] });
 
+/** Cover widths mirror the compact mobile row and the two/four-column overview grids. */
+export const WishlistCardArtworkSizes = "(max-width: 35.999rem) 5.5rem, (max-width: 63.999rem) 50vw, min(25vw, 320px)";
+
 /** Native browser selection keeps the original available for large displays and high pixel densities.
  * @param {string} occasion Actual list occasion.
  * @returns {string} Width-described image candidates.

@@ -144,3 +144,17 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 360, height: 800
     expect(api.unexpected).toEqual([]);
   });
 }
+
+for (const width of [390, 1440]) {
+  test(`member list covers use their rendered size at ${width}px`, async ({ page, context }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    const api = await membersApi(context);
+    await page.goto(profilePath);
+    const cover = page.locator(".member-profile-list img");
+    await expect(cover).toHaveAttribute("loading", "eager");
+    const source = await cover.evaluate(async element => { const image = /** @type {HTMLImageElement} */ (element); await image.decode(); return image.currentSrc; });
+    expect(source).toMatch(width === 390 ? /-200-/ : /-400-/);
+    expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
+    expect(api.unexpected).toEqual([]);
+  });
+}

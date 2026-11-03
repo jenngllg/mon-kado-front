@@ -71,6 +71,9 @@ for (const width of [390, 1280, 1440, 1705]) {
     }
     const tile = page.locator(".wishlist-card");
     await expect(tile).toHaveCount(1); await expect(tile.getByText("Par Camille")).toBeVisible();
+    const cover = tile.locator(".wishlist-card__cover");
+    const source = await cover.evaluate(async element => { const image = /** @type {HTMLImageElement} */ (element); await image.decode(); return image.currentSrc; });
+    expect(source).toMatch(width === 390 ? /-200-/ : /-400-/);
     await expect(tile.locator("time")).toBeVisible();
     await expect(tile.getByRole("button", { name: /Ne plus suivre/ })).toBeVisible();
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
