@@ -30,8 +30,8 @@ async function preferencesApi(context){
   return{...api,preferences:state};
 }
 
-for(const width of[390,1440]){
-  test(`account notification choices persist on reload and remain keyboard usable at ${width}px`,async({page,context},testInfo)=>{
+for(const width of[390,1440]) for(const key of keys){
+  test(`account ${key} choice persists independently and remains keyboard usable at ${width}px`,async({page,context},testInfo)=>{
     await page.setViewportSize({width,height:1000});const api=await preferencesApi(context);
     await page.goto("/profile");
     const navigation=page.getByRole("navigation",{name:"Paramètres du compte"});
@@ -41,12 +41,17 @@ for(const width of[390,1440]){
     await expect(page.getByRole("heading",{name:"Mes notifications",exact:true})).toBeVisible();
     const switches=page.getByRole("switch");await expect(switches).toHaveCount(9);
     for(const input of await switches.all())await expect(input).toBeChecked();
-    const wishes=page.getByRole("switch",{name:"Nouveaux souhaits",exact:true});
-    await wishes.focus();await page.keyboard.press("Space");await expect(wishes).not.toBeChecked();
-    await page.getByRole("button",{name:"Enregistrer",exact:true}).click();
-    await expect(page.getByRole("status").filter({hasText:"Préférences enregistrées."})).toBeVisible();expect(api.preferences.writes).toBe(1);
-    await page.reload();await expect(wishes).not.toBeChecked();await expect(page.getByRole("switch",{name:"Invitations à un groupe",exact:true})).toBeChecked();
-    expect(api.preferences.writes).toBe(1);expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.innerWidth)).toBe(true);
+    const input = page.locator(`input[role="switch"][name="${key}"]`);
+    for (const enabled of [false, true]) {
+        await input.focus(); await page.keyboard.press("Space");
+        await page.getByRole("button", {name:"Enregistrer",exact:true}).click();
+        await expect(page.getByRole("status").filter({hasText:"Préférences enregistrées."})).toBeVisible();
+        await page.reload();
+        for (const other of keys) {
+          await expect(page.locator(`input[role="switch"][name="${other}"]`)).toBeChecked({checked:other===key?enabled:true});
+        }
+    }
+    expect(api.preferences.writes).toBe(2);expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.innerWidth)).toBe(true);
     await page.screenshot({path:testInfo.outputPath("notification-preferences.png"),fullPage:true});expect(api.unexpected).toEqual([]);
   });
 }
