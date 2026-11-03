@@ -1,11 +1,15 @@
 /** Reads the bounded notification SSE contract without exposing credentials to callers.
  * @param {Response} response Authenticated event response.
  * @param {(status:{hasUnread:boolean})=>void} receive Notification-only invalidation.
+ * @param {AbortSignal} [signal] Cancels the response body as well as the fetch.
  * @returns {Promise<{data:null,isValid:boolean,isEmpty:boolean}>} Completed stream.
  */
-export async function readNotificationEvents(response, receive) {
+export async function readNotificationEvents(response, receive, signal) {
   if (response.headers.get("content-type")?.split(";")[0] !== "text/event-stream" || !response.body) throw new Error("Invalid notification stream");
   const reader = response.body.getReader();
+  const abort = () => { void reader.cancel().catch(() => {}); };
+  signal?.addEventListener("abort", abort, { once: true });
+  if (signal?.aborted) abort();
   const decoder = new TextDecoder();
   let pending = "";
   try {
@@ -25,5 +29,9 @@ export async function readNotificationEvents(response, receive) {
       }
     }
     return { data: null, isValid: true, isEmpty: true };
-  } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
+  } finally {
+    signal?.removeEventListener("abort", abort);
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
 }

@@ -2296,6 +2296,12 @@ latest settings; an uncertain write is reconciled through a read without
 automatically submitting it again. Existing notification history and security
 emails remain independent of these choices.
 
+Tabs of the same member share one live notification connection through Web Locks
+and a member-specific BroadcastChannel carrying only unread status. Closing the
+owning tab transfers the connection automatically. This leaves HTTP/1 connection
+slots available for page reads and forms. Cancelling a subscription also cancels
+its response reader explicitly; it cannot leave an orphan body occupying a slot.
+
 This page requires the backend notification-preferences migration and API, and
 the updated worker for scheduled reminders. Follow the backend's
 [migration and publication requirements](https://github.com/jenngllg/mon-kado/blob/codex/notification-preferences/docs/notification-preferences.md)

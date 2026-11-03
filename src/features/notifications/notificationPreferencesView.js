@@ -16,7 +16,6 @@ export function createNotificationPreferencesView({service,signal}) {
   const view = node("section", "");
   view.className = "notification-preferences-view flow";
   const title = node("h1", "Mes notifications");
-  const hint = node("p", "Ces réglages concernent les nouvelles notifications de la cloche.");
   const feedback = node("div", "");
   feedback.tabIndex = -1;
   const status = node("p", "");
@@ -63,7 +62,7 @@ export function createNotificationPreferencesView({service,signal}) {
   actions.className = "cluster";
   actions.append(submit);
   form.append(choices, actions);
-  view.append(title, hint, loading, feedback, status, form);
+  view.append(title, loading, feedback, status, form);
   const lifetime = new AbortController();
   let disposed = false, busy = false, needsRead = false;
   /** @type {Snapshot|null} */

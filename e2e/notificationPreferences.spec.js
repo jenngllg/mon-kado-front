@@ -90,3 +90,33 @@ test("anonymous direct access is guarded before loading private settings",async(
   const api=await preferencesApi(context);api.state.authenticated=false;await page.goto("/profile/notifications");
   await expect(page).toHaveURL(/\/login(?:\?|$)/);expect(api.preferences.reads).toBe(0);expect(api.preferences.puts).toBe(0);
 });
+
+test("seven tabs share the live notification connection and transfer it when the owner closes", async ({ context }) => {
+  const api = await preferencesApi(context);
+  /** @type {import('@playwright/test').Route[]} */ const streams = [];
+  await context.route("**/api/v1/notifications/events", route => {
+    if (route.request().method() === "OPTIONS") return route.fallback();
+    streams.push(route);
+  });
+  /** @type {import('@playwright/test').Page[]} */ const pages = [];
+  for (let index = 0; index < 7; index++) {
+    const page = await context.newPage(); pages.push(page);
+    await page.goto("/profile/notifications");
+    await expect(page.getByRole("switch")).toHaveCount(9);
+    await expect(page.getByRole("switch").first()).toBeEnabled();
+  }
+  await expect.poll(() => streams.length).toBe(1);
+  const owner = streams[0].request().frame().page();
+  await streams[0].fulfill({ status: 200, headers: {
+    "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true",
+    "Content-Type": "text/event-stream",
+  }, body: 'event: notifications\ndata: {"hasUnread":true}\n\n' });
+  for (const page of pages) await expect(page.locator(".notification-badge")).toBeVisible();
+  await owner.close();
+  await expect.poll(() => streams.length).toBe(2);
+  expect(streams[1].request().frame().page()).not.toBe(owner);
+  for (const page of pages.filter(page => !page.isClosed())) {
+    await page.reload(); await expect(page.getByRole("switch").first()).toBeEnabled();
+  }
+  expect(api.unexpected).toEqual([]);
+});
