@@ -8,6 +8,8 @@ playwright-report/
 test-results/
 .e2e-dist/
 .e2e-results/
+.native-e2e-results/
+native-playwright-report/
 
 .env
 .env.*

@@ -3,7 +3,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["coverage/", "dist/", ".local/", ".e2e-dist/", ".e2e-results/", "playwright-report/", "test-results/"],
+    ignores: ["coverage/", "dist/", ".local/", ".e2e-dist/", ".e2e-results/", ".native-e2e-results/", "native-playwright-report/", "playwright-report/", "test-results/"],
   },
   eslint.configs.recommended,
   {
@@ -15,7 +15,7 @@ export default [
     },
   },
   {
-    files: ["tools/**/*.js", "tests/**/*.js", "e2e/**/*.js", "playwright.config.js", "vite.config.js"],
+    files: ["tools/**/*.js", "tests/**/*.js", "e2e/**/*.js", "e2e-native/**/*.js", "playwright.config.js", "playwright.native.config.js", "vite.config.js"],
     languageOptions: {
       ecmaVersion: "latest",
       globals: globals.node,

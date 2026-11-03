@@ -179,6 +179,60 @@ jobs:
           retention-days: 1
           if-no-files-found: error
       - name: Remove disposable native PostgreSQL cluster
+        # The browser suite uses a separately generated child database, never this parent.
+        if: always()
+        run: |
+          if pg_lsclusters --no-header | grep -q '^18[[:space:]]\+monkado[[:space:]]'; then
+            sudo pg_dropcluster --stop 18 monkado
+          fi
+
+  native-browser:
+    name: Native API browser journeys
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@d9184bf108216479bc5a137cc391f4d7b14c870b # v6.1.0
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: jenngllg/mon-kado
+          ref: ${{ github.head_ref == 'codex/notification-preferences' && 'b0912a13b5fe0c6ac9d3b631a0cfd2f4b19fadaa' || github.head_ref == 'codex/compatible-session-loading' && 'eec6c078d60ef28c6f3659575b69fbaef8997827' || github.head_ref == 'codex/notifications-responsive-production-20261103' && 'f38093556273520662e6a40a916d00c5099d480c' || github.head_ref == 'codex/image-pipeline-production' && '5c86bac103a10d07758dfe52f15c2c423380944b' || github.head_ref == 'codex/extension-surprise-release' && '296fccc09b5f30ef6fa1ed3e2b4a57399fb75cff' || github.head_ref == 'codex/complete-production-20261101' && '52aa836576681118262b723987cdcbf4773b13a2' || github.head_ref == 'codex/MK-1008-frontend-native-contract' && '84e665b570694fc829869494d2c04999778e09ff' || github.head_ref == 'codex/admin-bool-session' && '6e8bed08f02b1509c3414777d2a58523cf18cdb0' || github.head_ref == 'codex/admin-boolean-only' && 'd6b4b6c913769cccfb5e9d8ce0a890c35faa5817' || ((github.base_ref == 'main' || github.ref == 'refs/heads/main') && 'main' || 'develop') }}
+          path: .backend
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: .backend/go.mod
+          cache-dependency-path: .backend/go.sum
+      - name: Initialize isolated native PostgreSQL
+        run: bash .backend/scripts/Initialize-CIPostgres.sh
+      - run: python3 -m unittest discover -s tools/native-e2e -p 'test_*.py'
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Run real frontend, API, worker and PostgreSQL journeys
+        env:
+          MONKADO_BACKEND_SOURCE: ${{ github.workspace }}/.backend
+        run: pnpm test:e2e:native
+      - name: Retain native journey diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-browser-failure
+          include-hidden-files: true
+          path: |
+            native-playwright-report/
+            .native-e2e-results/
+            .local/native-e2e/run-*/api.log
+            .local/native-e2e/run-*/worker.log
+            .local/native-e2e/run-*/setup.log
+          retention-days: 3
+          if-no-files-found: ignore
+      - name: Remove disposable native PostgreSQL cluster
         if: always()
         run: |
           if pg_lsclusters --no-header | grep -q '^18[[:space:]]\+monkado[[:space:]]'; then
@@ -188,7 +242,7 @@ jobs:
   gate:
     name: Frontend quality gate
     if: always()
-    needs: [quality, contract, browser]
+    needs: [quality, contract, browser, native-browser]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
@@ -197,4 +251,5 @@ jobs:
           QUALITY_RESULT: ${{ needs.quality.result }}
           CONTRACT_RESULT: ${{ needs.contract.result }}
           BROWSER_RESULT: ${{ needs.browser.result }}
-        run: test "$QUALITY_RESULT" = success && test "$CONTRACT_RESULT" = success && test "$BROWSER_RESULT" = success
+          NATIVE_BROWSER_RESULT: ${{ needs.native-browser.result }}
+        run: test "$QUALITY_RESULT" = success && test "$CONTRACT_RESULT" = success && test "$BROWSER_RESULT" = success && test "$NATIVE_BROWSER_RESULT" = success
