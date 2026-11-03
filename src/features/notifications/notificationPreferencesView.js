@@ -43,16 +43,14 @@ export function createNotificationPreferencesView({service,signal}) {
     const text = node("span", "");
     text.className = "notification-preferences__label";
     const caption = node("span", option.label);
+    if (option.detail) {
+      const detail = node("small", ` ${option.detail}`);
+      detail.className = "muted";
+      caption.append(detail);
+    }
     caption.id = `notification-preference-${key}-label-${crypto.randomUUID()}`;
     input.setAttribute("aria-labelledby", caption.id);
     text.append(caption);
-    if (option.detail) {
-      const detail = node("small", option.detail);
-      detail.className = "muted";
-      detail.id = `notification-preference-${key}-${crypto.randomUUID()}`;
-      input.setAttribute("aria-describedby", detail.id);
-      text.append(detail);
-    }
     label.append(input, text);
     choices.append(label);
     inputs.set(key, input);

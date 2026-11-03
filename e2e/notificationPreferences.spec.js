@@ -58,7 +58,7 @@ for(const width of[390,1440]) for(const key of keys){
 
 test("merges independent changes from another tab after a refused stale save",async({page,context})=>{
   const api=await preferencesApi(context);await page.goto("/profile/notifications");
-  await page.getByRole("switch",{name:"Nouveaux souhaits",exact:true}).uncheck();api.preferences.conflict=true;
+  await page.getByRole("switch",{name:"Nouveaux souhaits (dans les listes que tu suis)",exact:true}).uncheck();api.preferences.conflict=true;
   await page.getByRole("button",{name:"Enregistrer",exact:true}).click();
   await expect(page.getByRole("status").filter({hasText:"Préférences enregistrées."})).toBeVisible();
   expect(api.preferences.settings.wishesAdded).toBe(false);expect(api.preferences.settings.groupJoined).toBe(false);
@@ -68,7 +68,7 @@ test("merges independent changes from another tab after a refused stale save",as
 
 test("a lost save acknowledgement is recovered through a read without replay",async({page,context})=>{
   const api=await preferencesApi(context);await page.goto("/profile/notifications");
-  await page.getByRole("switch",{name:"Nouveaux souhaits",exact:true}).uncheck();api.preferences.lostAcknowledgement=true;
+  await page.getByRole("switch",{name:"Nouveaux souhaits (dans les listes que tu suis)",exact:true}).uncheck();api.preferences.lostAcknowledgement=true;
   await page.getByRole("button",{name:"Enregistrer",exact:true}).click();
   await expect(page.getByRole("status").filter({hasText:"Préférences enregistrées."})).toBeVisible();
   expect(api.preferences.writes).toBe(1);expect(api.preferences.puts).toBe(1);expect(api.preferences.reads).toBe(2);
@@ -86,7 +86,7 @@ for(const condition of["unavailable","empty"]){
 
 test("preserves unsaved choices after an unavailable save",async({page,context})=>{
   const api=await preferencesApi(context);await page.goto("/profile/notifications");
-  const input=page.getByRole("switch",{name:"Nouveaux souhaits",exact:true});await input.uncheck();api.preferences.saveFailure=503;
+  const input=page.getByRole("switch",{name:"Nouveaux souhaits (dans les listes que tu suis)",exact:true});await input.uncheck();api.preferences.saveFailure=503;
   await page.getByRole("button",{name:"Enregistrer",exact:true}).click();await expect(page.getByRole("alert")).toBeVisible();
   await expect(input).not.toBeChecked();expect(api.preferences.writes).toBe(0);expect(api.preferences.puts).toBe(1);
 });
