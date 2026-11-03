@@ -10,6 +10,7 @@ async function membersApi(context) {
   const state = { status: 200, shared: true, searches: /** @type {string[]} */ ([]), profiles: 0 };
   await context.route("http://localhost:7000/api/v1/members**", async route => {
     if (route.request().method() === "OPTIONS") return route.fallback();
+    if (new URL(route.request().url()).pathname.startsWith("/api/v1/members/current/")) return route.fallback();
     expect(route.request().headers().authorization).toBeUndefined();
     expect(route.request().headers().referer).toBeUndefined();
     const url = new URL(route.request().url());

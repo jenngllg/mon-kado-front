@@ -8,8 +8,9 @@
   width: 44px; height: 44px; min-width: 44px; padding: 0;
   border: 1px solid var(--color-border); border-radius: var(--radius-full); background: var(--color-surface);
 }
-.wishlist-subscription-action[aria-pressed="true"] { background: var(--color-surface-sage); }
-.wishlist-subscription-action[aria-pressed="true"] svg { fill: var(--color-surface-sage); }
+.wishlist-subscription-action[aria-pressed="true"], .wishlist-subscriptions-view .icon-action[aria-pressed="true"] { background: var(--color-surface-sage); }
+.wishlist-subscription-action[aria-pressed="true"] svg, .wishlist-subscriptions-view .icon-action[aria-pressed="true"] svg { fill: var(--color-surface-sage); }
+.wishlist-subscriptions-view .wishlist-card__actions { opacity: 1; pointer-events: auto; }
 .wishlist-card__author { color: var(--color-text-muted); }
 .wishlist-details-view--gallery { --wish-gallery-tile-min-width: 14rem; --wish-gallery-column-gap: calc(var(--space-4) + 0.625rem); }
 .wishlist-details-view:is(.shared-wishlist-view, .wishlist-details-view--banner) .wishlist-details-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }

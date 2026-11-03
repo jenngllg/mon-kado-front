@@ -234,13 +234,13 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
       optionsMenu = createActionDisclosure("⋯", "Options de la liste", secondary);
       optionsMenu.querySelector("summary")?.setAttribute("role", "button");
       optionsMenu.classList.add("wishlist-details-options");
+      actions.append(optionsMenu);
       if (!item.isArchived) {
         const add = createActionLink({ label: "Ajouter un souhait", href: RoutePaths.NewWish.replace(":listId", wishlistId) });
         applyActionIcon(add, "add", "Ajouter un souhait"); add.classList.remove("icon-action");
         add.append(element("span", "Ajouter un souhait"));
         add.classList.add("ui-button", "ui-button--primary", "page-primary-action", "wishlist-details-add"); actions.append(add);
       }
-      actions.append(optionsMenu);
     }
     information.hidden = !summary.hasChildNodes() && !listContent.hasChildNodes();
   }

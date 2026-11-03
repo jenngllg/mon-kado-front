@@ -102,7 +102,7 @@ for (const width of [390, 1440]) {
     await page.screenshot({ path: testInfo.outputPath("group-edit-centered.png"), fullPage: true });
     await page.goto(`/groups/${groupId}`);
     await expect(page.getByRole("button", { name: "Partager une liste", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Inviter un proche", exact: true })).toHaveCSS("background-color", "rgb(223, 229, 215)");
+    await expect(page.getByRole("button", { name: "Inviter un proche", exact: true })).toHaveCSS("background-color", "rgb(185, 62, 50)");
     await page.getByRole("button", { name: "Options du groupe", exact: true }).click();
     await expect(page.getByRole("button", { name: "Supprimer le groupe", exact: true })).toHaveCSS("color", "rgb(180, 35, 24)");
     await page.getByRole("heading", { name: group.name, exact: true }).click();

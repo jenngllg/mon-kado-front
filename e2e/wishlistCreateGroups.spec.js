@@ -24,7 +24,8 @@ for (const [width, selectGroup] of /** @type {Array<[number,boolean]>} */ ([[390
     await page.getByLabel(/Nom de la liste/).fill("Liste de test");
     await page.getByLabel(/Occasion/).selectOption("birthday");
     await page.getByRole("button", { name: "Continuer", exact: true }).click();
-    if (selectGroup) await page.getByRole("checkbox", { name: "Famille" }).check();
+    await expect(page.getByRole("checkbox", { name: "Famille" })).toBeChecked();
+    await page.getByRole("checkbox", { name: "Famille" }).setChecked(selectGroup);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.getByRole("button", { name: "Créer ma liste" }).click();
     await expect(page).toHaveURL(`/lists/${listId}`); expect(visible).toBe(selectGroup);

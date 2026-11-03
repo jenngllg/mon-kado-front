@@ -14,6 +14,7 @@ import {
 import { createPlaceholderView } from "../src/views/index.js";
 import { ApiError } from "../src/api/apiError.js";
 import { disposeComponent } from "../src/components/index.js";
+import { barrier } from "./sessionTestHelpers.js";
 const unusedSession = {
   prepareExternalAuthentication: async () => { throw new Error("Unexpected Google preparation."); },
   observeExternalAuthentication: () => () => {},
@@ -112,6 +113,29 @@ const ExpectedRoutes = [
 ];
 
 describe("application routes", () => {
+  it.each([false, true])("waits for initial session selection before confirming e-mail and respects navigation cancellation %s", async cancelled => {
+    const gate = barrier(), controller = new AbortController();
+    const start = vi.fn(async () => { await gate.promise; return unusedSession.getSnapshot(); });
+    const request = vi.fn(async () => ({ status: 204, data: null, metadata: { etag: null, location: null, correlationId: "fixture", retryAfterSeconds: null } }));
+    const session = { ...unusedSession, start, request: /** @type {import('../src/auth/sessionManager.js').SessionManager['request']} */ (request) };
+    const route = createApplicationRoutes({ session, apiBaseUrl: "http://localhost:7000" }).find(item => item.name === RouteNames.ConfirmEmail);
+    if (!route) throw new Error("Missing confirmation route");
+    const pending = route.render({ ...createRouteContext("/confirm-email"), signal: controller.signal,
+      consumeFragment: () => "#userId=019c52dd-56c1-7cc6-8a95-243f3a032e05&token=email-proof-fixture" });
+    await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+    expect(request).not.toHaveBeenCalled();
+    if (cancelled) controller.abort();
+    gate.resolve();
+    if (cancelled) {
+      await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+      expect(request).not.toHaveBeenCalled();
+    } else {
+      const view = await pending;
+      await vi.waitFor(() => expect(view.textContent).toContain("Adresse e-mail confirmée"));
+      expect(request).toHaveBeenCalledExactlyOnceWith("/api/v1/auth/email-confirmations", expect.objectContaining({ method: "POST", authentication: "none", csrf: true }));
+      disposeComponent(view);
+    }
+  });
   it.each([RouteNames.GroupWishlist, RouteNames.GroupWish])("copies explicitly from %s into a different owned list without a public token", async routeName => {
     const f = groupRoutesFixture(true); const view = await f.render(routeName); await f.settle();
     const trigger = f.button(view, "Je le veux aussi !");

@@ -30,7 +30,7 @@ for (const width of [390, 1440]) {
     await expect(preview.getByText("7 membres",{exact:true})).toBeVisible();
     await expect(preview.locator("img")).toHaveJSProperty("complete",true);
     await expect(page.getByRole("button",{name:"Rejoindre le groupe",exact:true})).toBeDisabled();
-    await expect(page.getByRole("link",{name:"Se connecter (nouvel onglet)",exact:true})).toHaveAttribute("href","/login");
+    await expect(page.locator('.group-join-view a[href="/login"]')).toHaveAttribute("href","/login");
     expect(new URL(page.url()).hash).toBe(""); expect(reads).toBe(1); expect(writes).toBe(0);
     expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.window.innerWidth)).toBe(true);
     await page.screenshot({path:testInfo.outputPath(`group-invitation-${width}.png`),fullPage:true});

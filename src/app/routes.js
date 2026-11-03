@@ -431,6 +431,9 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
         const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
         const { createEmailConfirmationView } = await import("../features/emailConfirmation/emailConfirmationView.js");
         if (context.signal.aborted) throw createAbortError();
+        // Finish initial session selection before preparing the confirmation CSRF token.
+        if (pendingFragment) await session.start();
+        if (context.signal.aborted) throw createAbortError();
         return createEmailConfirmationView({ ...createEmailConfirmationService(session),
           consumeFragment: takeFragment, signal: context.signal });
       },
