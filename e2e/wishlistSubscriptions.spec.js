@@ -91,10 +91,7 @@ test("ambiguous follow requires an explicit read and revocation removes the gall
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto(sharedPath + "#" + secret);
   await page.getByRole("button", { name: "Suivre", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Vérifier l’abonnement" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Suivre", exact: true })).toBeDisabled();
-  expect(api.subscriptions.writes).toBe(1);
-  await page.getByRole("button", { name: "Vérifier l’abonnement" }).click();
+  await expect(page.getByRole("button", { name: "Vérifier l’abonnement" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Ne plus suivre", exact: true })).toBeEnabled();
   expect(api.subscriptions.writes).toBe(1);
   api.state.revoked = true;

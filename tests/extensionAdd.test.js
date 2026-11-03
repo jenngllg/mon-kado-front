@@ -72,6 +72,7 @@ describe("extension product flow", () => {
     /** @type {HTMLInputElement} */ (form.elements.namedItem("name")).value = "Manuel";
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await settle();
     expect(ui.view.textContent).toContain("L’ajout n’a pas pu être confirmé");
+    expect([...ui.view.querySelectorAll("a")].some(link=>link.textContent==="Voir ma liste")).toBe(false);
     form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); await settle();
     expect(ui.wishes.create).toHaveBeenCalledTimes(1);
     expect(close).not.toHaveBeenCalled();

@@ -73,7 +73,7 @@ for (const width of [390, 1440]) {
       } else {
         await expect(dialog.getByRole("alert")).toBeVisible();
         await expect(dialog.getByRole("button", { name: "Ajouter", exact: true })).toBeHidden();
-        if (failure === "network") await expect(dialog.getByRole("link", { name: "Consulter ma liste" })).toHaveAttribute("href", `/lists/${listId}`);
+        if (failure === "network") await expect(dialog.getByRole("link", { name: "Consulter ma liste" })).toHaveCount(0);
         await dialog.getByRole("button", { name: "Fermer" }).click(); await expect(trigger).toBeFocused();
       }
       expect(writes).toBe(1); expect(api.unexpected).toEqual([]);

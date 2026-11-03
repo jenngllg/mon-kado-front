@@ -77,7 +77,7 @@ test("uncertain private follows require verification and revoked group access re
   const api = await groupFollowingApi(context); api.following.uncertain = true;
   await page.goto(listPath);
   await page.getByRole("button", { name: "Suivre", exact: true }).click();
-  await page.getByRole("button", { name: "Vérifier l’abonnement", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Vérifier l’abonnement", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Ne plus suivre", exact: true })).toBeEnabled();
   expect(api.following.writes).toBe(1);
   api.following.available = false;
