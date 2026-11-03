@@ -692,13 +692,12 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de souhaits partagée · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        let pendingFragment = context.consumeFragment();
-        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const fragment = context.consumeFragment();
+        const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams, !!fragment);
+        // Retain access as soon as the URL is redacted, before deferred modules load.
+        const entry = sharing.enter(context.params.shareLinkId, fragment);
         const [{ createSharedWishlistView, createSharedWishlistEntryView }, { createSharedSessionView }] = await Promise.all([import("../features/sharing/sharedWishlistView.js"), import("../features/sharing/sharedSessionView.js")]);
         if (context.signal.aborted) throw createAbortError();
-        const fragment = takeFragment();
-        const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams, !!fragment);
-        const entry = sharing.enter(context.params.shareLinkId, fragment);
         /** @type {string | null | undefined} */ let recoveredOwnerPhoto;
         const state = entry === "missing" && fromMemberId ? await recoverMemberAccess(context, fromMemberId, photo => { recoveredOwnerPhoto = photo; }) : entry;
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);

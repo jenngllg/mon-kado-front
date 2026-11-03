@@ -1,1 +1,2 @@
 Le code des liens d’invitation à un groupe reste prérempli après un rechargement de la page, sur mobile comme sur ordinateur. La connexion et l’inscription conservent aussi cette invitation ; rejoindre le groupe reste une action explicite.
+Les listes partagées conservent aussi leur accès lorsqu’une page est rechargée avant la fin de son chargement. Les liens restent protégés, et la lecture seule ne crée aucune participation ni réservation.
