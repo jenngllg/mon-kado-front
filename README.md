@@ -313,6 +313,40 @@ synthétiques exclusivement. Ne pas réutiliser ce runner avec des secrets réel
 Les fichiers E2E et leur configuration sont vérifiés par `pnpm typecheck` et ESLint.
 L'exécution automatique dans les merge requests est traitée par #934.
 
+## Parcours navigateur avec les services réels
+
+`pnpm test:e2e:native` exécute Chromium sur mobile (390 px) et ordinateur
+(1440 px), avec le frontend, la vraie API Go, le worker et PostgreSQL natif.
+La CI exécute cette suite et exige sa réussite dans `Frontend quality gate`,
+en complément des tests unitaires, du contrat OpenAPI et des tests navigateur
+avec API simulée. Les tests n'ont aucun retry.
+
+Prérequis : Python 3.10+, Go à la version du backend, les outils PostgreSQL
+(`createdb` et `dropdb`), les dépendances pnpm et Chromium installé par
+`pnpm exec playwright install chromium`. Définir `MONKADO_TEST_DATABASE_URL`
+uniquement dans l'environnement privé : une URI PostgreSQL locale dont le nom
+se termine par `_test`, avec un rôle autorisé à créer une base. Le backend
+est pris dans `../mon-kado` ; `MONKADO_BACKEND_SOURCE` permet de choisir une
+autre copie du dépôt. Les ports 7006 et 5296 doivent être libres.
+
+Le runner crée sa propre base à nom aléatoire, la migre, génère des clés jetables
+et démarre ses seuls services. Chaque format d'écran a des services et des données
+indépendants, avec les quotas réels. Les inscriptions et confirmations passent
+par le worker et sa boîte de courrier locale ; Google et les fournisseurs
+externes restent désactivés. Les données et comptes existants ne sont pas utilisés.
+API, worker et base générée sont supprimés à la fin, y compris après un échec.
+Les diagnostics restent dans `.local/native-e2e/`, `native-playwright-report/`
+et `.native-e2e-results/`, ignorés par Git. La CI ne publie jamais la boîte de
+courrier ni les paramètres privés. Pour un seul format :
+`pnpm test:e2e:native --project mobile` ou `--project desktop`.
+
+Les parcours couvrent la copie/relecture d'une invitation et son admission explicite,
+les avatars de profils publics et de groupe, la lecture puis la révocation d'un
+partage de liste, la persistance des neuf préférences et leur modification depuis
+deux onglets, la création d'anniversaires et la visibilité par groupe. Les tests
+avec API simulée couvrent aussi les chargements interrompus et les erreurs contrôlées.
+Cette suite locale HTTP ne valide pas HTTPS, Google ni les autres navigateurs.
+
 ## Tests et couverture — #929
 
 `pnpm test` exécute les tests unitaires et les intégrations Happy DOM.

@@ -4,6 +4,22 @@ import { describe, expect, it } from "vitest";
 const workflow = readFileSync(new URL("../.github/workflows/quality.yml", import.meta.url), "utf8");
 
 describe("frontend CI contract", () => {
+  it("blocks publication on real native journeys and retains diagnostics without mailbox credentials", () => {
+    const native = workflow.replace(/\r\n/g, "\n").split("  native-browser:\n")[1]?.split("\n  gate:")[0];
+    expect(native).toContain("pnpm test:e2e:native");
+    expect(native).toContain("MONKADO_BACKEND_SOURCE: ${{ github.workspace }}/.backend");
+    expect(native).toContain("python3 -m unittest discover -s tools/native-e2e");
+    expect(native).toContain("if: always()");
+    expect(native).toContain("pg_dropcluster --stop 18 monkado");
+    expect(native).toContain("include-hidden-files: true");
+    expect(native).not.toContain("mailbox/");
+    expect(native).not.toContain("fixture.json");
+    const runner = readFileSync(new URL("../tools/native-e2e/run.py", import.meta.url), "utf8");
+    expect(runner).toContain('for component in ("api", "worker", "migrate")');
+    expect(runner).toContain('"EMAIL_PROVIDER": "Mailbox"');
+    expect(runner).toContain('"GOOGLE_ENABLED": "false"');
+  });
+
   it("publishes its checked pointer before waiting outside the VPS deployment lock", () => {
     const publication = readFileSync(new URL("../.github/workflows/stage-coordinated-frontend.yml", import.meta.url), "utf8");
     const publish = publication.indexOf("      - name: Publish immutable build before changing the production pointer");
@@ -40,10 +56,11 @@ describe("frontend CI contract", () => {
     expect(workflow).not.toContain("continue-on-error");
     expect(workflow).not.toContain("secrets.");
     for (const action of workflow.matchAll(/uses: ([^\s]+)/g)) expect(action[1]).toMatch(/@[a-f0-9]{40}$/);
-    for (const command of ["pnpm install --frozen-lockfile", "pnpm lint", "pnpm typecheck", "pnpm test:coverage", "pnpm build", "pnpm test:e2e", "pnpm api:types:check"])
+    for (const command of ["pnpm install --frozen-lockfile", "pnpm lint", "pnpm typecheck", "pnpm test:coverage", "pnpm build", "pnpm test:e2e", "pnpm test:e2e:native", "pnpm api:types:check"])
       expect(workflow).toContain(command);
-    expect(workflow).toContain("needs: [quality, contract, browser]");
-    expect(workflow).toContain('test "$QUALITY_RESULT" = success && test "$CONTRACT_RESULT" = success && test "$BROWSER_RESULT" = success');
+    expect(workflow).toContain("needs: [quality, contract, browser, native-browser]");
+    expect(workflow).toContain('NATIVE_BROWSER_RESULT: ${{ needs.native-browser.result }}');
+    expect(workflow).toContain('test "$QUALITY_RESULT" = success && test "$CONTRACT_RESULT" = success && test "$BROWSER_RESULT" = success && test "$NATIVE_BROWSER_RESULT" = success');
     expect(workflow).toContain("fail-fast: false");
     expect(workflow).toContain("shard: [1, 2, 3, 4]");
     expect(workflow).toContain("pnpm test:e2e --shard=${{ matrix.shard }}/4");

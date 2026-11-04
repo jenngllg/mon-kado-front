@@ -25,6 +25,8 @@ for (const width of [390,1440]) {
     });
     await page.goto(path+"#"+code);
     await expect(page.getByRole("heading",{name:"Famille",exact:true})).toBeVisible();
+    await page.reload();
+    await expect(page.getByLabel("Code du groupe",{exact:false})).toHaveValue(code);
     await page.locator('.group-join-view a[href="/register"]').click();
     await expect(page).toHaveURL("/register");
     expect(context.pages()).toHaveLength(1);

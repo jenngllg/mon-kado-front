@@ -1,5 +1,5 @@
 {
   "extends": "./jsconfig.node.json",
   "compilerOptions": { "lib": ["ES2022", "DOM"] },
-  "include": ["e2e/**/*.js", "playwright.config.js"]
+  "include": ["e2e/**/*.js", "e2e-native/**/*.js", "playwright.config.js", "playwright.native.config.js"]
 }

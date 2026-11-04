@@ -12,6 +12,24 @@ function fixture() {
 }
 
 describe("group invitation authentication continuity", () => {
+  it("retains an incoming fragment across reload without requesting a sign-in redirect", () => {
+    const f = fixture();
+    createGroupJoinContinuation(f).remember(path, `#${code}`);
+    const reloaded = createGroupJoinContinuation(f);
+    expect(reloaded.codeFor(path)).toBe(code);
+    expect(reloaded.codeFor("/groups/join")).toBe("");
+    expect(reloaded.takeDestination()).toBeNull();
+    f.advance(30*60_000);
+    expect(reloaded.codeFor(path)).toBe(""); expect(f.values.size).toBe(0);
+  });
+  it("replaces an older authentication return and never reuses it for a new invalid fragment", () => {
+    const f = fixture(), c = createGroupJoinContinuation(f);
+    c.prepare(path, code); c.remember("/groups/join", code);
+    expect(c.codeFor(path)).toBe(""); expect(c.takeDestination()).toBeNull();
+    expect(c.codeFor("/groups/join")).toBe(code);
+    c.remember("/groups/join", "#invalid");
+    expect(c.codeFor("/groups/join")).toBe(""); expect(f.values.size).toBe(0);
+  });
   it("restores a single return after reload and retains the code only for the same invitation", () => {
     const f = fixture();
     createGroupJoinContinuation(f).prepare(path, code);

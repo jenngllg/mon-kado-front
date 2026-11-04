@@ -149,28 +149,24 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.GroupJoin, path: RoutePaths.GroupJoin, title: "Rejoindre un groupe · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        let pendingFragment = context.consumeFragment();
-        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const path = RoutePaths.GroupJoin;
+        const fragment = context.consumeFragment();
+        if (fragment) groupJoin.remember(path, fragment);
         const { createGroupJoinView } = await import("../features/groups/groupJoinView.js");
         if (context.signal.aborted) throw createAbortError();
-        const path = RoutePaths.GroupJoin;
-        const fragment = takeFragment();
-        if (fragment) groupJoin.clear();
-        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, code: fragment || groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
+        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, code: groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
           onAuthenticate: code => groupJoin.prepare(path, code), onJoined: groupJoin.clear });
       },
     },
     {
       name: RouteNames.GroupInvitation, path: RoutePaths.GroupInvitation, title: "Invitation au groupe · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        let pendingFragment = context.consumeFragment();
-        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const path = RoutePaths.GroupInvitation.replace(":groupId", context.params.groupId);
+        const fragment = context.consumeFragment();
+        if (fragment) groupJoin.remember(path, fragment);
         const { createGroupJoinView } = await import("../features/groups/groupJoinView.js");
         if (context.signal.aborted) throw createAbortError();
-        const path = RoutePaths.GroupInvitation.replace(":groupId", context.params.groupId);
-        const fragment = takeFragment();
-        if (fragment) groupJoin.clear();
-        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, groupId: context.params.groupId, code: fragment || groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
+        return createGroupJoinView({ session, service: createGroupsService(session), apiBaseUrl, groupId: context.params.groupId, code: groupJoin.codeFor(path), signal: context.signal, navigate: path => { void context.navigate(path); },
           onAuthenticate: code => groupJoin.prepare(path, code), onJoined: groupJoin.clear });
       },
     },
@@ -696,13 +692,12 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.SharedWishlist, path: RoutePaths.SharedWishlist, title: "Liste de souhaits partagée · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        let pendingFragment = context.consumeFragment();
-        const takeFragment = () => { const value = pendingFragment; pendingFragment = ""; return value; };
+        const fragment = context.consumeFragment();
+        const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams, !!fragment);
+        // Retain access as soon as the URL is redacted, before deferred modules load.
+        const entry = sharing.enter(context.params.shareLinkId, fragment);
         const [{ createSharedWishlistView, createSharedWishlistEntryView }, { createSharedSessionView }] = await Promise.all([import("../features/sharing/sharedWishlistView.js"), import("../features/sharing/sharedSessionView.js")]);
         if (context.signal.aborted) throw createAbortError();
-        const fragment = takeFragment();
-        const fromMemberId = memberNavigation.read(context.params.shareLinkId, context.searchParams, !!fragment);
-        const entry = sharing.enter(context.params.shareLinkId, fragment);
         /** @type {string | null | undefined} */ let recoveredOwnerPhoto;
         const state = entry === "missing" && fromMemberId ? await recoverMemberAccess(context, fromMemberId, photo => { recoveredOwnerPhoto = photo; }) : entry;
         if (state !== "ready") return createSharedWishlistEntryView(state, fromMemberId);
