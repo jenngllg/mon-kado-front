@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 const config = readFileSync(new URL("../deployments/caddy/Caddyfile", import.meta.url), "utf8");
 
 describe("deployed frontend policy", () => {
+  it("serves the install manifest with an explicit MIME type", () => {
+    expect(config).toContain("header /manifest.webmanifest >Content-Type application/manifest+json");
+  });
+
   it("routes social previews to the fixed API origin before the normal SPA fallback", () => {
     expect(config).toContain("facebookexternalhit|Facebot|WhatsApp|Discordbot");
     expect(config).toContain("path_regexp sharePreview ^/shared-wishlists/");
