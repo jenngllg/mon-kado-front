@@ -219,6 +219,7 @@ test("uses the connected site session to add without any link-analysis request",
   expect(api.state.wishWrites).toBe(1); expect(api.wish.name).toBe("Boîte");
   expect(/** @type {any} */ (api.wish).color).toBe("Vert sauge"); expect(/** @type {any} */ (api.wish).size).toBe("M");
   expect(api.wish.isFavorite).toBe(true);
+  expect(/** @type {any} */(api.wish).addedViaExtension).toBe(true);
   await page.goto(`/lists/${listId}/wishes/${wishId}/edit`);await expect(page.getByRole('checkbox',{name:'Coup de cœur',exact:true})).toBeChecked();
   await page.reload();await expect(page.getByRole('checkbox',{name:'Coup de cœur',exact:true})).toBeChecked();
   expect(api.unexpected).toEqual([]);
