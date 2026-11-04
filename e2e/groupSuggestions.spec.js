@@ -39,7 +39,7 @@ for (const width of [390, 1440]) {
       }
       if (path===`${collection}/${ideaId}` && method==="GET") return send(200,idea());
       if (path===`${collection}/${ideaId}/image` && method==="PUT") { expect(req.headers()["if-match"]).toBe(tag); hasImage=true; currentTag='"00000002"'; return send(200,idea()); }
-      if (path===`${collection}/${ideaId}/image/content` && method==="GET") return send(200,{content:imageContent});
+      if (path===`${collection}/${ideaId}/image` && method==="GET") return send(200,{content:imageContent});
       if (path===`${collection}/${ideaId}/reservations/current` && method==="GET") return reserved ? send(200,{id:reservationId,wishId:ideaId,quantity:reserved}) : send(404,{statusCode:404,title:"Not found",message:"Not found",errorCode:"GIFT_RESERVATION_NOT_FOUND",validationErrors:[]});
       if (path===`${collection}/${ideaId}/reservations/current` && method==="PUT") { reserved=req.postDataJSON().quantity; return send(201,{id:reservationId,wishId:ideaId,quantity:reserved}); }
       return route.fallback();
@@ -68,7 +68,7 @@ for (const width of [390, 1440]) {
     expect(imported).toEqual({success:true,draft:true});expect(created).toBe(false);
     await expect(dialog.getByLabel("Nom du souhait")).toHaveValue("Un beau livre");
     await expect(dialog.getByText("Cette idée sera visible par les membres de ce groupe, sauf Léa.")).toBeVisible();
-    await dialog.locator(".suggestion-details > summary").click();
+    await dialog.locator("summary").filter({hasText:"Précisions"}).click();
     await dialog.getByLabel("Description").fill("Pour son anniversaire");
     await dialog.getByRole("spinbutton",{name:/^Quantité souhaitée/}).fill("2");
     await dialog.getByLabel("Image",{exact:true}).setInputFiles(imagePath);

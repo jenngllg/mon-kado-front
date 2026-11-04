@@ -2352,3 +2352,6 @@ last three releases for already-open tabs. Previous bootstrap/manual publishing
 workflows are retained under `deployments/history` and are no longer executable
 GitHub Actions workflows. Operational details and recovery commands are in the
 backend's [main-to-VPS runbook](https://github.com/jenngllg/mon-kado/blob/main/deployments/main-vps.md).
+
+
+Compte → Notifications présente un tableau Dans MonKado / Notifications push, activé par défaut par type. L’autorisation est demandée au premier enregistrement d’un choix push ; installer MonKado sur l’écran d’accueil est obligatoire sur iPhone/iPad. Les projets natifs push-mobile et push-desktop vérifient aussi le service worker quand tous les onglets sont fermés. La procédure serveur est documentée dans le dépôt backend, `docs/mobile-push.md`.

@@ -47,3 +47,16 @@ it("does not guess between conflicting or expired price specifications", () => {
   json.textContent = JSON.stringify({ ...product, offers: { priceSpecification: [{ price: "9.5", priceCurrency: "EUR", validThrough: "2026-09-30Z" }] } });
   expect(extractProduct().price).toBe("");
 });
+
+it("ignores structured installment amounts when a full price is available", () => {
+  const json = document.createElement("script"); json.type = "application/ld+json";
+  json.textContent = JSON.stringify({ "@type": "Product", offers: { priceCurrency: "EUR", priceSpecification: [
+    { price: "6.96", billingDuration: "P1M" }, { price: "27.81" },
+  ] } });
+  document.head.append(json);
+  expect(extractProduct().price).toBe("27,81");
+  json.textContent = JSON.stringify({ "@type": "Product", offers: { priceCurrency: "EUR", priceSpecification: [
+    { price: "6.96", billingIncrement: 1 },
+  ] } });
+  expect(extractProduct().price).toBe("");
+});

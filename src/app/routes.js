@@ -485,14 +485,11 @@ function createPageRoutes(session, consumePasswordChangeNotice, googleFlow, onWi
     {
       name: RouteNames.NotificationPreferences, path: RoutePaths.NotificationPreferences, title: "Mes notifications · MonKado",
       render: async (/** @type {import("../router/router.js").RouteContext} */ context) => {
-        const [{ createNotificationPreferencesView }, { createNotificationPreferencesService }] = await Promise.all([
-          import("../features/notifications/notificationPreferencesView.js"),
-          import("../features/notifications/notificationPreferencesService.js"),
+        const [{createNotificationPreferencesView},{createNotificationPreferencesService},{createPushDevicesService}] = await Promise.all([
+          import("../features/notifications/notificationPreferencesView.js"), import("../features/notifications/notificationPreferencesService.js"),import("../features/notifications/pushDevicesService.js"),
         ]);
-        if (context.signal.aborted) throw createAbortError();
-        return createAccountLayout(createNotificationPreferencesView({
-          service: createNotificationPreferencesService(session), signal: context.signal,
-        }), RoutePaths.NotificationPreferences, session);
+        if(context.signal.aborted)throw createAbortError();
+        return createAccountLayout(createNotificationPreferencesView({service:createNotificationPreferencesService(session),pushService:createPushDevicesService(session),pushPreferencesService:createNotificationPreferencesService(session,"push"),signal:context.signal}),RoutePaths.NotificationPreferences,session);
       },
     },
     {

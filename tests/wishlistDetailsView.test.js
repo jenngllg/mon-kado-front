@@ -27,6 +27,56 @@ function setup(options = {}) {
 async function settle() { for (let i = 0; i < 10; i++) await Promise.resolve(); }
 
 describe("wishlist owner detail", () => {
+  it.each([
+    { isPublic: false, visible: [], expected: "Partage le lien public de ta liste avec tes proches." },
+    { isPublic: false, visible: [false], expected: "Partage ta liste avec ton groupe ou par lien public." },
+    { isPublic: false, visible: [false, false], expected: "Partage ta liste avec tes groupes ou par lien public." },
+    { isPublic: false, visible: [true, false], expected: null },
+    { isPublic: true, visible: [], expected: null },
+    { isPublic: true, visible: [false], expected: null },
+  ])("adapts the reminder only to an authorized unshared audience: $isPublic/$visible", async ({ isPublic, visible, expected }) => {
+    const wishlistVisibility = vi.fn().mockResolvedValue({ visibility: { isPublic, groups: visible.map(isVisible => ({ isVisible })) } });
+    const ui = setup({ groups: /** @type {any} */ ({ wishlistVisibility }) });
+    await settle();
+    const reminder = /** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-share-reminder"));
+    expect(reminder.hidden).toBe(expected === null);
+    if (expected) expect(reminder.textContent).toBe(expected);
+    expect(reminder.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+    expect(ui.view.querySelectorAll(".wishlist-details-share")).toHaveLength(1);
+    expect(wishlistVisibility).toHaveBeenCalledExactlyOnceWith(id, { signal: expect.any(AbortSignal) });
+  });
+
+  it("keeps the reminder hidden during loading and failed visibility reads", async () => {
+    const gate = barrier();
+    const ui = setup({ groups: /** @type {any} */ ({ wishlistVisibility: () => gate.promise.then(() => { throw new Error("offline"); }) }) });
+    await settle();
+    const reminder = /** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-share-reminder"));
+    expect(reminder.hidden).toBe(true);
+    gate.resolve(); await settle();
+    expect(reminder.hidden).toBe(true);
+    expect(ui.view.textContent).toContain("Visibilité à vérifier");
+  });
+
+  it("removes the reminder after closing sharing and reading the updated audience", async () => {
+    const privateAudience = { visibility: { isPublic: false, groups: [{ isVisible: false }] }, etag: '"visibility"' };
+    const wishlistVisibility = vi.fn().mockResolvedValueOnce(privateAudience).mockResolvedValueOnce(privateAudience)
+      .mockResolvedValue({ visibility: { isPublic: true, groups: [{ isVisible: false }] } });
+    const ui = setup({ groups: /** @type {any} */ ({ wishlistVisibility }) }); await settle();
+    const reminder = /** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-share-reminder"));
+    expect(reminder.hidden).toBe(false);
+    ui.click("Partager"); await settle();
+    ui.click("Fermer"); await settle();
+    expect(reminder.hidden).toBe(true); expect(wishlistVisibility).toHaveBeenCalledTimes(3);
+    expect(document.activeElement).toBe(ui.view.querySelector(".wishlist-details-share"));
+  });
+
+  it.each(["isArchived", "isSuspended"])("withholds sharing reminders for a %s list", async state => {
+    const wishlistVisibility = vi.fn();
+    const ui = setup({ loadOne: async () => ({ ...list, wishlist: { ...list.wishlist, [state]: true } }), groups: /** @type {any} */ ({ wishlistVisibility }) });
+    await settle();
+    expect(ui.view.querySelector(".wishlist-share-reminder")).toBeNull(); expect(wishlistVisibility).not.toHaveBeenCalled();
+  });
+
   it("reports an unavailable personal reservation lookup without asserting availability", async () => {
     const personalReservation = vi.fn().mockRejectedValue(new Error("unavailable"));
     const ui = setup({ personalReservation });

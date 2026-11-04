@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { controlledApi,frontendOrigin } from "./controlledApi.js";
 
 const currentId="019c52dd-56c1-7cc6-8a95-243f3a032e05", targetId="019c52dd-56c1-7cc6-8a95-243f3a032e76";
-const target={id:targetId,displayName:"Nathalie et Christian",displayNameTag:"5696"};
+const target={createdAt:"2026-11-04T08:00:00Z",listCount:2,groupCount:3,wishCount:42,hasAddedViaExtension:true,id:targetId,displayName:"Nathalie et Christian",displayNameTag:"5696"};
 /** @param {import('@playwright/test').BrowserContext} context @param {{admin?:boolean,deny?:boolean,uncertain?:boolean}} [options] */
 async function setup(context,{admin=true,deny=false,uncertain=false}={}){
   const api=await controlledApi(context);api.state.authenticated=true;
@@ -39,7 +39,11 @@ for(const width of [390,1440]){
     await expect(page.getByRole('button',{name:'Supprimer le compte de Jenn #1234'})).toHaveCount(0);
     const trigger=page.getByRole('button',{name:'Supprimer le compte de Nathalie et Christian #5696'});
     await expect(trigger).toBeVisible();
-    await expect(page.locator('article h2')).toHaveText(['Nathalie et Christian #5696','Jenn #1234']);
+    await expect(page.getByRole('columnheader',{name:'Ajout via extension',exact:true})).toBeVisible();
+    await expect(page.locator('tbody tr').first()).toContainText('04/11/2026');
+    await expect(page.locator('tbody tr').first()).toContainText('42');
+    await expect(page.locator('tbody tr').first()).toContainText('Oui');
+    await expect(page.locator('tbody th')).toHaveText(['Nathalie et Christian #5696','Jenn #1234']);
     const search=page.getByLabel('Pseudo ou tag'),submitSearch=page.getByRole('button',{name:'Rechercher',exact:true});
     await search.focus();await page.keyboard.press('Tab');await expect(submitSearch).toBeFocused();
     if(width>=768){
@@ -66,7 +70,7 @@ for(const width of [390,1440]){
     await dialog.getByRole('button',{name:'Supprimer définitivement'}).click();
     await expect(dialog).toHaveCount(0);await expect(page.getByRole('status').filter({hasText:'Compte supprimé'})).toBeVisible();expect(state.writes).toBe(1);
     await expect(trigger).toHaveCount(0);await page.reload();await expect(trigger).toHaveCount(0);
-    await expect(page.getByRole('heading',{name:'Jenn #1234'})).toBeVisible();
+    await expect(page.getByRole('rowheader',{name:'Jenn #1234'})).toBeVisible();
     expect(api.unexpected).toEqual([]);
   });
 }
@@ -86,7 +90,7 @@ test('an uncertain deletion is verified without replaying the command',async({pa
 test('empty results and failed reads can recover explicitly',async({page,context})=>{
   const {state}=await setup(context);state.fail=true;await page.goto('/admin/members');await expect(page.getByRole('alert')).toContainText('Impossible de charger');state.fail=false;state.empty=true;
   await page.getByRole('button',{name:'Réessayer'}).click();await expect(page.getByText('Aucun compte trouvé.')).toBeVisible();state.empty=false;
-  await page.getByLabel('Pseudo ou tag').fill('Nathalie');await page.getByRole('button',{name:'Rechercher',exact:true}).click();await expect(page.getByRole('heading',{name:'Nathalie et Christian #5696'})).toBeVisible();expect(state.writes).toBe(0);
+  await page.getByLabel('Pseudo ou tag').fill('Nathalie');await page.getByRole('button',{name:'Rechercher',exact:true}).click();await expect(page.getByRole('rowheader',{name:'Nathalie et Christian #5696'})).toBeVisible();expect(state.writes).toBe(0);
 });
 test('loading remains visible and a pending confirmation can be cancelled',async({page,context})=>{
   const {state}=await setup(context);
@@ -100,5 +104,5 @@ test('loading remains visible and a pending confirmation can be cancelled',async
 test('revoked administrator access clears previously loaded accounts',async({page,context})=>{
   const {state}=await setup(context);await page.goto('/admin/members');await page.getByRole('button',{name:/Supprimer le compte de Nathalie/}).click();
   const dialog=page.getByRole('dialog');await dialog.getByLabel(/Référence/).fill('SUPPORT-42');await dialog.getByLabel(/Recopie/).fill('Nathalie et Christian #5696');state.denied=true;
-  await dialog.getByRole('button',{name:'Supprimer définitivement'}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('alert')).toContainText('Accès administrateur refusé');await expect(page.getByRole('heading',{name:'Nathalie et Christian #5696'})).toHaveCount(0);expect(state.writes).toBe(0);
+  await dialog.getByRole('button',{name:'Supprimer définitivement'}).click();await expect(dialog).toHaveCount(0);await expect(page.getByRole('alert')).toContainText('Accès administrateur refusé');await expect(page.getByRole('rowheader',{name:'Nathalie et Christian #5696'})).toHaveCount(0);expect(state.writes).toBe(0);
 });

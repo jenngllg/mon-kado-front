@@ -48,3 +48,5 @@ Read and apply [the shared MonKado instructions](../mon-kado/AGENTS.shared.md), 
 - Dates in sage list banners use the existing terracotta text token in both owner/editable and shared/group reading views, at every breakpoint.
 
 - Technical recovery must not add manual “Vérifier”, “Relire” or image-retry controls. Reconcile an uncertain explicit operation with a bounded, authorized read when possible, preserving drafts and never replaying its writes. Media recovery renews only the failed image; it must not refresh other business information or run on a timer, focus or visibility change. Retain meaningful business confirmations and security checks.
+
+

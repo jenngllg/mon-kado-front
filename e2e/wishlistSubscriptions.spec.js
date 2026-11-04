@@ -75,15 +75,16 @@ for (const width of [390, 1280, 1440, 1705]) {
     const source = await cover.evaluate(async element => { const image = /** @type {HTMLImageElement} */ (element); await image.decode(); return image.currentSrc; });
     expect(source).toMatch(width === 390 ? /-200-/ : /-400-/);
     await expect(tile.locator("time")).toBeVisible();
-    await expect(tile.getByRole("button", { name: /Ne plus suivre/ })).toBeVisible();
+    await expect(tile.getByRole("button")).toHaveCount(0);
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("followed-lists.png"), fullPage: true });
     await tile.locator(".wishlist-card__open").click();
     await expect(page).toHaveURL(new RegExp(sharedPath + "$"));
     await expect(page.getByRole("button", { name: "Ne plus suivre", exact: true })).toBeEnabled();
     expect(api.subscriptions.writes).toBe(1);
+    await page.getByRole("button", { name: "Ne plus suivre", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Suivre", exact: true })).toBeEnabled();
     await page.goto("/followed-lists");
-    await page.getByRole("button", { name: /Ne plus suivre «/ }).click();
     await expect(page.getByText("Tu ne suis encore aucune liste.")).toBeVisible();
     expect(api.subscriptions.writes).toBe(2); expect(api.unexpected).toEqual([]);
   });

@@ -6,6 +6,8 @@ import { createSessionManager } from "../src/auth/sessionManager.js";
 import { createLoginTarget, getSafeReturnTo } from "../src/auth/sessionGuards.js";
 import { ApiError } from "../src/api/apiError.js";
 import { barrier, createCoordinatorHub, createSessionTransport } from "./sessionTestHelpers.js";
+import { twoFactorFixture } from "./twoFactorTestHelpers.js";
+import { createGroupJoinContinuation } from "../src/features/groups/groupJoinContinuation.js";
 
 /** @type {ReturnType<typeof createSessionApplication>[]} */
 const applications = [];
@@ -52,6 +54,69 @@ describe("activity visits", () => {
 });
 
 describe("session routes and shell", () => {
+  it("waits for second-factor completion before returning to the pending invitation", async () => {
+    // Arrange
+    const f=twoFactorFixture(), path="/groups/join/019c52dd-56c1-7cc6-8a95-243f3a032e04";
+    window.history.replaceState({},"","/login");
+    createGroupJoinContinuation({storage:window.sessionStorage}).prepare(path,"ABCDEFGH234567AB");
+    const root=document.createElement("div");document.body.append(root);
+    const app=createSessionApplication(root,{apiBaseUrl:"http://localhost:7000",session:f.session});applications.push(app);
+    await app.start();
+    // Act / Assert
+    await f.begin();expect(window.location.pathname).toBe("/login");expect(app.session.getSnapshot().status).toBe("anonymous");
+    await f.session.secondFactor?.complete({code:"123456"});await waitRoute(app,path);
+    expect(app.session.getSnapshot().status).toBe("authenticated");
+    expect(app.shell.outlet.querySelector("input")?.value).toBe("ABCDEFGH234567AB");
+    window.sessionStorage.removeItem("monkado.group-join.v1");
+  });
+  it("discards the invitation return when the person leaves the authentication flow", async () => {
+    // Arrange
+    const transport=createSessionTransport();transport.state.refreshStatus=401;
+    createGroupJoinContinuation({storage:window.sessionStorage}).prepare("/groups/join","ABCDEFGH234567AB");
+    const app=mount("/login",transport);await app.start();
+    // Act
+    await app.router.navigate("/");await app.router.navigate("/login");
+    await app.session.establishSession(async()=>({data:transport.state.token,status:200,metadata:{correlationId:"fixture",etag:null,location:null,retryAfterSeconds:null}}));
+    await waitRoute(app,"/");
+    // Assert
+    expect(window.sessionStorage.getItem("monkado.group-join.v1")).toBeNull();
+  });
+  it.each(["/groups/join", "/groups/join/019c52dd-56c1-7cc6-8a95-243f3a032e04"])("returns to the explicit invitation after registration and sign-in: %s", async path => {
+    // Arrange
+    const code = "ABCDEFGH234567AB", transport = createSessionTransport(), fallback = transport.fetch.getMockImplementation();
+    transport.state.refreshStatus = 401;
+    let joins = 0, registrations = 0;
+    transport.fetch.mockImplementation(async (input, init) => {
+      const target = new URL(String(input)).pathname;
+      if (target === "/api/v1/auth/registrations") { registrations++; return new Response(null,{status:202}); }
+      if (target === "/api/v1/groups/join") {
+        expect(new Headers(init?.headers).get("X-MonKado-Share-Token")).toBe(code);
+        if (init?.method === "POST") joins++;
+        return Response.json({id:"019c52dd-56c1-7cc6-8a95-243f3a032e04",name:"Famille",memberCount:2,profileImageUrl:null});
+      }
+      if (!fallback) throw new Error("Missing transport"); return fallback(input,init);
+    });
+    const app = mount(path+"#"+code,transport); await app.start();
+    await vi.waitFor(()=>expect(app.shell.outlet.querySelector(".group-invitation-preview")).not.toBeNull());
+    const register = /** @type {HTMLAnchorElement} */(app.shell.outlet.querySelector('.group-join-view a[href="/register"]'));
+    register.dispatchEvent(new MouseEvent("click",{cancelable:true}));
+    await app.router.navigate("/register");
+    // Act
+    for (const [name,value] of Object.entries({displayName:"Camille",email:"camille@example.test",password:"A valid long password",confirmation:"A valid long password"})) {
+      const input = /** @type {HTMLInputElement} */(app.shell.outlet.querySelector(`input[name="${name}"]`)); input.value=value;
+    }
+    app.shell.outlet.querySelector("form")?.dispatchEvent(new Event("submit",{cancelable:true}));
+    await vi.waitFor(()=>expect(app.shell.outlet.querySelector("h1")?.textContent).toBe("Demande reçue"));
+    await app.router.navigate("/login");
+    await app.session.establishSession(async () => ({data:transport.state.token,status:200,metadata:{correlationId:"fixture",etag:null,location:null,retryAfterSeconds:null}}));
+    await waitRoute(app,path);
+    // Assert
+    await vi.waitFor(()=>expect(app.shell.outlet.querySelector(".group-invitation-preview")).not.toBeNull());
+    expect(app.shell.outlet.querySelector("input")?.value).toBe(code);
+    expect(window.location.hash).toBe(""); expect(window.location.search).toBe("");
+    expect(registrations).toBe(1); expect(joins).toBe(0);
+    expect(app.shell.outlet.textContent).not.toContain("Je suis connecté");
+  });
   it.each(["", "?returnTo=/profile", "?returnTo=/reservations", "?returnTo=/lists/another-member"])("opens the dashboard after e-mail authentication regardless of the previous destination %s", async query => {
     // Arrange
     const transport = createSessionTransport(); transport.state.refreshStatus = 401;
@@ -362,7 +427,7 @@ describe("session routes and shell", () => {
   });
 });
 
-/** @param {ReturnType<typeof mount>} app Application.
+/** @param {ReturnType<typeof createSessionApplication>} app Application.
  * @param {string} path Expected routed pathname.
  */
 function waitRoute(app, path) {

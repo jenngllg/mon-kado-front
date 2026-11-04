@@ -7,6 +7,13 @@ const allEnabled=()=>Object.fromEntries(keys.map(key=>[key,true]));
 /** @param {import('@playwright/test').BrowserContext} context Isolated API boundary. */
 async function preferencesApi(context){
   const api=await controlledApi(context);api.state.authenticated=true;
+  await context.route("**/api/v1/members/current/push-*", async route=>{
+    if(route.request().method()==="OPTIONS")return route.fallback();
+    expect(route.request().method()).toBe("GET");
+    const path=new URL(route.request().url()).pathname;
+    const json=path.endsWith("push-configuration")?{enabled:false,publicKey:null}:path.endsWith("push-subscriptions")?[]:allEnabled();
+    return route.fulfill({status:200,headers:{"Access-Control-Allow-Origin":frontendOrigin,"Access-Control-Allow-Credentials":"true","Access-Control-Expose-Headers":"ETag",ETag:'"00000001"'},json});
+  });
   const state={settings:allEnabled(),version:1,reads:0,writes:0,puts:0,readFailure:0,empty:false,conflict:false,lostAcknowledgement:false,saveFailure:0};
   await context.route("**"+path,async route=>{
     const request=route.request();if(request.method()==="OPTIONS")return route.fallback();
@@ -39,7 +46,7 @@ for(const width of[390,1440]) for(const key of keys){
     await expect(page).toHaveURL("/profile/notifications");
     await expect(navigation.getByRole("link",{name:"Notifications",exact:true})).toHaveAttribute("aria-current","page");
     await expect(page.getByRole("heading",{name:"Mes notifications",exact:true})).toBeVisible();
-    const switches=page.getByRole("switch");await expect(switches).toHaveCount(9);
+    const switches=page.locator("table td:nth-child(2) input[role=switch]");await expect(switches).toHaveCount(9);await expect(page.getByRole("switch")).toHaveCount(18);
     for(const input of await switches.all())await expect(input).toBeChecked();
     const input = page.locator(`input[role="switch"][name="${key}"]`);
     for (const enabled of [false, true]) {
@@ -107,7 +114,7 @@ test("seven tabs share the live notification connection and transfer it when the
   for (let index = 0; index < 7; index++) {
     const page = await context.newPage(); pages.push(page);
     await page.goto("/profile/notifications");
-    await expect(page.getByRole("switch")).toHaveCount(9);
+    await expect(page.getByRole("switch")).toHaveCount(18);
     await expect(page.getByRole("switch").first()).toBeEnabled();
   }
   await expect.poll(() => streams.length).toBe(1);

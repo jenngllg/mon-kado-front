@@ -13,7 +13,7 @@ import { prepareWishImageUpload } from "./prepareImageUpload.js";
 /** @typedef {Readonly<{wishes: ReadonlyArray<Wish>, etag: string}>} WishCollection */
 /** @typedef {(wishlistId: string, options: {signal: AbortSignal}) => Promise<WishCollection>} LoadWishes */
 /** @typedef {Readonly<{wish: Wish, etag: string}>} CreatedWish */
-/** @typedef {(wishlistId: string, values: import("./wishValidation.js").WishValues, options: {signal: AbortSignal}) => Promise<CreatedWish>} CreateWish */
+/** @typedef {(wishlistId: string, values: import("./wishValidation.js").WishValues, options: {signal: AbortSignal,addedViaExtension?:boolean}) => Promise<CreatedWish>} CreateWish */
 /** @typedef {(wishlistId: string, sourceShareLinkId: string, sourceWishId: string, options: {shareToken: string, signal: AbortSignal}) => Promise<CreatedWish>} CopyWish */
 /** @typedef {(sourceWishlistId: string, sourceWishId: string, destinationWishlistId: string, options: {signal: AbortSignal}) => Promise<CreatedWish>} CopyOwnedWish */
 /** @typedef {(groupId: string, sourceWishlistId: string, sourceWishId: string, destinationWishlistId: string, options: {signal: AbortSignal}) => Promise<CreatedWish>} CopyGroupWish */
@@ -135,9 +135,9 @@ export function createWishesService(session, { apiBaseUrl }) {
       return wish;
     });
     return Object.freeze({ wishes: Object.freeze(wishes), etag: response.metadata.etag });
-  }, create: async (wishlistId, values, { signal }) => {
+  }, create: async (wishlistId, values, { signal, addedViaExtension }) => {
     if (!isWishlistId(wishlistId)) throw new ApiError({ kind: "http", statusCode: 404, errorCode: "WISHLIST_NOT_FOUND" });
-    const body = createWishPayload(values);
+    const body = {...createWishPayload(values), ...(addedViaExtension === true ? {addedViaExtension:true} : {})};
     const response = await session.request(`/api/v1/wishlists/${wishlistId}/wishes`, { method: "POST", authentication: "required", body, signal });
     return createdWish(response, wishlistId, base);
   } };

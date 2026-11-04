@@ -1,10 +1,13 @@
 """Verify that the native browser fixture cannot target a real or foreign database."""
 import unittest
 from urllib.parse import urlsplit
-from run import child_database_url, database_configuration, listener_started
+from run import PROJECTS, child_database_url, database_configuration, listener_started
 
 
 class NativeDatabaseTests(unittest.TestCase):
+    def test_push_projects_have_their_own_fresh_services_and_production_admission_budgets(self):
+        self.assertEqual(("mobile", "desktop", "admin-mobile", "admin-desktop", "push-mobile", "push-desktop"), PROJECTS)
+
     def test_waits_for_the_listener_event_in_current_and_older_native_logs(self):
         for event in ({"eventId": 901}, {"EventId": 901}):
             with self.subTest(event=event):

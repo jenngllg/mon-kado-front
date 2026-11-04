@@ -42,3 +42,13 @@ describe("notification preferences transport",()=>{
     const{service}=setup(response(settings,'"00000001"',201));await expect(service.load(new AbortController().signal)).rejects.toMatchObject({kind:"invalidResponse",statusCode:201});
   });
 });
+
+it("reads and writes the independent push preference resource",async()=>{
+ const request=vi.fn(async()=>response());
+ const service=createNotificationPreferencesService({request:/** @type {import("../src/auth/sessionManager.js").SessionManager["request"]} */(request)},"push");
+ const signal=new AbortController().signal;
+ await service.load(signal);
+ await service.save(settings,'"00000000"',signal);
+ expect(request).toHaveBeenNthCalledWith(1,"/api/v1/members/current/push-preferences",{authentication:"required",signal});
+ expect(request).toHaveBeenNthCalledWith(2,"/api/v1/members/current/push-preferences",expect.objectContaining({method:"PUT",csrf:true,ifMatch:'"00000000"',body:settings}));
+});

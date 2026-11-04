@@ -63,6 +63,9 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       void router.navigate(target.pathname + target.search);
     } }),
   });
+  let pushOpenRequested=new URLSearchParams(window.location.search).get("notifications")==="1";
+  const onPushMessage=(/** @type {MessageEvent} */ event)=>{if(event.data?.type!=="monkado-open-notifications")return;pushOpenRequested=true;if(session.getSnapshot().status==="authenticated"){shell.openNotifications();pushOpenRequested=false;}};
+  navigator.serviceWorker?.addEventListener("message",onPushMessage);
   const simulationBanner=document.createElement("aside");simulationBanner.className="cluster impersonation-banner";simulationBanner.hidden=true;
   const simulationLabel=document.createElement("strong");
   const simulationExit=createButton({label:"Revenir à mon compte",variant:"secondary",onClick:()=>{void simulation.stop().catch(()=>showNotification(shell.notificationRegion,{message:"Impossible d’arrêter la simulation. Réessaie.",variant:"error"}));}});
@@ -222,9 +225,11 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   });
   let simulationWasActive=false;
   const unsubscribeSession = session.subscribe(state => {
+      if(pushOpenRequested && state.status==="authenticated"){queueMicrotask(()=>{if(!disposed && session.getSnapshot().status==="authenticated")shell.openNotifications();});pushOpenRequested=false;const url=new URL(window.location.href);url.searchParams.delete("notifications");window.history.replaceState(window.history.state,"",url);}
+
     const simulating=simulation.isActive();
     simulationBanner.hidden=!simulating;simulationLabel.textContent=simulating?`Simulation de ${state.user?.displayName} — modifications réelles`:"";
-    if(simulationWasActive && !simulating && !disposed)void router.replace(RoutePaths.Activity);
+    if(simulationWasActive && !simulating && !disposed)void router.replace(RoutePaths.AdminMembers);
     simulationWasActive=simulating;
     if(!previous.user || previous.user.id===state.user?.id)recordVisit();
     shell.setSession(state);
@@ -293,6 +298,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       googleDestination = null;
       removeGlobalErrors();
       unsubscribeRouter();
+      navigator.serviceWorker?.removeEventListener("message",onPushMessage);
       unsubscribeSession();
       router.dispose();
       sharing.dispose();

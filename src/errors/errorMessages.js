@@ -12,6 +12,11 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  PUSH_PREFERENCES_VERSION_CONFLICT: {title:"Préférences modifiées",message:"Les préférences push ont été modifiées dans une autre fenêtre."},
+  PUSH_UNAVAILABLE: {title:"Notifications indisponibles",message:"Les push ne sont pas encore activés sur ce serveur."},
+  PUSH_DEVICE_LIMIT: {title:"Limite d’appareils atteinte",message:"Tu peux activer les notifications sur dix appareils. Désactive un ancien appareil pour en ajouter un autre."},
+  PUSH_SUBSCRIPTION_NOT_FOUND: {title:"Appareil désactivé",message:"Cet appareil a été retiré de ton compte."},
+  PUSH_SUBSCRIPTION_VERSION_CONFLICT: {title:"Préférences modifiées",message:"Les notifications de cet appareil ont été modifiées dans une autre fenêtre."},
   NOTIFICATION_PREFERENCES_VERSION_CONFLICT: { title: "Préférences modifiées", message: "Tes préférences ont été modifiées dans une autre fenêtre." },
   ACCOUNT_IMPERSONATION_READ_ONLY: {title:"Action protégée",message:"Cette opération est indisponible pendant la simulation."},
   ACCOUNT_IMPERSONATION_RESTRICTED: {title:"Action protégée",message:"La sécurité du compte et les fonctions d’administration sont indisponibles pendant la simulation."},

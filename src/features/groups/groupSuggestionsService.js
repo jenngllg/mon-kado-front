@@ -7,7 +7,7 @@ import { prepareWishImageUpload } from "../wishes/prepareImageUpload.js";
 import { validateWishImageFile } from "../wishes/wishImageValidation.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GroupSuggestionResponse"]} Suggestion */
-/** @typedef {{name:string,note:string,url:string,price:string,quantity:string}} SuggestionValues */
+/** @typedef {{name:string,note:string,url:string,price:string,quantity:string,addedViaExtension?:boolean}} SuggestionValues */
 
 /** Private group suggestion transport; it never uses or creates a share link.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Current member.
@@ -47,7 +47,7 @@ export function createGroupSuggestionsService(session, { groupId, wishlistId }) 
   /** @param {string} id Identifier. @param {SuggestionValues} values Input. @param {AbortSignal} signal Lifetime. @param {string | null} etag Existing version. */
   async function save(id, values, signal, etag) {
     check(signal);
-    const response = await session.request(id ? path(id) : base, { method: id ? "PUT" : "POST", authentication: "required", csrf: true, body: payload(values), signal, ...(etag ? {ifMatch: etag} : {}) });
+    const response = await session.request(id ? path(id) : base, { method: id ? "PUT" : "POST", authentication: "required", csrf: true, body: {...payload(values), ...(!id && values.addedViaExtension === true ? {addedViaExtension:true} : {})}, signal, ...(etag ? {ifMatch: etag} : {}) });
     check(signal);
     if (response.status !== (id ? 200 : 201)) throw new ApiError({kind:"invalidResponse"});
     if (!isStrongEntityTag(response.metadata.etag)) throw new ApiError({kind:"invalidResponse"});
@@ -92,7 +92,7 @@ export function createGroupSuggestionsService(session, { groupId, wishlistId }) 
       return response.metadata.etag;
     },
     async image(/** @type {string} */ id, /** @type {AbortSignal} */ signal, { thumbnail = false } = {}) {
-      check(signal); const response = await session.request(`${path(id)}/image/content${thumbnail ? "?size=thumbnail" : ""}`, {authentication:"required",signal}); check(signal);
+      check(signal); const response = await session.request(`${path(id)}/image${thumbnail ? "?size=thumbnail" : ""}`, {authentication:"required",signal}); check(signal);
       const value = /** @type {{content?:unknown}|null} */ (response.data);
       if (response.status !== 200 || !value || typeof value.content !== "string" || value.content.length > 13981016 || !/^[A-Za-z0-9+/]*={0,2}$/.test(value.content)) throw new ApiError({kind:"invalidResponse"});
       try {
