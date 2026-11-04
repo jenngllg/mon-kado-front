@@ -1,2 +1,4 @@
-Le code des liens d’invitation à un groupe reste prérempli après un rechargement de la page, sur mobile comme sur ordinateur. La connexion et l’inscription conservent aussi cette invitation ; rejoindre le groupe reste une action explicite.
-Les listes partagées conservent aussi leur accès lorsqu’une page est rechargée avant la fin de son chargement. Les liens restent protégés, et la lecture seule ne crée aucune participation ni réservation.
+- Compte → Notifications affiche un tableau unique avec les colonnes Dans MonKado et Notifications push, activées par type. Les push sont activés par défaut et les choix désactivés restent enregistrés.
+- Les push sont envoyés par le serveur, même lorsque tous les onglets MonKado sont fermés, après autorisation du navigateur. Sur iPhone et iPad, ajoute MonKado à l’écran d’accueil puis ouvre l’application installée pour les activer.
+- L’administration des comptes affiche les dates de création, les compteurs de listes, groupes et souhaits, ainsi que les ajouts confirmés via l’extension. L’historique inconnu reste indiqué comme tel.
+- Ajustements du journal d’activité et des cartes de listes suivies, avec conservation des parcours de partage déjà publiés.

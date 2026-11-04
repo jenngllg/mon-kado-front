@@ -109,6 +109,10 @@ def run(project, arguments=()):
                                 "EMAIL_PROVIDER": "Mailbox", "WORKER_INTERVAL": "1s",
                                 "IMAGE_PATH": str(directory / "images"), "EXPORT_PATH": str(directory / "exports"),
                                 "MAILBOX_PATH": str(directory / "mailbox")}
+        # Public test key D=1; no provider credentials or outbound push are used in this quality gate.
+        service_environment |= {"PUSH_ENABLED": "true", "PUSH_VAPID_PRIVATE_KEY": base64.urlsafe_b64encode(bytes(31) + bytes([1])).decode().rstrip("="),
+                                "PUSH_VAPID_PUBLIC_KEY": base64.urlsafe_b64encode(bytes.fromhex("04" + "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296" + "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5")).decode().rstrip("="),
+                                "PUSH_VAPID_SUBJECT": "https://example.test"}
         command([str(directory / ("migrate" + suffix))], "NATIVE_MIGRATION_FAILED", cwd=directory, env=service_environment)
         events = start("api", service_environment)
         while True:
@@ -117,9 +121,9 @@ def run(project, arguments=()):
                 raise RuntimeError("NATIVE_API_STOPPED")
             if listener_started(event):
                 break
-        start("worker", service_environment)
+        start("worker", service_environment | {"PUSH_ENABLED": "false"})
         metadata = directory / "fixture.json"
-        metadata.write_text(json.dumps({"mailbox": str(directory / "mailbox")}), encoding="utf-8")
+        metadata.write_text(json.dumps({"mailbox": str(directory / "mailbox"), "database": database}), encoding="utf-8")
         browser_environment = os.environ.copy() | {"MONKADO_NATIVE_FIXTURE": str(metadata), "MONKADO_NATIVE_PROJECT": project}
         node = os.environ.get("NODE", "node")
         result = subprocess.run([node, str(ROOT / "node_modules/@playwright/test/cli.js"), "test",
@@ -143,13 +147,16 @@ def run(project, arguments=()):
             command(["dropdb", "--maintenance-db=" + pg["PGDATABASE"], database], "NATIVE_DATABASE_CLEANUP_FAILED")
 
 
+PROJECTS = ("mobile", "desktop", "admin-mobile", "admin-desktop", "push-mobile", "push-desktop")
+
+
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description=__doc__)
-        parser.add_argument("--project", choices=("mobile", "desktop"))
+        parser.add_argument("--project", choices=PROJECTS)
         options, arguments = parser.parse_known_args()
         # Each viewport owns fresh services and data, including the real admission quotas.
-        results = [run(project, arguments) for project in ([options.project] if options.project else ["mobile", "desktop"])]
+        results = [run(project, arguments) for project in ([options.project] if options.project else PROJECTS)]
         sys.exit(1 if any(results) else 0)
     except Exception as error:
         print(str(error) if type(error) is RuntimeError else "NATIVE_JOURNEYS_FAILED", file=sys.stderr)

@@ -16,9 +16,10 @@ export const NotificationPreferenceOptions = Object.freeze([
   { key: "suggestionAdded", label: "Nouvelles idées surprises dans mes groupes" },
 ]);
 
-/** @param {Pick<import("../../auth/sessionManager.js").SessionManager,"request">} session Authenticated transport. */
-export function createNotificationPreferencesService(session) {
-  const path = "/api/v1/members/current/notification-preferences";
+/** @param {Pick<import("../../auth/sessionManager.js").SessionManager,"request">} session Authenticated transport.
+ * @param {"inApp"|"push"} [channel] Notification channel. */
+export function createNotificationPreferencesService(session,channel="inApp") {
+  const path = channel==="push"?"/api/v1/members/current/push-preferences":"/api/v1/members/current/notification-preferences";
   /** @param {import("../../api/apiClient.js").ApiResponse<unknown>} response Server state. @returns {PreferenceSnapshot} Validated immutable state. */
   function read(response) {
     const settings = response.data;

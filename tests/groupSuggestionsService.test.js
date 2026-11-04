@@ -22,7 +22,7 @@ describe("group suggestion transport",()=>{
     const service=setup(request),signal=new AbortController().signal;
     const image=await service.image(id,signal,{thumbnail:true});
     expect(image.type).toBe(type);
-    expect(request).toHaveBeenCalledExactlyOnceWith(`${base}/${id}/image/content?size=thumbnail`,{authentication:"required",signal});
+    expect(request).toHaveBeenCalledExactlyOnceWith(`${base}/${id}/image?size=thumbnail`,{authentication:"required",signal});
   });
   it("sends validated creation fields with authenticated CSRF and verifies the new location",async()=>{
     const request=vi.fn(async()=>response(idea,201,tag,`${base}/${id}`)), service=setup(request), signal=new AbortController().signal;
@@ -79,7 +79,7 @@ describe("group suggestion transport",()=>{
   it("reads images only over authenticated group requests and checks WebP content",async()=>{
     const content=btoa("RIFF0000WEBP"), request=vi.fn(async()=>response({content})), service=setup(request), signal=new AbortController().signal;
     expect((await service.image(id,signal)).type).toBe("image/webp");
-    expect(request).toHaveBeenCalledWith(`${base}/${id}/image/content`,{authentication:"required",signal});
+    expect(request).toHaveBeenCalledWith(`${base}/${id}/image`,{authentication:"required",signal});
     request.mockResolvedValueOnce(response({content:btoa("not an image")}));
     await expect(service.image(id,signal)).rejects.toMatchObject({kind:"invalidResponse"});
   });

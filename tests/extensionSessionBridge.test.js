@@ -63,7 +63,7 @@ it("creates only on an explicit command using the captured fields", async () => 
   const value = { listId: id, name: "Boîte", price: "2,99", color: "Vert sauge", size: "M", url: "https://shop.example/item", image: "", isFavorite: true };
   expect(await send("create", value)).toEqual({ success: true });
   expect(calls.create).toHaveBeenCalledOnce();
-  expect(calls.create).toHaveBeenCalledWith(id, expect.objectContaining({ name: "Boîte", price: "2,99", color: "Vert sauge", size: "M", url: value.url, isFavorite: true }), { signal: expect.anything() });
+  expect(calls.create).toHaveBeenCalledWith(id, expect.objectContaining({ name: "Boîte", price: "2,99", color: "Vert sauge", size: "M", url: value.url, isFavorite: true }), { signal: expect.anything(), addedViaExtension: true });
   expect(calls.uploadImage).not.toHaveBeenCalled();
 });
 it("returns a separate result if image upload fails after creation", async () => {

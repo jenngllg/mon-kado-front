@@ -100,7 +100,9 @@ export async function controlledApi(context, { sharedWishlistId = listId } = {})
     if (path === `/api/v1/wishlists/${listId}/wishes`) {
       if (method === "GET") return send(200, { wishes: state.wishExists ? [wish] : [] }, '"collection-1"');
       if (method === "POST") {
-        expect(Object.keys(request.postDataJSON()).sort()).toEqual(["acceptsSecondHand", "color", "isFavorite", "isSurprise", "name", "note", "price", "quantity", "size", "url"]);
+        const body=request.postDataJSON(),fields=["acceptsSecondHand", "color", "isFavorite", "isSurprise", "name", "note", "price", "quantity", "size", "url"];
+        if(body.addedViaExtension!==undefined){expect(body.addedViaExtension).toBe(true);fields.push("addedViaExtension");}
+        expect(Object.keys(body).sort()).toEqual(fields.sort());
         expect(request.headers()["if-match"]).toBeUndefined();
         Object.assign(wish, request.postDataJSON());
         state.wishExists = true; state.wishWrites++;

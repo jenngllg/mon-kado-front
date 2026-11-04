@@ -3,6 +3,7 @@ import publication from "./publication.json" with { type: "json" };
 import { deployedPolicy } from "./e2e/deployedPolicy.js";
 
 export default defineConfig(({ command, mode }) => ({
+  cacheDir: ".local/vite-cache",
   define: command === "build" ? {
     "import.meta.env.VITE_API_BASE_URL": JSON.stringify(mode === "e2e" ? "http://localhost:7000" : publication.apiOrigin),
     "import.meta.env.VITE_GOOGLE_AUTH_ENABLED": JSON.stringify(mode === "e2e" ? "false" : String(publication.googleEnabled)),

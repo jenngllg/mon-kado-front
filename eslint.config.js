@@ -6,6 +6,7 @@ export default [
     ignores: ["coverage/", "dist/", ".local/", ".e2e-dist/", ".e2e-results/", ".native-e2e-results/", "native-playwright-report/", "playwright-report/", "test-results/"],
   },
   eslint.configs.recommended,
+  {files:["public/push-sw.js"],languageOptions:{globals:globals.serviceworker}},
   {
     files: ["src/**/*.js"],
     languageOptions: {
@@ -31,6 +32,8 @@ export default [
       "tests/formField.test.js",
       "tests/notification.test.js",
       "tests/notificationPreferencesView.test.js",
+      "tests/pushDevices.test.js",
+      "tests/pushBrowser.test.js",
       "tests/refreshOnReturn.test.js",
       "tests/router.test.js",
       "tests/returnNavigation.test.js",

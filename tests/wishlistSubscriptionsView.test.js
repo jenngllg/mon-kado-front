@@ -9,9 +9,9 @@ const item = { id: "sub", wishlistId: "list", name: "<script>Nom</script>", owne
 const result = { items: [item], currentPage: 1, pageSize: 20, totalCount: 1 };
 async function settle() { for (let i = 0; i < 15; i++) await Promise.resolve(); }
 function setup(data = result) {
-  const controller = new AbortController(), load = vi.fn(async () => data), remove = vi.fn(async () => {}), onOpen = vi.fn();
-  const view = createWishlistSubscriptionsView({ load, remove, onOpen, signal: controller.signal }); globalThis.document.body.append(view);
-  return { view, load, remove, onOpen, controller };
+  const controller = new AbortController(), load = vi.fn(async () => data), onOpen = vi.fn();
+  const view = createWishlistSubscriptionsView({ load, onOpen, signal: controller.signal }); globalThis.document.body.append(view);
+  return { view, load, onOpen, controller };
 }
 describe("followed lists gallery", () => {
   it("paginates in both directions and moves back when the last page becomes empty", async () => {
@@ -23,15 +23,12 @@ describe("followed lists gallery", () => {
     expect(f.load).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
     f.load.mockResolvedValueOnce({ ...result, totalCount: 21 }); previous.click(); await settle();
     expect(f.load).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 }));
-    f.load.mockResolvedValueOnce({ ...result, currentPage: 2, totalCount: 21 }); next.click(); await settle();
     f.load.mockResolvedValueOnce({ ...result, currentPage: 2, items: [], totalCount: 20 });
     f.load.mockResolvedValueOnce({ ...result, totalCount: 20 });
-    const action = f.view.querySelector(".wishlist-card__actions button");
-    if (!(action instanceof globalThis.HTMLButtonElement)) throw new Error("Missing action");
-    action.click(); await settle();
+    next.click(); await settle();
     expect(f.load).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 })); disposeComponent(f.view);
   });
-  it("renders concise safe cards with author, no missing date, and persistent unfollow action", async () => {
+  it("renders safe navigation-only cards with author and no missing date", async () => {
     const f = setup(); await settle();
     expect(f.view.querySelector("h1")?.textContent).toBe("Mes listes");
     expect(f.view.querySelector('[aria-current="page"]')?.textContent).toBe("Listes suivies");
@@ -39,20 +36,9 @@ describe("followed lists gallery", () => {
     expect(f.view.querySelector("time")).toBeNull(); expect(f.view.textContent).not.toContain("Sans date");
     const link = f.view.querySelector("a.wishlist-card__open"); if (!(link instanceof globalThis.HTMLAnchorElement)) throw new Error("Missing link");
     link.click(); expect(f.onOpen).toHaveBeenCalledWith(item.shareHref);
-    const action = f.view.querySelector(".wishlist-card__actions button"); if (!(action instanceof globalThis.HTMLButtonElement)) throw new Error("Missing action");
-    expect(action.getAttribute("aria-pressed")).toBe("true");
-    f.load.mockResolvedValueOnce({ ...result, items: [], totalCount: 0 });
-    action.click(); await settle(); expect(f.remove).toHaveBeenCalledOnce();
-    expect(f.view.textContent).toContain("Tu ne suis encore aucune liste."); disposeComponent(f.view);
+    expect(f.view.querySelectorAll(".wishlist-card button")).toHaveLength(0);
+    disposeComponent(f.view);
     expect(link.hasAttribute("href")).toBe(false);
-  });
-  it("preserves cards but blocks replay after an uncertain deletion, then performs only a fresh read", async () => {
-    const f = setup(); await settle();
-    f.remove.mockRejectedValueOnce(new ApiError({ kind: "network" }));
-    const action = f.view.querySelector(".wishlist-card__actions button"); if (!(action instanceof globalThis.HTMLButtonElement)) throw new Error("Missing action");
-    action.click(); await settle();
-    expect(f.view.textContent).not.toContain("Vérifier les listes suivies");
-    expect(f.view.querySelectorAll(".wishlist-card")).toHaveLength(1); expect(f.remove).toHaveBeenCalledOnce(); expect(f.load).toHaveBeenCalledTimes(2); disposeComponent(f.view);
   });
   it("clears private links and ignores late data after account lifetime ends", async () => {
     const gate = barrier(), f = setup(); await settle();
@@ -61,8 +47,8 @@ describe("followed lists gallery", () => {
     gate.resolve(); disposeComponent(f.view);
   });
   it("offers read retry after a transport failure and does not issue a mutation", async () => {
-    const load = vi.fn(async () => { throw new ApiError({ kind: "network" }); }), remove = vi.fn();
-    const view = createWishlistSubscriptionsView({ load, remove, signal: new AbortController().signal }); await settle();
-    expect(view.textContent).toContain("Réessayer"); expect(remove).not.toHaveBeenCalled(); disposeComponent(view);
+    const load = vi.fn(async () => { throw new ApiError({ kind: "network" }); });
+    const view = createWishlistSubscriptionsView({ load, signal: new AbortController().signal }); await settle();
+    expect(view.textContent).toContain("Réessayer"); disposeComponent(view);
   });
 });

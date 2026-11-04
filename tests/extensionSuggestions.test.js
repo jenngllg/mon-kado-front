@@ -44,7 +44,7 @@ it("creates in the selected exact group with no owned wish, share link or reserv
   const f = setup(), people = await f.service.recipients(me, f.signal), lists = await f.service.lists(me, people[0].id, f.signal);
   f.request.mockClear();
   expect(await f.service.create(me, { ...values, listId: lists[1].id }, f.signal)).toEqual({ success: true, imageSaved: true });
-  expect(f.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/groups/${secondId}/wishlists/${wishlistId}/suggestions`, expect.objectContaining({ method: "POST", authentication: "required", csrf: true, signal: f.signal, body: { name: "Livre", note: null, url: values.url, price: 12, quantity: 1 } }));
+  expect(f.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/groups/${secondId}/wishlists/${wishlistId}/suggestions`, expect.objectContaining({ method: "POST", authentication: "required", csrf: true, signal: f.signal, body: { name: "Livre", note: null, url: values.url, price: 12, quantity: 1, addedViaExtension: true } }));
 });
 it("rejects arbitrary identifiers and invalidates tab-local destinations after an account change", async () => {
   const f = setup(), people = await f.service.recipients(me, f.signal), lists = await f.service.lists(me, people[0].id, f.signal);

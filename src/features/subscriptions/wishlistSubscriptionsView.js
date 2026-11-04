@@ -1,7 +1,6 @@
-import { ApiError, isAbortError } from "../../api/apiError.js";
+import { isAbortError } from "../../api/apiError.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createActionLink, createAlert, createButton, createEmptyState, createLoadingState, disposeComponent } from "../../components/index.js";
-import { applyActionIcon } from "../../components/actionIcon.js";
 import { toUserFacingError } from "../../errors/errorMessages.js";
 import { wishlistArtwork, wishlistArtworkSources, WishlistCardArtworkSizes } from "../wishlists/wishlistArtwork.js";
 import { WishlistOccasions } from "../wishlists/wishlistValidation.js";
@@ -10,10 +9,10 @@ import { createWishlistOverviewToolbar } from "../wishlists/wishlistOverviewTool
 const DateFormat = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 /** Creates the current member's followed-list gallery.
- * @param {{load: import("./wishlistSubscriptionsService.js").LoadSubscriptions, remove: import("./wishlistSubscriptionsService.js").RemoveSubscription, signal: AbortSignal, onOpen?: (href: string) => void}} options Scoped reads and explicit mutations.
+ * @param {{load: import("./wishlistSubscriptionsService.js").LoadSubscriptions, signal: AbortSignal, onOpen?: (href: string) => void}} options Scoped reads and navigation.
  * @returns {HTMLElement} Routed disposable view.
  */
-export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }) {
+export function createWishlistSubscriptionsView({ load, signal, onOpen }) {
   const view = node("section", ""); view.className = "wishlists-view wishlist-subscriptions-view flow";
   const title = node("h1", "Mes listes"); title.tabIndex = -1;
   const header = node("div", ""); header.className = "wishlists-view__header"; header.append(title);
@@ -50,7 +49,7 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
     try {
       let result = await load({ page, signal: combined });
       if (disposed || combined.aborted) return;
-      // A confirmed deletion can remove the last card of the last page.
+      // Followed lists can disappear when their owner withdraws access.
       if (page > 1 && !result.items.length && result.totalCount <= (page - 1) * result.pageSize) {
         page = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
         result = await load({ page, signal: combined });
@@ -67,18 +66,17 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
       status.textContent = "Listes suivies chargées";
     } catch (error) {
       if (disposed || isAbortError(error) || combined.aborted) return;
-      clear(results); showError(error, false);
+      clear(results); showError(error);
     } finally {
       busy = false;
       if (!disposed) controls();
     }
   }
-  /** @param {unknown} error Transport failure. @param {boolean} uncertain Mutation uncertainty. */
-  function showError(error, uncertain) {
+  /** @param {unknown} error Transport failure. */
+  function showError(error) {
     clear(feedback);
-    feedback.append(createAlert({ ...toUserFacingError(error), variant: "error",
-      ...(uncertain ? { message: "La modification de tes listes suivies n’a pas pu être confirmée." } : {}) }));
-    if (!uncertain) feedback.append(createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(); } }));
+    feedback.append(createAlert({ ...toUserFacingError(error), variant: "error" }));
+    feedback.append(createButton({ label: "Réessayer", variant: "secondary", onClick: () => { void read(); } }));
   }
   /** @param {import("./wishlistSubscriptionsService.js").WishlistSubscription} item Revalidated summary.
    * @param {number} index Position in the current overview. */
@@ -104,31 +102,9 @@ export function createWishlistSubscriptionsView({ load, remove, signal, onOpen }
       const date = node("time", DateFormat.format(new Date(item.eventDate + "T00:00:00Z"))); date.dateTime = item.eventDate;
       content.append(date);
     }
-    const actions = node("div", ""); actions.className = "wishlist-card__actions";
-    const unfollow = createButton({ label: "Ne plus suivre", variant: "secondary", onClick: () => { void unsubscribe(item); } });
-    unfollow.setAttribute("aria-label", `Ne plus suivre « ${item.name} »`); applyActionIcon(unfollow, "bell", "Ne plus suivre");
-    unfollow.setAttribute("aria-pressed", "true"); actions.append(unfollow);
-    card.append(cover, content, actions);
+    card.append(cover, content);
     registerComponentCleanup(card, () => { link.removeAttribute("href"); cover.removeAttribute("src"); cover.removeAttribute("srcset"); });
     return card;
-  }
-  /** @param {import("./wishlistSubscriptionsService.js").WishlistSubscription} item Target. */
-  async function unsubscribe(item) {
-    if (disposed || busy) return;
-    busy = true; clear(feedback); controls();
-    try {
-      await remove(item.id, { signal: combined });
-      if (disposed || combined.aborted) return;
-      busy = false; await read();
-      if (!disposed) title.focus();
-    } catch (error) {
-      if (disposed || isAbortError(error) || combined.aborted) return;
-      if (error instanceof ApiError && error.statusCode === 404) { busy = false; await read(); return; }
-      busy = false; await read();
-    } finally {
-      busy = false;
-      if (!disposed) { previous.disabled = page <= 1; next.disabled = page >= pages; results.setAttribute("aria-busy", "false"); }
-    }
   }
 }
 /** @template {keyof HTMLElementTagNameMap} T @param {T} tag Native element. @param {string} text Safe text. @returns {HTMLElementTagNameMap[T]} Native node. */

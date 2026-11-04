@@ -6,6 +6,7 @@ import { ApiError } from "../src/api/apiError.js";
 import { isAdministrator } from "../src/auth/roles.js";
 
 const id="019c52dd-56c1-7cc6-8a95-243f3a032e76",self="019c52dd-56c1-7cc6-8a95-243f3a032e77";
+/** @type {import("../src/features/admin/adminMembersService.js").AdminMemberSummary} */
 const member={id,displayName:"Camille",displayNameTag:"1234"};
 const page={items:[member,{...member,id:self}],currentPage:1,pageSize:20,totalCount:2,totalPages:1,hasPreviousPage:false,hasNextPage:false};
 /** @type {HTMLElement[]} */ const roots=[];
@@ -81,4 +82,19 @@ describe("administrative member deletion view",()=>{
     await vi.waitFor(()=>expect(f.view.textContent).toContain("Le pseudo a changé"));confirm(f);expect(button(f.view,"Supprimer définitivement").disabled).toBe(true);
     f.view.querySelector("dialog")?.dispatchEvent(new Event("cancel",{cancelable:true}));
   });
+});
+
+it("renders a semantic statistics table and dispatches simulation only for another account",async()=>{
+ const f=fixture();f.request.mockResolvedValueOnce({status:200,data:{...page,items:[{...member,createdAt:"2026-11-04T08:00:00Z",listCount:2,groupCount:3,wishCount:42,hasAddedViaExtension:true}]}});
+ f.view.querySelector("form")?.dispatchEvent(new Event("submit",{cancelable:true}));
+ await vi.waitFor(()=>expect(f.view.querySelector("time")?.textContent).toBe("04/11/2026"));
+ expect([...f.view.querySelectorAll("thead th")].map(th=>th.textContent)).toEqual(["Pseudo","Inscription","Listes","Groupes","Souhaits","Ajout via extension","Simulation","Suppression"]);
+ expect([...f.view.querySelectorAll("tbody td")].slice(1,5).map(td=>td.textContent)).toEqual(["2","3","42","Oui"]);
+ const listener=vi.fn();f.view.addEventListener("monkado-impersonate",listener);
+ const simulate=/** @type {HTMLButtonElement} */(f.view.querySelector('button[aria-label^="Simuler le compte"]'));simulate.click();expect(listener).toHaveBeenCalledOnce();expect(listener.mock.calls[0][0].detail).toBe(id);
+ expect(f.view.querySelector("article")).toBeNull();
+});
+it.each([[false,"Non"],[null,"Non renseigné"]])("distinguishes extension usage %s",async(used,label)=>{
+ const f=fixture();f.request.mockResolvedValueOnce({status:200,data:{...page,items:[{...member,hasAddedViaExtension:used}]}});f.view.querySelector("form")?.dispatchEvent(new Event("submit",{cancelable:true}));
+ await vi.waitFor(()=>expect(f.view.querySelector("tbody tr")?.textContent).toContain(label));
 });

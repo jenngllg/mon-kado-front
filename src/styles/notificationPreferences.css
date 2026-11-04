@@ -1,4 +1,18 @@
-.notification-preferences__choices { display: grid; gap: var(--space-2); }
-.notification-preferences__option { padding-block: var(--space-3); align-items: center; }
-.notification-preferences__option + .notification-preferences__option { border-top: 1px solid var(--color-border); }
-.notification-preferences__label small { font-size: var(--font-size-sm); }
+.notification-preferences__choices { max-width:100%; }
+.notification-preferences-form { width:100%; max-width:100%; }
+.notification-preferences-view { min-width:0; max-width:100%; }
+.notification-preferences-table { width:100%; border-collapse:collapse; table-layout:fixed; text-align:left; }
+.notification-preferences-table caption { text-align:left; padding-block:var(--space-3); }
+.notification-preferences-table th,.notification-preferences-table td { padding:var(--space-3); border-bottom:1px solid var(--color-border); vertical-align:middle; }
+.notification-preferences-table th:first-child { width:56%; }
+.notification-preferences-table th[scope="row"] { font-weight:400; overflow-wrap:anywhere; }
+.notification-preferences-table th[scope="col"] { vertical-align:bottom; }
+.notification-preferences-table td,.notification-preferences-table th:not(:first-child) { text-align:center; }
+.notification-preferences-table .notification-preferences__option { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0; }
+.notification-preferences__label small { font-size:var(--font-size-sm); }
+.notification-push { margin-top:var(--space-4); }
+@media(max-width:48rem){
+  .notification-preferences-table th,.notification-preferences-table td { padding:var(--space-2) var(--space-1); }
+  .notification-preferences-table th:first-child { width:48%; }
+  .notification-preferences-table th[scope="col"] { font-size:.8125rem; overflow-wrap:normal; word-break:normal; }
+}

@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSessionApplication } from "../src/app/sessionApplication.js";
 import { createGoogleService } from "../src/features/google/googleService.js";
+import { createGroupJoinContinuation } from "../src/features/groups/groupJoinContinuation.js";
 import { googleFixture, Flow, StartOptions } from "./googleTestHelpers.js";
 import { barrier, untilSession } from "./sessionTestHelpers.js";
 
@@ -28,6 +29,27 @@ function routed(app, name) {
 }
 
 describe("Google session/router integration", () => {
+  it("returns a verified Google sign-in to the pending invitation without enrolling", async () => {
+    // Arrange
+    const {app,f} = mount(), path="/groups/join/019c52dd-56c1-7cc6-8a95-243f3a032e04", code="ABCDEFGH234567AB";
+    createGroupJoinContinuation({storage:window.sessionStorage}).prepare(path,code);
+    const fallback=f.fetch.getMockImplementation();
+    f.fetch.mockImplementation(async (input,init)=>{
+      if(new URL(String(input)).pathname === "/api/v1/groups/join") {
+        expect(init?.method).toBe("GET");
+        return Response.json({id:path.split("/").at(-1),name:"Famille",memberCount:2,profileImageUrl:null});
+      }
+      if(!fallback) throw new Error("Missing transport"); return fallback(input,init);
+    });
+    await f.google.start(StartOptions);
+    // Act
+    await app.start(); await routed(app,"group-invitation");
+    // Assert
+    expect(window.location.pathname).toBe(path); expect(window.location.hash).toBe("");
+    expect(app.shell.outlet.querySelector("input")?.value).toBe(code);
+    expect(app.session.getSnapshot().status).toBe("authenticated");
+    window.sessionStorage.removeItem("monkado.group-join.v1");
+  });
   it("consumes the fragment before fetching, skips startup refresh and replaces the return URL", async () => {
     // Arrange
     const { app, f } = mount(); await f.google.start({ ...StartOptions, returnTo: "/reservations?discard=yes#secret" });

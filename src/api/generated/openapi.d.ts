@@ -1591,6 +1591,84 @@ export interface paths {
         readonly patch?: never;
         readonly trace?: never;
     };
+    readonly "/api/v1/members/current/push-configuration": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** @description Member-private device configuration. Unavailable during impersonation. Mutations require CSRF. Endpoints are encrypted; independent per-device choices never expose business data to the push service. Revoked sessions cannot receive pushes. */
+        readonly get: operations["Push_Configuration"];
+        readonly put?: never;
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/members/current/push-preferences": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /**
+         * Read current member notification preferences
+         * @description Member-private push channel choices, shared across subscribed browsers. Every type is enabled by default independently of browser permission. Saving choices requires CSRF and a strong If-Match; unavailable during impersonation.
+         */
+        readonly get: operations["PushPreferences_Get"];
+        /**
+         * Update all current member notification preferences
+         * @description Member-private push channel choices, shared across subscribed browsers. Every type is enabled by default independently of browser permission. Saving choices requires CSRF and a strong If-Match; unavailable during impersonation.
+         */
+        readonly put: operations["PushPreferences_Put"];
+        readonly post?: never;
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/members/current/push-subscriptions": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** @description Member-private device configuration. Unavailable during impersonation. Mutations require CSRF. Endpoints are encrypted; independent per-device choices never expose business data to the push service. Revoked sessions cannot receive pushes. */
+        readonly get: operations["Push_List"];
+        readonly put?: never;
+        /** @description Member-private device configuration. Unavailable during impersonation. Mutations require CSRF. Endpoints are encrypted; independent per-device choices never expose business data to the push service. Revoked sessions cannot receive pushes. */
+        readonly post: operations["Push_Create"];
+        readonly delete?: never;
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
+    readonly "/api/v1/members/current/push-subscriptions/{subscriptionId}": {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        /** @description Member-private device configuration. Unavailable during impersonation. Mutations require CSRF. Endpoints are encrypted; independent per-device choices never expose business data to the push service. Revoked sessions cannot receive pushes. */
+        readonly get: operations["Push_Get"];
+        /** @description Member-private device configuration. Unavailable during impersonation. Mutations require CSRF. Endpoints are encrypted; independent per-device choices never expose business data to the push service. Revoked sessions cannot receive pushes. */
+        readonly put: operations["Push_Update"];
+        readonly post?: never;
+        /** @description Member-private device configuration. Unavailable during impersonation. Mutations require CSRF. Endpoints are encrypted; independent per-device choices never expose business data to the push service. Revoked sessions cannot receive pushes. */
+        readonly delete: operations["Push_Delete"];
+        readonly options?: never;
+        readonly head?: never;
+        readonly patch?: never;
+        readonly trace?: never;
+    };
     readonly "/api/v1/members/current/reservations": {
         readonly parameters: {
             readonly query?: never;
@@ -2588,6 +2666,22 @@ export interface components {
             /** Format: uuid */
             readonly id: string;
         };
+        readonly AdministrativeMemberSummaryResponse: {
+            /** Format: date-time */
+            readonly createdAt: string;
+            readonly displayName: string;
+            readonly displayNameTag: string;
+            /** Format: int32 */
+            readonly groupCount: number;
+            /** @description Whether this account has confirmed a wish or suggestion addition through the extension. Null for existing accounts with unknown history. */
+            readonly hasAddedViaExtension: boolean | null;
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: int32 */
+            readonly listCount: number;
+            /** Format: int32 */
+            readonly wishCount: number;
+        };
         readonly CompleteGoogleSessionRequest: {
             readonly flow?: string | null;
         };
@@ -2612,6 +2706,12 @@ export interface components {
             /** Format: uuid */
             readonly sourceWishId: string;
         };
+        readonly CreatePushSubscriptionRequest: {
+            readonly disabledKinds?: readonly ("wishesAdded" | "groupJoined" | "groupInvitation" | "occasionReminder" | "sharingReminder" | "groupWishlistShared" | "reservationUnavailable" | "wishReserved" | "suggestionAdded")[];
+            /** Format: uri */
+            readonly endpoint: string;
+            readonly name: string;
+        };
         readonly CreateWishImportPreviewRequest: {
             readonly url?: string | null;
         };
@@ -2626,6 +2726,8 @@ export interface components {
         readonly CreateWishRequest: {
             /** @description Second-hand gifts are welcome; false does not require new. Omitted/null preserves the value on update, defaults to false on creation. */
             readonly acceptsSecondHand?: boolean | null;
+            /** @description Set by the extension on creation only; records account usage atomically with a successful addition. */
+            readonly addedViaExtension?: boolean | null;
             /** @description Optional single-line colour, trimmed; blank values are stored as null. */
             readonly color?: ((string | null) | null) | string | null;
             readonly isFavorite?: ((boolean | null) | null) | boolean | null;
@@ -3025,6 +3127,21 @@ export interface components {
             /** Format: uri */
             readonly shareUrl: string;
         };
+        readonly PushConfigurationResponse: {
+            readonly enabled: boolean;
+            readonly publicKey: string | null;
+        };
+        readonly PushSubscriptionResponse: {
+            /** Format: date-time */
+            readonly createdAt: string;
+            readonly disabledKinds: readonly string[];
+            readonly endpointHash: string;
+            /** Format: uuid */
+            readonly id: string;
+            readonly name: string;
+            /** @description Strong xmin ETag used in If-Match when saving a device. */
+            readonly version: string;
+        };
         readonly RegisterAccountRequest: {
             readonly displayName?: string | null;
             readonly email?: string | null;
@@ -3114,6 +3231,8 @@ export interface components {
             readonly name: string;
         };
         readonly SaveGroupSuggestionRequest: {
+            /** @description Set by the extension on creation only; records account usage atomically with a successful addition. */
+            readonly addedViaExtension?: boolean | null;
             readonly name: string;
             readonly note?: string | null;
             readonly price?: number | null;
@@ -3283,6 +3402,10 @@ export interface components {
             readonly suggestionAdded: boolean;
             readonly wishesAdded: boolean;
             readonly wishReserved: boolean;
+        };
+        readonly UpdatePushSubscriptionRequest: {
+            readonly disabledKinds: readonly ("wishesAdded" | "groupJoined" | "groupInvitation" | "occasionReminder" | "sharingReminder" | "groupWishlistShared" | "reservationUnavailable" | "wishReserved" | "suggestionAdded")[];
+            readonly name: string;
         };
         readonly UpdateWishFavoriteRequest: {
             readonly isFavorite: boolean;
@@ -3964,7 +4087,7 @@ export interface operations {
                         readonly currentPage: number;
                         readonly hasNextPage: boolean;
                         readonly hasPreviousPage: boolean;
-                        readonly items: readonly components["schemas"]["AdministrativeMemberResponse"][];
+                        readonly items: readonly components["schemas"]["AdministrativeMemberSummaryResponse"][];
                         readonly pageSize: number;
                         readonly totalCount: number;
                         readonly totalPages: number;
@@ -13777,6 +13900,679 @@ export interface operations {
                 };
             };
             /** @description 503ServiceUnavailable */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Push_Configuration: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PushConfigurationResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly PushPreferences_Get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Complete member-private preferences */
+            readonly 200: {
+                headers: {
+                    /** @description Strong version of these settings only. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationPreferencesResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly PushPreferences_Put: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                /** @description Current strong ETag returned by the preferences GET. */
+                readonly "If-Match": string;
+                /** @description Authenticated signed double-submit CSRF token. */
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UpdateNotificationPreferencesRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Complete member-private preferences */
+            readonly 200: {
+                headers: {
+                    /** @description Strong version of these settings only. */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["NotificationPreferencesResponse"];
+                };
+            };
+            /** @description Invalid body, CSRF token or entity tag */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Preferences were changed by another request */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description If-Match is required */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Push_List: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": readonly components["schemas"]["PushSubscriptionResponse"][];
+                };
+            };
+            /** @description Request rejected */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Push_Create: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["CreatePushSubscriptionRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Success */
+            readonly 201: {
+                headers: {
+                    /** @description Device resource */
+                    readonly Location?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PushSubscriptionResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Push_Get: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path: {
+                readonly subscriptionId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PushSubscriptionResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Push_Update: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "If-Match": string;
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly subscriptionId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": components["schemas"]["UpdatePushSubscriptionRequest"];
+            };
+        };
+        readonly responses: {
+            /** @description Success */
+            readonly 200: {
+                headers: {
+                    /** @description Strong entity tag */
+                    readonly ETag?: string;
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["PushSubscriptionResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 503: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    readonly Push_Delete: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header: {
+                readonly "X-CSRF-TOKEN": string;
+            };
+            readonly path: {
+                readonly subscriptionId: string;
+            };
+            readonly cookie?: never;
+        };
+        readonly requestBody?: never;
+        readonly responses: {
+            /** @description Success */
+            readonly 204: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Request rejected */
+            readonly 400: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 401: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 403: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 404: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 409: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 412: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
+            readonly 428: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request rejected */
             readonly 503: {
                 headers: {
                     readonly [name: string]: unknown;

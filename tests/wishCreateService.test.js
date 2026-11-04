@@ -46,3 +46,10 @@ describe("manual gift creation service", () => {
     expect(init.credentials).toBe("include"); expect(new Headers(init.headers).get("Authorization")).toBe("Bearer jwt-fixture"); expect(new Headers(init.headers).has("X-CSRF-TOKEN")).toBe(false); expect(new Headers(init.headers).has("If-Match")).toBe(false);
   });
 });
+
+it.each([undefined,false,true])("attributes successful creation only when extension source is explicit: %s",async addedViaExtension=>{
+ const service=setup();await service.create(id,values,{signal,addedViaExtension});
+ const calls=/** @type {Array<[string,{body:Record<string,unknown>}]>} */(/** @type {unknown} */(service.request.mock.calls));
+ const body=calls[0][1].body;
+ expect(body.addedViaExtension).toBe(addedViaExtension===true?true:undefined);
+});
