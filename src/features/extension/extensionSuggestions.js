@@ -86,7 +86,7 @@ export function createExtensionSuggestions(session) {
       const image = capturedImage(value.image);
       if (typeof value.name !== "string" || typeof value.price !== "string" || typeof value.url !== "string") throw new ApiError({ kind: "http", statusCode: 400 });
       const service = createGroupSuggestionsService(session, scope);
-      const created = await service.create({ name: value.name, price: value.price, url: value.url, note: "", quantity: "1" }, signal);
+      const created = await service.create({ name: value.name, price: value.price, url: value.url, note: "", quantity: "1", addedViaExtension: true }, signal);
       if (image) {
         try { await service.uploadImage(created.id, image, created.entityTag, signal); }
         catch { return { success: true, imageSaved: false }; }

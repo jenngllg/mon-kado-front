@@ -119,7 +119,7 @@ def run(project, arguments=()):
                 break
         start("worker", service_environment)
         metadata = directory / "fixture.json"
-        metadata.write_text(json.dumps({"mailbox": str(directory / "mailbox")}), encoding="utf-8")
+        metadata.write_text(json.dumps({"mailbox": str(directory / "mailbox"), "database": database}), encoding="utf-8")
         browser_environment = os.environ.copy() | {"MONKADO_NATIVE_FIXTURE": str(metadata), "MONKADO_NATIVE_PROJECT": project}
         node = os.environ.get("NODE", "node")
         result = subprocess.run([node, str(ROOT / "node_modules/@playwright/test/cli.js"), "test",
@@ -146,10 +146,10 @@ def run(project, arguments=()):
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description=__doc__)
-        parser.add_argument("--project", choices=("mobile", "desktop"))
+        parser.add_argument("--project", choices=("mobile", "desktop", "admin-mobile", "admin-desktop"))
         options, arguments = parser.parse_known_args()
         # Each viewport owns fresh services and data, including the real admission quotas.
-        results = [run(project, arguments) for project in ([options.project] if options.project else ["mobile", "desktop"])]
+        results = [run(project, arguments) for project in ([options.project] if options.project else ["mobile", "desktop", "admin-mobile", "admin-desktop"])]
         sys.exit(1 if any(results) else 0)
     except Exception as error:
         print(str(error) if type(error) is RuntimeError else "NATIVE_JOURNEYS_FAILED", file=sys.stderr)

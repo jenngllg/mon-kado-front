@@ -18,6 +18,17 @@ function button(view,label){const value=[...view.querySelectorAll("button")].fin
 const page = { items: [{ id: "1", displayName: "Élodie", displayNameTag: "1234", occurredAt: "2026-10-31T12:00:00Z", kind: "pageVisit", activity: "Liste du groupe" }], currentPage: 1, totalPages: 1, totalCount: 1, hasPreviousPage: false, hasNextPage: false };
 
 describe("member activity", () => {
+  it("omits the source banner and impersonation action while retaining actor audit information", async () => {
+    const event={...page.items[0],memberId:"another-member",isImpersonated:true,actorDisplayName:"Jenn"};
+    const request=vi.fn().mockResolvedValue({status:200,data:{...page,items:[event]}});const view=mount(request);
+    await vi.waitFor(()=>expect(view.querySelector("table")).not.toBeNull());
+    expect(view.querySelector(".activity-source")).toBeNull();
+    expect(view.textContent).not.toContain("Vue de données");
+    expect([...view.querySelectorAll("th")].map(th=>th.textContent)).not.toContain("Simulation");
+    expect(view.querySelector('button[aria-label^="Simuler"]')).toBeNull();
+    expect(view.textContent).toContain("Simulation par Jenn");
+  });
+
   it("changes visible columns without another request and preserves the choice across filters", async () => {
     const request = vi.fn().mockResolvedValue({status:200,data:page}); const view = mount(request);
     await vi.waitFor(() => expect(view.querySelector("table")).not.toBeNull());

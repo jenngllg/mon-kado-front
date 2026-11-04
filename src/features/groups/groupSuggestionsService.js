@@ -7,7 +7,7 @@ import { prepareWishImageUpload } from "../wishes/prepareImageUpload.js";
 import { validateWishImageFile } from "../wishes/wishImageValidation.js";
 
 /** @typedef {import("../../api/generated/openapi.js").components["schemas"]["GroupSuggestionResponse"]} Suggestion */
-/** @typedef {{name:string,note:string,url:string,price:string,quantity:string}} SuggestionValues */
+/** @typedef {{name:string,note:string,url:string,price:string,quantity:string,addedViaExtension?:boolean}} SuggestionValues */
 
 /** Private group suggestion transport; it never uses or creates a share link.
  * @param {Pick<import("../../auth/sessionManager.js").SessionManager, "request">} session Current member.
@@ -47,7 +47,7 @@ export function createGroupSuggestionsService(session, { groupId, wishlistId }) 
   /** @param {string} id Identifier. @param {SuggestionValues} values Input. @param {AbortSignal} signal Lifetime. @param {string | null} etag Existing version. */
   async function save(id, values, signal, etag) {
     check(signal);
-    const response = await session.request(id ? path(id) : base, { method: id ? "PUT" : "POST", authentication: "required", csrf: true, body: payload(values), signal, ...(etag ? {ifMatch: etag} : {}) });
+    const response = await session.request(id ? path(id) : base, { method: id ? "PUT" : "POST", authentication: "required", csrf: true, body: {...payload(values), ...(!id && values.addedViaExtension === true ? {addedViaExtension:true} : {})}, signal, ...(etag ? {ifMatch: etag} : {}) });
     check(signal);
     if (response.status !== (id ? 200 : 201)) throw new ApiError({kind:"invalidResponse"});
     if (!isStrongEntityTag(response.metadata.etag)) throw new ApiError({kind:"invalidResponse"});

@@ -2,6 +2,7 @@ import { ApiError, isAbortError } from "../../api/apiError.js";
 import { createButton, createFormField, createLoadingState, disposeComponent } from "../../components/index.js";
 import { addComponentEventListener, registerComponentCleanup } from "../../components/componentLifecycle.js";
 import { createAdminMembersService } from "./adminMembersService.js";
+import { applyActionIcon } from "../../components/actionIcon.js";
 
 /** Account administration bound to the actual session; API authorization is checked on every request.
  * @param {import("../../auth/sessionManager.js").SessionManager} session Session owner.
@@ -9,7 +10,7 @@ import { createAdminMembersService } from "./adminMembersService.js";
  */
 export function createAdminMembersView(session,signal) {
   const service=createAdminMembersService(session), lifetime=new AbortController();
-  const view=node("section","");view.className="reported-wishlists-view flow";
+  const view=node("section","");view.className="admin-members-view reported-wishlists-view flow";
   const title=node("h1","Comptes");
   const form=node("form","");form.className="reported-wishlists-filters cluster";
   const search=node("input","");search.type="search";search.maxLength=100;
@@ -34,21 +35,36 @@ export function createAdminMembersView(session,signal) {
       if(disposed||operation.signal.aborted)return;
       clear(results);
       if(!data.items.length)results.append(node("p","Aucun compte trouvé."));
-      for(const item of data.items){
-        const row=node("article","");row.className="reported-wishlist flow";
-        const header=node("div","");header.className="section-toolbar";header.append(node("h2",handle(item)));
-        if(item.id!==session.getSnapshot().user?.id){
-          const erase=createButton({label:"Supprimer",variant:"danger",onClick:()=>open(item)});
-          erase.setAttribute("aria-label",`Supprimer le compte de ${handle(item)}`);header.append(erase);
-        }else header.append(node("p","Ton compte"));
-        row.append(header);
-        results.append(row);
-      }
+      if(data.items.length) renderTable(data.items);
       if(data.hasPreviousPage||data.hasNextPage){
         const navigation=node("div","");navigation.className="cluster";
         navigation.append(createButton({label:"Précédent",variant:"secondary",disabled:!data.hasPreviousPage,onClick:()=>{page--;void read();}}),createButton({label:"Suivant",variant:"secondary",disabled:!data.hasNextPage,onClick:()=>{page++;void read();}}));results.append(navigation);
       }
     }catch(error){if(disposed||operation.signal.aborted)return;clear(results);results.append(alert(accessError(error)?"Accès administrateur refusé. Reconnecte-toi et vérifie la double authentification.":"Impossible de charger les comptes."));if(!accessError(error))results.append(createButton({label:"Réessayer",variant:"secondary",onClick:()=>{void read();}}));}
+  }
+  /** @param {import("./adminMembersService.js").AdminMemberSummary[]} items Server-ordered accounts. */
+  function renderTable(items){
+    const region=node("div","");region.className="admin-members-table-region";region.tabIndex=0;region.setAttribute("role","region");region.setAttribute("aria-label","Comptes, tableau défilant");
+    const table=node("table","");table.className="admin-members-table";
+    const caption=node("caption","Comptes des membres");caption.className="visually-hidden";
+    const head=node("thead","");const headings=node("tr","");
+    for(const label of ["Pseudo","Inscription","Listes","Groupes","Souhaits","Ajout via extension","Simulation","Suppression"]){const th=node("th",label);th.scope="col";headings.append(th);}
+    head.append(headings);const body=node("tbody","");
+    for(const item of items){
+      const row=node("tr","");const name=node("th",handle(item));name.scope="row";row.append(name);
+      const date=node("td","");if(item.createdAt){const time=node("time",new Intl.DateTimeFormat("fr-FR",{dateStyle:"short",timeZone:"Europe/Paris"}).format(new Date(item.createdAt)));time.dateTime=item.createdAt;date.append(time);}else date.textContent="—";row.append(date);
+      for(const count of [item.listCount,item.groupCount,item.wishCount])row.append(node("td",count === undefined ? "—" : String(count)));
+      row.append(node("td",item.hasAddedViaExtension === true ? "Oui" : item.hasAddedViaExtension === false ? "Non" : "Non renseigné"));
+      const simulateCell=node("td","");const eraseCell=node("td","");
+      if(item.id!==session.getSnapshot().user?.id){
+        const simulate=createButton({label:"Simuler",variant:"ghost",onClick:()=>view.dispatchEvent(new CustomEvent("monkado-impersonate",{bubbles:true,detail:item.id}))});
+        simulate.setAttribute("aria-label",`Simuler le compte de ${handle(item)}`);
+        applyActionIcon(simulate,"view",`Simuler le compte de ${handle(item)}`);simulateCell.append(simulate);
+        const erase=createButton({label:"Supprimer",variant:"danger",onClick:()=>open(item)});erase.setAttribute("aria-label",`Supprimer le compte de ${handle(item)}`);eraseCell.append(erase);
+      }else simulateCell.textContent="Ton compte";
+      row.append(simulateCell,eraseCell);body.append(row);
+    }
+    table.append(caption,head,body);region.append(table);results.append(region);
   }
   /** @param {import("./adminMembersService.js").AdminMember} selected Target selected from authorized results. */
   function open(selected){

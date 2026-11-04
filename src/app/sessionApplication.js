@@ -224,7 +224,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   const unsubscribeSession = session.subscribe(state => {
     const simulating=simulation.isActive();
     simulationBanner.hidden=!simulating;simulationLabel.textContent=simulating?`Simulation de ${state.user?.displayName} — modifications réelles`:"";
-    if(simulationWasActive && !simulating && !disposed)void router.replace(RoutePaths.Activity);
+    if(simulationWasActive && !simulating && !disposed)void router.replace(RoutePaths.AdminMembers);
     simulationWasActive=simulating;
     if(!previous.user || previous.user.id===state.user?.id)recordVisit();
     shell.setSession(state);
