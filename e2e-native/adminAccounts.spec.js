@@ -20,7 +20,10 @@ test("administrator reviews real counts, extension attribution, simulation and p
    const row=admin.locator("tbody tr").filter({has:admin.getByRole("rowheader",{name:handle,exact:true})});
    await expect(row).toBeVisible();expect(await row.locator("td").allTextContents()).toEqual([expect.any(String),"1","0","1","Oui","","Supprimer"]);
    await noOverflow(admin);
-   await admin.goto("/admin/activity");await expect(admin.locator(".activity-source")).toHaveCount(0);await expect(admin.getByRole("button",{name:/^Simuler/})).toHaveCount(0);
+   await admin.goto("/admin/activity");
+   await expect(admin.getByRole("heading",{name:"Activité des membres",exact:true})).toBeVisible();
+   await expect(admin.getByRole("table")).toBeVisible();
+   await expect(admin.locator(".activity-source")).toHaveCount(0);await expect(admin.getByRole("button",{name:/^Simuler/})).toHaveCount(0);
    await admin.goto("/admin/members");
    const simulate=admin.getByRole("button",{name:`Simuler le compte de ${handle}`,exact:true});await simulate.focus();await admin.keyboard.press("Enter");
    await expect(admin.getByText("Simulation de Native visitor — modifications réelles",{exact:true})).toBeVisible();
@@ -29,7 +32,10 @@ test("administrator reviews real counts, extension attribution, simulation and p
    const modal=admin.getByRole("dialog");await expect(modal.getByLabel(/Référence/)).toBeEnabled();
    await modal.getByLabel(/Référence/).fill("NATIVE-ACCOUNT-TABLE");await modal.getByLabel(/Recopie/).fill(handle);
    await modal.getByRole("button",{name:"Supprimer définitivement",exact:true}).click();await expect(modal).toHaveCount(0);
-   await expect(row).toHaveCount(0);await admin.reload();await expect(row).toHaveCount(0);
+   await expect(row).toHaveCount(0);await admin.reload();
+   await expect(admin.getByRole("heading",{name:"Comptes",exact:true})).toBeVisible();
+   await expect(admin.getByRole("rowheader",{name:/^Native administrator #/})).toBeVisible();
+   await expect(row).toHaveCount(0);
    await administrator.send("GET",`/api/v1/admin/members/${target.memberId}`,404);
  }finally{await adminContext.close();}
 });
