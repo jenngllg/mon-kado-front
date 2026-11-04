@@ -2588,6 +2588,22 @@ export interface components {
             /** Format: uuid */
             readonly id: string;
         };
+        readonly AdministrativeMemberSummaryResponse: {
+            /** Format: date-time */
+            readonly createdAt: string;
+            readonly displayName: string;
+            readonly displayNameTag: string;
+            /** Format: int32 */
+            readonly groupCount: number;
+            /** @description Whether this account has confirmed a wish or suggestion addition through the extension. Null for existing accounts with unknown history. */
+            readonly hasAddedViaExtension: boolean | null;
+            /** Format: uuid */
+            readonly id: string;
+            /** Format: int32 */
+            readonly listCount: number;
+            /** Format: int32 */
+            readonly wishCount: number;
+        };
         readonly CompleteGoogleSessionRequest: {
             readonly flow?: string | null;
         };
@@ -2626,6 +2642,8 @@ export interface components {
         readonly CreateWishRequest: {
             /** @description Second-hand gifts are welcome; false does not require new. Omitted/null preserves the value on update, defaults to false on creation. */
             readonly acceptsSecondHand?: boolean | null;
+            /** @description Set by the extension on creation only; records account usage atomically with a successful addition. */
+            readonly addedViaExtension?: boolean | null;
             /** @description Optional single-line colour, trimmed; blank values are stored as null. */
             readonly color?: ((string | null) | null) | string | null;
             readonly isFavorite?: ((boolean | null) | null) | boolean | null;
@@ -3114,6 +3132,8 @@ export interface components {
             readonly name: string;
         };
         readonly SaveGroupSuggestionRequest: {
+            /** @description Set by the extension on creation only; records account usage atomically with a successful addition. */
+            readonly addedViaExtension?: boolean | null;
             readonly name: string;
             readonly note?: string | null;
             readonly price?: number | null;
@@ -3964,7 +3984,7 @@ export interface operations {
                         readonly currentPage: number;
                         readonly hasNextPage: boolean;
                         readonly hasPreviousPage: boolean;
-                        readonly items: readonly components["schemas"]["AdministrativeMemberResponse"][];
+                        readonly items: readonly components["schemas"]["AdministrativeMemberSummaryResponse"][];
                         readonly pageSize: number;
                         readonly totalCount: number;
                         readonly totalPages: number;

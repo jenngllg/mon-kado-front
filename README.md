@@ -2352,3 +2352,20 @@ last three releases for already-open tabs. Previous bootstrap/manual publishing
 workflows are retained under `deployments/history` and are no longer executable
 GitHub Actions workflows. Operational details and recovery commands are in the
 backend's [main-to-VPS runbook](https://github.com/jenngllg/mon-kado/blob/main/deployments/main-vps.md).
+
+## Administration des comptes
+
+Comptes présente un tableau des pseudonymes, dates d’inscription, nombres de listes,
+de groupes et de souhaits, avec simulation et suppression confirmée. L’indicateur
+« Ajout via extension » distingue Oui, Non et Non renseigné pour les historiques
+inconnus. Activité conserve les événements et leurs auteurs réels, sans bandeau
+source ni action de simulation. La fin d’une simulation ramène à Comptes.
+
+Les projets natifs `admin-mobile` et `admin-desktop` vérifient le parcours avec les
+services réels : inscription, activation de la double authentification du compte
+administrateur jetable, message d’ajout de l’extension, compteurs, simulation et
+suppression persistée. Chaque projet utilise ses propres services et sa base de test.
+`pnpm test:e2e:native` exécute les douze parcours ; `--project admin-mobile` ou
+`--project admin-desktop` cible la nouvelle administration. La seule initialisation
+SQL privilégiée attribue le rôle au compte de test dans la base générée ; les
+contrôles MFA et les opérations métier passent par les API ordinaires.

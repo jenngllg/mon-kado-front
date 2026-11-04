@@ -65,7 +65,7 @@ export function installExtensionSessionBridge(session, apiBaseUrl) {
       if ((value.color !== undefined && typeof value.color !== "string") || (value.size !== undefined && typeof value.size !== "string")) { reply({ error: "invalid" }); return; }
       if (value.isFavorite !== undefined && typeof value.isFavorite !== "boolean") { reply({ error: "invalid" }); return; }
       if (value.listId.startsWith("suggestion:")) { reply(fillSuggestionDraft(value) ? {success:true,draft:true} : {error:"invalid"}); return; }
-      const created = await wishes.create(value.listId, { name: value.name, price: value.price, color: value.color ?? "", size: value.size ?? "", url: value.url, note: "", quantity: "1", isFavorite: value.isFavorite ?? false, isSurprise: false, acceptsSecondHand: false }, { signal: lifetime.signal });
+      const created = await wishes.create(value.listId, { name: value.name, price: value.price, color: value.color ?? "", size: value.size ?? "", url: value.url, note: "", quantity: "1", isFavorite: value.isFavorite ?? false, isSurprise: false, acceptsSecondHand: false }, { signal: lifetime.signal, addedViaExtension: true });
       if (typeof value.image === "string" && /^data:image\/webp;base64,[A-Za-z0-9+/=]+$/.test(value.image) && value.image.length <= 2800000) {
         try {
           const bytes = Uint8Array.from(atob(value.image.split(",")[1]), char => char.charCodeAt(0));

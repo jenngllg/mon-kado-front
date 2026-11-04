@@ -20,8 +20,6 @@ const columns = [
 export function createActivityView(session, signal) {
   const view = node("section", ""); view.className = "activity-view flow";
   const title = node("h1", "Activité des membres");
-  const source = node("div", ""); source.className = "activity-source";
-  source.append(node("span", "Vue de données"), node("strong", "Activité des membres"), node("span", "Horodatages en UTC · Plus récents en premier"));
   const form = node("form", ""); form.className = "activity-filters"; form.setAttribute("aria-label", "Filtrer le journal");
   const search = node("input", ""); search.type = "search"; search.maxLength = 100;
   const kind = select([["", "Tout"], ["pageVisit", "Visites"], ["action", "Actions"]]);
@@ -38,7 +36,7 @@ export function createActivityView(session, signal) {
   }
   const results = node("div", ""); results.className = "activity-results";
   const announcement = node("p", ""); announcement.className = "visually-hidden"; announcement.setAttribute("role", "status");
-  workspace.append(fieldPicker, results); view.append(title, source, form, announcement, workspace);
+  workspace.append(fieldPicker, results); view.append(title, form, announcement, workspace);
   let page = 1, disposed = false;
   /** @type {AbortController | null} */ let pending = null;
   addComponentEventListener(view, form, "submit", event => { event.preventDefault(); page = 1; void read(); });
@@ -88,7 +86,7 @@ export function createActivityView(session, signal) {
     const table = node("table", ""); table.className = "activity-table";
     const caption = node("caption", "Journal d’activité des membres"); caption.className = "visually-hidden";
     const head = node("thead", ""); const headings = node("tr", "");
-    for (const [label, key] of [["Détail", ""], ["Timestamp (UTC)", ""], ["Niveau", "logLevel"], ["Activité", ""], ["Type", "kind"], ["Membre", "member"], ["Auteur réel", "actor"], ["Payload", "payload"], ["Simulation", ""]]) {
+    for (const [label, key] of [["Détail", ""], ["Timestamp (UTC)", ""], ["Niveau", "logLevel"], ["Activité", ""], ["Type", "kind"], ["Membre", "member"], ["Auteur réel", "actor"], ["Payload", "payload"]]) {
       const th = node("th", label); th.scope = "col"; if (key) th.dataset.column = key; headings.append(th);
     }
     head.append(headings); const body = node("tbody", "");
@@ -101,11 +99,6 @@ export function createActivityView(session, signal) {
       event.append(node("strong", item.activity), node("small", item.kind === "pageVisit" ? "Visite" : "Action")); cell(row, event);
       cell(row, item.kind, "kind"); cell(row, `${item.displayName} #${item.displayNameTag}`, "member"); cell(row, activityAuthor(item), "actor");
       const preview = node("code", item.payload == null ? "null" : JSON.stringify(item.payload)); preview.className = "activity-table__preview"; cell(row, preview, "payload");
-      const command = cell(row, "", "", "activity-table__command");
-      if (item.memberId && item.memberId !== session.getSnapshot?.()?.user?.id) {
-        const simulate = createButton({ label: "Simuler cet utilisateur", variant: "ghost", onClick: () => view.dispatchEvent(new CustomEvent("monkado-impersonate", { bubbles: true, detail: item.memberId })) });
-        applyActionIcon(simulate, "view", "Simuler cet utilisateur"); command.append(simulate);
-      }
       body.append(row);
     }
     table.append(caption, head, body); region.append(table); results.append(region);

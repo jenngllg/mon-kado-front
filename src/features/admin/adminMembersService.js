@@ -2,6 +2,7 @@ import { ApiError } from "../../api/apiError.js";
 import { isWishlistId } from "../wishlists/wishlistValidation.js";
 
 /** @typedef {Readonly<{id:string,displayName:string,displayNameTag:string}>} AdminMember */
+/** @typedef {AdminMember & Readonly<{createdAt?:string,listCount?:number,groupCount?:number,wishCount?:number,hasAddedViaExtension?:boolean|null}>} AdminMemberSummary */
 /** @param {Pick<import("../../auth/sessionManager.js").SessionManager,"request">} session Authenticated transport. */
 export function createAdminMembersService(session) {
   /** @param {unknown} data Server identity. @returns {AdminMember} */
@@ -9,6 +10,14 @@ export function createAdminMembersService(session) {
     const value = /** @type {AdminMember|null} */ (data);
     if (!value || !isWishlistId(value.id) || typeof value.displayName !== "string" || !value.displayName.trim() || !/^\d{4}$/.test(value.displayNameTag)) throw new ApiError({kind:"invalidResponse"});
     return Object.freeze({id:value.id,displayName:value.displayName,displayNameTag:value.displayNameTag});
+  }
+  /** @param {unknown} data Summary from the authorized list, or the earlier identity-only contract. @returns {AdminMemberSummary} */
+  function summary(data) {
+    const identity = member(data), value = /** @type {AdminMemberSummary} */ (data);
+    if ((value.createdAt !== undefined && (typeof value.createdAt !== "string" || !Number.isFinite(Date.parse(value.createdAt)))) ||
+        [value.listCount,value.groupCount,value.wishCount].some(count => count !== undefined && (!Number.isSafeInteger(count) || count < 0)) ||
+        (value.hasAddedViaExtension != null && typeof value.hasAddedViaExtension !== "boolean")) throw new ApiError({kind:"invalidResponse"});
+    return Object.freeze({...identity,createdAt:value.createdAt,listCount:value.listCount,groupCount:value.groupCount,wishCount:value.wishCount,hasAddedViaExtension:value.hasAddedViaExtension});
   }
   /** @param {string} id Target account. */
   function path(id) { if (!isWishlistId(id)) throw new TypeError("Invalid member identifier"); return `/api/v1/admin/members/${id}`; }
@@ -18,7 +27,7 @@ export function createAdminMembersService(session) {
       const result = await session.request(`/api/v1/admin/members?${new URLSearchParams({page:String(page),pageSize:"20",q})}`, {method:"GET",authentication:"required",signal});
       const data = /** @type {{items:unknown[],currentPage:number,pageSize:number,totalCount:number,totalPages:number,hasPreviousPage:boolean,hasNextPage:boolean}|null} */ (result.data);
       if (result.status!==200 || !data || !Array.isArray(data.items) || data.currentPage!==page || data.pageSize!==20 || !Number.isSafeInteger(data.totalCount) || data.totalCount<0 || data.totalPages!==Math.ceil(data.totalCount/20) || typeof data.hasPreviousPage!=="boolean" || typeof data.hasNextPage!=="boolean") throw new ApiError({kind:"invalidResponse"});
-      return {...data,items:data.items.map(member)};
+      return {...data,items:data.items.map(summary)};
     },
     /** @param {string} id Target. @param {AbortSignal} signal Lifetime. */
     async loadOne(id,signal) {

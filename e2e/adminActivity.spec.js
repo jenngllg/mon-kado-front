@@ -25,6 +25,9 @@ for (const width of [390, 1440]) {
       return route.fulfill({status:200,headers,json:{items,currentPage:1,pageSize:20,totalCount:items.length,totalPages:items.length ? 1 : 0,hasPreviousPage:false,hasNextPage:false}});
     });
     await page.goto("/admin/activity");
+    await expect(page.locator(".activity-source")).toHaveCount(0);
+    await expect(page.getByRole("columnheader",{name:"Simulation",exact:true})).toHaveCount(0);
+    await expect(page.getByRole("button",{name:/^Simuler/})).toHaveCount(0);
     await expect(page.getByRole("cell",{name:"Élodie #5678",exact:true})).toBeVisible();
     await expect(page.locator(".activity-level--error")).toHaveText("ERROR");
     await expect(page.locator(".activity-table time").first()).toHaveText("2026-11-01 10:00:00.000 UTC");

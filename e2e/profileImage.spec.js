@@ -101,7 +101,11 @@ for (const width of [390, 768, 1440]) {
     const section = page.locator(".profile-image-section");
     const input = form.getByRole("textbox", { name: "Nom d’affichage" });
     const save = form.getByRole("button", { name: "Enregistrer", exact: true });
-    const choose = () => section.locator('input[type="file"]').setInputFiles({ name: "photo.webp", mimeType: "image/webp", buffer: photo });
+    const choose = async () => {
+      // A completed upload still refreshes its identity before the picker is available again.
+      await expect(section.getByRole("button", { name: "Remplacer la photo", exact: true })).toBeEnabled();
+      await section.locator('input[type="file"]').setInputFiles({ name: "photo.webp", mimeType: "image/webp", buffer: photo });
+    };
     await expect(section.getByRole("button", { name: "Remplacer la photo", exact: true })).toBeEnabled();
     await expect(section).toHaveCSS("border-top-width", "0px");
     await expect(section).toHaveCSS("padding-top", "0px");

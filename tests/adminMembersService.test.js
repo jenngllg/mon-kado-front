@@ -42,3 +42,13 @@ describe("administrative account transport",()=>{
     await expect(createAdminMembersService({request}).erase(id,"SUPPORT-42",new AbortController().signal)).rejects.toThrow("network");expect(request).toHaveBeenCalledTimes(1);
   });
 });
+
+const accountSummary={...member,createdAt:"2026-11-04T08:00:00Z",listCount:2,groupCount:3,wishCount:42,hasAddedViaExtension:true};
+it.each([true,false,null])("retains accurate account statistics and extension usage %s",async used=>{
+  const row={...accountSummary,hasAddedViaExtension:used};const request=vi.fn().mockResolvedValue({status:200,data:{items:[row],currentPage:1,pageSize:20,totalCount:1,totalPages:1,hasPreviousPage:false,hasNextPage:false}});
+  const result=await createAdminMembersService({request}).load({page:1,q:"",signal:new AbortController().signal});expect(result.items).toEqual([row]);expect(Object.isFrozen(result.items[0])).toBe(true);
+});
+it.each([{createdAt:"invalid"},{listCount:-1},{groupCount:0.5},{wishCount:"3"},{hasAddedViaExtension:"true"}])("rejects malformed account statistics %j",async patch=>{
+ const request=vi.fn().mockResolvedValue({status:200,data:{items:[{...accountSummary,...patch}],currentPage:1,pageSize:20,totalCount:1,totalPages:1,hasPreviousPage:false,hasNextPage:false}});
+ await expect(createAdminMembersService({request}).load({page:1,q:"",signal:new AbortController().signal})).rejects.toMatchObject({kind:"invalidResponse"});
+});
