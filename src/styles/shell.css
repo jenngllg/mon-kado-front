@@ -180,8 +180,12 @@
   padding-block: clamp(var(--space-6), 8vw, var(--space-9));
 }
 
-.app-session-feedback {
+.app-messages {
   grid-row: 2;
+}
+
+.app-session-feedback,
+.installed-push-invitation:not([hidden]) {
   padding-block-start: var(--space-4);
 }
 
