@@ -13,8 +13,8 @@ export default defineConfig({
   projects: [
     { name: "admin-mobile", testMatch: "adminAccounts.spec.js", use: { viewport: { width: 390, height: 1000 }, isMobile: true, hasTouch: true } },
     { name: "admin-desktop", testMatch: "adminAccounts.spec.js", use: { viewport: { width: 1440, height: 1000 } } },
-    { name: "push-mobile", testMatch: ["mobilePush.spec.js","pushClosed.spec.js"], use: { viewport: {width:390,height:1000}, isMobile:true, hasTouch:true } },
-    { name: "push-desktop", testMatch: ["mobilePush.spec.js","pushClosed.spec.js"], use: { viewport: {width:1440,height:1000} } },
+    { name: "push-mobile", testMatch: ["mobilePush.spec.js","pushClosed.spec.js","installedPushInvitation.spec.js"], use: { viewport: {width:390,height:1000}, isMobile:true, hasTouch:true } },
+    { name: "push-desktop", testMatch: ["mobilePush.spec.js","pushClosed.spec.js","installedPushInvitation.spec.js"], use: { viewport: {width:1440,height:1000} } },
     { name: "mobile", testMatch: "journeys.spec.js", use: { viewport: { width: 390, height: 1000 }, isMobile: true, hasTouch: true } },
     { name: "desktop", testMatch: "journeys.spec.js", use: { viewport: { width: 1440, height: 1000 } } },
   ],

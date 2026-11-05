@@ -18,6 +18,7 @@ import { captureExtensionProduct, readExtensionProduct } from "../features/exten
 import { installExtensionSessionBridge } from "../features/extension/extensionSessionBridge.js";
 import { createNotificationLive } from "../features/notifications/notificationLive.js";
 import { createNotificationsView } from "../features/notifications/notificationsView.js";
+import { createInstalledPushInvitation } from "../features/notifications/installedPushInvitation.js";
 
 /** Wires the persistent shell, routes and sole session manager.
  * @param {HTMLElement} root Application root.
@@ -273,6 +274,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
   });
   const removeGlobalErrors = installGlobalErrorHandlers({ target: window, presentError: router.presentError, reportError });
   const disposeNotifications = createNotificationLive(session, shell.setNotificationStatus);
+  const disposePushInvitation = createInstalledPushInvitation(session, shell.pushInvitationHost, simulation.isActive);
 
   return Object.freeze({
     shell, router, session,
@@ -294,6 +296,7 @@ export function createSessionApplication(root, { apiBaseUrl, googleAuthEnabled =
       root.removeEventListener("monkado-impersonate",onImpersonate);
       disposeExtensionBridge();
       disposeNotifications();
+      disposePushInvitation();
       passwordChangeNotice = false;
       googleDestination = null;
       removeGlobalErrors();
