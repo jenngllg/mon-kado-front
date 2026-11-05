@@ -1,5 +1,7 @@
 # MonKado frontend instructions
 
+- Installed applications offer notification activation once, on the first authenticated opening after installation (standalone display mode or iOS standalone). Never request system permission automatically: request it synchronously from the explicit activation button. Remember the invitation on this installation, preserve saved push opt-outs, exclude impersonation and ordinary browser visits, and explain an existing system block without attempting to bypass it. Account notification settings remain available afterwards.
+
 - Notification preference qualifiers belong inline in parentheses within each label, without a separate helper line. Use “Rappels d’évènements (J-7 et J-1)” for occasion reminders.
 
 - Public and group-scoped member profile pages use a 112px avatar, double the former 56px size, on mobile and desktop.

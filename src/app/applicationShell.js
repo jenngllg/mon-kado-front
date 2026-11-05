@@ -23,6 +23,7 @@ const AdminNavigationRoutes = new Set([RouteNames.ReportedWishlists, RouteNames.
  *   outlet: HTMLElement,
  *   notificationRegion: HTMLElement,
  *   sessionFeedback: HTMLElement,
+ *   pushInvitationHost: HTMLElement,
  *   setSession: (state: import("../auth/sessionManager.js").SessionSnapshot) => void,
  *   setCurrentRoute: (route: import("../router/router.js").RouteSnapshot | null) => void,
  *   closeNavigation: () => void
@@ -116,13 +117,20 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
   sessionFeedback.setAttribute("role", "region");
   sessionFeedback.setAttribute("aria-label", "État de la session");
   sessionFeedback.hidden = true;
+  const pushInvitationHost = document.createElement("div");
+  pushInvitationHost.className = "installed-push-invitation";
+  pushInvitationHost.hidden = true;
+  const messages = document.createElement("div");
+  messages.className = "app-messages container container--regular";
+  sessionFeedback.className = "app-session-feedback";
+  messages.append(sessionFeedback, pushInvitationHost);
   const footer = document.createElement("footer");
   footer.className = "app-footer";
   const footerContent = document.createElement("div");
   footerContent.className = "container container--regular";
   footerContent.append(createLegalLinks());
   footer.append(footerContent);
-  element.append(skipLink, header, sessionFeedback, outlet, footer, notificationRegion);
+  element.append(skipLink, header, messages, outlet, footer, notificationRegion);
   /** @type {Element | null} */
   let pointerTarget = null;
   const clearPointerTarget = () => { pointerTarget = null; };
@@ -202,6 +210,7 @@ export function createApplicationShell({ onLogout = () => {}, apiBaseUrl = "", o
     outlet,
     notificationRegion,
     sessionFeedback,
+    pushInvitationHost,
     setSession,
     setCurrentRoute,
     closeNavigation: () => setNavigationOpen(false),
