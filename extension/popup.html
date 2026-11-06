@@ -12,6 +12,11 @@
     <label>Liste *<select id="list" required></select></label>
     <label>Nom du souhait *<input id="name" data-field="name" maxlength="100" required></label>
     <label>Prix en euros<input id="price" data-field="price" inputmode="decimal"></label>
+    <div class="quantity-field"><label for="quantity">Quantité souhaitée *</label><div class="quantity-stepper">
+      <button type="button" data-quantity-decrease aria-label="Diminuer la quantité">−</button>
+      <input id="quantity" data-field="quantity" type="number" inputmode="numeric" min="1" max="100" step="1" value="1" required>
+      <button type="button" data-quantity-increase aria-label="Augmenter la quantité">+</button>
+    </div></div>
     <label class="favorite-control"><input type="checkbox" data-field="favorite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg><span>Coup de cœur</span></label>
     <details class="variants">
       <summary>Ajouter une couleur ou une taille</summary>

@@ -1,9 +1,29 @@
-/* global document, Option */
+/* global document, Option, Event */
 import { createImageSelection } from "./imageSelection.js";
 
+/** Keeps the horizontal quantity control within the same limits as MonKado. */
+export function createQuantityControl(form) {
+  const quantity = form.querySelector('[data-field="quantity"]');
+  const decrease = form.querySelector('[data-quantity-decrease]'), increase = form.querySelector('[data-quantity-increase]');
+  function sync() {
+    const value = quantity.valueAsNumber, invalid = !quantity.validity.valid;
+    decrease.disabled = quantity.disabled || invalid || value <= 1;
+    increase.disabled = quantity.disabled || invalid || value >= 100;
+  }
+  for (const [button, delta] of [[decrease, -1], [increase, 1]]) button.addEventListener("click", () => {
+    if (quantity.disabled || !quantity.validity.valid) return;
+    const next = quantity.valueAsNumber + delta;
+    if (next < 1 || next > 100) return;
+    quantity.value = String(next); quantity.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  quantity.addEventListener("input", sync); sync();
+  return sync;
+}
+
 /** Person-first suggestions preserve a separate product draft and per-destination outcomes. */
-export function createSuggestionFlow({ api, form, product, siteTab, productTab, onMessage, onBusy }) {
+export function createSuggestionFlow({ api, form, product, siteTab, productTab, supportsQuantities, onMessage, onBusy }) {
   const name = form.querySelector('[data-field="name"]'), price = form.querySelector('[data-field="price"]');
+  const quantity = form.querySelector('[data-field="quantity"]'), syncQuantity = createQuantityControl(form);
   const add = form.querySelector('[type="submit"]');
   form.querySelector(".variants").remove(); form.querySelector(".favorite-control").remove();
   const oldDestination = form.querySelector("select").closest("label");
@@ -31,6 +51,7 @@ export function createSuggestionFlow({ api, form, product, siteTab, productTab, 
   function sync() {
     const frozen = saving || completed || created.size > 0;
     for (const control of form.querySelectorAll("input,select,button")) control.disabled = frozen;
+    syncQuantity();
     person.disabled = frozen || peopleLoading;
     choices.disabled = frozen || loading;
     retry.disabled = frozen || loading;
@@ -89,12 +110,14 @@ export function createSuggestionFlow({ api, form, product, siteTab, productTab, 
   form.addEventListener("submit", async event => {
     event.preventDefault();
     if (saving || completed || loading || images.isLoading() || !selected().length) return;
+    if (!quantity.reportValidity()) return;
+    if (!supportsQuantities && Number(quantity.value) !== 1) { message("La mise à jour du site MonKado est nécessaire pour enregistrer cette quantité."); return; }
     if (!name.value.trim() || !/^\d{1,8}(?:[.,]\d{1,2})?$/.test(price.value.trim()) && price.value.trim() !== "") { message("Vérifie le nom et le prix."); return; }
     const selectedIds = selected(), pending = selectedIds.filter(id => !created.has(id)), rejected = [];
     saving = true; onBusy(true); message("Proposition en cours…"); sync();
     try {
       for (const listId of pending) {
-        const result = await api.tabs.sendMessage(siteTab, { action: "createSuggestion", value: { listId, name: name.value, price: price.value, url: product.url, image: images.getImage() } });
+        const result = await api.tabs.sendMessage(siteTab, { action: "createSuggestion", value: { listId, name: name.value, price: price.value, quantity: quantity.value, url: product.url, image: images.getImage() } });
         if (result?.success === true) { created.add(listId); if (result.imageSaved === false) imageFailures.add(listId); continue; }
         if (["rejected", "invalid", "login"].includes(result?.error)) { rejected.push(listId); continue; }
         completed = true; message(`${created.size ? confirmation([...created]) + " " : ""}La proposition dans ${names([listId])} n’a pas pu être confirmée. Vérifie les idées dans MonKado avant de réessayer.`); return;

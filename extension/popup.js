@@ -1,7 +1,7 @@
 /* global chrome, browser, document */
 import { extractProduct } from "./extract.js";
 import { createImageSelection } from "./imageSelection.js";
-import { createSuggestionFlow } from "./suggestionFlow.js";
+import { createSuggestionFlow, createQuantityControl } from "./suggestionFlow.js";
 
 const api = typeof browser !== "undefined" ? browser : chrome;
 const status=document.querySelector("#status"), ownForm=document.querySelector("#form"), heading=document.querySelector("h1");
@@ -30,14 +30,16 @@ function createDestinationPicker(form,destinations,multiple,onChange){
 }
 
 /** Each destination owns its draft, image selection and pending operation. */
-function createFlow(form,destinations,product,siteTab,productTab,supportsVariants,supportsFavorites,draft){
+function createFlow(form,destinations,product,siteTab,productTab,supportsVariants,supportsFavorites,supportsQuantities,draft){
   const name=form.querySelector('[data-field="name"]'),price=form.querySelector('[data-field="price"]'),color=form.querySelector('[data-field="color"]'),size=form.querySelector('[data-field="size"]'),favorite=form.querySelector('[data-field="favorite"]'),add=form.querySelector('[type="submit"]');
   let saving=false,completed=false,lastMessage="",initialized=false;
+  const quantity=form.querySelector('[data-field="quantity"]'),syncQuantity=createQuantityControl(form);
   const created=new Set(),imageFailures=new Set();
   let picker,images;
   function sync(){
     const frozen=saving||completed||created.size>0;
     for(const input of form.querySelectorAll("input,select,button"))input.disabled=frozen;
+    syncQuantity();
     picker?.disable(frozen);
     add.disabled=saving||completed||images?.isLoading()===true||!picker?.values().length;
     form.setAttribute("aria-busy",String(saving));
@@ -54,11 +56,13 @@ function createFlow(form,destinations,product,siteTab,productTab,supportsVariant
   function confirmation(ids){return ids.length===1?`Souhait ajouté à la liste ${names(ids)}.`:`Souhait ajouté aux listes ${names(ids)}.`;}
   form.addEventListener("submit",async event=>{
     event.preventDefault();if(saving||completed||images.isLoading()||!picker.values().length)return;
+    if(!quantity.reportValidity())return;
+    if(!supportsQuantities&&Number(quantity.value)!==1){message("La mise à jour du site MonKado est nécessaire pour enregistrer cette quantité.");return;}
     if(!name.value.trim()||!/^\d{1,8}(?:[.,]\d{1,2})?$/.test(price.value.trim())&&price.value.trim()!==""){message("Vérifie le nom et le prix.");return;}
     if(!draft&&(color.value.trim()||size.value.trim())&&!supportsVariants){message("Actualise l’onglet MonKado pour enregistrer la couleur et la taille, puis rouvre l’extension.");return;}
     if(!draft&&favorite.checked&&!supportsFavorites){message("Actualise l’onglet MonKado pour enregistrer le coup de cœur, puis rouvre l’extension.");return;}
     const selected=picker.values(),pending=selected.filter(id=>!created.has(id));
-    const value={name:name.value,price:price.value,color:draft?"":color.value,size:draft?"":size.value,url:product.url,image:images.getImage(),...(!draft?{isFavorite:favorite.checked}:{})};
+    const value={name:name.value,price:price.value,quantity:quantity.value,color:draft?"":color.value,size:draft?"":size.value,url:product.url,image:images.getImage(),...(!draft?{isFavorite:favorite.checked}:{})};
     saving=true;sync();message(draft?"Transmission au formulaire privé…":"Ajout en cours…");ownMode.disabled=suggestionMode.disabled=true;
     const rejected=[];
     try{
@@ -94,7 +98,7 @@ async function initialize(){
       try{
         const probe=await api.tabs.sendMessage(candidate.id,{action:"probe"});if(!probe?.ready){updateRequired=true;continue;}
         const response=await api.tabs.sendMessage(candidate.id,{action:"lists"});if(!Array.isArray(response?.lists))continue;
-        const context={id:candidate.id,lists:response.lists,supportsVariants:probe.supportsVariants===true,supportsFavorites:probe.supportsFavorites===true,supportsGroupSuggestions:probe.supportsGroupSuggestions===true};
+        const context={id:candidate.id,lists:response.lists,supportsVariants:probe.supportsVariants===true,supportsFavorites:probe.supportsFavorites===true,supportsGroupSuggestions:probe.supportsGroupSuggestions===true,supportsQuantities:probe.supportsQuantities===true};
         if(!selected)selected=context;
         if(context.supportsGroupSuggestions){selected=context;break;}
       }catch{/* A tab may need to be reloaded after extension installation. */}
@@ -103,8 +107,9 @@ async function initialize(){
     const personal=selected.lists.filter(item=>!item.isDraft);
     const proposal=ownForm.cloneNode(true);proposal.id="suggestion-form";proposal.hidden=true;
     for(const control of proposal.querySelectorAll("[id]"))control.id=`suggestion-${control.id}`;
-    const own=createFlow(ownForm,personal,product,selected.id,tab.id,selected.supportsVariants,selected.supportsFavorites,false);
-    const suggestion=createSuggestionFlow({api,form:proposal,product,siteTab:selected.id,productTab:tab.id,
+    proposal.querySelector('label[for="quantity"]').htmlFor="suggestion-quantity";
+    const own=createFlow(ownForm,personal,product,selected.id,tab.id,selected.supportsVariants,selected.supportsFavorites,selected.supportsQuantities,false);
+    const suggestion=createSuggestionFlow({api,form:proposal,product,siteTab:selected.id,productTab:tab.id,supportsQuantities:selected.supportsQuantities,
       onMessage:text=>{if(activeFlow===proposal)status.textContent=text;},onBusy:value=>{ownMode.disabled=suggestionMode.disabled=value;}});
     function show(draft){
       ownForm.remove();proposal.remove();ownMode.setAttribute("aria-pressed",String(!draft));suggestionMode.setAttribute("aria-pressed",String(draft));

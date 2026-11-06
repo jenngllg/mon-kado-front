@@ -14,6 +14,10 @@ form[hidden], img[hidden] { display: none; }
 fieldset[hidden] { display: none; }
 label { display: grid; gap: 5px; font-weight: 700; }
 input, select { box-sizing: border-box; width: 100%; min-height: 44px; border: 1px solid #788772; border-radius: 8px; padding: 8px; font: inherit; font-weight: 400; color: #123f2b; background: #fffefa; }
+.quantity-field { display: grid; gap: 5px; }
+.quantity-stepper { display: flex; align-items: center; gap: 8px; }
+.quantity-stepper input { width: 80px; text-align: center; }
+.quantity-stepper button { width: 44px; background: transparent; color: #123f2b; border: 1px solid #788772; }
 .variants summary { display: flex; align-items: center; min-height: 44px; gap: 8px; font-weight: 700; cursor: pointer; list-style: none; }
 .variants summary::-webkit-details-marker { display: none; }
 .variants summary::before { content: "▸"; color: #b93e32; }

@@ -17,7 +17,7 @@ async function popup(page, scenario = "success") {
         query: async (/** @type {{active?:boolean}} */ options) => options.active ? [{ id: 1, url: "https://shop.example/item" }] : [{ id: 2 }],
         sendMessage: async (/** @type {number} */ _id, /** @type {any} */ message) => {
           state.requests.push(message);
-          if (message.action === "probe") return { ready: true, supportsFavorites: true, supportsGroupSuggestions: true };
+          if (message.action === "probe") return { ready: true, supportsFavorites: true, supportsGroupSuggestions: true, supportsQuantities: scenario !== "old-quantity" };
           if (message.action === "lists") return { lists: [] };
           if (message.action === "suggestionRecipients") {
             state.reads++;
@@ -59,6 +59,7 @@ async function writes(page) { return page.evaluate(() => /** @type {any} */ (win
 for (const width of [340, 1280]) test(`proposes to multiple group-scoped lists at ${width}px without a personal list`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width, height: 850 });
   await popup(page); await selectAll(page);
+  await page.getByRole("spinbutton", { name: "Quantité souhaitée" }).fill("4");
   await expect(page.getByRole("button", { name: "Choisir l’image 1" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("checkbox", { name: "Coup de cœur" })).toHaveCount(0);
   expect(await writes(page)).toEqual([]);
@@ -68,17 +69,19 @@ for (const width of [340, 1280]) test(`proposes to multiple group-scoped lists a
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole("button", { name: "Proposer l’idée" }).click();
   await expect(page.getByRole("status").first()).toContainText("Idée proposée dans « Noël — Famille », « Noël — Amis ».");
-  expect(await writes(page)).toEqual([expect.objectContaining({ listId: "one", image: expect.stringMatching(/^data:image\/webp/) }), expect.objectContaining({ listId: "two" })]);
+  expect(await writes(page)).toEqual([expect.objectContaining({ listId: "one", quantity: "4", image: expect.stringMatching(/^data:image\/webp/) }), expect.objectContaining({ listId: "two", quantity: "4" })]);
 });
 
 test("retries only the refused list after a partial surprise success", async ({ page }) => {
   await popup(page, "partial"); await selectAll(page);
+  await page.getByRole("spinbutton", { name: "Quantité souhaitée" }).fill("6");
   await page.getByRole("button", { name: "Proposer l’idée" }).click();
   await expect(page.getByRole("status").first()).toContainText("Proposition refusée dans « Noël — Amis »");
   await expect(page.getByRole("combobox", { name: "Pour qui ?" })).toBeDisabled();
   await page.getByRole("button", { name: "Réessayer les listes restantes" }).click();
   await expect(page.getByRole("status").first()).toContainText("Idée proposée dans");
   expect((await writes(page)).map((/** @type {any} */ value) => value.listId)).toEqual(["one", "two", "three", "two"]);
+  expect((await writes(page)).every((/** @type {any} */ value) => value.quantity === "6")).toBe(true);
 });
 test("stops an uncertain surprise submission without recreating the confirmed idea", async ({ page }) => {
   await popup(page, "uncertain"); await selectAll(page);
@@ -116,4 +119,13 @@ test("ignores an obsolete list response after choosing another person", async ({
   await expect(page.getByRole("checkbox", { name: "Noël — Famille" })).toHaveCount(0);
   await page.getByRole("button", { name: "Proposer l’idée" }).click();
   expect((await writes(page)).map((/** @type {any} */ value) => value.listId)).toEqual(["paul-list"]);
+});
+
+
+test("a legacy relay cannot silently discard a surprise quantity", async ({ page }) => {
+  await popup(page, "old-quantity"); await selectAll(page);
+  await page.getByRole("spinbutton", { name: "Quantité souhaitée" }).fill("3");
+  await page.getByRole("button", { name: "Proposer l’idée" }).click();
+  await expect(page.locator("#status")).toContainText("mise à jour du site MonKado");
+  expect(await writes(page)).toEqual([]);
 });

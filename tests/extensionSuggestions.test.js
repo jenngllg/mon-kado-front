@@ -157,3 +157,18 @@ it("excludes lists belonging to another person and aborts obsolete list results"
   const aborted = new AbortController(); aborted.abort();
   await expect(f.service.lists(me, people[0].id, aborted.signal)).rejects.toMatchObject({ name: "AbortError" });
 });
+
+
+it.each([undefined, "1", "4", "100"])("persists the requested idea quantity with a legacy default: %s", async quantity => {
+  const f = setup(), people = await f.service.recipients(me, f.signal), lists = await f.service.lists(me, people[0].id, f.signal);
+  f.request.mockClear();
+  await f.service.create(me, { ...values, quantity, listId: lists[0].id }, f.signal);
+  expect(f.request).toHaveBeenCalledExactlyOnceWith(`/api/v1/groups/${groupId}/wishlists/${wishlistId}/suggestions`, expect.objectContaining({ body: expect.objectContaining({ quantity: Number(quantity ?? "1") }) }));
+});
+
+it.each([null, 3, true, {}, "", "0", "101", "1.5", "NaN"])("rejects an invalid idea quantity without a write: %s", async quantity => {
+  const f = setup(), people = await f.service.recipients(me, f.signal), lists = await f.service.lists(me, people[0].id, f.signal);
+  f.request.mockClear();
+  await expect(f.service.create(me, { ...values, quantity, listId: lists[0].id }, f.signal)).rejects.toMatchObject({ statusCode: 400 });
+  expect(f.request).not.toHaveBeenCalled();
+});

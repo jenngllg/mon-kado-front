@@ -1,11 +1,3 @@
-- Les descriptions des listes partagées apparaissent après les autres informations, y compris dans les groupes et sur les listes vides.
-- Les actions de partage et d’ajout de souhaits sont mieux ordonnées, et la boîte de partage conserve la navigation au clavier.
-- Une disponibilité épuisée ne bloque plus les autres actions ; une réservation au résultat incertain est vérifiée automatiquement sans répéter son envoi.
-- Les parcours de compte, de partage, de réservation et de droits sont couverts par de nouveaux tests mobiles et ordinateur avec la vraie API et PostgreSQL.
-- Après installation sur l’écran d’accueil, MonKado propose une seule fois d’activer les notifications, après connexion. L’autorisation reste volontaire et les types de notifications désactivés sont conservés.
-- Compte → Notifications affiche un tableau unique avec les colonnes Dans MonKado et Notifications push, activées par type. Les push sont activés par défaut et les choix désactivés restent enregistrés.
-- Les push sont envoyés par le serveur, même lorsque tous les onglets MonKado sont fermés, après autorisation du navigateur. Sur iPhone et iPad, ajoute MonKado à l’écran d’accueil puis ouvre l’application installée pour les activer.
-- L’administration des comptes affiche les dates de création, les compteurs de listes, groupes et souhaits, ainsi que les ajouts confirmés via l’extension. L’historique inconnu reste indiqué comme tel.
-- Ajustements du journal d’activité et des cartes de listes suivies, avec conservation des parcours de partage déjà publiés.
-
-- Correction du manifeste d’installation pour les notifications mobiles.
+- L’extension 1.1.1 permet de choisir une quantité de 1 à 100, avec les boutons −/+ ou au clavier, pour les souhaits personnels et les idées surprises.
+- La quantité est conservée séparément dans chaque brouillon et enregistrée dans toutes les listes sélectionnées. Les ajouts déjà confirmés restent préservés après un refus partiel.
+- Renforcement de la sécurité du site.

@@ -27,12 +27,18 @@ describe("deployed frontend policy", () => {
   it("restricts scripts, embedding and resource destinations without CSP reporting of private URLs", () => {
     for (const directive of ["default-src 'none'", "script-src 'self'", "base-uri 'none'", "object-src 'none'", "frame-ancestors 'none'", "form-action 'self'"])
       expect(config).toContain(directive);
-    expect(config).not.toMatch(/unsafe-eval|report-uri|report-to|includeSubDomains|preload/);
+    expect(config).not.toMatch(/unsafe-eval|report-uri|report-to|preload/);
     expect(config).toContain("Referrer-Policy no-referrer");
     expect(config).toContain("X-Content-Type-Options nosniff");
     expect(config).toContain('X-Robots-Tag "noindex, nofollow, noarchive"');
     expect(config).toContain("connect-src 'self' {$FRONTEND_API_ORIGIN} {$FRONTEND_SENTRY_ORIGIN};");
     expect(config.match(/\{\$FRONTEND_SENTRY_ORIGIN\}/g)).toHaveLength(1);
+  });
+
+  it("requires HTTPS for the frontend and all its subdomains, including error responses", () => {
+    expect(config).toContain('Strict-Transport-Security "max-age=31536000; includeSubDomains"');
+    expect(config.match(/import frontend_security/g)).toHaveLength(2);
+    expect(config).toMatch(/handle_errors\s*\{\s*import frontend_security/);
   });
 
   it("limits immutable caching to existing fingerprinted assets and excludes private source paths from the SPA", () => {
