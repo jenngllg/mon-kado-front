@@ -255,9 +255,9 @@ Les seules méthodes servies sont GET et HEAD.
 Toutes les réponses portent nosniff, anti-embedding, no-referrer et une politique
 restrictive des permissions, tout en autorisant la copie explicite. L'indexation
 est désactivée pour tout ce frontend applicatif, y compris les liens partagés ;
-ce n'est pas une protection d'accès. HSTS est limité au nom servi, sans
-`includeSubDomains` ni preload ; ne l'activer sur un domaine réel qu'avec HTTPS
-opérationnel. Les contrôles HTTP locaux ne valident pas les certificats publics.
+ce n'est pas une protection d'accès. HSTS impose HTTPS pendant un an pour le nom
+servi et ses sous-domaines (`max-age=31536000; includeSubDomains`), sans preload.
+Les contrôles HTTP locaux ne valident pas les certificats publics.
 
 Les tests Chromium réutilisent la CSP du fichier avec l'origine API contrôlée.
 Les tests de contrat de configuration complètent, sans remplacer, les vérifications

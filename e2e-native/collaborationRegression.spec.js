@@ -1,4 +1,63 @@
+/* global document, window */
 import { test, expect, signIn, noOverflow } from "./fixture.js";
+import { readFile } from "node:fs/promises";
+
+test("[GROUP-06] extension quantities persist for personal wishes and private ideas", async ({ page, context, actors }) => {
+  const { group, list } = await sharedGroup(actors, "Quantités extension");
+  const personal = await (await actors.visitor.send("POST", "/api/v1/wishlists", 201, { name: "Mes quantités extension", occasion: "other" })).json();
+  await signIn(page, actors.visitor); await expect(page.locator("main .dashboard")).toBeVisible();
+  const panel = await context.newPage();
+  // Only the browser-extension transport and product capture are simulated; the site, API and PostgreSQL are real.
+  await panel.route("**/extension/*", async route => {
+    const file = new URL(route.request().url()).pathname.split("/").pop();
+    if (!file || !["popup.html", "popup.js", "popup.css", "extract.js", "imageSelection.js", "suggestionFlow.js", "icon.png"].includes(file)) return route.abort();
+    await route.fulfill({ contentType: file.endsWith(".html") ? "text/html" : file.endsWith(".js") ? "text/javascript" : file.endsWith(".css") ? "text/css" : "image/png", body: await readFile(new URL(`../extension/${file}`, import.meta.url)) });
+  });
+  await panel.exposeBinding("relayToMonKado", async (_source, message) => page.evaluate(request => new Promise(resolve => {
+    const id = crypto.randomUUID();
+    const receive = (/** @type {Event} */ event) => {
+      const response = JSON.parse(/** @type {CustomEvent} */ (event).detail);
+      if (response.id !== id) return;
+      document.removeEventListener("monkado-extension-response", receive); resolve(response.result);
+    };
+    document.addEventListener("monkado-extension-response", receive);
+    document.dispatchEvent(new CustomEvent("monkado-extension-request", { detail: JSON.stringify({ ...request, id }) }));
+  }), message));
+  await panel.addInitScript(() => {
+    Object.assign(window, { chrome: {
+      tabs: { query: async (/** @type {{active?:boolean}} */ options) => options.active ? [{ id: 1, url: "https://shop.example/item" }] : [{ id: 2 }],
+        sendMessage: async (/** @type {number} */ _id, /** @type {unknown} */ message) => /** @type {any} */ (window).relayToMonKado(message) },
+      scripting: { executeScript: async () => [{ result: { url: "https://shop.example/item", name: "Produit extension", price: "12", images: [] } }] },
+    } });
+  });
+  await panel.goto("/extension/popup.html");
+  const quantity = panel.getByRole("spinbutton", { name: "Quantité souhaitée" });
+  await expect(quantity).toHaveValue("1"); await quantity.fill("4");
+  await panel.getByRole("button", { name: "Ajouter", exact: true }).click();
+  await expect(panel.locator("#status")).toContainText("Souhait ajouté");
+  const wishes = await (await actors.visitor.send("GET", `/api/v1/wishlists/${personal.id}/wishes`, 200)).json();
+  const wish = wishes.wishes.find(/** @param {{name:string}} item */ item => item.name === "Produit extension");
+  expect(wish.quantity).toBe(4);
+  await page.goto(`/lists/${personal.id}/wishes/${wish.id}/edit`); await page.reload();
+  await expect(page.getByRole("spinbutton", { name: "Quantité souhaitée" })).toHaveValue("4");
+  await panel.getByRole("button", { name: "Idée surprise", exact: true }).click();
+  const recipient = await panel.getByRole("option", { name: /^Native owner#/ }).getAttribute("value");
+  if (!recipient) throw new Error("Missing native suggestion recipient");
+  await panel.getByRole("combobox", { name: "Pour qui ?" }).selectOption(recipient);
+  await expect(panel.getByRole("checkbox", { name: `${list.name} — ${group.name}`, exact: true })).toBeChecked();
+  await quantity.fill("7");
+  await panel.getByRole("button", { name: "Proposer l’idée" }).click();
+  await expect(panel.locator("#status")).toContainText("Idée proposée");
+  const base = `/groups/${group.id}/wishlists/${list.id}`;
+  const ideas = await (await actors.visitor.send("GET", `/api/v1${base}/suggestions`, 200)).json();
+  expect(ideas).toHaveLength(1); expect(ideas[0].quantity).toBe(7);
+  await page.goto(`${base}/suggestions/${ideas[0].id}`); await page.reload();
+  await expect(page.getByText("Quantité souhaitée : 7", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Modifier", exact: true }).click();
+  await expect(page.getByRole("spinbutton", { name: "Quantité souhaitée" })).toHaveValue("7");
+  await actors.owner.send("GET", `/api/v1${base}/suggestions`, 404);
+  await noOverflow(page); await panel.close();
+});
 
 test("[GROUP-01] group reading respects membership and hides owner editing controls", async ({ page, actors, regressionMember }) => {
   const { group, list, wish } = await sharedGroup(actors, "Lecture privée");

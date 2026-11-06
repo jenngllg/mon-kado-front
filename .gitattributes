@@ -1,2 +1,5 @@
 # Keep deterministic generated declarations byte-identical on Windows checkouts.
 src/api/generated/openapi.d.ts text eol=lf
+
+# Keep the generated regression inventory identical on every checkout.
+docs/regression-matrix.md text eol=lf

@@ -12,6 +12,7 @@
 .legal-main > * + * { margin-block-start: var(--space-4); }
 .legal-main h1 { font-size: clamp(2rem, 3.8vw, 3rem); margin-block-end: var(--space-6); }
 .legal-main h2 { font-size: var(--font-size-xl); margin-block-start: var(--space-6); }
+.legal-main h2[id] { scroll-margin-block-start: calc(var(--space-9) + var(--space-4)); }
 .legal-main p, .legal-main li { max-width: none; }
 .legal-main ul, .legal-main ol { padding-inline-start: var(--space-5); }
 .legal-main:focus { outline: none; }

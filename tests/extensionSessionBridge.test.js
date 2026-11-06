@@ -47,7 +47,7 @@ it("retrieves only the selected image with the connected session", async () => {
   expect(calls.create).not.toHaveBeenCalled();
 });
 it("reports that the site relay is present without accessing the session", async () => {
-  const ensure = setup(); expect(await send("probe")).toEqual({ ready: true, supportsVariants: true, supportsFavorites: true, supportsGroupSuggestions: true });
+  const ensure = setup(); expect(await send("probe")).toEqual({ ready: true, supportsVariants: true, supportsFavorites: true, supportsGroupSuggestions: true, supportsQuantities: true });
   expect(ensure).not.toHaveBeenCalled(); expect(calls.load).not.toHaveBeenCalled();
 });
 it("accepts serialized messages across browser extension boundaries", async () => {
@@ -56,7 +56,7 @@ it("accepts serialized messages across browser extension boundaries", async () =
     document.addEventListener("monkado-extension-response", event => resolve(JSON.parse(/** @type {CustomEvent<string>} */ (event).detail)), { once: true });
   });
   document.dispatchEvent(new CustomEvent("monkado-extension-request", { detail: JSON.stringify({ id, action: "probe" }) }));
-  expect(await response).toEqual({ id, result: { ready: true, supportsVariants: true, supportsFavorites: true, supportsGroupSuggestions: true } });
+  expect(await response).toEqual({ id, result: { ready: true, supportsVariants: true, supportsFavorites: true, supportsGroupSuggestions: true, supportsQuantities: true } });
 });
 it("creates only on an explicit command using the captured fields", async () => {
   setup(); calls.create.mockResolvedValue({ wish: { id }, etag: '"1"' });
@@ -132,4 +132,17 @@ it("forwards an absent recipient only to the validating suggestion client", asyn
   setup(); calls.suggestionLists.mockRejectedValue(new ApiError({ kind: "http", statusCode: 404 }));
   expect(await send("suggestionLists")).toEqual({ error: "rejected" });
   expect(calls.suggestionLists).toHaveBeenCalledWith(id, undefined, expect.any(AbortSignal));
+});
+
+
+it.each([undefined, "1", "4", "100"])("forwards the requested personal quantity with a legacy default: %s", async quantity => {
+  setup(); calls.create.mockResolvedValue({ wish: { id }, etag: '"1"' });
+  expect(await send("create", { listId: id, name: "Livre", price: "", url: "", quantity })).toEqual({ success: true });
+  expect(calls.create).toHaveBeenCalledExactlyOnceWith(id, expect.objectContaining({ quantity: quantity ?? "1" }), expect.anything());
+});
+
+it.each([null, 3, true, {}])("rejects a malformed personal quantity before writing: %s", async quantity => {
+  setup();
+  expect(await send("create", { listId: id, name: "Livre", price: "", url: "", quantity })).toEqual({ error: "invalid" });
+  expect(calls.create).not.toHaveBeenCalled();
 });

@@ -16,7 +16,7 @@ async function personalPopup(page,{count,failure="",oldRelay=false}){
     const state={writes:/** @type {any[]} */([]),captures:0};Object.assign(window,{popupState:state,chrome:{
       tabs:{query:async(/** @type {{active?:boolean}} */ options)=>options.active?[{id:1,url:'https://shop.example/product'}]:[{id:2}],
         sendMessage:async(/** @type {number} */ _id,/** @type {{action:string,value?:any}} */ message)=>{
-          if(message.action==='probe')return {ready:true,supportsVariants:true,supportsFavorites:!oldRelay};
+          if(message.action==='probe')return {ready:true,supportsVariants:true,supportsFavorites:!oldRelay,supportsQuantities:!oldRelay};
           if(message.action==='lists')return {lists:Array.from({length:count},(_,i)=>({id:`list-${i+1}`,name:`Liste ${i+1}`}))};
           if(message.action==='create'){
             state.writes.push(message.value);
@@ -38,6 +38,7 @@ async function personalPopup(page,{count,failure="",oldRelay=false}){
 for(const count of [1,3]){
   test(`favorite and default image are sent to ${count===1?'the single list':'all selected lists'}`,async({page},testInfo)=>{
     await personalPopup(page,{count});
+    await page.getByRole('spinbutton',{name:'Quantité souhaitée'}).fill('4');
     const heart=page.getByRole('checkbox',{name:'Coup de cœur',exact:true});await expect(heart).not.toBeChecked();await heart.check();
     await expect(page.locator('.favorite-control svg')).toHaveCSS('fill','rgb(185, 62, 50)');
     await heart.uncheck();await expect(page.locator('.favorite-control svg')).toHaveCSS('fill','none');await heart.check();
@@ -53,16 +54,16 @@ for(const count of [1,3]){
     await page.getByRole('button',{name:'Ajouter',exact:true}).click();await expect(page.locator('#form')).toBeHidden();
     const state=await page.evaluate(()=>/** @type {any} */(window).popupState);
     expect(state.writes.map((/** @type {any} */ value)=>value.listId)).toEqual(count===1?['list-1']:['list-1','list-3']);
-    expect(state.writes).toEqual(expect.arrayContaining([expect.objectContaining({isFavorite:true,image:'data:image/webp;base64,QUJD'})]));expect(state.captures).toBe(1);
+    expect(state.writes).toEqual(expect.arrayContaining([expect.objectContaining({quantity:'4',isFavorite:true,image:'data:image/webp;base64,QUJD'})]));expect(state.captures).toBe(1);
   });
 }
 
 test('a partial rejection retries only failed destinations and keeps the captured favorite',async({page})=>{
-  await personalPopup(page,{count:3,failure:'rejected'});await page.getByRole('checkbox',{name:'Coup de cœur'}).check();
+  await personalPopup(page,{count:3,failure:'rejected'});await page.getByRole('spinbutton',{name:'Quantité souhaitée'}).fill('5');await page.getByRole('checkbox',{name:'Coup de cœur'}).check();
   await page.getByRole('checkbox',{name:'Liste 2',exact:true}).check();await page.getByRole('checkbox',{name:'Liste 3',exact:true}).check();await page.getByRole('button',{name:'Ajouter',exact:true}).click();
   await expect(page.locator('#status')).toContainText('Ajout refusé dans « Liste 2 »');await page.getByRole('button',{name:'Réessayer les listes restantes'}).click();
   await expect(page.locator('#form')).toBeHidden();const state=await page.evaluate(()=>/** @type {any} */(window).popupState);
-  expect(state.writes.map((/** @type {any} */ item)=>item.listId)).toEqual(['list-1','list-2','list-3','list-2']);expect(state.writes.every((/** @type {any} */ item)=>item.isFavorite)).toBe(true);
+  expect(state.writes.map((/** @type {any} */ item)=>item.listId)).toEqual(['list-1','list-2','list-3','list-2']);expect(state.writes.every((/** @type {any} */ item)=>item.isFavorite&&item.quantity==='5')).toBe(true);
 });
 
 test('an uncertain multi-list write stops and cannot be replayed',async({page})=>{
@@ -106,7 +107,7 @@ test("separates personal and surprise forms and preserves their independent draf
     Object.assign(window,{extensionWrites:[],chrome:{
       tabs:{query:async(/** @type {{active?:boolean}} */ options)=>options.active?[{id:1,url:"https://shop.example/item"}]:[{id:2}],
         sendMessage:async(/** @type {number} */ _id,/** @type {{action:string,value?:{listId:string}}} */ message)=>{
-          if(message.action==="probe")return {ready:true,supportsVariants:true,supportsGroupSuggestions:true};
+          if(message.action==="probe")return {ready:true,supportsVariants:true,supportsGroupSuggestions:true,supportsQuantities:true};
           if(message.action==="lists")return {lists:[{id:"mine",name:"Ma liste"}]};
           if(message.action==="suggestionRecipients")return {recipients:[{id:"lea",name:"Léa#1234"}]};
           if(message.action==="suggestionLists")return {lists:[{id:"target-1",name:"Anniversaire",groupName:"Famille"},{id:"target-2",name:"Noël",groupName:"Amis"}]};
@@ -117,7 +118,7 @@ test("separates personal and surprise forms and preserves their independent draf
   });
   await page.setViewportSize({width:340,height:800});await page.goto("/extension/popup.html");
   await expect(page.getByLabel("Liste")).toHaveValue("mine");await expect(page.locator("select option")).toHaveCount(1);
-  await page.getByLabel("Nom du souhait").fill("Mon livre");await page.getByRole('checkbox',{name:'Coup de cœur',exact:true}).check();
+  await page.getByLabel("Nom du souhait").fill("Mon livre");await page.getByRole("spinbutton",{name:"Quantité souhaitée"}).fill("3");await page.getByRole('checkbox',{name:'Coup de cœur',exact:true}).check();
   await page.screenshot({path:testInfo.outputPath("extension-personal.png"),fullPage:true});
   await page.getByRole("button",{name:"Idée surprise",exact:true}).click();
   await expect(page.getByRole("heading",{name:"Proposer une idée surprise"})).toBeVisible();
@@ -126,12 +127,12 @@ test("separates personal and surprise forms and preserves their independent draf
   await page.getByRole("checkbox",{name:"Noël — Amis",exact:true}).check();
   await expect(page.getByRole('checkbox',{name:'Coup de cœur',exact:true})).toHaveCount(0);
   await expect(page.getByText("Visible par les membres des groupes indiqués, sauf Léa#1234.",{exact:false})).toBeVisible();
-  await expect(page.getByLabel("Nom du souhait")).toHaveValue("Livre");await page.getByLabel("Nom du souhait").fill("Son livre");
+  await expect(page.getByLabel("Nom du souhait")).toHaveValue("Livre");await page.getByLabel("Nom du souhait").fill("Son livre");await page.getByRole("spinbutton",{name:"Quantité souhaitée"}).fill("7");
   await page.screenshot({path:testInfo.outputPath("extension-suggestion.png"),fullPage:true});
-  await page.getByRole("button",{name:"Mes souhaits",exact:true}).click();await expect(page.getByLabel("Nom du souhait")).toHaveValue("Mon livre");await expect(page.getByRole('checkbox',{name:'Coup de cœur',exact:true})).toBeChecked();
-  await page.getByRole("button",{name:"Idée surprise",exact:true}).click();await expect(page.getByLabel("Nom du souhait")).toHaveValue("Son livre");
+  await page.getByRole("button",{name:"Mes souhaits",exact:true}).click();await expect(page.getByLabel("Nom du souhait")).toHaveValue("Mon livre");await expect(page.getByRole("spinbutton",{name:"Quantité souhaitée"})).toHaveValue("3");await expect(page.getByRole('checkbox',{name:'Coup de cœur',exact:true})).toBeChecked();
+  await page.getByRole("button",{name:"Idée surprise",exact:true}).click();await expect(page.getByLabel("Nom du souhait")).toHaveValue("Son livre");await expect(page.getByRole("spinbutton",{name:"Quantité souhaitée"})).toHaveValue("7");
   await page.getByRole("button",{name:"Proposer l’idée"}).click();
-  expect(await page.evaluate(()=>/** @type {any} */(window).extensionWrites)).toEqual([expect.objectContaining({listId:"target-1",name:"Son livre"}),expect.objectContaining({listId:"target-2",name:"Son livre"})]);
+  expect(await page.evaluate(()=>/** @type {any} */(window).extensionWrites)).toEqual([expect.objectContaining({listId:"target-1",name:"Son livre",quantity:"7"}),expect.objectContaining({listId:"target-2",name:"Son livre",quantity:"7"})]);
 });
 
 for (const imageFailure of [false, true]) {
@@ -310,4 +311,30 @@ test("uses the selected image relay when a merchant prevents direct reading", as
   expect(state.captured).toBe(0); expect(state.permissionPrompts).toBe(0);
   expect(state.requests.find((/** @type {any} */ item) => item.action === "image").value).toEqual({ listId: "list-1", url: "https://images.example/a.png" });
   expect(state.requests.find((/** @type {any} */ item) => item.action === "create").value.image).toBe("data:image/webp;base64,QUJD");
+});
+
+
+for (const width of [340, 1280]) test(`quantity is bounded, required and keyboard accessible at ${width}px`, async ({ page }) => {
+  await personalPopup(page, { count: 1 }); await page.setViewportSize({ width, height: 800 });
+  const quantity = page.getByRole("spinbutton", { name: "Quantité souhaitée" });
+  await expect(quantity).toHaveValue("1");
+  await expect(page.getByRole("button", { name: "Diminuer la quantité" })).toBeDisabled();
+  await page.getByRole("button", { name: "Augmenter la quantité" }).focus(); await page.keyboard.press("Enter");
+  await expect(quantity).toHaveValue("2");
+  await page.getByRole("button", { name: "Diminuer la quantité" }).click(); await expect(quantity).toHaveValue("1");
+  await quantity.fill("100"); await expect(page.getByRole("button", { name: "Augmenter la quantité" })).toBeDisabled();
+  for (const invalid of ["", "0", "101", "1.5"]) {
+    await quantity.fill(invalid); await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+    await expect(quantity).toBeFocused();
+    expect(await page.evaluate(() => /** @type {any} */ (window).popupState.writes)).toEqual([]);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("a legacy relay cannot silently discard a personal quantity", async ({ page }) => {
+  await personalPopup(page, { count: 1, oldRelay: true });
+  await page.getByRole("spinbutton", { name: "Quantité souhaitée" }).fill("3");
+  await page.getByRole("button", { name: "Ajouter", exact: true }).click();
+  await expect(page.locator("#status")).toContainText("mise à jour du site MonKado");
+  expect(await page.evaluate(() => /** @type {any} */ (window).popupState.writes)).toEqual([]);
 });
