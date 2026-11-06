@@ -1,13 +1,38 @@
 """Verify that the native browser fixture cannot target a real or foreign database."""
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 import subprocess
 import json
 from pathlib import Path
 from urllib.parse import urlsplit
-from run import PROJECTS, child_database_url, database_configuration, listener_started
+from run import PROJECTS, child_database_url, database_configuration, listener_started, scenario_titles, run_project
 
 
 class NativeDatabaseTests(unittest.TestCase):
+    def test_long_projects_run_every_discovered_case_with_independent_services_even_after_failure(self):
+        report = {"suites": [{"specs": [{"title": "First", "tests": [1]}, {"title": "Second", "tests": [1]}]}]}
+        for project in ("regression-mobile", "wishes-desktop", "privacy-mobile"):
+            with self.subTest(project=project), patch("run.subprocess.run", return_value=SimpleNamespace(returncode=0, stdout=json.dumps(report))), patch("run.run", side_effect=[1, 0]) as execute:
+                self.assertEqual(1, run_project(project, ()))
+                self.assertEqual([(project, ("--grep", "First$")), (project, ("--grep", "Second$"))], [call.args for call in execute.call_args_list])
+
+    def test_existing_small_projects_keep_their_grouped_service_isolation(self):
+        with patch("run.run", return_value=0) as execute, patch("run.subprocess.run") as discover:
+            self.assertEqual(0, run_project("push-mobile", ("--grep", "permission")))
+            execute.assert_called_once_with("push-mobile", ("--grep", "permission"))
+            discover.assert_not_called()
+
+    def test_scenario_isolation_selects_every_nested_discovered_case_without_dropping_assertions(self):
+        report = {"suites": [{"specs": [{"title": "First scenario", "tests": [{"projectName": "regression-mobile"}]}],
+                              "suites": [{"specs": [{"title": "Second scenario", "tests": [{"projectName": "regression-mobile"}]}]}]}]}
+        self.assertEqual(["First scenario", "Second scenario"], scenario_titles(report))
+
+    def test_scenario_isolation_rejects_empty_duplicate_and_unselected_discovery(self):
+        for report in ({}, {"suites": [{"specs": [{"title": "Empty", "tests": []}]}]},
+                       {"suites": [{"specs": [{"title": "Duplicate", "tests": [1]}, {"title": "Duplicate", "tests": [1]}]}]}):
+            with self.subTest(report=report), self.assertRaisesRegex(RuntimeError, "NATIVE_SCENARIO_DISCOVERY_INVALID"):
+                scenario_titles(report)
 
     def test_push_projects_keep_their_fresh_services_alongside_the_new_regression_families(self):
         self.assertEqual(("mobile", "desktop", "admin-mobile", "admin-desktop", "push-mobile", "push-desktop", "regression-mobile", "regression-desktop",

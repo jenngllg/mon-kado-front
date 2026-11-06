@@ -13,6 +13,7 @@ from urllib.parse import unquote, urlsplit, urlunsplit
 import uuid
 import base64
 import argparse
+import hashlib
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +47,38 @@ def child_database_url(parsed, name):
 def listener_started(event):
     """Recognize the listener event in both supported structured-log formats."""
     return isinstance(event, dict) and event.get("eventId", event.get("EventId")) == 901
+
+
+def scenario_titles(report):
+    """Select every discovered scenario exactly once before isolating its real quotas."""
+    titles = []
+
+    def visit(suites):
+        for suite in suites:
+            for spec in suite.get("specs", []):
+                if not spec.get("tests") or not isinstance(spec.get("title"), str):
+                    raise RuntimeError("NATIVE_SCENARIO_DISCOVERY_INVALID")
+                titles.append(spec["title"])
+            visit(suite.get("suites", []))
+
+    visit(report.get("suites", []))
+    if not titles or len(titles) != len(set(titles)):
+        raise RuntimeError("NATIVE_SCENARIO_DISCOVERY_INVALID")
+    return titles
+
+
+def run_project(project, arguments):
+    """Long cross-feature scenarios each own fresh services, retaining production request limits."""
+    if not project.startswith(("regression-", "wishes-", "privacy-")):
+        return run(project, arguments)
+    node = os.environ.get("NODE", "node")
+    listed = subprocess.run([node, str(ROOT / "node_modules/@playwright/test/cli.js"), "test", "--config", "playwright.native.config.js",
+                             "--project=" + project, *arguments, "--list", "--reporter=json"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", timeout=30)
+    if listed.returncode:
+        raise RuntimeError("NATIVE_SCENARIO_DISCOVERY_FAILED")
+    titles = scenario_titles(json.loads(listed.stdout))
+    results = [run(project, (*arguments, "--grep", re.escape(title) + "$")) for title in titles]
+    return 1 if any(results) else 0
 
 
 def run(project, arguments=()):
@@ -127,6 +160,8 @@ def run(project, arguments=()):
         metadata = directory / "fixture.json"
         metadata.write_text(json.dumps({"mailbox": str(directory / "mailbox"), "database": database}), encoding="utf-8")
         browser_environment = os.environ.copy() | {"MONKADO_NATIVE_FIXTURE": str(metadata), "MONKADO_NATIVE_PROJECT": project}
+        if "--grep" in arguments:
+            browser_environment["MONKADO_NATIVE_CASE"] = hashlib.sha256("\0".join(arguments).encode()).hexdigest()[:12]
         node = os.environ.get("NODE", "node")
         result = subprocess.run([node, str(ROOT / "node_modules/@playwright/test/cli.js"), "test",
                                  "--config", "playwright.native.config.js", "--project=" + project, *arguments], cwd=ROOT, env=browser_environment)
@@ -155,7 +190,7 @@ if __name__ == "__main__":
         parser.add_argument("--project", choices=PROJECTS)
         options, arguments = parser.parse_known_args()
         # Each viewport owns fresh services and data, including the real admission quotas.
-        results = [run(project, arguments) for project in ([options.project] if options.project else PROJECTS)]
+        results = [run_project(project, arguments) for project in ([options.project] if options.project else PROJECTS)]
         sys.exit(1 if any(results) else 0)
     except Exception as error:
         print(str(error) if type(error) is RuntimeError else "NATIVE_JOURNEYS_FAILED", file=sys.stderr)

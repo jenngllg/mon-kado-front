@@ -1,11 +1,11 @@
 import { test as base, expect } from "@playwright/test";
 
-// Drain mock responses before Playwright disposes their request context. This is
-// an automatic fixture so teardown runs for every importing test file.
+// Remove providers before disposing their request context. Quiet SSE routes stay
+// intentionally pending; waiting for them would hang after all assertions passed.
 export const test = base.extend(/** @type {import('@playwright/test').Fixtures<{routeCleanup:void}, {}, import('@playwright/test').PlaywrightTestArgs, import('@playwright/test').PlaywrightWorkerArgs>} */ ({
   routeCleanup: [async ({ context }, use) => {
     await use();
-    await context.unrouteAll({ behavior: "wait" });
+    await context.unrouteAll({ behavior: "ignoreErrors" });
   }, { auto: true }],
 }));
 

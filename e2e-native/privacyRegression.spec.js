@@ -19,7 +19,7 @@ test("[PRIV-01] worker export downloads actual JSON and excludes credentials and
   await page.getByRole("button", { name: "Télécharger mon archive", exact: true }).click();
   const archive = await download, path = testInfo.outputPath("personal-export.zip");
   await archive.saveAs(path);
-  const data = JSON.parse(execFileSync("python", ["-c", "import json,sys,zipfile; print(zipfile.ZipFile(sys.argv[1]).read('data.json').decode('utf-8'))", path], { encoding: "utf8" }));
+  const data = JSON.parse(execFileSync("python", ["-X", "utf8", "-c", "import json,sys,zipfile; print(zipfile.ZipFile(sys.argv[1]).read('data.json').decode('utf-8'))", path], { encoding: "utf8" }));
   const json = JSON.stringify(data);
   expect(json).toContain("Souhait exporté"); expect(json).not.toContain(secret); expect(json).not.toContain(member.password);
   expect(json).not.toContain(actors.visitor.memberId);
