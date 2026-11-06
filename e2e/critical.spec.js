@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, sharedPath, secret, wishId } from "./controlledApi.js";
 
 test("protected lists require login and logout removes private data", async ({ page, context }) => {

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, listId } from "./controlledApi.js";
 
 test("adding another wish takes one click when its control is partly below the sticky header", async ({ page, context }) => {

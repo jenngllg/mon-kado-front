@@ -12,6 +12,8 @@ export function isUserFacingError(error) {
 
 /** @type {Readonly<Record<string, ErrorMessage>>} */
 const CommonMessages = Object.freeze({
+  ACCOUNT_TWO_FACTOR_CODE_INVALID: { title: "Code à vérifier", message: "Ce code est incorrect ou a déjà été utilisé. Saisis un nouveau code de ton authentificateur." },
+  WISH_COPY_SAME_WISHLIST: { title: "Liste identique", message: "Choisis une autre liste pour ajouter ce souhait." },
   PUSH_PREFERENCES_VERSION_CONFLICT: {title:"Préférences modifiées",message:"Les préférences push ont été modifiées dans une autre fenêtre."},
   PUSH_UNAVAILABLE: {title:"Notifications indisponibles",message:"Les push ne sont pas encore activés sur ce serveur."},
   PUSH_DEVICE_LIMIT: {title:"Limite d’appareils atteinte",message:"Tu peux activer les notifications sur dix appareils. Désactive un ancien appareil pour en ajouter un autre."},

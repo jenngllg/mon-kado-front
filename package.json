@@ -18,6 +18,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:native": "python tools/native-e2e/run.py",
+    "test:regression": "python tools/native-e2e/run.py",
     "test:e2e:install": "playwright install chromium",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p jsconfig.json && tsc --noEmit -p jsconfig.node.json && tsc --noEmit -p jsconfig.e2e.json"

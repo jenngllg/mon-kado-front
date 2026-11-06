@@ -1,5 +1,5 @@
 /* global document, window */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin } from "./controlledApi.js";
 
 for (const [width, creator] of /** @type {Array<[number,boolean]>} */ ([[390, true], [1440, false]])) {

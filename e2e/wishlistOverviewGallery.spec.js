@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin, listId } from "./controlledApi.js";
 
 /** @param {import('@playwright/test').BrowserContext} context Isolated transport. */
@@ -52,7 +52,8 @@ for (const width of [240, 390, 768, 1215, 1565, 3440]) {
       expect(photo?.height).toBeCloseTo((photo?.width ?? 0) * 1.25, 0);
       if (width < 576) {
         expect(title?.x).toBeGreaterThan((photo?.x ?? 0) + (photo?.width ?? 0));
-        expect(title?.y).toBeLessThan((photo?.y ?? 0) + (photo?.height ?? 0));
+        expect(title?.y).toBeGreaterThanOrEqual(photo?.y ?? 0);
+        expect((title?.y ?? 0) + (title?.height ?? 0)).toBeLessThanOrEqual((photo?.y ?? 0) + (photo?.height ?? 0));
       } else {
         expect(title?.x).toBeCloseTo(photo?.x ?? 0, 0);
         expect(title?.y).toBeGreaterThan((photo?.y ?? 0) + (photo?.height ?? 0));
@@ -100,6 +101,8 @@ for (const width of [240, 390, 768, 1215, 1565, 3440]) {
     if (!imageBox) throw new Error("Missing cover");
     await page.mouse.click(imageBox.x + imageBox.width / 2, imageBox.y + Math.min(60, imageBox.height / 2));
     await expect(page).toHaveURL(`/lists/${listId}`);
+    await expect(page.getByRole("heading", { name: "Liste 4", exact: true })).toBeVisible();
+    await expect(page.locator(".wishlist-details-gifts .wish-card")).toHaveCount(1);
     // Assert
     expect(api.state.listWrites).toBe(0); expect(api.unexpected).toEqual([]); expect(errors).toEqual([]);
     // The detail's expected missing share-link response is not a JavaScript error.

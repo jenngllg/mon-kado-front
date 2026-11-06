@@ -1,5 +1,5 @@
 /* global document, window */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin, listId } from "./controlledApi.js";
 
 const groupId = "019c52dd-56c1-7cc6-8a95-243f3a032e70", memberId = "019c52dd-56c1-7cc6-8a95-243f3a032e71", subscriptionId = "019c52dd-56c1-7cc6-8a95-243f3a032e30";

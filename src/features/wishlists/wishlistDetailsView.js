@@ -226,7 +226,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
       }
       if ((share || groups) && !item.isArchived) {
         const trigger = createButton({ label: "Partager", variant: "secondary", onClick: () => openShare(trigger) });
-        trigger.classList.add("wishlist-details-share"); prependShareDialogIcon(trigger, "share");
+        trigger.classList.add("wishlist-details-share", "page-primary-action"); prependShareDialogIcon(trigger, "share");
         const sharing = element("div", ""); sharing.className = "wishlist-share-control";
         shareReminder = createShareReminder();
         sharing.append(trigger, shareReminder); actions.append(sharing); updateShareReminder();
@@ -239,7 +239,7 @@ export function createWishlistDetailsView({ wishlistId, loadOne, groups, setArch
         const add = createActionLink({ label: "Ajouter un souhait", href: RoutePaths.NewWish.replace(":listId", wishlistId) });
         applyActionIcon(add, "add", "Ajouter un souhait"); add.classList.remove("icon-action");
         add.append(element("span", "Ajouter un souhait"));
-        add.classList.add("ui-button", "ui-button--primary", "page-primary-action", "wishlist-details-add"); actions.append(add);
+        add.classList.add("ui-button", "ui-button--primary", "page-primary-action", "wishlist-details-add"); actions.insertBefore(add, optionsMenu);
       }
     }
     information.hidden = !summary.hasChildNodes() && !listContent.hasChildNodes();

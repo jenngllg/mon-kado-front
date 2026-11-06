@@ -10,8 +10,8 @@ const origin = "http://localhost:5296";
 export const apiOrigin = "http://localhost:7006";
 
 /** Wait for the real worker's atomic mailbox delivery, without polling PostgreSQL or mocking email.
- * @param {string} directory @param {string} email @returns {Promise<{actionUrl:string}>} */
-async function deliveredMessage(directory, email) {
+ * @param {string} directory @param {string} email @param {string} [destination] @returns {Promise<{actionUrl:string}>} */
+async function deliveredMessage(directory, email, destination) {
   return new Promise((resolve, reject) => {
     let scanning = false, again = false, finished = false;
     const observer = watch(directory, () => { void scan(); });
@@ -27,7 +27,7 @@ async function deliveredMessage(directory, email) {
         for (const name of await readdir(directory)) {
           if (!name.endsWith(".json")) continue;
           const message = JSON.parse(await readFile(join(directory, name), "utf8"));
-          if (message.to === email) { finish(null, message); return; }
+          if (message.to === email && (!destination || new URL(message.actionUrl).pathname === destination)) { finish(null, message); return; }
         }
       } catch (error) { finish(error instanceof Error ? error : new Error("Native mailbox read failed")); }
       finally { scanning = false; if (again && !finished) { again = false; void scan(); } }
@@ -42,6 +42,7 @@ async function register(playwright, mailbox, displayName) {
   const http = await playwright.request.newContext({ baseURL: apiOrigin, extraHTTPHeaders: { Origin: origin } });
   let csrf = (await (await http.get("/security/csrf-token")).json()).token;
   /** @type {string|null} */ let token = null;
+  /** @type {string|null} */ let factorKey = null;
   /** @param {string} method @param {string} path @param {number} status @param {unknown} [data] @param {Record<string,string>} [headers] */
   async function send(method, path, status, data, headers = {}) {
     const response = await http.fetch(path, { method, data, headers: { "X-CSRF-TOKEN": csrf, ...(token ? { Authorization: `Bearer ${token}` } : {}), ...headers } });
@@ -55,6 +56,12 @@ async function register(playwright, mailbox, displayName) {
   token = (await (await send("POST", "/api/v1/auth/sessions", 200, { email, password })).json()).accessToken;
   csrf = (await (await http.get("/security/csrf-token", { headers: { Authorization: `Bearer ${token}` } })).json()).token;
   const identity = await (await send("GET", "/api/v1/auth/sessions/current", 200)).json();
+  async function reauthenticate(loginEmail = email, loginPassword = password) {
+    token = null;
+    csrf = (await (await http.get("/security/csrf-token")).json()).token;
+    token = (await (await send("POST", "/api/v1/auth/sessions", 200, { email: loginEmail, password: loginPassword })).json()).accessToken;
+    csrf = (await (await http.get("/security/csrf-token", { headers: { Authorization: `Bearer ${token}` } })).json()).token;
+  }
   async function enableAdministration() {
     const path = process.env.MONKADO_NATIVE_FIXTURE;if (!path) throw new Error("Missing native fixture");
     const {database} = JSON.parse(await readFile(path,"utf8"));
@@ -64,17 +71,25 @@ async function register(playwright, mailbox, displayName) {
     token=null;csrf=(await (await http.get("/security/csrf-token")).json()).token;
     const challenge=await (await send("POST","/api/v1/auth/sessions",202,{email,password})).json();
     const setup=await (await send("POST","/api/v1/auth/two-factor/setup",200,{flow:challenge.flow})).json();
+    factorKey=setup.manualKey;
     await send("POST","/api/v1/auth/two-factor/setup/confirmations",200,{flow:challenge.flow,code:authenticatorCode(setup.manualKey)});
     token=(await (await send("POST","/api/v1/auth/two-factor/completions",200,{flow:challenge.flow})).json()).accessToken;
     csrf=(await (await http.get("/security/csrf-token",{headers:{Authorization:`Bearer ${token}`}})).json()).token;
   }
-  return { enableAdministration, storageState:()=>http.storageState(), email, password, memberId: /** @type {string} */ (identity.id), displayName, send, dispose: () => http.dispose() };
+  return { enableAdministration, reauthenticate, twoFactorCode: (seconds = Date.now() / 1000) => { if (!factorKey) throw new Error("No test factor configured"); return authenticatorCode(factorKey, seconds); }, storageState:()=>http.storageState(), email, password, memberId: /** @type {string} */ (identity.id), displayName, send, dispose: () => http.dispose() };
 }
 
 /** @typedef {Awaited<ReturnType<typeof register>>} Actor */
 /** @typedef {{owner:Actor,visitor:Actor}} NativeActors */
 
-export const test = base.extend(/** @type {import('@playwright/test').Fixtures<{}, {actors:NativeActors,administrator:Actor}, import('@playwright/test').PlaywrightTestArgs, import('@playwright/test').PlaywrightWorkerArgs>} */ ({
+export const test = base.extend(/** @type {import('@playwright/test').Fixtures<{}, {actors:NativeActors,administrator:Actor,regressionMember:Actor}, import('@playwright/test').PlaywrightTestArgs, import('@playwright/test').PlaywrightWorkerArgs>} */ ({
+  regressionMember: [async ({ playwright }, use) => {
+    const path = process.env.MONKADO_NATIVE_FIXTURE;
+    if (!path) throw new Error("Use the native browser runner");
+    const { mailbox } = JSON.parse(await readFile(path, "utf8"));
+    const member = await register(playwright, mailbox, "Regression member");
+    try { await use(member); } finally { await member.dispose(); }
+  }, { scope: "worker" }],
   administrator: [async ({playwright},use)=>{
     const path=process.env.MONKADO_NATIVE_FIXTURE;if(!path)throw new Error("Use native runner");
     const {mailbox}=JSON.parse(await readFile(path,"utf8"));const admin=await register(playwright,mailbox,"Native administrator");
@@ -104,3 +119,13 @@ export async function noOverflow(page) {
 }
 
 export { expect };
+
+/** Observe a confirmation delivered by the local worker, never a production mailbox.
+ * @param {string} email @param {string} destination
+ */
+export async function accountMail(email, destination) {
+  const path = process.env.MONKADO_NATIVE_FIXTURE;
+  if (!path) throw new Error("Use the native browser runner");
+  const { mailbox } = JSON.parse(await readFile(path, "utf8"));
+  return deliveredMessage(mailbox, email, destination);
+}

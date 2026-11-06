@@ -24,6 +24,15 @@ function setup(options = {}) {
 }
 
 describe("wishlist share modal", () => {
+  it("provides a focusable autofocus heading without adding a keyboard tab stop", () => {
+    // Arrange / Act
+    const ui = setup();
+    // Assert
+    const heading = ui.dialog.querySelector('h2[id^="share-dialog-"]');
+    expect(heading?.getAttribute("tabindex")).toBe("-1");
+    expect(heading?.hasAttribute("autofocus")).toBe(true);
+    expect(ui.dialog.getAttribute("aria-labelledby")).toBe(heading?.id);
+  });
   it("supports directional, Home and End tab navigation without changing sharing permissions", async () => {
     const visibility = { visibility: { wishlistId, isPublic: false, groups: [] }, etag: '"groups"' };
     const save = vi.fn(); const ui = setup({ groups: { wishlistVisibility: async () => visibility, setWishlistVisibility: save } }); await settle();

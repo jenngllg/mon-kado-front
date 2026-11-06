@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { readFile } from "node:fs/promises";
 import { controlledApi, listId, wishId } from "./controlledApi.js";
 import { imageAsWebp } from "../extension/imageSelection.js";

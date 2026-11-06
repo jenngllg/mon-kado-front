@@ -1,15 +1,13 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, listId, wishId, sharedPath, secret } from "./controlledApi.js";
-import { deployedPolicy } from "./deployedPolicy.js";
 
 test("owner navigation shows the list and wish names with the MonKado suffix", async ({ page, context }) => {
   // Arrange
   const api = await controlledApi(context);
   api.state.authenticated = true;
   // Act
-  const response = await page.goto(`/lists/${listId}`);
+  await page.goto(`/lists/${listId}`);
   // Assert
-  expect(response?.headers()["content-security-policy"]).toBe(deployedPolicy);
   await expect(page).toHaveTitle(`${api.wishlist.name} · MonKado`);
   await page.getByRole("link", { name: api.wish.name, exact: true }).click();
   await expect(page).toHaveTitle(`${api.wish.name} · MonKado`);

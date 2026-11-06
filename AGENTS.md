@@ -1,5 +1,7 @@
 # MonKado frontend instructions
 
+- Installed applications offer notification activation once, on the first authenticated opening after installation (standalone display mode or iOS standalone). Never request system permission automatically: request it synchronously from the explicit activation button. Remember the invitation on this installation, preserve saved push opt-outs, exclude impersonation and ordinary browser visits, and explain an existing system block without attempting to bypass it. Account notification settings remain available afterwards.
+
 - Notification preference qualifiers belong inline in parentheses within each label, without a separate helper line. Use “Rappels d’évènements (J-7 et J-1)” for occasion reminders.
 
 - Public and group-scoped member profile pages use a 112px avatar, double the former 56px size, on mobile and desktop.
@@ -50,3 +52,7 @@ Read and apply [the shared MonKado instructions](../mon-kado/AGENTS.shared.md), 
 - Technical recovery must not add manual “Vérifier”, “Relire” or image-retry controls. Reconcile an uncertain explicit operation with a bounded, authorized read when possible, preserving drafts and never replaying its writes. Media recovery renews only the failed image; it must not refresh other business information or run on a timer, focus or visibility change. Retain meaningful business confirmations and security checks.
 
 
+
+- Owner toolbar order approved by Jenn: keep sorting left; show secondary “Partager”, primary labelled “Ajouter un souhait”, then the “⋯” list-options disclosure on the right. Preserve that order in the DOM and keyboard navigation, allowing the add action and Options to share a wrapped row on mobile. Put edit, reorder, archive/restore and delete in that disclosure; retain existing permissions, confirmations and focus recovery. Group audience and public sharing live together under “Partager”, in independent “Mes groupes / Lien public” tabs.
+
+- Reading list descriptions appear below all other context information (author, occasion, date/countdown and authorized counters), in public and group views on desktop and mobile. Empty lists retain the description below their metadata without adding counters.

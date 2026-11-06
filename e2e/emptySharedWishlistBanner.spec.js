@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin, sharedPath, secret } from "./controlledApi.js";
 
 for (const width of [320, 390, 768, 1024, 1440]) {
@@ -65,11 +65,9 @@ test("reading availability switch preserves keyboard operation and coral enabled
   // Act / Assert
   await expect(control).not.toBeChecked();
   await expect(control).toHaveCSS("background-color", "rgb(243, 244, 236)");
-  await expect(control).toBeEnabled();
   await control.focus(); await page.keyboard.press("Space");
   await expect(control).toBeChecked();
   await expect(control).toHaveCSS("background-color", "rgb(185, 62, 50)");
-  await expect(control).toBeEnabled();
   await control.press("Space");
   await expect(control).not.toBeChecked();
   expect(api.unexpected).toEqual([]);

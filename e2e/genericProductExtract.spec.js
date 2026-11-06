@@ -1,5 +1,5 @@
 /* global document */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { extractProduct } from "../extension/extract.js";
 
 test("reads the nearby visible price and leaves conflicting prices empty", async ({ page }) => {

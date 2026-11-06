@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { readFileSync } from "node:fs";
 import { controlledApi, frontendOrigin } from "./controlledApi.js";
 

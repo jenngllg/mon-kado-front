@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi } from "./controlledApi.js";
 
 for (const width of [390, 1440]) {
@@ -19,9 +19,8 @@ for (const width of [390, 1440]) {
       await expect(cover).toHaveAttribute("alt", "");
       await expect(cover).toBeVisible();
       await expect(page.locator(".wishlist-card time")).toHaveText("20 décembre 2027");
-      expect(await cover.evaluate(element => element instanceof globalThis.HTMLImageElement ? element.naturalWidth / element.naturalHeight : 0)).toBeCloseTo(0.8, 2);
-      await expect(cover).toHaveAttribute("loading", "eager");
-      expect(await cover.evaluate(element => /** @type {HTMLImageElement} */ (element).currentSrc)).toMatch(width === 390 ? /-200-/ : /-400-/);
+      expect(await cover.evaluate(element => element instanceof globalThis.HTMLImageElement ? element.naturalHeight / element.naturalWidth : null)).toBe(1.25);
+      await expect(cover).toHaveAttribute("srcset", /200w, .+ 400w, .+ 800w$/);
       await expect(page.locator(".wishlist-card__icon")).toHaveCount(0);
       const expectedAsset = ["birthday", "christmas", "wedding", "birth"].includes(occasion) ? occasion : "other";
       await expect(cover).toHaveAttribute("src", new RegExp(`^(data:image/webp;base64,|/assets/${expectedAsset}-[^/]+\\.webp$)`));

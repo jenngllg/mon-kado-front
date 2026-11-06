@@ -1,5 +1,5 @@
 /* global window, document */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { openListOptions } from "./ownerActions.js";
 import { controlledApi, frontendOrigin, listId, wishId } from "./controlledApi.js";
 

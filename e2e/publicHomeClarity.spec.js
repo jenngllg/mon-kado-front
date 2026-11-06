@@ -1,5 +1,5 @@
 /* global document, window */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi } from "./controlledApi.js";
 
 for (const width of [320, 390, 768, 1440]) {

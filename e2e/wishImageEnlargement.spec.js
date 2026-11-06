@@ -1,5 +1,5 @@
 /* global document, window */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { readFileSync } from "node:fs";
 import { controlledApi, frontendOrigin, listId, wishId, sharedPath, secret } from "./controlledApi.js";
 

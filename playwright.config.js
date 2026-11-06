@@ -19,9 +19,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: `pnpm exec vite build --mode e2e --outDir .e2e-dist && pnpm exec vite preview --outDir .e2e-dist --host localhost --port ${port} --strictPort`,
+    command: `pnpm exec vite build --mode e2e --outDir .e2e-dist && pnpm exec vite preview --mode e2e --outDir .e2e-dist --host localhost --port ${port} --strictPort`,
     url: `http://localhost:${port}`,
     reuseExistingServer: false,
-    env: { VITE_API_BASE_URL: "http://localhost:7000", VITE_GOOGLE_AUTH_ENABLED: "false", MONKADO_E2E_CSP: "true" },
+    env: { MONKADO_E2E_CSP: "true", VITE_API_BASE_URL: "http://localhost:7000", VITE_GOOGLE_AUTH_ENABLED: "false" },
   },
 });

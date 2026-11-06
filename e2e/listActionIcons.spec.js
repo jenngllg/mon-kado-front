@@ -1,11 +1,17 @@
-import { test, expect } from "@playwright/test";
-import { controlledApi, listId } from "./controlledApi.js";
+import { test, expect } from "./fixture.js";
+import { controlledApi, frontendOrigin, listId } from "./controlledApi.js";
 import { openListOptions } from "./ownerActions.js";
 
 for (const width of [390, 1440]) {
   test(`owner prioritizes adding wishes and groups secondary commands at ${width}px`, async ({ page, context }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
     const api = await controlledApi(context); api.state.authenticated = true;
+    await context.route(`**/api/v1/wishlists/${listId}/group-visibility`, async route => {
+      if (route.request().method() !== "GET") return route.fallback();
+      await route.fulfill({ status: 200, headers: { "Access-Control-Allow-Origin": frontendOrigin,
+        "Access-Control-Allow-Credentials": "true", "Access-Control-Expose-Headers": "ETag", ETag: '"visibility-1"' },
+      json: { wishlistId: listId, isPublic: false, groups: [] } });
+    });
     await page.goto(`/lists/${listId}`);
     const toolbar = page.getByRole("group", { name: "Actions de la liste", exact: true });
     const options = toolbar.getByRole("button", { name: "Options de la liste", exact: true });
@@ -13,7 +19,7 @@ for (const width of [390, 1440]) {
     const share = toolbar.getByRole("button", { name: "Partager", exact: true });
     await expect(toolbar.locator("a:visible,button:visible,summary:visible")).toHaveCount(3);
     expect(await toolbar.locator("a:visible,button:visible,summary:visible").evaluateAll(nodes => nodes.map(node => node.getAttribute("aria-label") || node.textContent)))
-      .toEqual(["Partager", "Options de la liste", "Ajouter un souhait"]);
+      .toEqual(["Partager", "Ajouter un souhait", "Options de la liste"]);
     await expect(add).toHaveClass(/ui-button--primary/); await expect(add).toHaveText("Ajouter un souhait");
     await expect(share).toHaveClass(/ui-button--secondary/);
     await expect(options).toHaveCSS("width", "44px"); await expect(options).toHaveCSS("height", "44px");

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, sharedPath, secret } from "./controlledApi.js";
 
 test("single-item wishes reserve in one click without quantity selection", async ({ page, context }) => {

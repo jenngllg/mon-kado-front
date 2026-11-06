@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, listId } from "./controlledApi.js";
 
 test("keeps manually entered details when a product link is added", async ({ page, context }) => {

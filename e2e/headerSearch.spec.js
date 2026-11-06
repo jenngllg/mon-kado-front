@@ -1,5 +1,5 @@
 /* global document, window, getComputedStyle */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin } from "./controlledApi.js";
 
 for (const width of [320, 390, 768, 1024, 1103, 1115, 1280, 1440]) {

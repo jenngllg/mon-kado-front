@@ -1,11 +1,12 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, listId } from "./controlledApi.js";
 
 for (const width of [240, 390, 768, 1440]) {
-  test(`creation actions use primary hover while sharing stays secondary at ${width}px`, async ({ page, context }, testInfo) => {
+  test(`create-list link and share button use the same primary hover at ${width}px`, async ({ page, context }, testInfo) => {
     await page.setViewportSize({ width, height: 1000 });
     const api = await controlledApi(context);
     api.state.authenticated = true;
+    api.state.wishExists = false;
     await page.goto("/lists");
     const create = page.getByRole("link", { name: "Créer une liste", exact: true });
     await expect(create).toHaveAttribute("href", "/lists/new");
@@ -40,10 +41,12 @@ for (const width of [240, 390, 768, 1440]) {
     await create.press("Enter");
     await expect(page).toHaveURL("/lists/new");
     await page.goto(`/lists/${listId}`);
-    const share = page.getByRole("link", { name: "Ajouter un souhait", exact: true });
-    await expect(page.getByRole("button", { name: "Partager", exact: true })).toHaveClass(/ui-button--secondary/);
+    const share = page.getByRole("button", { name: "Partager", exact: true });
     expect((await share.boundingBox())?.height).toBe(createBox.height);
-    expect(await share.evaluate(node => globalThis.getComputedStyle(node).fontWeight)).toBe(createStyle.fontWeight);
+    expect(await share.evaluate(node => {
+      const style = globalThis.getComputedStyle(node);
+      return { fontSize: style.fontSize, lineHeight: style.lineHeight, padding: style.padding, borderRadius: style.borderRadius, fontWeight: style.fontWeight };
+    })).toEqual(createStyle);
     await expect(share).toHaveCSS("background-color", "rgb(185, 62, 50)");
     await expect(share).toHaveCSS("color", "rgb(255, 255, 255)");
     await share.hover();

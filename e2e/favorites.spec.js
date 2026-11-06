@@ -1,5 +1,5 @@
 import { openListOptions } from "./ownerActions.js";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, listId, wishId, sharedPath, secret } from "./controlledApi.js";
 
 for (const width of [390, 1440]) {

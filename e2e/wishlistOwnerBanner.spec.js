@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { readFileSync } from "node:fs";
 import { controlledApi, frontendOrigin, listId, shareId, secret, wishId } from "./controlledApi.js";
 import { openListOptions } from "./ownerActions.js";
@@ -76,14 +76,12 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     const titleBox = await title.boundingBox(); const metadataBox = await metadata.boundingBox(); const descriptionBox = await description.boundingBox();
     const toolbarBox = await page.locator(".wishlist-details-toolbar").boundingBox();
     const actionsBox = await page.getByRole("group", { name: "Actions de la liste", exact: true }).boundingBox();
+    const shareBox = await page.getByRole("button", { name: "Partager", exact: true }).boundingBox();
     const sortingBox = await page.getByRole("combobox", { name: "Trier par" }).boundingBox();
     expect((actionsBox?.x ?? 0) + (actionsBox?.width ?? 0)).toBeCloseTo((toolbarBox?.x ?? 0) + (toolbarBox?.width ?? 0), 0);
     expect(await page.locator(".wish-sort-control").evaluate(control => control.getBoundingClientRect().left)).toBeCloseTo(toolbarBox?.x ?? 0, 0);
     if (width >= 1487) {
-      const shareBox = await page.getByRole("button", { name: "Partager", exact: true }).boundingBox();
-      const addBox = await page.getByRole("link", { name: "Ajouter un souhait", exact: true }).boundingBox();
-      expect(Math.abs((shareBox?.y ?? 0) + (shareBox?.height ?? 0) / 2 - (sortingBox?.y ?? 0) - (sortingBox?.height ?? 0) / 2)).toBeLessThanOrEqual(1);
-      expect(addBox?.y).toBeCloseTo(shareBox?.y ?? 0, 0);
+      expect(shareBox?.y).toBeCloseTo(sortingBox?.y ?? 0, 0);
       expect((sortingBox?.x ?? 0) + (sortingBox?.width ?? 0)).toBeLessThan(actionsBox?.x ?? 0);
     }
     expect((backBox?.y ?? 0) + (backBox?.height ?? 0)).toBeLessThanOrEqual(titleBox?.y ?? 0);
@@ -97,15 +95,16 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     await page.getByRole("link", { name: "Retour à Mes listes", exact: true }).focus();
     await page.keyboard.press("Tab"); await expect(page.getByRole("combobox", { name: "Trier par" })).toBeFocused();
     await page.keyboard.press("Tab"); await expect(page.getByRole("button", { name: "Partager", exact: true })).toBeFocused();
-    await page.keyboard.press("Tab"); await expect(options).toBeFocused();
     await page.keyboard.press("Tab"); await expect(page.getByRole("link", { name: "Ajouter un souhait", exact: true })).toBeFocused();
+    await page.keyboard.press("Tab"); await expect(options).toBeFocused();
     expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     await expect.poll(() => tiles.first().locator("img").evaluate(image => image instanceof globalThis.HTMLImageElement && image.complete && image.naturalWidth > 0)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("owner-banner-page.png") });
-    const trigger = page.getByRole("button", { name: "Partager", exact: true }); await trigger.click(); await page.getByRole("tab", { name: "Lien public", exact: true }).click();
+    const trigger = page.getByRole("button", { name: "Partager", exact: true }); await trigger.click();
     const modal = page.getByRole("dialog", { name: "Partager la liste", exact: true });
-    await expect(modal).toBeVisible(); await expect(modal.getByRole("textbox", { name: "Lien de partage" })).toHaveValue(api.link);
-    await expect(modal.getByRole("tab", { name: "Lien public", exact: true })).toBeFocused(); await expect(modal.getByRole("group", { name: "Partager la liste sur un canal", exact: true }).getByRole("button")).toHaveCount(6);
+    await expect(modal).toBeVisible(); await expect(modal.getByRole("heading", { name: "Partager la liste", exact: true })).toBeFocused();
+    await modal.getByRole("tab", { name: "Lien public", exact: true }).click(); await expect(modal.getByRole("textbox", { name: "Lien de partage" })).toHaveValue(api.link);
+    await expect(modal.getByRole("group").getByRole("button")).toHaveCount(6);
     await expect(modal.getByRole("button", { name: "Partager par Discord", exact: true })).toBeVisible();
     await expect(modal.getByRole("button", { name: "Partager par X", exact: true })).toBeVisible();
     expect(api.share.reads).toBe(1); expect(api.share.writes).toBe(0);
@@ -114,7 +113,7 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     await modal.getByRole("button", { name: "Copier le lien", exact: true }).click();
     await expect.poll(() => page.evaluate(() => Reflect.get(globalThis, "copiedFixture"))).toBe(api.link);
     await page.keyboard.press("Escape"); await expect(modal).toHaveCount(0); await expect(trigger).toBeFocused();
-    await trigger.click(); await page.getByRole("tab", { name: "Lien public", exact: true }).click(); await expect(modal.getByRole("textbox", { name: "Lien de partage" })).toHaveValue(api.link); expect(api.share.reads).toBe(2);
+    await trigger.click(); await modal.getByRole("tab", { name: "Lien public", exact: true }).click(); await expect(modal.getByRole("textbox", { name: "Lien de partage" })).toHaveValue(api.link); expect(api.share.reads).toBe(2);
     await modal.getByRole("button", { name: "Fermer le partage" }).click(); await expect(modal).toHaveCount(0); await expect(trigger).toBeFocused();
     // Assert
     expect(api.share.writes).toBe(0); expect(api.state.wishWrites).toBe(0); expect(api.unexpected).toEqual([]); expect(errors).toEqual([]);
@@ -151,11 +150,13 @@ test(`owner loading, empty/error states and archived/suspended restrictions at $
   await expect(page.locator(".wish-card--gallery")).toHaveCount(8);
   const trigger = page.getByRole("button", { name: "Partager", exact: true }); const modal = page.getByRole("dialog", { name: "Partager la liste", exact: true });
   // Act
-  await trigger.click(); await page.getByRole("tab", { name: "Lien public", exact: true }).click(); await expect(modal.getByRole("button", { name: "Créer le lien de partage" })).toBeVisible();
-  await expect(modal.getByRole("group", { name: "Partager la liste sur un canal", exact: true })).toBeHidden(); expect(api.share.writes).toBe(0);
+  await trigger.click(); await modal.getByRole("tab", { name: "Lien public", exact: true }).click(); await expect(modal.getByRole("button", { name: "Créer le lien de partage" })).toBeVisible();
+  await expect(modal.getByRole("group")).toBeHidden(); expect(api.share.writes).toBe(0);
   await page.screenshot({ path: testInfo.outputPath("share-absent.png") });
   await modal.getByRole("button", { name: "Créer le lien de partage" }).click(); await expect(modal.getByRole("textbox")).toHaveValue(api.link); expect(api.share.writes).toBe(1);
-  await page.keyboard.press("Escape"); api.share.fails = true; await trigger.click(); await page.getByRole("tab", { name: "Lien public", exact: true }).click(); await expect(modal.getByRole("alert")).toBeVisible();
+  await page.keyboard.press("Escape"); api.share.fails = true; await trigger.click();
+  await modal.getByRole("tab", { name: "Lien public", exact: true }).click();
+  await expect(modal.getByRole("alert")).toBeVisible();
   await expect(modal.getByRole("textbox")).toBeHidden(); await page.screenshot({ path: testInfo.outputPath("share-error.png") });
   await page.keyboard.press("Escape"); api.wishlist.isArchived = true; await page.reload(); await expect(page.getByText("Liste archivée", { exact: true })).toBeVisible(); await expect(trigger).toHaveCount(0);
   api.wishlist.isArchived = false; api.wishlist.isSuspended = true; await page.reload(); await expect(page.getByRole("heading", { name: "Liste suspendue", exact: true })).toBeVisible(); await expect(trigger).toHaveCount(0);

@@ -1,5 +1,5 @@
 /* global document, window */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin, listId, wishId } from "./controlledApi.js";
 
 for (const width of [390, 1440]) {
@@ -54,6 +54,10 @@ for (const width of [390, 1440]) {
       await expect(page.getByRole("link", { name: "Mes idées", exact: true })).toHaveAttribute("href", `/lists/${listId}`);
       await page.goto(`${base}/wishlists/${listId}?fromMember=${memberId}`);
       await expect(page.getByRole("heading", { name: "Mes idées", exact: true })).toBeVisible();
+      const description = page.locator(".wishlist-context-description .wishlist-details-note");
+      await expect(description).toHaveText(list.message);
+      const statsBox = await page.locator(".wishlist-context-stats").boundingBox();
+      expect((await description.boundingBox())?.y).toBeGreaterThanOrEqual((statsBox?.y ?? 0) + (statsBox?.height ?? 0));
       await expect(page.getByRole("button", { name: /Réserver/ })).toHaveCount(0);
       await expect(page.getByRole("link", { name: "Modifier", exact: true })).toHaveCount(0);
       const filter = page.getByRole("switch", { name: "Afficher uniquement les souhaits disponibles" });
