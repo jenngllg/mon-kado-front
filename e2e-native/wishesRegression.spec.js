@@ -74,8 +74,10 @@ test("[WISH-04] image upload, enlargement and removal persist through the real i
   await page.locator('input[type="file"]').setInputFiles(fileURLToPath(new URL("../src/assets/design/birthday.webp", import.meta.url)));
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Image enregistrée" })).toBeVisible();
-  await page.goto(`/lists/${list.id}/wishes/${wish.id}`); await page.reload();
+  await page.goto(`/lists/${list.id}/wishes/${wish.id}`);
   const image = page.locator(".shared-wish-product > .wish-card__media img");
+  await expect(image).toBeVisible();
+  await page.reload();
   await expect(image).toBeVisible(); await expect(image).toHaveJSProperty("complete", true);
   expect(await image.evaluate(node => /** @type {HTMLImageElement} */ (node).naturalWidth)).toBeGreaterThan(0);
   await page.getByRole("button", { name: "Agrandir la photo de « Souhait illustré »", exact: true }).click();
@@ -116,7 +118,9 @@ for (const scope of ["public", "group"]) {
     await dialog.getByRole("checkbox", { name: destination.name, exact: true }).check();
     await dialog.getByRole("button", { name: "Ajouter", exact: true }).click();
     await expect(dialog).toHaveCount(0);
-    await page.goto(`/lists/${destination.id}`); await page.reload();
+    await page.goto(`/lists/${destination.id}`);
+    await expect(page.locator(".wish-card h3")).toHaveText(wish.name);
+    await page.reload();
     await expect(page.locator(".wish-card h3")).toHaveText(wish.name);
     const copied = await collection(regressionMember, destination.id);
     expect(copied).toHaveLength(1); expect(copied[0].id).not.toBe(wish.id);

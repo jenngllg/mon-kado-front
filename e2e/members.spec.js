@@ -10,9 +10,13 @@ async function membersApi(context) {
   const state = { status: 200, shared: true, searches: /** @type {string[]} */ ([]), profiles: 0 };
   await context.route("http://localhost:7000/api/v1/members**", async route => {
     if (route.request().method() === "OPTIONS") return route.fallback();
+    const url = new URL(route.request().url());
+    if (url.pathname.startsWith("/api/v1/members/current/")) {
+      expect(route.request().headers().authorization).toBe("Bearer access-test-only");
+      return route.fallback();
+    }
     expect(route.request().headers().authorization).toBeUndefined();
     expect(route.request().headers().referer).toBeUndefined();
-    const url = new URL(route.request().url());
     const headers = { "Access-Control-Allow-Origin": frontendOrigin, "Access-Control-Allow-Credentials": "true", "Content-Type": "application/json", "Cache-Control": "no-store" };
     if (url.pathname === "/api/v1/members") {
       state.searches.push(url.search);

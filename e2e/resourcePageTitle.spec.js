@@ -1,11 +1,6 @@
 import { test, expect } from "./fixture.js";
 import { controlledApi, listId, wishId, sharedPath, secret } from "./controlledApi.js";
 
-test.afterEach(async ({ context }) => {
-  // Title assertions can finish before intercepted font responses; drain handlers before context disposal.
-  await context.unrouteAll({ behavior: "wait" });
-});
-
 test("owner navigation shows the list and wish names with the MonKado suffix", async ({ page, context }) => {
   // Arrange
   const api = await controlledApi(context);
