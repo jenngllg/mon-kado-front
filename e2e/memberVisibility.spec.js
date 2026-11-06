@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi } from "./controlledApi.js";
 
 for (const width of [320, 360, 768, 1440]) {

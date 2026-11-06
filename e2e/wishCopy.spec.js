@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, listId, wishId, shareId, frontendOrigin, sharedPath, secret } from "./controlledApi.js";
 
 test.describe("touch copy action", () => {

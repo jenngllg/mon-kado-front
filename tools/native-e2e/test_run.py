@@ -1,12 +1,53 @@
 """Verify that the native browser fixture cannot target a real or foreign database."""
 import unittest
+import subprocess
+import json
+from pathlib import Path
 from urllib.parse import urlsplit
 from run import PROJECTS, child_database_url, database_configuration, listener_started
 
 
 class NativeDatabaseTests(unittest.TestCase):
-    def test_push_projects_have_their_own_fresh_services_and_production_admission_budgets(self):
-        self.assertEqual(("mobile", "desktop", "admin-mobile", "admin-desktop", "push-mobile", "push-desktop"), PROJECTS)
+
+    def test_push_projects_keep_their_fresh_services_alongside_the_new_regression_families(self):
+        self.assertEqual(("mobile", "desktop", "admin-mobile", "admin-desktop", "push-mobile", "push-desktop", "regression-mobile", "regression-desktop",
+                          "authentication-mobile", "authentication-desktop", "security-mobile", "security-desktop", "wishes-mobile", "wishes-desktop",
+                          "collaboration-mobile", "collaboration-desktop", "privacy-mobile", "privacy-desktop", "moderation-mobile", "moderation-desktop",
+                          "access-mobile", "access-desktop"), PROJECTS)
+
+    def test_default_projects_and_catalog_select_real_playwright_scenarios(self):
+        root = Path(__file__).resolve().parents[2]
+        catalog = subprocess.run(
+            ["node", "--input-type=module", "-e", "import {regressionCatalog} from './tools/regression/catalog.js'; console.log(JSON.stringify(regressionCatalog))"],
+            cwd=root, capture_output=True, text=True, timeout=30, check=True,
+        )
+        entries = json.loads(catalog.stdout)
+        for config, layer in (("playwright.config.js", "browser"), ("playwright.native.config.js", "native")):
+            with self.subTest(config=config):
+                result = subprocess.run(
+                    ["node", str(root / "node_modules/@playwright/test/cli.js"), "test", "--config", config, "--list", "--reporter=json"],
+                    cwd=root, capture_output=True, text=True, timeout=30, check=False,
+                )
+                self.assertEqual(0, result.returncode, result.stderr)
+                report = json.loads(result.stdout)
+                discovered = set()
+                projects = set()
+
+                def inspect(suites):
+                    for suite in suites:
+                        for spec in suite.get("specs", []):
+                            self.assertTrue(spec["tests"], spec["title"])
+                            discovered.add(Path(spec["file"]).name)
+                            projects.update(test["projectName"] for test in spec["tests"])
+                        inspect(suite.get("suites", []))
+
+                inspect(report["suites"])
+                if layer == "native":
+                    self.assertEqual(set(PROJECTS), projects)
+                    self.assertEqual(set(PROJECTS), {project["name"] for project in report["config"]["projects"]})
+                for entry in entries:
+                    for name in entry[layer]:
+                        self.assertIn(name + ".spec.js", discovered, entry["name"])
 
     def test_waits_for_the_listener_event_in_current_and_older_native_logs(self):
         for event in ({"eventId": 901}, {"EventId": 901}):

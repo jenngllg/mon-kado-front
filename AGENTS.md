@@ -52,3 +52,7 @@ Read and apply [the shared MonKado instructions](../mon-kado/AGENTS.shared.md), 
 - Technical recovery must not add manual “Vérifier”, “Relire” or image-retry controls. Reconcile an uncertain explicit operation with a bounded, authorized read when possible, preserving drafts and never replaying its writes. Media recovery renews only the failed image; it must not refresh other business information or run on a timer, focus or visibility change. Retain meaningful business confirmations and security checks.
 
 
+
+- Owner toolbar order approved by Jenn: keep sorting left; show secondary “Partager”, primary labelled “Ajouter un souhait”, then the “⋯” list-options disclosure on the right. Preserve that order in the DOM and keyboard navigation, allowing the add action and Options to share a wrapped row on mobile. Put edit, reorder, archive/restore and delete in that disclosure; retain existing permissions, confirmations and focus recovery. Group audience and public sharing live together under “Partager”, in independent “Mes groupes / Lien public” tabs.
+
+- Reading list descriptions appear below all other context information (author, occasion, date/countdown and authorized counters), in public and group views on desktop and mobile. Empty lists retain the description below their metadata without adding counters.

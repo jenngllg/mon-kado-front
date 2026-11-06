@@ -18,6 +18,35 @@ function setup(options = {}) {
 }
 async function settle() { for (let i = 0; i < 12; i++) await Promise.resolve(); }
 describe("shared wishlist presentation", () => {
+  it.each([undefined, id])("places the description last and clears it when access is revoked (group %s)", async groupId => {
+    // Arrange
+    const access = new AbortController();
+    const ui = setup({ ...(groupId ? { groupId } : {}), accessSignal: access.signal });
+    await settle();
+    const banner = /** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-details-info"));
+    // Assert
+    expect([...banner.children].map(node => node.className)).toEqual([
+      "shared-wishlist-summary flow", "wishlist-context-stats", "wishlist-context-description",
+    ]);
+    const description = /** @type {HTMLElement} */ (banner.lastElementChild);
+    expect(description.textContent).toBe(list.message);
+    expect(banner.querySelector(".shared-wishlist-identity .wishlist-details-note")).toBeNull();
+    // Act / Assert
+    access.abort();
+    expect(ui.view.textContent).not.toContain(list.message);
+    expect(description.hidden).toBe(true);
+  });
+  it.each([null, "Description conservée"])("keeps empty-list descriptions optional and below metadata (%s)", async message => {
+    // Arrange / Act
+    const ui = setup({ load: async () => ({ ...list, wishes: [], message }) });
+    await settle();
+    // Assert
+    const description = /** @type {HTMLElement} */ (ui.view.querySelector(".wishlist-context-description"));
+    expect(description.hidden).toBe(!message);
+    expect(description.textContent).toBe(message ?? "");
+    expect(description.previousElementSibling?.className).toBe("wishlist-context-stats");
+    expect(ui.view.querySelector(".wishlist-context-count, .wishlist-context-progress")).toBeNull();
+  });
   it("keeps the selected sort and member origin on suggestion page links without another read", async () => {
     const ownerId="019c52dd-56c1-7cc6-8a95-243f3a032e07";
     const createSuggestions=()=>{
@@ -267,12 +296,12 @@ describe("shared wishlist presentation", () => {
     const identity = ui.view.querySelector(".shared-wishlist-identity");
     expect(identity?.querySelector("h1")?.textContent).toBe(list.name);
     expect(identity?.querySelector(".shared-wishlist-owner")?.textContent).toBe("Par Camille");
-    expect(ui.view.querySelector(".shared-wishlist-identity .wishlist-details-note")?.textContent).toBe(list.message);
+    expect(ui.view.querySelector(".wishlist-context-description .wishlist-details-note")?.textContent).toBe(list.message);
     expect(identity?.nextElementSibling?.className).toBe("shared-wishlist-metadata");
     expect(ui.view.querySelector(".shared-wishlist-metadata")?.textContent).toContain("Anniversaire");
     expect(ui.view.querySelector(".shared-wishlist-metadata")?.textContent).not.toContain("Par Camille");
     expect(ui.view.querySelector(".shared-wishlist-metadata")?.textContent).not.toContain(list.message);
-    expect(ui.view.querySelector(".shared-wishlist-identity .wishlist-details-note")?.textContent).toBe(list.message);
+    expect(ui.view.querySelector(".wishlist-context-description .wishlist-details-note")?.textContent).toBe(list.message);
     expect(ui.view.querySelector(".section-toolbar h2")?.className).toBe("visually-hidden");
     expect(ui.view.querySelector(".wish-sort-control select")).not.toBeNull();
     expect(ui.view.querySelector(".section-toolbar .shared-wishlist-filter input")).not.toBeNull();

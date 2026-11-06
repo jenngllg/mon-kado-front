@@ -72,7 +72,7 @@ const preferences = "/api/v1/members/current/notification-preferences";
   test(`all nine notification choices persist through the real API`, async ({ page, actors, viewport }) => {
     const width = viewport?.width ?? 1440;
     await page.setViewportSize({ width, height: 1000 }); await signIn(page, actors.owner); await page.locator("main .dashboard").waitFor();
-    await page.goto("/profile/notifications"); const choices = page.locator("table td:nth-child(2) input[role=switch]"); await expect(choices).toHaveCount(9); await expect(choices.first()).toBeEnabled();
+    await page.goto("/profile/notifications"); const choices = page.locator("table tbody td:nth-child(2)").getByRole("switch"); await expect(choices).toHaveCount(9); await expect(choices.first()).toBeEnabled();
     const original = await (await actors.owner.send("GET", preferences, 200)).json();
     const wanted = { ...original };
     for (const choice of await choices.all()) {
@@ -124,7 +124,12 @@ test("concurrent native preference editors preserve both explicit changes", asyn
   const first = page.locator('input[name="wishesAdded"]'), second = peer.locator('input[name="groupJoined"]');
   await expect(first).toBeEnabled(); await expect(second).toBeEnabled();
   const before = await (await actors.owner.send("GET", preferences, 200)).json();
-  await first.focus(); await page.keyboard.press("Space"); await second.focus(); await peer.keyboard.press("Space");
+  await expect(first).toBeChecked({ checked: before.wishesAdded });
+  await expect(second).toBeChecked({ checked: before.groupJoined });
+  await page.bringToFront(); await first.press("Space");
+  await expect(first).toBeChecked({ checked: !before.wishesAdded });
+  await peer.bringToFront(); await second.press("Space");
+  await expect(second).toBeChecked({ checked: !before.groupJoined });
   await page.getByRole("button", { name: "Enregistrer", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Préférences enregistrées." })).toBeVisible();
   await peer.getByRole("button", { name: "Enregistrer", exact: true }).click();

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, listId, sharedPath, secret } from "./controlledApi.js";
 
 for (const width of [390, 1440]) {
@@ -22,7 +22,7 @@ for (const width of [390, 1440]) {
         await expect(page.getByRole("heading", { name: "Mes envies", exact: true })).toBeVisible();
         // Assert
         await expect(banner).not.toContainText("Autre"); await expect(banner).not.toContainText("Sans date");
-        await expect(banner.locator(".wishlist-details-note")).toHaveText("Quelques idées à partager");
+        await expect(page.locator(".wishlist-details-info .wishlist-details-note")).toHaveText("Quelques idées à partager");
         await expect(banner.locator(".shared-wishlist-owner")).toHaveCount(mode === "owner" ? 0 : 1);
         const metadata = banner.locator(".shared-wishlist-metadata");
         if (scenario.label || scenario.eventDate) {

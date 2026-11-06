@@ -2343,8 +2343,8 @@ before publishing these paired changes. Local browser checks use the real API
 in addition to the controlled failure/concurrency scenarios in
 `e2e/notificationPreferences.spec.js`.
 
-Production follows `main`, after the complete quality gate and the existing
-`production` environment approval. `develop` never publishes to the VPS. The
+Production follows `main`, after the complete quality gate, through the existing
+`production` environment restricted to main. `develop` never publishes to the VPS. The
 `Deploy frontend main to VPS` workflow reuses the exact verified build and native
 backend contract proof, publishes immutable assets, then requests the VPS switch
 through a dedicated forced-command SSH key. It retains reachable assets from the
@@ -2355,3 +2355,10 @@ backend's [main-to-VPS runbook](https://github.com/jenngllg/mon-kado/blob/main/d
 
 
 Compte → Notifications présente un tableau Dans MonKado / Notifications push, activé par défaut par type. L’autorisation est demandée au premier enregistrement d’un choix push ; installer MonKado sur l’écran d’accueil est obligatoire sur iPhone/iPad. Les projets natifs push-mobile et push-desktop vérifient aussi le service worker quand tous les onglets sont fermés. La procédure serveur est documentée dans le dépôt backend, `docs/mobile-push.md`.
+
+
+## Complete regression journeys
+
+`pnpm test:regression` runs every native mobile and desktop project against the real API, worker and disposable PostgreSQL database. The [regression matrix](docs/regression-matrix.md) maps every application route to maintained browser suites and describes external-provider simulations. The CI gate checks actual Playwright discovery so a newly added route or an unselected suite cannot silently escape review.
+
+Installed applications offer notification activation once after authentication. Permission is requested only by the explicit activation action; saved disabled types remain unchanged. See [the invitation workflow](docs/installed-push-invitation.md).

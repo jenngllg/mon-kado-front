@@ -1,5 +1,5 @@
 /* global window -- Used only inside page.evaluate, which executes in Chromium. */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, sharedPath, secret } from "./controlledApi.js";
 
 test("untrusted text remains inert and only bounded tab continuity retains the share credential", async ({ page, context }) => {

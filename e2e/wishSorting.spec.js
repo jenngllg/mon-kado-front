@@ -1,5 +1,5 @@
 import { openListOptions } from "./ownerActions.js";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin, listId, sharedPath, wishId, secret } from "./controlledApi.js";
 
 const otherId = "019c52dd-56c1-7cc6-8a95-243f3a032e30";

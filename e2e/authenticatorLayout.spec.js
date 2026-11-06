@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin } from "./controlledApi.js";
 
 for (const [width, enlarged] of [[320, false], [390, false], [949, false], [1440, false], [1440, true]]) {

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin, listId, wishId } from "./controlledApi.js";
 
 /** @param {import("@playwright/test").BrowserContext} context Browser. @param {boolean} surpriseMode Concealment. @param {number} quantity Desired stock. */
@@ -82,8 +82,9 @@ for (const width of [390, 1440]) {
       expect(imageBox && infoBox && reservationBox).toBeTruthy();
       if (width === 1440 && imageBox && infoBox && reservationBox) {
         expect(infoBox.x).toBeGreaterThan(imageBox.x + imageBox.width);
+        expect(imageBox.width).toBeLessThanOrEqual(416);
         expect(imageBox.height).toBeLessThanOrEqual(312);
-        expect(reservationBox.y).toBeGreaterThan(infoBox.y);
+        expect(reservationBox.x).toBeGreaterThan(imageBox.x + imageBox.width);
       }
       expect(api.owner.writes).toBe(0);
       if (surprise) {

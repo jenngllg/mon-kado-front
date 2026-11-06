@@ -57,7 +57,8 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
   toolbar.append(heading, filterControls, sorting.element);
   gifts.append(toolbar, results, suggestions); gifts.hidden = true;
   const counts = element("div", ""); counts.className = "wishlist-context-stats";
-  details.append(title); information.append(details, counts); layout.append(information, gifts);
+  const description = element("div", ""); description.className = "wishlist-context-description"; description.hidden = true;
+  details.append(title); information.append(details, counts, description); layout.append(information, gifts);
   view.append(navigation, layout);
   let disposed = false, busy = false, terminal = false, copying = false;
   let availableOnly = false;
@@ -85,7 +86,7 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
   const copyActions = copy ? createWishCopyActions({ ...copy, signal: lifetime.signal, onUnavailable: unavailable,
     onBusy: value => { copying = value; filter.disabled = value || busy || terminal; sorting.select.disabled = value || busy || terminal; reportButton.disabled = value; } }) : null;
   if (copyActions) view.append(copyActions.element);
-  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); closeReservation(); closeReport(); clearPortrait(); clear(subscriptionActions); disposeComponent(reportButton); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; clear(details); clear(counts); clear(results); clear(suggestions); title.textContent = ""; gifts.hidden = true; filter.disabled = true; filter.checked = false; availableOnly = false; });
+  registerComponentCleanup(view, () => { disposed = true; lifetime.abort(); closeReservation(); closeReport(); clearPortrait(); clear(subscriptionActions); disposeComponent(reportButton); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; clear(details); clear(counts); clear(description); description.hidden = true; clear(results); clear(suggestions); title.textContent = ""; gifts.hidden = true; filter.disabled = true; filter.checked = false; availableOnly = false; });
   if (signal) { addComponentEventListener(view, signal, "abort", () => disposeComponent(view), { once: true }); if (signal.aborted) disposeComponent(view); }
   if (accessSignal && !disposed) { addComponentEventListener(view, accessSignal, "abort", unavailable, { once: true }); if (accessSignal.aborted) unavailable(); }
   if (!disposed) void read(false);
@@ -113,7 +114,7 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
     if (disposed || busy || terminal || copying || reservationDialog) return;
     closeReport(); clearPortrait(); clear(subscriptionActions); reportButton.hidden = true;
     view.classList.remove("shared-wishlist-view--empty"); toolbar.hidden = false;
-    busy = true; currentList = null; sorting.select.disabled = true; clear(details); clear(counts); clear(results); clear(suggestions); gifts.hidden = filterControls.hidden; filter.disabled = true;
+    busy = true; currentList = null; sorting.select.disabled = true; clear(details); clear(counts); clear(description); description.hidden = true; clear(results); clear(suggestions); gifts.hidden = filterControls.hidden; filter.disabled = true;
     title.textContent = "Liste de souhaits partagée"; details.setAttribute("aria-busy", "true"); details.append(title, createLoadingState({ label: "Chargement de la liste…" }));
     try {
       const list = await load(shareLinkId, { signal: lifetime.signal, availableOnly });
@@ -137,9 +138,9 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
         author.setAttribute("aria-label", `Voir les listes de ${list.ownerDisplayName}`); author.title = `Voir les listes de ${list.ownerDisplayName}`;
       }
       populateWishlistContext(counts, list.wishes, { filtered: availableOnly });
-      // Keep the personal message with identity, before event and aggregate information.
       const message = counts.querySelector(".wishlist-details-note");
-      if (message) details.querySelector(".shared-wishlist-identity")?.append(message);
+      if (message) description.append(message);
+      description.hidden = !message;
       // An empty filtered result must retain controls so visitors can remove the filter.
       const emptyList = list.wishes.length === 0 && !availableOnly;
       view.classList.toggle("shared-wishlist-view--empty", emptyList);
@@ -207,7 +208,7 @@ export function createSharedWishlistView({ currentUserId, personalReservation, l
   }
   function unavailable() {
     if (disposed || terminal) return;
-    terminal = true; lifetime.abort(); closeReservation(); closeReport(); clearPortrait(); clear(subscriptionActions); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; reservationStatus.textContent = ""; clear(details); clear(counts); details.append(title); clear(results); clear(suggestions); gifts.hidden = true;
+    terminal = true; lifetime.abort(); closeReservation(); closeReport(); clearPortrait(); clear(subscriptionActions); currentList = null; reportButton.hidden = true; reportStatus.textContent = ""; reservationStatus.textContent = ""; clear(details); clear(counts); clear(description); description.hidden = true; details.append(title); clear(results); clear(suggestions); gifts.hidden = true;
     title.textContent = groupId ? "Liste indisponible" : "Lien de partage indisponible";
     details.append(element("p", groupId ? "Cette liste n’est plus accessible dans ce groupe." : "Ce lien ne permet pas de consulter une liste. Demande un lien de partage valide à la personne qui te l’a envoyé."));
     title.focus();

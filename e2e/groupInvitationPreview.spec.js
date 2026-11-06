@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { readFileSync } from "node:fs";
 import { controlledApi, frontendOrigin } from "./controlledApi.js";
 
@@ -30,14 +30,14 @@ for (const width of [390, 1440]) {
     await expect(preview.getByText("7 membres",{exact:true})).toBeVisible();
     await expect(preview.locator("img")).toHaveJSProperty("complete",true);
     await expect(page.getByRole("button",{name:"Rejoindre le groupe",exact:true})).toBeDisabled();
-    await expect(page.locator('.group-join-view a[href="/login"]')).toHaveAttribute("href","/login");
+    await expect(page.getByRole("link",{name:"Se connecter",exact:true}).last()).toHaveAttribute("href","/login");
     expect(new URL(page.url()).hash).toBe(""); expect(reads).toBe(1); expect(writes).toBe(0);
     expect(await page.evaluate(()=>globalThis.document.documentElement.scrollWidth<=globalThis.window.innerWidth)).toBe(true);
     await page.screenshot({path:testInfo.outputPath(`group-invitation-${width}.png`),fullPage:true});
     await page.goto(`/groups/join/${id}`);
     await expect(preview).toBeVisible();
-    await expect(page.getByLabel("Code du groupe",{exact:false})).toHaveValue(code);
-    await expect(page.getByRole("button",{name:"Rejoindre le groupe",exact:true})).toBeDisabled();
+    await expect(page.getByRole("textbox", { name: /Code du groupe/ })).toHaveValue(code);
+    await expect(page.getByRole("button", { name: "Rejoindre le groupe", exact: true })).toBeDisabled();
     revoked=true;
     await page.goto(`/groups/join/${id}#${code}`);
     await expect(preview).toHaveCount(0);

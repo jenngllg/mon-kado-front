@@ -1,6 +1,7 @@
 import { test, expect, signIn, noOverflow } from "./fixture.js";
 const devices = "/api/v1/members/current/push-subscriptions";
 test("notification channel table has one push column and no device naming", async ({ page, actors }, testInfo) => {
+    const originalInApp = await (await actors.owner.send("GET", "/api/v1/members/current/notification-preferences", 200)).json();
     await actors.owner.send("POST", devices, 201, { endpoint: "https://fcm.googleapis.com/native-phone", name: "Mon téléphone" });
     await actors.owner.send("POST", devices, 201, { endpoint: "https://web.push.apple.com/native-ipad", name: "Mon iPad" });
     // Isolate the browser push provider while all account reads/writes use the real API and database.
@@ -22,7 +23,6 @@ test("notification channel table has one push column and no device naming", asyn
     await expect(table.getByRole("columnheader",{name:"Notifications push",exact:true})).toBeVisible();
     await expect(page.getByRole("textbox",{name:/Nom de cet appareil/})).toHaveCount(0);
     await expect(page.getByRole("button",{name:/Activer cet appareil|Désactiver Mon/})).toHaveCount(0);
-    const beforeInApp=await(await actors.owner.send("GET","/api/v1/members/current/notification-preferences",200)).json();
     const push=table.getByRole("switch",{name:"Nouveaux souhaits — Notifications push",exact:true});
     await expect(push).toBeChecked();
     await push.focus();
@@ -33,7 +33,7 @@ test("notification channel table has one push column and no device naming", asyn
     expect(saved.wishesAdded).toBe(false);
     expect(saved.groupJoined).toBe(true);
     const inApp=await(await actors.owner.send("GET","/api/v1/members/current/notification-preferences",200)).json();
-    expect(inApp).toEqual(beforeInApp);
+    expect(inApp).toEqual(originalInApp);
     await page.reload();
     await expect(push).not.toBeChecked();
     await expect(table.getByRole("switch")).toHaveCount(18);

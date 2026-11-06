@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { readFileSync } from "node:fs";
 import { controlledApi, listId, wishId, frontendOrigin, sharedPath, secret } from "./controlledApi.js";
 
@@ -115,7 +115,7 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     await expect(tiles).toHaveCount(8);
     await expect(identity.getByRole("heading", { name: "Liste 1", exact: true })).toBeVisible();
     await expect(identity).toContainText("Par MonKado");
-    await expect(identity.locator(".wishlist-details-note")).toHaveText("Pour me faire des beaux cadeaux à mon anniversaire :)");
+    await expect(banner.locator(".wishlist-context-description .wishlist-details-note")).toHaveText("Pour me faire des beaux cadeaux à mon anniversaire :)");
     await expect(event).toContainText("Anniversaire");
     await expect(event.locator("time")).toHaveText("18 janvier 2027");
     await expect(event).toContainText("103 jours restants");
@@ -124,6 +124,9 @@ for (const width of [390, 768, 1487, 1920, 3440]) {
     expect(eventBox?.y).toBeGreaterThan((identityBox?.y ?? 0) + (identityBox?.height ?? 0));
     await expect(event).toHaveCSS("border-left-width", "0px");
     await expect(event).toHaveCSS("border-top-width", "0px");
+    const noteBox = await banner.locator(".wishlist-details-note").boundingBox();
+    const statsBox = await banner.locator(".wishlist-context-stats").boundingBox();
+    expect(noteBox?.y).toBeGreaterThanOrEqual((statsBox?.y ?? 0) + (statsBox?.height ?? 0));
     const positions = await tiles.evaluateAll(items => items.map(item => { const box = item.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width }; }));
     const rows = positions.map(position => positions.filter(other => other.y === position.y).length);
     expect(Math.max(...rows)).toBeLessThanOrEqual(3);

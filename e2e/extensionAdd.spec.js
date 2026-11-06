@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, listId } from "./controlledApi.js";
 
 for (const viewport of [{ width: 560, height: 760 }, { width: 390, height: 844 }]) {

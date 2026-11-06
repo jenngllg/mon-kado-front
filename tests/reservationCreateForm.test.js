@@ -56,6 +56,7 @@ describe("reservation creation", () => {
   });
   it("omits the redundant fully reserved message for a single-item wish without allowing submission", async () => {
     const ui = setup({ available: 0, singleItem: true }); ui.submit(); await settle();
+    expect(ui.onBusy).toHaveBeenLastCalledWith(false);
     expect(ui.view.textContent).not.toContain("Ce souhait est entièrement réservé.");
     expect(ui.create).not.toHaveBeenCalled();
     expect(/** @type {HTMLButtonElement | null} */ (ui.view.querySelector('button[type="submit"]'))?.disabled).toBe(true);

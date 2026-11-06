@@ -1,5 +1,5 @@
 /* global document, window, getComputedStyle */
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { readFile } from "node:fs/promises";
 import { controlledApi, frontendOrigin, listId, wishId } from "./controlledApi.js";
 

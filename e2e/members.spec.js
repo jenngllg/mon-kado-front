@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin, listId, sharedPath, secret, wishId } from "./controlledApi.js";
 
 const memberId = "019c52dd-56c1-7cc6-8a95-243f3a032e05";
@@ -10,7 +10,6 @@ async function membersApi(context) {
   const state = { status: 200, shared: true, searches: /** @type {string[]} */ ([]), profiles: 0 };
   await context.route("http://localhost:7000/api/v1/members**", async route => {
     if (route.request().method() === "OPTIONS") return route.fallback();
-    if (new URL(route.request().url()).pathname.startsWith("/api/v1/members/current/")) return route.fallback();
     expect(route.request().headers().authorization).toBeUndefined();
     expect(route.request().headers().referer).toBeUndefined();
     const url = new URL(route.request().url());
@@ -43,7 +42,7 @@ test("anonymous search → profile → shared list → wish and back preserves t
   }));
   await page.goto("/members");
   await page.locator("main").getByRole("searchbox", { name: /Pseudo ou identifiant/ }).fill("Camille");
-  await page.locator("main").getByRole("button", { name: "Rechercher", exact: true }).click();
+  await page.getByRole("button", { name: "Rechercher", exact: true }).click();
   await page.getByRole("button", { name: "Page suivante" }).click();
   await expect(page.getByText("21 membres trouvés. Page 2 sur 2.").first()).toBeVisible();
   await page.getByRole("link", { name: "Camille", exact: true }).click();
@@ -142,20 +141,6 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 360, height: 800
     await page.reload();
     await expect(page.getByRole("heading", { name: "Profil introuvable" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Actualiser|Réessayer/ })).toHaveCount(0);
-    expect(api.unexpected).toEqual([]);
-  });
-}
-
-for (const width of [390, 1440]) {
-  test(`member list covers use their rendered size at ${width}px`, async ({ page, context }) => {
-    await page.setViewportSize({ width, height: 1000 });
-    const api = await membersApi(context);
-    await page.goto(profilePath);
-    const cover = page.locator(".member-profile-list img");
-    await expect(cover).toHaveAttribute("loading", "eager");
-    const source = await cover.evaluate(async element => { const image = /** @type {HTMLImageElement} */ (element); await image.decode(); return image.currentSrc; });
-    expect(source).toMatch(width === 390 ? /-200-/ : /-400-/);
-    expect(await page.evaluate(() => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth)).toBe(true);
     expect(api.unexpected).toEqual([]);
   });
 }

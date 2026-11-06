@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi,frontendOrigin } from "./controlledApi.js";
 
 const currentId="019c52dd-56c1-7cc6-8a95-243f3a032e05", targetId="019c52dd-56c1-7cc6-8a95-243f3a032e76";

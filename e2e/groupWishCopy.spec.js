@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, frontendOrigin, listId, wishId } from "./controlledApi.js";
 
 const groupId = "019c52dd-56c1-7cc6-8a95-243f3a032e70", sourceId = "019c52dd-56c1-7cc6-8a95-243f3a032e08", ownerId = "019c52dd-56c1-7cc6-8a95-243f3a032e71", copiedId = "019c52dd-56c1-7cc6-8a95-243f3a032e90";

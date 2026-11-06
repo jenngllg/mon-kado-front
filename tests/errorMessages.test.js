@@ -3,6 +3,14 @@ import { ApiError } from "../src/api/apiError.js";
 import { toUserFacingError } from "../src/errors/errorMessages.js";
 
 describe("toUserFacingError", () => {
+  it.each([
+    ["ACCOUNT_TWO_FACTOR_CODE_INVALID", 400, "Code à vérifier"],
+    ["WISH_COPY_SAME_WISHLIST", 409, "Liste identique"],
+  ])("translates %s without displaying the provider message", (errorCode, statusCode, title) => {
+    const result = toUserFacingError(new ApiError({ kind: "http", errorCode, statusCode }));
+    expect(result.title).toBe(title);
+    expect(result.message).not.toContain("private backend detail");
+  });
   it("describes an unreachable API without assuming an internet outage", () => {
     // Arrange
     const error = new ApiError({ kind: "network" });

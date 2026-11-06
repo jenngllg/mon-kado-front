@@ -44,6 +44,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
   form.append(actions); root.append(status, feedback, form);
   const lifetime = new AbortController();
   let disposed = false, busy = false, blocked = available === 0, done = false, touched = false, dirty = false;
+  let verificationPending = false;
   /** @type {HTMLButtonElement | null} */ let pressed = null;
   let deferred = false;
   function validate() { touched = true; const error = validateReservationQuantity(input.value, available); setFormFieldValidation(field, error); return error; }
@@ -56,7 +57,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
     availability.classList.toggle("reservation-quantity-limit--cap", available > 100);
     root.setAttribute("aria-busy", String(busy));
     // A partial refresh must not bypass the mandatory gift-and-reservation verification.
-    onBusy?.(!disposed && (busy || (blocked && !form.hidden)));
+    onBusy?.(!disposed && (busy || (verificationPending && !form.hidden)));
   }
   /** @param {number} delta Explicit local quantity adjustment, never a reservation write. */
   function adjust(delta) {
@@ -107,7 +108,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
       const validation = error instanceof ApiError && error.validationErrors.some(value => value.propertyName === "quantity");
       const uncertain = !(error instanceof ApiError) || error.kind !== "http" || (error.statusCode ?? 500) >= 500;
       const conflict = error instanceof ApiError && ([409, 412, 428, 401, 404].includes(error.statusCode ?? 0) || error.validationErrors.some(value => value.propertyName === "ifMatch"));
-      if (uncertain || conflict) blocked = true;
+      if (uncertain || conflict) { blocked = true; verificationPending = true; }
       failure(error, uncertain ? "Ta réservation n’a pas pu être confirmée." : conflict ? "La réservation ou la disponibilité a changé." : null);
       if (uncertain || conflict) { busy = false; await check(); }
       if (validation) {
@@ -124,6 +125,7 @@ export function createReservationCreateForm({ available, create, verify, onSaved
     busy = true; controls(); clearFeedback(); status.textContent = "Vérification de ta réservation…";
     try {
       const current = await verify(lifetime.signal); if (disposed) return;
+      verificationPending = false;
       if (current.lookup.state === "reserved" && current.lookup.reservation.quantity === Number(input.value)) {
         done = true; input.value = ""; form.hidden = true; status.textContent = editing ? "Réservation modifiée" : "Réservation enregistrée"; return;
       }

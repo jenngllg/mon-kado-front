@@ -1,5 +1,5 @@
 import { openListOptions } from "./ownerActions.js";
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi, listId } from "./controlledApi.js";
 
 test("create then delete a list with an explicit confirmation and individual version", async ({ page, context }) => {

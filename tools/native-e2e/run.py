@@ -16,6 +16,8 @@ import argparse
 
 
 ROOT = Path(__file__).resolve().parents[2]
+PROJECTS = ("mobile", "desktop", "admin-mobile", "admin-desktop", "push-mobile", "push-desktop", "regression-mobile", "regression-desktop")
+PROJECTS += tuple(f"{area}-{viewport}" for area in ("authentication", "security", "wishes", "collaboration", "privacy", "moderation", "access") for viewport in ("mobile", "desktop"))
 
 
 def database_configuration(value):
@@ -127,7 +129,7 @@ def run(project, arguments=()):
         browser_environment = os.environ.copy() | {"MONKADO_NATIVE_FIXTURE": str(metadata), "MONKADO_NATIVE_PROJECT": project}
         node = os.environ.get("NODE", "node")
         result = subprocess.run([node, str(ROOT / "node_modules/@playwright/test/cli.js"), "test",
-                                 "--config", "playwright.native.config.js", "--project", project, *arguments], cwd=ROOT, env=browser_environment)
+                                 "--config", "playwright.native.config.js", "--project=" + project, *arguments], cwd=ROOT, env=browser_environment)
         return result.returncode
     finally:
         for process in reversed(processes):
@@ -145,9 +147,6 @@ def run(project, arguments=()):
         if created:
             child_database_url(parsed, database)
             command(["dropdb", "--maintenance-db=" + pg["PGDATABASE"], database], "NATIVE_DATABASE_CLEANUP_FAILED")
-
-
-PROJECTS = ("mobile", "desktop", "admin-mobile", "admin-desktop", "push-mobile", "push-desktop")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixture.js";
 import { controlledApi } from "./controlledApi.js";
 
 for (const [width, fontSize] of [[240, 16], [280, 16], [320, 16], [390, 16], [768, 16], [1115, 16], [1440, 16], [320, 20]]) {

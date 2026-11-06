@@ -17,6 +17,12 @@ export default defineConfig({
     { name: "push-desktop", testMatch: ["mobilePush.spec.js","pushClosed.spec.js","installedPushInvitation.spec.js"], use: { viewport: {width:1440,height:1000} } },
     { name: "mobile", testMatch: "journeys.spec.js", use: { viewport: { width: 390, height: 1000 }, isMobile: true, hasTouch: true } },
     { name: "desktop", testMatch: "journeys.spec.js", use: { viewport: { width: 1440, height: 1000 } } },
+    { name: "regression-mobile", testMatch: "siteRegression.spec.js", use: { viewport: { width: 390, height: 1000 }, isMobile: true, hasTouch: true } },
+    { name: "regression-desktop", testMatch: "siteRegression.spec.js", use: { viewport: { width: 1440, height: 1000 } } },
+    ...["authentication", "security", "wishes", "collaboration", "privacy", "moderation", "access"].flatMap(area => [
+      { name: `${area}-mobile`, testMatch: `${area}Regression.spec.js`, use: { viewport: { width: 390, height: 1000 }, isMobile: true, hasTouch: true } },
+      { name: `${area}-desktop`, testMatch: `${area}Regression.spec.js`, use: { viewport: { width: 1440, height: 1000 } } },
+    ]),
   ],
   reporter: [["list"], ["html", { open: "never", outputFolder: `native-playwright-report/${project}` }]],
   use: { baseURL: "http://localhost:5296", browserName: "chromium", serviceWorkers: "block", timezoneId: "UTC",

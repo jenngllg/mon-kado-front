@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect } from "./fixture.js";
 
 export const listId = "019c52dd-56c1-7cc6-8a95-243f3a032e04";
 export const shareId = "019c52dd-56c1-7cc6-8a95-243f3a032e06";

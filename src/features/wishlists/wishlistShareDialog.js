@@ -15,6 +15,7 @@ export function createWishlistShareDialog({ onClose, groups, ...options }) {
   close.setAttribute("aria-label", "Fermer le partage"); close.title = "Fermer le partage";
   close.replaceChildren(); prependShareDialogIcon(close, "close"); close.classList.add("icon-action", "wishlist-share-dialog__close");
   const title = document.createElement("h2"); title.textContent = "Partager la liste"; title.id = `share-dialog-${crypto.randomUUID()}`;
+  title.tabIndex = -1;
   title.setAttribute("autofocus", ""); dialog.setAttribute("aria-labelledby", title.id);
   dialog.append(close, title);
   const tabs = document.createElement("div"); tabs.className = "wishlist-share-tabs"; tabs.setAttribute("role", "tablist"); tabs.setAttribute("aria-label", "Mode de partage");
